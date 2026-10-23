@@ -11,6 +11,9 @@
 namespace editor::statemachine
 {
 struct DebuggerTransport;
+#ifdef UVIM_ENABLE_SEARCH_TOOLS
+struct FuzzyFindMode;
+#endif
 
 struct DebuggerBreakpointLocation
 {
@@ -40,6 +43,12 @@ struct DebuggerMode
     std::vector<std::string> programArguments;
     std::string state = "ready";
     std::string sourcePath;
+    std::string executionPath;
+    bool sourcePinned = false;
+    bool followExecutionOnStop = false;
+#ifdef UVIM_ENABLE_SEARCH_TOOLS
+    std::shared_ptr<FuzzyFindMode> filePicker;
+#endif
     int executionLine = 0;
     int frameIndex = 0;
     std::string frameFunction, stopFunction;
@@ -77,6 +86,7 @@ struct DebuggerMode
     void draw(Editor& editor);
     void processIdle(Editor& editor);
     void applyMessage(const std::string& message);
+    bool selectSourceFile(const std::string& path, int line = 1);
 
 private:
     std::vector<std::string> drawnRows;
@@ -87,5 +97,7 @@ private:
     void clamp(const Editor& editor);
     void updateBreakpointLines();
     void updatePromptMenu();
+    void drawContent(Editor& editor);
+    void toggleSelectedBreakpoint();
 };
 } // namespace editor::statemachine

@@ -42,6 +42,8 @@ struct FuzzyFindMode
     bool projectFilesInitialized = false;
     bool filenameFirst = false;
     bool previewEnabled = true;
+    bool singleSelection = false;
+    std::string pickerTitle = "Find File";
     // Pattern the current matches were computed for (query minus any
     // ":<line>" suffix); typing only the suffix keeps the matches.
     std::string matchedPattern;
@@ -62,7 +64,7 @@ struct FuzzyFindMode
     std::optional<ModeState> handle(ModeContext& ctx,
                                     const ModeKeyEvent& event);
 
-    void draw(Editor& editor) const;
+    void draw(Editor& editor, bool drawBackdrop = true) const;
     void refreshFileIndex(Editor& editor);
 
 private:

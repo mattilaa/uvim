@@ -7,6 +7,7 @@
 #include "editor_utils.h"
 #include "json_utils.h"
 #include "mode_state_machine.h"
+#include "picker_query.h"
 #include "process_launch.h"
 #include "terminal.h"
 #include "text_utils.h"
@@ -138,6 +139,14 @@ std::array<DebuggerRect, 4> paneRects(const Editor& editor, bool stopped,
         rects[3] = {left + 1, 3 + top, width - left, body - top};
     }
     return rects;
+}
+
+std::filesystem::path debuggerSourcePath(const std::string& path)
+{
+    std::error_code error;
+    const auto result = std::filesystem::weakly_canonical(
+        EditorPathUtilities::resolveEditorPath(path), error);
+    return error ? std::filesystem::path(path).lexically_normal() : result;
 }
 
 struct DebuggerCommandEntry
@@ -401,8 +410,17 @@ void DebuggerMode::on_enter(ModeContext& ctx)
     }
 }
 
-void DebuggerMode::on_exit(ModeContext&)
+void DebuggerMode::on_exit(ModeContext& ctx)
 {
+#ifdef UVIM_ENABLE_SEARCH_TOOLS
+    if(filePicker)
+    {
+        filePicker->on_exit(ctx);
+        filePicker.reset();
+    }
+#else
+    (void)ctx;
+#endif
     transport.reset();
 }
 
@@ -499,27 +517,38 @@ void DebuggerMode::applyMessage(const std::string& message)
     }
     if(!retainSnapshot && json_utils::has(*doc, "path"))
     {
-        auto path = json_utils::get_string(*doc, "path");
+        const auto path = json_utils::get_string(*doc, "path");
         const int line = json_utils::get_int(*doc, "line");
-        const bool sourceChanged = sourcePath != path;
-        const bool follow = sourceChanged || executionLine != line ||
-                            previousState == "running";
-        if(sourcePath != path)
-        {
-            sourcePath = path;
-            source.clear();
-            highlight = {};
-            std::ifstream file(path);
-            std::string line;
-            while(source.size() < 200000 && std::getline(file, line))
-                source.push_back(safe(line));
-        }
+        const bool backendMoved =
+            (executionPath.empty() ? sourcePath : executionPath) != path ||
+            executionLine != line;
+        executionPath = path;
         executionLine = line;
-        if(follow && executionLine > 0)
+        if(state == "stopped" && followExecutionOnStop)
         {
-            cursor[0] = executionLine - 1;
+            sourcePinned = false;
+            followExecutionOnStop = false;
+        }
+        if(!sourcePinned)
+        {
+            const bool sourceChanged = sourcePath != path;
             if(sourceChanged)
-                offset[0] = std::max(0, cursor[0] - 5);
+            {
+                sourcePath = path;
+                source.clear();
+                highlight = {};
+                std::ifstream file(path);
+                std::string text;
+                while(source.size() < 200000 && std::getline(file, text))
+                    source.push_back(safe(text));
+            }
+            if((sourceChanged || backendMoved || previousState == "running") &&
+               line > 0)
+            {
+                cursor[0] = line - 1;
+                if(sourceChanged)
+                    offset[0] = std::max(0, cursor[0] - 5);
+            }
         }
     }
     if(!retainSnapshot && json_utils::has(*doc, "frame"))
@@ -571,20 +600,93 @@ void DebuggerMode::updateBreakpointLines()
     breakpointLines.clear();
     if(sourcePath.empty())
         return;
-    auto canonical = [](const std::string& path)
-    {
-        std::error_code error;
-        const auto result = std::filesystem::weakly_canonical(
-            EditorPathUtilities::resolveEditorPath(path), error);
-        return error ? std::filesystem::path(path).lexically_normal() : result;
-    };
-    const auto source = canonical(sourcePath);
+    const auto source = debuggerSourcePath(sourcePath);
     for(const auto& bp : breakpoints)
         if(bp.enabled)
             for(const auto& location : bp.locations)
                 if(location.enabled && location.line > 0 &&
-                   !location.path.empty() && canonical(location.path) == source)
+                   !location.path.empty() &&
+                   debuggerSourcePath(location.path) == source)
                     breakpointLines.insert(location.line);
+}
+
+bool DebuggerMode::selectSourceFile(const std::string& path, int line)
+{
+    const auto resolved = EditorPathUtilities::resolveEditorPath(path);
+    std::ifstream file(resolved, std::ios::binary);
+    if(!file)
+    {
+        output.push_back("Cannot read debugger source: " + safe(path));
+        return false;
+    }
+    std::vector<std::string> contents;
+    std::string text;
+    size_t bytes = 0;
+    while(std::getline(file, text))
+    {
+        bytes += text.size();
+        if(text.find('\0') != std::string::npos || bytes > 20 * 1024 * 1024 ||
+           contents.size() >= 200000)
+        {
+            output.push_back("Choose a text source file smaller than 20 MB and "
+                             "200000 lines");
+            return false;
+        }
+        contents.push_back(safe(text));
+    }
+    if(file.bad())
+    {
+        output.push_back("Cannot read debugger source: " + safe(path));
+        return false;
+    }
+    if(contents.empty())
+        contents.emplace_back();
+    if(executionPath.empty())
+        executionPath = sourcePath;
+    sourcePath = resolved.string();
+    source = std::move(contents);
+    highlight = {};
+    sourcePinned = true;
+    pane = 0;
+    cursor[0] = std::clamp(line - 1, 0, static_cast<int>(source.size()) - 1);
+    offset[0] = std::max(0, cursor[0] - 5);
+    updateBreakpointLines();
+    return true;
+}
+
+void DebuggerMode::toggleSelectedBreakpoint()
+{
+    if(pane != 0 || sourcePath.empty() || cursor[0] < 0 ||
+       cursor[0] >= static_cast<int>(source.size()))
+    {
+        output.push_back("Breakpoint: select a source row first");
+        return;
+    }
+    const auto path = debuggerSourcePath(sourcePath);
+    const int line = cursor[0] + 1;
+    std::vector<std::string> active;
+    std::string disabled;
+    for(const auto& bp : breakpoints)
+        for(const auto& location : bp.locations)
+            if(location.line == line && !location.path.empty() &&
+               debuggerSourcePath(location.path) == path)
+            {
+                if(bp.enabled && location.enabled)
+                {
+                    if(std::find(active.begin(), active.end(), bp.id) ==
+                       active.end())
+                        active.push_back(bp.id);
+                }
+                else if(!bp.enabled)
+                    disabled = bp.id;
+            }
+    if(!active.empty())
+        for(const auto& id : active)
+            execute("delete " + id);
+    else if(!disabled.empty())
+        execute("enable " + disabled);
+    else
+        execute("b " + sourcePath + ":" + std::to_string(line));
 }
 
 void DebuggerMode::updatePromptMenu()
@@ -641,6 +743,12 @@ void DebuggerMode::execute(const std::string& command)
         output.push_back("Debugger is not connected");
         return;
     }
+    const auto verb = command.substr(0, command.find(' '));
+    if(verb == "n" || verb == "next" || verb == "s" || verb == "step" ||
+       verb == "f" || verb == "finish" || verb == "c" || verb == "continue" ||
+       verb == "r" || verb == "run" || verb == "interrupt" ||
+       verb == "thread" || verb == "frame" || verb == "up" || verb == "down")
+        followExecutionOnStop = true;
     transport->send(command);
 }
 
@@ -704,6 +812,35 @@ std::optional<ModeState> DebuggerMode::handle(ModeContext& ctx,
     const int key = event.key;
     ctx.editor->needsFullRedraw = true;
     const int paneCount = hasStoppedSnapshot || state == "stopped" ? 4 : 2;
+#ifdef UVIM_ENABLE_SEARCH_TOOLS
+    if(filePicker)
+    {
+        bool close = key == keyCode(control::ControlKey::ESC);
+        if(key == keyCode(control::ControlKey::ENTER))
+        {
+            const int index = filePicker->cursor;
+            if(index >= 0 &&
+               index < static_cast<int>(filePicker->matches.size()))
+            {
+                const auto query = parsePickerQuery(filePicker->query);
+                close = selectSourceFile(filePicker->matches[index].file.path,
+                                         query.hasLine ? query.line : 1);
+                if(!close && !output.empty())
+                    ctx.setStatusMessage(output.back());
+            }
+        }
+        else if(!close)
+            filePicker->handle(ctx, event);
+        if(close)
+        {
+            filePicker->on_exit(ctx);
+            filePicker.reset();
+            drawnRows.clear();
+            drawnFooter.clear();
+        }
+        return {};
+    }
+#endif
     if(promptActive)
     {
         if(key == 27)
@@ -801,6 +938,19 @@ std::optional<ModeState> DebuggerMode::handle(ModeContext& ctx,
             execute("interrupt");
         return {};
     }
+    if(key == keyCode(control::ControlKey::CTRL_P))
+    {
+#ifdef UVIM_ENABLE_SEARCH_TOOLS
+        filePicker = std::make_shared<FuzzyFindMode>();
+        filePicker->singleSelection = true;
+        filePicker->pickerTitle = "Debugger Source";
+        filePicker->on_enter(ctx);
+#else
+        output.push_back(
+            "Debugger file picker requires UVIM_ENABLE_SEARCH_TOOLS");
+#endif
+        return {};
+    }
     if(key == 'q' || key == 27)
         return defaultExitMode(ctx.editor);
     if(key == ':')
@@ -832,6 +982,8 @@ std::optional<ModeState> DebuggerMode::handle(ModeContext& ctx,
     else if(key == keyCode(control::ControlKey::ENTER) && state == "stopped" &&
             pane == 3 && cursor[3] < static_cast<int>(threadIds.size()))
         execute("thread " + threadIds[cursor[3]]);
+    else if(key == 'b')
+        toggleSelectedBreakpoint();
     else if(key == 'r')
         execute("run");
     else if(key == 'c')
@@ -849,6 +1001,23 @@ std::optional<ModeState> DebuggerMode::handle(ModeContext& ctx,
 }
 
 void DebuggerMode::draw(Editor& editor)
+{
+#ifdef UVIM_ENABLE_SEARCH_TOOLS
+    if(filePicker)
+    {
+        Terminal::beginCapture();
+        drawnRows.clear();
+        drawnFooter.clear();
+        drawContent(editor);
+        filePicker->draw(editor, false);
+        Terminal::endCapture();
+        return;
+    }
+#endif
+    drawContent(editor);
+}
+
+void DebuggerMode::drawContent(Editor& editor)
 {
     const int width = std::max(1, editor.screenCols);
     const auto rects =
@@ -883,7 +1052,8 @@ void DebuggerMode::draw(Editor& editor)
     };
     header(1, " Debugger [" + backend + "] " + state +
                   "  Focus: " + names[pane] + "  " + target);
-    header(2, " j/k rows   Tab panes   v variables   t threads   " +
+    header(2, " j/k rows   b breakpoint   Ctrl-P file   Tab panes   v "
+              "variables   t threads   " +
                   std::string(Terminal::shiftChordLabel()) +
                   "-H/J/K/L pane   : command   q quit");
     const std::array<const std::vector<std::string>*, 4> lists{
@@ -900,11 +1070,13 @@ void DebuggerMode::draw(Editor& editor)
         auto at = [&](int row) { atPosition(rect.y + row, rect.x); };
         std::string title =
             std::string(pane == which ? "> " : " ") + names[which];
-        if(state == "running" && hasStoppedSnapshot && which != 1)
+        if(which == 0 && sourcePinned)
+            title += " (browse)";
+        else if(state == "running" && hasStoppedSnapshot && which != 1)
             title += " (last stop)";
         if(which == 0)
         {
-            if(!frameFunction.empty())
+            if(!sourcePinned && !frameFunction.empty())
                 title +=
                     " #" + std::to_string(frameIndex) + " " + frameFunction;
             if(!sourcePath.empty())
@@ -935,8 +1107,11 @@ void DebuggerMode::draw(Editor& editor)
             const auto& lines = *lists[which];
             out += editor.theme.reset();
             const bool selected = pane == which && cursor[which] == index;
-            const bool executing =
-                state == "stopped" && which == 0 && index + 1 == executionLine;
+            const bool executing = state == "stopped" && which == 0 &&
+                                   index + 1 == executionLine &&
+                                   (executionPath.empty() ||
+                                    debuggerSourcePath(sourcePath) ==
+                                        debuggerSourcePath(executionPath));
             if(selected || executing)
                 out += editor.theme.selection();
             if(index >= static_cast<int>(lines.size()))
@@ -1084,7 +1259,9 @@ void DebuggerMode::draw(Editor& editor)
     widgets::ViewStatusBarView status{.theme = editor.theme};
     status.modeLabel = name();
     status.context =
-        frameFunction.empty()
+        sourcePinned
+            ? "source " + std::filesystem::path(sourcePath).filename().string()
+        : frameFunction.empty()
             ? backend
             : "frame #" + std::to_string(frameIndex) + " " + frameFunction;
     status.state = state;
@@ -1105,6 +1282,10 @@ void DebuggerMode::draw(Editor& editor)
     else if(breakpointListOpen)
         out +=
             fit(" Breakpoints: Ctrl-J/K selects  d deletes  Esc closes", width);
+    else if(sourcePinned)
+        out += fit(" Browsing source: j/k row  b toggle breakpoint  Ctrl-P "
+                   "file  n/step or thread/frame returns to execution",
+                   width);
     else if(state == "running" && hasStoppedSnapshot)
         out += fit(" Running; source, variables and threads show the last "
                    "stop. Ctrl-C interrupts.",

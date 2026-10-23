@@ -104,7 +104,8 @@ class LLDB:
         elif verb in ('b', 'break') and colon and row.isdigit():
             if int(row) <= 0:
                 raise ValueError('Breakpoint line must be positive')
-            bp = self.target.BreakpointCreateByLocation(path.strip('"\''), int(row))
+            debug_path = self.breakpoint_source_path(path.strip('"\''))
+            bp = self.target.BreakpointCreateByLocation(debug_path, int(row))
             if not bp.IsValid():
                 raise RuntimeError(f'Cannot create breakpoint at {path}:{row}')
             self.requested_breakpoints[bp.GetID()] = (path.strip('"\''), int(row))
@@ -236,6 +237,37 @@ class LLDB:
         if fallback is not None:
             thread.SetSelectedFrame(fallback)
         self.source_selection_pending = False
+
+    def breakpoint_source_path(self, path):
+        # The file picker canonicalizes paths, while DWARF can retain a symlink
+        # spelling (/var versus /private/var on macOS). LLDB's resolver matches
+        # debug-info paths; retain that spelling for the requested physical file.
+        wanted = os.path.realpath(os.path.abspath(path))
+        cache = getattr(self, 'source_aliases', {})
+        modules = [self.target.GetModuleAtIndex(i) for i in range(self.target.GetNumModules())]
+        signature = tuple(module.GetUUIDString() or str(module.GetFileSpec()) for module in modules)
+        key = (signature, wanted)
+        if key in cache:
+            return cache[key]
+        for module in modules:
+            for unit_index in range(module.GetNumCompileUnits()):
+                unit = module.GetCompileUnitAtIndex(unit_index)
+                primary = unit.GetFileSpec()
+                directory = primary.GetDirectory() or ''
+                files = [primary]
+                files.extend(unit.GetSupportFileAtIndex(i) for i in range(unit.GetNumSupportFiles()))
+                for file in files:
+                    name = file.GetFilename()
+                    if not name:
+                        continue
+                    candidate = os.path.join(file.GetDirectory() or '', name)
+                    if not os.path.isabs(candidate) and directory:
+                        candidate = os.path.join(directory, candidate)
+                    if os.path.realpath(os.path.abspath(candidate)) == wanted:
+                        cache[key] = candidate
+                        self.source_aliases = cache
+                        return candidate
+        return path
 
     def publish_breakpoints(self):
         result = []

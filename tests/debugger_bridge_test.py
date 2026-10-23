@@ -152,6 +152,36 @@ class BridgeTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             gdb.command('delete')
 
+    @unittest.skipIf(os.name == 'nt', 'fixture uses POSIX symlinks')
+    def test_breakpoint_file_picker_path_resolves_to_dwarf_spelling(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            real = root / 'real'
+            real.mkdir()
+            (real / 'helper.hpp').write_text('inline int helper() { return 42; }')
+            alias = root / 'alias'
+            alias.symlink_to(real, target_is_directory=True)
+            def file(name):
+                value = MagicMock()
+                value.GetDirectory.return_value = str(alias)
+                value.GetFilename.return_value = name
+                return value
+            engine = bridge.LLDB.__new__(bridge.LLDB)
+            engine.target = MagicMock()
+            engine.target.GetNumModules.return_value = 1
+            module = engine.target.GetModuleAtIndex.return_value
+            module.GetUUIDString.return_value = 'fixture-module'
+            module.GetNumCompileUnits.return_value = 1
+            unit = module.GetCompileUnitAtIndex.return_value
+            unit.GetFileSpec.return_value = file('main.cpp')
+            unit.GetNumSupportFiles.return_value = 1
+            unit.GetSupportFileAtIndex.return_value = file('helper.hpp')
+            self.assertEqual(engine.breakpoint_source_path(str(real / 'helper.hpp')),
+                             str(alias / 'helper.hpp'))
+            self.assertEqual(engine.breakpoint_source_path(str(real / 'helper.hpp')),
+                             str(alias / 'helper.hpp'))
+            module.GetCompileUnitAtIndex.assert_called_once_with(0)
+
     def test_gdb_commands_escape_paths(self):
         gdb = bridge.GDB.__new__(bridge.GDB)
         with patch.object(gdb, 'send') as send:
@@ -309,7 +339,7 @@ class LiveTests(unittest.TestCase):
                         proc.stdin.flush()
                     try:
                         until(lambda m: m.get('state') == 'stopped')
-                        command(f'b {source}:4')
+                        command(f'b {source.resolve()}:4')
                         metadata = until(lambda m: bool(m.get('breakpoints')))
                         breakpoint_id = metadata['breakpoints'][0]['id']
                         self.assertTrue(any(loc['path'] == str(source) and loc['line'] == 4 for loc in metadata['breakpoints'][0]['locations']))

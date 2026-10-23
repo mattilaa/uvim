@@ -1803,6 +1803,18 @@ the list. `:delete ID`, `:disable ID`, and `:enable ID` also work. Pending and
 disabled breakpoints are identified in the list; gutter markers update when
 breakpoints resolve, change, or are removed.
 
+In the Source pane, select a row with `j`/`k` and press `b` to toggle a
+breakpoint. Existing enabled breakpoints on that row are removed; an existing
+disabled breakpoint is enabled. Ctrl+P opens the normal fuzzy file finder
+inside the debugger (requires `UVIM_ENABLE_SEARCH_TOOLS`). Filter project files,
+navigate with Ctrl+J/K, and press Enter to display a file without changing editor
+buffers or ending the debug session. A `:LINE` suffix such as `helper.hpp:42`
+selects the row directly. Esc cancels the picker. Browse rows and press `b` to set
+a breakpoint in that file; its source stays selected while breakpoint metadata
+refreshes. Continue/step or frame/thread selection returns to the execution
+source at the next stopped update. The execution arrow is only shown in its
+actual source file.
+
 `:c`, `:n`, `:s`, and `:f` continue, step
 over, step into, and step out; the same letters work without the prompt.
 `:run` (or `r`) restarts the program. Ctrl-C interrupts execution. Other commands
