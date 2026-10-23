@@ -3,6 +3,7 @@
 #include "mode_state.h"
 #include "preview_highlight.h"
 #include <array>
+#include <chrono>
 #include <memory>
 #include <string>
 #include <unordered_set>
@@ -89,6 +90,8 @@ struct DebuggerMode
     bool selectSourceFile(const std::string& path, int line = 1);
 
 private:
+    // Keep brief running transitions from changing titles and command hints.
+    std::optional<std::chrono::steady_clock::time_point> runningStatusDeadline;
     std::vector<std::string> drawnRows;
     std::string drawnFooter;
     int drawnWidth = 0;

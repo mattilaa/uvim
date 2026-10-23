@@ -1,6 +1,7 @@
 #include "ascii.h"
 #include "json_utils.h"
 #include "real_mode_test_utils.h"
+#include <thread>
 #ifdef UVIM_ENABLE_AUXILIARY_VIEWS
 using namespace uvim_test;
 
@@ -266,8 +267,7 @@ TEST(RealModeTransitionsTest, DebuggerKeepsLastStopAndViewportWhileStepping)
     testing::internal::CaptureStdout();
     debug->draw(editor);
     const auto running = testing::internal::GetCapturedStdout();
-    EXPECT_NE(running.find("Variables (last stop)"), std::string::npos);
-    EXPECT_EQ(running.find("No readable source"), std::string::npos);
+    EXPECT_TRUE(running.empty());
     debug->applyMessage(
         "{\"state\":\"stopped\",\"path\":" + path +
         ",\"line\":31,\"variables\":[\"count = 43\",\"ratio = 1.5\"]}");
@@ -280,6 +280,56 @@ TEST(RealModeTransitionsTest, DebuggerKeepsLastStopAndViewportWhileStepping)
     EXPECT_NE(stopped.find("count = 43"), std::string::npos);
     EXPECT_EQ(stopped.find("No readable source"), std::string::npos);
     std::filesystem::remove_all(dir);
+}
+
+TEST(RealModeTransitionsTest, DebuggerDelaysRunningHintsAndRefreshesWhileIdle)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.screenRows = 32;
+    editor.screenCols = 120;
+    auto sm = makeMachine(editor, DebuggerMode{"app", false});
+    auto* debug = sm.getState<DebuggerMode>();
+    ASSERT_NE(debug, nullptr);
+    // Exercise the idle refresh without starting a real debugger process.
+    debug->started = true;
+    debug->applyMessage("{\"state\":\"stopped\"}");
+    testing::internal::CaptureStdout();
+    debug->draw(editor);
+    testing::internal::GetCapturedStdout();
+    debug->applyMessage("{\"state\":\"running\"}");
+    EXPECT_EQ(debug->state, "running");
+    testing::internal::CaptureStdout();
+    debug->draw(editor);
+    EXPECT_TRUE(testing::internal::GetCapturedStdout().empty());
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(350));
+    // Repeated running notifications must not restart the delay.
+    debug->applyMessage("{\"state\":\"running\"}");
+    editor.needsFullRedraw = false;
+    debug->processIdle(editor);
+    EXPECT_TRUE(editor.needsFullRedraw);
+    testing::internal::CaptureStdout();
+    debug->draw(editor);
+    const auto running = testing::internal::GetCapturedStdout();
+    EXPECT_NE(running.find("Debugger [lldb] running"), std::string::npos);
+    EXPECT_NE(running.find("Variables (last stop)"), std::string::npos);
+    EXPECT_NE(running.find("Ctrl-C interrupts"), std::string::npos);
+
+    debug->applyMessage("{\"state\":\"stopped\"}");
+    testing::internal::CaptureStdout();
+    debug->draw(editor);
+    const auto stopped = testing::internal::GetCapturedStdout();
+    EXPECT_NE(stopped.find("Debugger [lldb] stopped"), std::string::npos);
+    EXPECT_NE(stopped.find("n next"), std::string::npos);
+
+    debug->applyMessage("{\"state\":\"running\"}");
+    debug->applyMessage("{\"state\":\"error\"}");
+    testing::internal::CaptureStdout();
+    debug->draw(editor);
+    EXPECT_NE(
+        testing::internal::GetCapturedStdout().find("Debugger [lldb] error"),
+        std::string::npos);
 }
 
 TEST(RealModeTransitionsTest, DebuggerCommandMenuOnlyRepaintsCoveredRows)

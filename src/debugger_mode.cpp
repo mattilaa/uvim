@@ -426,6 +426,12 @@ void DebuggerMode::on_exit(ModeContext& ctx)
 
 void DebuggerMode::processIdle(Editor& editor)
 {
+    if(runningStatusDeadline &&
+       std::chrono::steady_clock::now() >= *runningStatusDeadline)
+    {
+        runningStatusDeadline.reset();
+        editor.needsFullRedraw = true;
+    }
     if(!started && state != "error")
     {
         started = true;
@@ -486,6 +492,11 @@ void DebuggerMode::applyMessage(const std::string& message)
         state = json_utils::get_string(*doc, "state");
     if(state == "stopped")
         hasStoppedSnapshot = true;
+    if(state != "running")
+        runningStatusDeadline.reset();
+    else if(previousState != "running" && hasStoppedSnapshot)
+        runningStatusDeadline =
+            std::chrono::steady_clock::now() + std::chrono::milliseconds(300);
     const bool retainSnapshot = state == "running" && hasStoppedSnapshot;
     auto strings =
         [&](const char* key, std::vector<std::string>& destination, bool append)
@@ -1019,6 +1030,12 @@ void DebuggerMode::draw(Editor& editor)
 
 void DebuggerMode::drawContent(Editor& editor)
 {
+    const bool displayRunning =
+        state == "running" &&
+        (!runningStatusDeadline ||
+         std::chrono::steady_clock::now() >= *runningStatusDeadline);
+    const auto displayState =
+        state == "running" && !displayRunning ? std::string("stopped") : state;
     const int width = std::max(1, editor.screenCols);
     const auto rects =
         paneRects(editor, hasStoppedSnapshot || state == "stopped", pane);
@@ -1050,7 +1067,7 @@ void DebuggerMode::drawContent(Editor& editor)
         out += editor.theme.reset() + editor.theme.uiAccent() +
                fit(safe(text), width);
     };
-    header(1, " Debugger [" + backend + "] " + state +
+    header(1, " Debugger [" + backend + "] " + displayState +
                   "  Focus: " + names[pane] + "  " + target);
     header(2, " j/k rows   b breakpoint   Ctrl-P file   Tab panes   v "
               "variables   t threads   " +
@@ -1072,7 +1089,7 @@ void DebuggerMode::drawContent(Editor& editor)
             std::string(pane == which ? "> " : " ") + names[which];
         if(which == 0 && sourcePinned)
             title += " (browse)";
-        else if(state == "running" && hasStoppedSnapshot && which != 1)
+        else if(displayRunning && hasStoppedSnapshot && which != 1)
             title += " (last stop)";
         if(which == 0)
         {
@@ -1082,7 +1099,7 @@ void DebuggerMode::drawContent(Editor& editor)
             if(!sourcePath.empty())
                 title += " " + sourcePath;
         }
-        if(which == 3 && state != "running")
+        if(which == 3 && !displayRunning)
             title += " (Enter selects)";
         at(0);
         out += border;
@@ -1107,7 +1124,7 @@ void DebuggerMode::drawContent(Editor& editor)
             const auto& lines = *lists[which];
             out += editor.theme.reset();
             const bool selected = pane == which && cursor[which] == index;
-            const bool executing = state == "stopped" && which == 0 &&
+            const bool executing = displayState == "stopped" && which == 0 &&
                                    index + 1 == executionLine &&
                                    (executionPath.empty() ||
                                     debuggerSourcePath(sourcePath) ==
@@ -1264,7 +1281,7 @@ void DebuggerMode::drawContent(Editor& editor)
         : frameFunction.empty()
             ? backend
             : "frame #" + std::to_string(frameIndex) + " " + frameFunction;
-    status.state = state;
+    status.state = displayState;
     status.flags.push_back(breakpointListOpen ? "Breakpoints" : names[pane]);
     status.flags.push_back(attach ? "q detaches" : "q ends session");
     editor.appendViewStatusBar(out, std::move(status));
@@ -1286,11 +1303,11 @@ void DebuggerMode::drawContent(Editor& editor)
         out += fit(" Browsing source: j/k row  b toggle breakpoint  Ctrl-P "
                    "file  n/step or thread/frame returns to execution",
                    width);
-    else if(state == "running" && hasStoppedSnapshot)
+    else if(displayRunning && hasStoppedSnapshot)
         out += fit(" Running; source, variables and threads show the last "
                    "stop. Ctrl-C interrupts.",
                    width);
-    else if(state == "stopped")
+    else if(displayState == "stopped")
     {
         std::string hint =
             " n next  s into  f out  c continue  :b file:line breakpoint";
