@@ -1,3 +1,4 @@
+#include "ascii.h"
 #include "json_utils.h"
 #include "real_mode_test_utils.h"
 #ifdef UVIM_ENABLE_AUXILIARY_VIEWS
@@ -144,6 +145,14 @@ TEST(RealModeTransitionsTest, DebuggerDrawsSyntaxAndFocusedCompactPane)
     testing::internal::CaptureStdout();
     debug->draw(editor);
     const auto full = testing::internal::GetCapturedStdout();
+    EXPECT_NE(full.find(ascii::utf8(ascii::BOX_ROUNDED_TOP_LEFT)),
+              std::string::npos);
+    EXPECT_NE(full.find(ascii::utf8(ascii::BOX_ROUNDED_BOTTOM_RIGHT)),
+              std::string::npos);
+    EXPECT_NE(full.find(ascii::utf8(ascii::BOX_LIGHT_VERTICAL)),
+              std::string::npos);
+    EXPECT_NE(full.find(ascii::utf8(ascii::BOX_LIGHT_HORIZONTAL)),
+              std::string::npos);
     EXPECT_NE(full.find("Variables"), std::string::npos);
     EXPECT_NE(full.find("Threads"), std::string::npos);
     EXPECT_NE(full.find("count: int = 42"), std::string::npos);
@@ -158,5 +167,55 @@ TEST(RealModeTransitionsTest, DebuggerDrawsSyntaxAndFocusedCompactPane)
     const auto compact = testing::internal::GetCapturedStdout();
     EXPECT_NE(compact.find("main-thread"), std::string::npos);
     EXPECT_EQ(compact.find("count: int = 42"), std::string::npos);
+}
+
+TEST(RealModeTransitionsTest, DebuggerScrollsEachPaneUsingItsOwnHeight)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.screenRows = 32;
+    editor.screenCols = 120;
+    auto sm = makeMachine(editor, DebuggerMode{"app", false});
+    auto* debug = sm.getState<DebuggerMode>();
+    ASSERT_NE(debug, nullptr);
+    debug->state = "stopped";
+    debug->sourcePath = "test.cpp";
+    debug->executionLine = 1;
+    for(int line = 0; line < 100; ++line)
+    {
+        debug->source.push_back("int value = 42;");
+        debug->variables.push_back("value = 42");
+        debug->threads.push_back("thread " + std::to_string(line));
+    }
+    for(int i = 0; i < 10; ++i)
+        sm.dispatch('j');
+    EXPECT_EQ(debug->cursor[0], 10);
+    EXPECT_EQ(debug->offset[0], 0);
+    testing::internal::CaptureStdout();
+    debug->draw(editor);
+    testing::internal::GetCapturedStdout();
+    EXPECT_EQ(debug->offset[0], 0);
+    debug->applyMessage(
+        "{\"state\":\"stopped\",\"path\":\"test.cpp\",\"line\":1}");
+    EXPECT_EQ(debug->cursor[0], 10);
+    EXPECT_EQ(debug->offset[0], 0);
+    sm.dispatch('v');
+    EXPECT_EQ(debug->pane, 2);
+    for(int i = 0; i < 10; ++i)
+        sm.dispatch('j');
+    EXPECT_EQ(debug->cursor[2], 10);
+    EXPECT_EQ(debug->offset[2], 0);
+    sm.dispatch('t');
+    EXPECT_EQ(debug->pane, 3);
+    for(int i = 0; i < 10; ++i)
+        sm.dispatch('j');
+    EXPECT_EQ(debug->cursor[3], 10);
+    EXPECT_EQ(debug->offset[3], 3);
+    sm.dispatch(keyCode(control::ControlKey::TAB));
+    EXPECT_EQ(debug->pane, 0);
+    sm.dispatch(keyCode(control::ControlKey::SHIFT_TAB));
+    EXPECT_EQ(debug->pane, 3);
+    sm.dispatch('k');
+    EXPECT_EQ(debug->cursor[3], 9);
 }
 #endif

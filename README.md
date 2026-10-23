@@ -1766,7 +1766,15 @@ and threads appear on the right. Use `j`/`k` (or arrows) to select rows and
 `Ctrl+Shift+H/J/K/L` to focus the pane in that direction. Terminals without
 extended key reporting use the editor's existing Alt+h/j/k/l fallback. Select a
 thread with Enter to inspect its source and variables. Small terminals show the
-focused pane alone.
+focused pane alone. Tab/Shift-Tab cycles panes; `v` focuses Variables and `t`
+focuses Threads. The active pane is named in the header and has an accented
+glyph border. `j`/`k` moves the selection within that focused pane.
+
+Attaching commonly stops inside a system call such as sleep. The debugger
+selects the nearest readable application frame so source and locals remain
+visible. The source title and footer identify the inspected caller frame.
+`:frame 0` shows the actual stop frame; `:up`/`:down` selects other frames.
+If no source frame is available, the pane explains how to set a breakpoint.
 
 Press `:` for debugger commands. `:b path/to/file:42` sets a breakpoint; Tab
 completes the path while preserving an existing `:42` suffix. Completion inserts
@@ -1787,3 +1795,51 @@ MLang's installed `share/mlang/debugger/mladbg.py`; for a checkout, set
 `UVIM_MLADBG_MODULE=/path/to/mlang/tools/mladbg/mladbg.py`. The program's stdin is
 separate from editor commands; interactive program input is not exposed in this
 first version. Variables currently show top-level values and summaries.
+
+### Debugger test programs
+
+Generate debug builds for C, C++, and MLang (all three by default):
+
+```sh
+python3 scripts/create_debugger_examples.py --language all
+```
+
+To keep a C++ target running in one terminal while attaching from uVim in
+another:
+
+```sh
+python3 scripts/create_debugger_examples.py --language cpp --run
+```
+
+The script prints `:dbgattach PID`, `:dbgrun BINARY`, and an exact
+`:b SOURCE:LINE` command. Add the breakpoint, then use `:c` to reach it.
+Each fixture has two worker threads plus main, nested function calls, and
+scalar/array/struct locals. Select a thread with Enter in the Threads pane.
+`--threads 0` disables workers; `--threads N` chooses up to 32 workers.
+
+```sh
+# MLang with four workers; print commands for the mladbg backend.
+python3 scripts/create_debugger_examples.py --language mlang --threads 4 --backend mladbg --run
+
+# Single-threaded C that exits after five rounds.
+python3 scripts/create_debugger_examples.py --language c --threads 0 --iterations 5 --run
+
+# Choose a parent directory and shorten the delay between rounds.
+python3 scripts/create_debugger_examples.py --language all --output-dir /tmp/my-debug-tests --interval-ms 250
+```
+
+Each invocation creates a unique directory under `/tmp` (or `--output-dir`)
+containing sources, binaries, debug symbols, build/run logs, `manifest.json`,
+and `COMMANDS.txt`. Files remain after the script exits. By default targets
+repeat until stopped; Ctrl-C in the `--run` terminal stops its targets.
+Use `--iterations N` for a finite test. Without `--run`, the script only builds
+and prints commands for launching the binaries yourself or through `:dbgrun`.
+
+Compilers are discovered on `PATH`; MLang also checks `../mlang/build/mlang`.
+Override them with `--cc`, `--cxx`, `--mlang`, or `CC`, `CXX`, `MLANG`.
+`--language all` requires all three compilers. These fixtures cover the native
+languages in the current debugger workflow; managed and interpreted source
+languages need additional adapters. On Linux, the fixtures allow attachment
+from another terminal using
+[`PR_SET_PTRACER`](https://man7.org/linux/man-pages/man2/PR_SET_PTRACER.2const.html)
+without changing the system's ptrace settings.

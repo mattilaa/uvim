@@ -27,11 +27,22 @@ def lldb_module():
         return importlib.import_module('lldb')
 
 
+def readable_source(path, line):
+    return bool(path and int(line or 0) > 0 and os.path.isfile(path))
+
+
+def application_source(path, function):
+    return not (function.startswith(('std::', '__')) or '/include/c++/' in path or
+                '/stdlib/std/' in path or '/include/mlang/' in path or
+                path.startswith(('/System/', '/usr/include/', '/usr/lib/', '/Applications/Xcode.app/')))
+
+
 class LLDB:
     def __init__(self, backend, attach, target, args):
         self.lldb = lldb_module()
         self.session = None
         self.attached = attach
+        self.source_selection_pending = attach
         if backend == 'mladbg':
             paths = [os.environ.get('UVIM_MLADBG_MODULE', '')]
             launcher = shutil.which('mladbg')
@@ -80,6 +91,8 @@ class LLDB:
         self.snapshot()
 
     def command(self, text):
+        text = text.strip()
+        select_thread = text.startswith('thread ') and text[7:].strip().isdigit()
         if text == 'interrupt':
             error = self.target.GetProcess().Stop()
             if error.Fail():
@@ -99,12 +112,16 @@ class LLDB:
                     text = 'breakpoint set --file ' + json.dumps(path.strip('\"')) + ' --line ' + row
                 else:
                     text = 'breakpoint set --name ' + json.dumps(rest)
+            elif verb == 'frame' and rest.strip().isdigit():
+                text = 'frame select ' + rest.strip()
             else:
                 text = aliases.get(verb, verb) + (' ' + rest if rest else '')
             result = self.lldb.SBCommandReturnObject()
             self.debugger.GetCommandInterpreter().HandleCommand(text, result)
             emit(output=(result.GetOutput() + result.GetError()).splitlines())
         self.target = self.debugger.GetSelectedTarget()
+        if select_thread:
+            self.select_source_frame(prefer_application=True)
         self.snapshot()
 
     def poll(self):
@@ -124,11 +141,45 @@ class LLDB:
                     if thread.GetStopReason() not in (self.lldb.eStopReasonInvalid, self.lldb.eStopReasonNone):
                         process.SetSelectedThread(thread)
                         break
+            if process.GetState() == self.lldb.eStateStopped:
+                self.select_source_frame(prefer_application=self.source_selection_pending)
             if process.GetState() == self.lldb.eStateExited:
                 emit(output=['Process exited: ' + str(process.GetExitStatus()) + ' ' + (process.GetExitDescription() or '')])
             elif process.GetState() == self.lldb.eStateStopped:
                 emit(output=['Stopped: ' + (process.GetSelectedThread().GetStopDescription(512) or '')])
             self.snapshot()
+
+    @staticmethod
+    def frame_source(frame):
+        entry = frame.GetLineEntry()
+        if not entry.IsValid():
+            return '', 0
+        file = entry.GetFileSpec()
+        return os.path.join(file.GetDirectory() or '', file.GetFilename() or ''), entry.GetLine()
+
+    def select_source_frame(self, prefer_application=False):
+        process = self.target.GetProcess()
+        if process.GetState() not in (self.lldb.eStateStopped, self.lldb.eStateCrashed,
+                                     self.lldb.eStateSuspended):
+            return
+        thread = process.GetSelectedThread()
+        path, line = self.frame_source(thread.GetSelectedFrame())
+        if readable_source(path, line) and not prefer_application:
+            return
+        fallback = None
+        for index in range(min(thread.GetNumFrames(), 64)):
+            frame = thread.GetFrameAtIndex(index)
+            path, line = self.frame_source(frame)
+            if not readable_source(path, line):
+                continue
+            if fallback is None:
+                fallback = index
+            if application_source(path, frame.GetFunctionName() or ''):
+                fallback = index
+                break
+        if fallback is not None:
+            thread.SetSelectedFrame(fallback)
+        self.source_selection_pending = False
 
     def snapshot(self):
         process = self.target.GetProcess()
@@ -136,13 +187,16 @@ class LLDB:
                                          self.lldb.eStateSuspended)
         state = 'stopped' if stopped else 'running' if process.GetState() in (
             self.lldb.eStateRunning, self.lldb.eStateStepping) else 'exited' if process.GetState() == self.lldb.eStateExited else 'ready'
-        value = dict(state=state, variables=[], threads=[], path='', line=0)
+        value = dict(state=state, variables=[], threads=[], path='', line=0, frame=0, function='', stopFunction='')
         if stopped:
-            frame = process.GetSelectedThread().GetSelectedFrame()
-            entry = frame.GetLineEntry()
-            file = entry.GetFileSpec()
-            value.update(path=os.path.join(file.GetDirectory() or '', file.GetFilename() or ''),
-                         line=entry.GetLine())
+            if self.source_selection_pending:
+                self.select_source_frame(prefer_application=True)
+            thread = process.GetSelectedThread()
+            frame = thread.GetSelectedFrame()
+            value.update(frame=frame.GetFrameID(), function=frame.GetFunctionName() or '',
+                         stopFunction=thread.GetFrameAtIndex(0).GetFunctionName() or '')
+            path, line = self.frame_source(frame)
+            value.update(path=path, line=line)
             for var in list(frame.GetVariables(True, True, False, True))[:256]:
                 value['variables'].append(f'{var.GetName()}: {var.GetTypeName()} = {var.GetValue() or var.GetSummary() or "{…}"}')
             for thread in list(process)[:256]:
@@ -286,21 +340,36 @@ class GDB:
                     emit(state='exited', variables=[], threads=[])
                 else:
                     emit(state='stopped')
-                    self.refresh()
+                    self.send('-stack-list-frames 0 63', 'source-frames')
             elif prefix == '^':
                 kind = self.pending.pop(token, '')
                 if result == 'error':
+                    if kind == 'source-frames':
+                        self.refresh()
                     emit(**dict(output=[data.get('msg', 'Debugger command failed')], **({'state': 'error'} if kind == 'startup' else {})))
                 elif kind == 'frame':
                     frame = data.get('frame', {})
-                    emit(path=frame.get('fullname', frame.get('file', '')), line=int(frame.get('line', 0)))
+                    emit(path=frame.get('fullname', frame.get('file', '')), line=int(frame.get('line', 0)),
+                         frame=int(frame.get('level', 0)), function=frame.get('func', ''))
                 elif kind == 'variables':
                     emit(variables=[f'{v.get("name")}: {v.get("type", "")} = {v.get("value", "{…}")}'
                                     for v in data.get('variables', [])[:256]])
                 elif kind == 'threads':
                     emit(threads=[dict(id=t['id'], label=f'{t["id"]} {t.get("name", t.get("target-id", ""))} {t.get("state", "")}')
                                   for t in data.get('threads', [])[:256]])
-                elif kind in ('refresh', 'select'):
+                elif kind == 'source-frames':
+                    frames = data.get('stack', [])
+                    readable = [f for f in frames if readable_source(f.get('fullname', f.get('file', '')), f.get('line', 0))]
+                    preferred = next((f for f in readable if application_source(f.get('fullname', f.get('file', '')), f.get('func', ''))), None)
+                    frame = preferred or next(iter(readable), None)
+                    emit(stopFunction=frames[0].get('func', '') if frames else '')
+                    if frame is not None:
+                        self.send('-stack-select-frame ' + str(int(frame['level'])), 'refresh')
+                    else:
+                        self.refresh()
+                elif kind == 'select':
+                    self.send('-stack-list-frames 0 63', 'source-frames')
+                elif kind == 'refresh':
                     self.refresh()
 
     def close(self):

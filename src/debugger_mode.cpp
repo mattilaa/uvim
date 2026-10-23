@@ -1,4 +1,5 @@
 #include "debugger_mode.h"
+#include "ascii.h"
 #include "debugger_bridge.h"
 #include "editor.h"
 #include "editor_path_utilities.h"
@@ -105,6 +106,34 @@ std::string fit(const std::string& text, int width)
     }
     result.append(std::max(0, width - cells), ' ');
     return result;
+}
+
+struct DebuggerRect
+{
+    int x = 1, y = 3, width = 0, height = 0;
+};
+
+std::array<DebuggerRect, 4> paneRects(const Editor& editor, bool stopped,
+                                      int pane)
+{
+    std::array<DebuggerRect, 4> rects{};
+    const int width = std::max(1, editor.screenCols);
+    const int body = std::max(0, editor.screenRows - 2);
+    if(width < 50 || body < 8)
+    {
+        rects[pane] = {1, 3, width, body};
+        return rects;
+    }
+    const int left = stopped ? width * 2 / 3 : width;
+    const int top = body * 2 / 3;
+    rects[0] = {1, 3, left, top};
+    rects[1] = {1, 3 + top, left, body - top};
+    if(stopped)
+    {
+        rects[2] = {left + 1, 3, width - left, top};
+        rects[3] = {left + 1, 3 + top, width - left, body - top};
+    }
+    return rects;
 }
 
 std::string quotedJson(std::string_view value)
@@ -357,6 +386,7 @@ void DebuggerMode::applyMessage(const std::string& message)
             output.push_back(safe(message));
         return;
     }
+    const auto previousState = state;
     if(json_utils::has(*doc, "state"))
         state = json_utils::get_string(*doc, "state");
     auto strings =
@@ -388,6 +418,9 @@ void DebuggerMode::applyMessage(const std::string& message)
     if(json_utils::has(*doc, "path"))
     {
         auto path = json_utils::get_string(*doc, "path");
+        const int line = json_utils::get_int(*doc, "line");
+        const bool follow = sourcePath != path || executionLine != line ||
+                            previousState == "running";
         if(sourcePath != path)
         {
             sourcePath = path;
@@ -398,13 +431,19 @@ void DebuggerMode::applyMessage(const std::string& message)
             while(source.size() < 200000 && std::getline(file, line))
                 source.push_back(safe(line));
         }
-        executionLine = json_utils::get_int(*doc, "line");
-        if(executionLine > 0)
+        executionLine = line;
+        if(follow && executionLine > 0)
         {
             cursor[0] = executionLine - 1;
             offset[0] = std::max(0, cursor[0] - 5);
         }
     }
+    if(json_utils::has(*doc, "frame"))
+        frameIndex = json_utils::get_int(*doc, "frame");
+    if(json_utils::has(*doc, "function"))
+        frameFunction = safe(json_utils::get_string(*doc, "function"));
+    if(json_utils::has(*doc, "stopFunction"))
+        stopFunction = safe(json_utils::get_string(*doc, "stopFunction"));
     if(state != "stopped" && pane > 1)
         pane = 0;
 }
@@ -455,14 +494,18 @@ void DebuggerMode::complete(ModeContext& ctx)
     }
 }
 
-void DebuggerMode::clamp(int rows)
+void DebuggerMode::clamp(const Editor& editor)
 {
+    const auto rects = paneRects(editor, state == "stopped", pane);
     const std::array<int, 4> sizes{
         static_cast<int>(source.size()), static_cast<int>(output.size()),
         static_cast<int>(variables.size()), static_cast<int>(threads.size())};
     for(int i = 0; i < 4; ++i)
     {
+        const int rows = std::max(1, rects[i].height - 2);
         cursor[i] = std::clamp(cursor[i], 0, std::max(0, sizes[i] - 1));
+        if(rects[i].height <= 0 || rects[i].width <= 0)
+            continue;
         if(cursor[i] < offset[i])
             offset[i] = cursor[i];
         if(cursor[i] >= offset[i] + rows)
@@ -517,6 +560,15 @@ std::optional<ModeState> DebuggerMode::handle(ModeContext& ctx,
         promptActive = true;
         prompt.clear();
     }
+    else if(key == keyCode(control::ControlKey::TAB))
+        pane = (pane + 1) % (state == "stopped" ? 4 : 2);
+    else if(key == keyCode(control::ControlKey::SHIFT_TAB))
+        pane = (pane + (state == "stopped" ? 3 : 1)) %
+               (state == "stopped" ? 4 : 2);
+    else if(key == 'v' && state == "stopped")
+        pane = 2;
+    else if(key == 't' && state == "stopped")
+        pane = 3;
     else if(key == keyCode(control::ControlKey::SHIFT_CTRL_H))
         pane = pane >= 2 ? pane - 2 : pane;
     else if(key == keyCode(control::ControlKey::SHIFT_CTRL_L) &&
@@ -545,122 +597,161 @@ std::optional<ModeState> DebuggerMode::handle(ModeContext& ctx,
         execute("finish");
     else if(key == 3)
         execute("interrupt");
-    clamp(std::max(1, (ctx.editor->screenRows - 5) / 2));
+    clamp(*ctx.editor);
     return {};
 }
 
 void DebuggerMode::draw(Editor& editor)
 {
     const int width = std::max(1, editor.screenCols);
-    const int height = std::max(1, editor.screenRows);
-    const bool compact = width < 40 || height < 8;
-    const bool split = state == "stopped" && !compact;
-    const int left = split ? std::max(1, (width - 1) * 2 / 3) : width;
-    const int right = std::max(0, width - left - 1);
-    const int body = std::max(0, height - 2);
-    const int top = std::max(1, body * 2 / 3);
-    clamp(std::max(1, std::min(top, body - top) - 1));
+    const auto rects = paneRects(editor, state == "stopped", pane);
+    clamp(editor);
+    const int sourceRows = std::max(0, rects[0].height - 2);
     editor.highlightPreviewLines(
         highlight, sourcePath, source,
-        std::min(source.size(),
-                 static_cast<size_t>(offset[0] + (compact ? body : top))));
+        std::min(source.size(), static_cast<size_t>(offset[0] + sourceRows)));
     std::string out = Terminal::ESC_HIDE_CURSOR;
-    out += Terminal::ESC_CURSOR_HOME;
-    auto row = [&](const std::string& value)
+    const std::array<std::string, 4> names{"Source", "Output", "Variables",
+                                           "Threads"};
+    auto header = [&](int row, const std::string& text)
     {
-        out += editor.theme.reset() + editor.theme.uiAccent() +
-               fit(safe(value), width) + editor.theme.reset() + "\r\n";
+        out += Terminal::cursorPos(row, 1) + editor.theme.reset() +
+               editor.theme.uiAccent() + fit(safe(text), width);
     };
-    row(" Debugger [" + backend + "] " + state + "  " + target);
-    row(" j/k: rows | " + std::string(Terminal::shiftChordLabel()) +
-        "-H/J/K/L: pane | :b file:line | r/c/n/s/f | Ctrl-C | q");
+    header(1, " Debugger [" + backend + "] " + state +
+                  "  Focus: " + names[pane] + "  " + target);
+    header(2, " j/k rows   Tab panes   v variables   t threads   " +
+                  std::string(Terminal::shiftChordLabel()) +
+                  "-H/J/K/L pane   : command   q quit");
     const std::array<const std::vector<std::string>*, 4> lists{
         &source, &output, &variables, &threads};
-    auto cell = [&](int which, int line, int columns)
+    for(int which = 0; which < 4; ++which)
     {
-        if(line == 0)
+        const auto& rect = rects[which];
+        if(rect.width <= 0 || rect.height <= 0)
+            continue;
+        const int inner = std::max(0, rect.width - 2);
+        const auto border =
+            editor.theme.reset() +
+            (pane == which ? editor.theme.uiAccent() : editor.theme.uiGutter());
+        auto at = [&](int row)
+        { out += Terminal::cursorPos(rect.y + row, rect.x); };
+        std::string title =
+            std::string(pane == which ? "> " : " ") + names[which];
+        if(which == 0)
         {
-            const std::array<std::string, 4> titles{"Source " + sourcePath,
-                                                    "Output", "Variables",
-                                                    "Threads (Enter selects)"};
-            out += editor.theme.uiAccent() +
-                   fit(std::string(pane == which ? "> " : "  ") +
-                           safe(titles[which]),
-                       columns);
-            return;
+            if(!frameFunction.empty())
+                title +=
+                    " #" + std::to_string(frameIndex) + " " + frameFunction;
+            if(!sourcePath.empty())
+                title += " " + sourcePath;
         }
-        int index = offset[which] + line - 1;
-        const auto& lines = *lists[which];
-        bool selected = pane == which && cursor[which] == index;
-        out += editor.theme.reset();
-        if(selected ||
-           (state == "stopped" && which == 0 && index + 1 == executionLine))
-            out += editor.theme.selection();
-        if(index >= static_cast<int>(lines.size()))
+        if(which == 3)
+            title += " (Enter selects)";
+        at(0);
+        out += border;
+        if(rect.width >= 2)
         {
-            const auto empty =
-                which == 0 && source.empty() && line == 1
-                    ? " No source location; set :b file:line and :c"
-                    : "";
-            out += editor.theme.uiDim() + fit(empty, columns);
-            return;
-        }
-        std::string prefix =
-            which == 0 ? std::string(index + 1 == executionLine ? ">" : " ") +
-                             std::to_string(index + 1) + " "
-                       : " ";
-        prefix =
-            fit(prefix, std::min(columns, static_cast<int>(prefix.size())));
-        out += prefix;
-        int available = std::max(0, columns - static_cast<int>(prefix.size()));
-        auto text = fit(lines[index], available);
-        if(which == 0 && index < static_cast<int>(highlight.tokens.size()))
-        {
-            std::vector<TokenType> colors(text.size(), TOKEN_NORMAL);
-            for(const auto& token : highlight.tokens[index])
-                for(int c = std::max(0, token.start);
-                    c < std::min(static_cast<int>(text.size()),
-                                 token.start + token.length);
-                    ++c)
-                    colors[c] = token.type;
-            TokenType previous = TOKEN_NORMAL;
-            out += editor.theme.baseFg();
-            for(size_t c = 0; c < text.size(); ++c)
-            {
-                if(colors[c] != previous)
-                {
-                    previous = colors[c];
-                    out += editor.theme.syntax(previous);
-                }
-                out += text[c];
-            }
+            ascii::append(out, ascii::BOX_ROUNDED_TOP_LEFT);
+            const int titleWidth =
+                std::min(inner, text_utils::utf8DisplayWidth(title) + 1);
+            out += fit(title, titleWidth);
+            for(int column = titleWidth; column < inner; ++column)
+                ascii::append(out, ascii::BOX_LIGHT_HORIZONTAL);
+            ascii::append(out, ascii::BOX_ROUNDED_TOP_RIGHT);
         }
         else
-            out += editor.theme.baseFg() + text;
-    };
-    for(int y = 0; y < body; ++y)
-    {
-        const bool upper = y < top;
-        cell(compact ? pane
-             : upper ? 0
-                     : 1,
-             compact ? y
-             : upper ? y
-                     : y - top,
-             left);
-        if(split)
+            out += " ";
+        for(int row = 0; row < rect.height - 2; ++row)
         {
-            out += editor.theme.reset() + editor.theme.uiGutter() + "|";
-            cell(upper ? 2 : 3, upper ? y : y - top, right);
+            at(row + 1);
+            out += border;
+            ascii::append(out, ascii::BOX_LIGHT_VERTICAL);
+            const int index = offset[which] + row;
+            const auto& lines = *lists[which];
+            out += editor.theme.reset();
+            const bool selected = pane == which && cursor[which] == index;
+            const bool executing =
+                state == "stopped" && which == 0 && index + 1 == executionLine;
+            if(selected || executing)
+                out += editor.theme.selection();
+            if(index >= static_cast<int>(lines.size()))
+            {
+                std::string empty;
+                if(row == 0 && lines.empty())
+                {
+                    if(which == 0)
+                        empty = " No readable source. Try :up or :b file:line, "
+                                "then :c.";
+                    else if(which == 2)
+                        empty = " No locals in this frame. Try :up or select a "
+                                "thread.";
+                    else if(which == 3)
+                        empty = " No stopped threads.";
+                    else
+                        empty = " Debugger commands and process output appear "
+                                "here.";
+                }
+                out += editor.theme.uiDim() + fit(empty, inner);
+            }
+            else
+            {
+                const auto prefix = which == 0
+                                        ? std::string(executing  ? ">"
+                                                      : selected ? "+"
+                                                                 : " ") +
+                                              std::to_string(index + 1) + " "
+                                        : std::string(selected ? "> " : "  ");
+                const int prefixWidth =
+                    std::min(inner, text_utils::utf8DisplayWidth(prefix));
+                out += editor.theme.baseFg() + fit(prefix, prefixWidth);
+                const int available = inner - prefixWidth;
+                const auto text = fit(lines[index], available);
+                if(which == 0 &&
+                   index < static_cast<int>(highlight.tokens.size()))
+                {
+                    std::vector<TokenType> colors(text.size(), TOKEN_NORMAL);
+                    for(const auto& token : highlight.tokens[index])
+                        for(int c = std::max(0, token.start);
+                            c < std::min(static_cast<int>(text.size()),
+                                         token.start + token.length);
+                            ++c)
+                            colors[c] = token.type;
+                    TokenType previous = TOKEN_NORMAL;
+                    for(size_t c = 0; c < text.size(); ++c)
+                    {
+                        if(colors[c] != previous)
+                        {
+                            previous = colors[c];
+                            out += editor.theme.syntax(previous);
+                        }
+                        out += text[c];
+                    }
+                }
+                else
+                    out += editor.theme.baseFg() + text;
+            }
+            out += border;
+            ascii::append(out, ascii::BOX_LIGHT_VERTICAL);
         }
-        out += editor.theme.reset();
-        if(y + 1 < body)
-            out += "\r\n";
+        if(rect.height >= 2)
+        {
+            at(rect.height - 1);
+            out += border;
+            ascii::append(out, ascii::BOX_ROUNDED_BOTTOM_LEFT);
+            for(int column = 0; column < inner; ++column)
+                ascii::append(out, ascii::BOX_LIGHT_HORIZONTAL);
+            ascii::append(out, ascii::BOX_ROUNDED_BOTTOM_RIGHT);
+        }
     }
     widgets::ViewStatusBarView status{.theme = editor.theme};
     status.modeLabel = name();
-    status.context = backend;
+    status.context =
+        frameFunction.empty()
+            ? backend
+            : "frame #" + std::to_string(frameIndex) + " " + frameFunction;
     status.state = state;
+    status.flags.push_back(names[pane]);
     status.flags.push_back(attach ? "q detaches" : "q ends session");
     editor.appendViewStatusBar(out, std::move(status));
     out += Terminal::cursorPos(editor.screenRows + 2, 1);
@@ -673,6 +764,16 @@ void DebuggerMode::draw(Editor& editor)
             editor.screenRows + 2,
             std::min(width, static_cast<int>(prompt.size()) + 2));
         out += Terminal::ESC_SHOW_CURSOR;
+    }
+    else if(state == "stopped")
+    {
+        std::string hint =
+            " n next  s into  f out  c continue  :b file:line breakpoint";
+        if(frameIndex > 0 && !stopFunction.empty())
+            hint = " Stopped in " + stopFunction + "; inspecting caller #" +
+                   std::to_string(frameIndex) +
+                   ". :frame 0 shows the stop; :b file:line then :c.";
+        out += fit(safe(hint), width);
     }
     Terminal::write(out);
     Terminal::flush();

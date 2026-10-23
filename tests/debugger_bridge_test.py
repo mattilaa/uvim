@@ -10,7 +10,8 @@ import sys
 import tempfile
 import time
 import unittest
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
+from types import SimpleNamespace
 
 SOURCE = Path(__file__).resolve().parents[1] / 'src/debugger_bridge.py'
 spec = importlib.util.spec_from_file_location('debugger_bridge', SOURCE)
@@ -38,11 +39,53 @@ class BridgeTests(unittest.TestCase):
             gdb.lines.put(line)
         with patch.object(gdb, 'send') as send, patch.object(bridge, 'emit') as emit:
             gdb.poll()
-            self.assertEqual(send.call_count, 3)
+            send.assert_any_call('-stack-list-frames 0 63', 'source-frames')
             messages = [call.kwargs for call in emit.call_args_list]
             self.assertIn({'variables': ['count: int = 42']}, messages)
-            self.assertIn({'path': '/tmp/test.c', 'line': 5}, messages)
+            self.assertIn({'path': '/tmp/test.c', 'line': 5, 'frame': 0, 'function': ''}, messages)
             self.assertEqual(messages[-1], {'state': 'running', 'variables': [], 'threads': []})
+
+    def test_attach_selects_readable_application_caller(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'app.cpp'
+            path.write_text('int main() {}')
+            def frame(source, function):
+                value = MagicMock()
+                file = value.GetLineEntry.return_value.GetFileSpec.return_value
+                file.GetDirectory.return_value = str(Path(source).parent)
+                file.GetFilename.return_value = Path(source).name
+                value.GetLineEntry.return_value.GetLine.return_value = 1
+                value.GetFunctionName.return_value = function
+                return value
+            runtime = frame('/missing/libc.c', '__nanosleep')
+            sdk_path = Path(directory) / 'thread.hpp'
+            sdk_path.write_text('// simulated SDK header')
+            sdk = frame(sdk_path, 'std::this_thread::sleep_for')
+            app = frame(path, 'main')
+            engine = bridge.LLDB.__new__(bridge.LLDB)
+            engine.lldb = SimpleNamespace(eStateStopped=1, eStateCrashed=2, eStateSuspended=3)
+            engine.target = MagicMock()
+            process = engine.target.GetProcess.return_value
+            process.GetState.return_value = 1
+            thread = process.GetSelectedThread.return_value
+            thread.GetSelectedFrame.return_value = runtime
+            thread.GetNumFrames.return_value = 3
+            thread.GetFrameAtIndex.side_effect = [runtime, sdk, app]
+            engine.select_source_frame(prefer_application=True)
+            thread.SetSelectedFrame.assert_called_once_with(2)
+
+    def test_gdb_selects_source_frame_before_reading_locals(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'app.cpp'
+            path.write_text('int main() {}')
+            gdb = bridge.GDB.__new__(bridge.GDB)
+            gdb.lines = queue.Queue()
+            gdb.master = -1
+            gdb.pending = {'1': 'source-frames'}
+            gdb.lines.put('1^done,stack=[frame={level="0",func="nanosleep"},frame={level="3",func="main",fullname=' + json.dumps(str(path)) + ',line="1"}]')
+            with patch.object(gdb, 'send') as send, patch.object(bridge, 'emit'):
+                gdb.poll()
+                send.assert_called_once_with('-stack-select-frame 3', 'refresh')
 
     def test_gdb_commands_escape_paths(self):
         gdb = bridge.GDB.__new__(bridge.GDB)
@@ -60,13 +103,14 @@ class LiveTests(unittest.TestCase):
     def test_attach_quit_detaches_and_keeps_process_alive(self):
         with tempfile.TemporaryDirectory(prefix='uvim-attach-') as directory:
             source = Path(directory) / 'attach.c'
-            source.write_text('#include <unistd.h>\nint main(void) { for (;;) sleep(1); }\n')
+            source.write_text('#include <unistd.h>\n#include <stdio.h>\nint main(void) { int count = 42; puts("ready"); fflush(stdout); for (;;) { sleep(1); count = count % 100 + 1; } }\n')
             binary = Path(directory) / 'attach-target'
             subprocess.run(['clang', '-g', '-O0', str(source), '-o', str(binary)], check=True)
             backends = ['lldb'] + (['mladbg'] if os.environ.get('UVIM_MLADBG_MODULE') else [])
             for backend in backends:
                 with self.subTest(backend=backend):
-                    target = subprocess.Popen([str(binary)])
+                    target = subprocess.Popen([str(binary)], stdout=subprocess.PIPE, text=True)
+                    self.assertEqual(target.stdout.readline().strip(), 'ready')
                     proc = subprocess.Popen([sys.executable, '-u', str(SOURCE), backend, 'attach', str(target.pid)],
                                             stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
                     try:
@@ -83,7 +127,10 @@ class LiveTests(unittest.TestCase):
                                     line, pending = pending.split(b'\n', 1)
                                     message = json.loads(line)
                                     self.assertNotEqual(message.get('state'), 'error', message)
-                                    stopped |= message.get('state') == 'stopped'
+                                    if message.get('state') == 'stopped':
+                                        self.assertEqual(message.get('path'), str(source), message)
+                                        self.assertTrue(any('count' in v for v in message['variables']), message)
+                                        stopped = True
                         self.assertTrue(stopped, 'Attach did not stop the target')
                         proc.stdin.close()
                         proc.wait(timeout=5)
@@ -98,6 +145,7 @@ class LiveTests(unittest.TestCase):
                         proc.stderr.close()
                         target.terminate()
                         target.wait()
+                        target.stdout.close()
 
     def test_lldb_and_mladbg_breakpoint_variables_and_exit(self):
         with tempfile.TemporaryDirectory(prefix='uvim-debugger-') as directory:

@@ -26,6 +26,8 @@ struct DebuggerMode
     std::string state = "ready";
     std::string sourcePath;
     int executionLine = 0;
+    int frameIndex = 0;
+    std::string frameFunction, stopFunction;
     std::vector<std::string> source, variables, threads, threadIds, output;
     // Source, output, variables, threads. Each pane preserves its selection.
     int pane = 0;
@@ -57,6 +59,6 @@ struct DebuggerMode
 private:
     void execute(const std::string& command);
     void complete(ModeContext& ctx);
-    void clamp(int rows);
+    void clamp(const Editor& editor);
 };
 } // namespace editor::statemachine

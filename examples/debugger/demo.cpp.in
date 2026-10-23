@@ -1,0 +1,56 @@
+#include <array>
+#include <chrono>
+#include <iostream>
+#include <string>
+#include <thread>
+#include <vector>
+#ifdef __linux__
+#include <sys/prctl.h>
+#endif
+
+struct Point { int x; int y; };
+struct Task { std::string name; Point position; bool active; };
+
+static int checkpoint(int worker_id, int round) {
+    int count = 40 + round % 1000;
+    bool enabled = true;
+    double ratio = 1.5;
+    std::string message = "uvim C++ debugger fixture";
+    Point point{worker_id, count};
+    Task task{message, point, enabled};
+    std::array<int, 3> values{worker_id, count, 7};
+    int result = task.position.x + values[1];
+    if (enabled && ratio > 1.0 && !message.empty()) {
+        return result; // DEBUG_BREAKPOINT: inspect locals here
+    }
+    return 0;
+}
+
+static void worker(int worker_id) {
+    int round = 0;
+    while (__ITERATIONS__ == 0 || round < __ITERATIONS__) {
+        int result = checkpoint(worker_id, round);
+        (void)result;
+        std::this_thread::sleep_for(std::chrono::milliseconds(__INTERVAL_MS__));
+        ++round;
+    }
+}
+
+int main() {
+#ifdef __linux__
+    // Let a debugger in another terminal attach under Yama ptrace_scope=1.
+    (void)prctl(PR_SET_PTRACER, PR_SET_PTRACER_ANY, 0L, 0L, 0L);
+#endif
+    std::vector<std::thread> workers;
+    for (int id = 0; id < __THREADS__; ++id) workers.emplace_back(worker, id + 1);
+    int round = 0;
+    while (__ITERATIONS__ == 0 || round < __ITERATIONS__) {
+        int result = checkpoint(0, round);
+        std::cout << "C++ main: round=" << round << " result=" << result
+                  << " workers=__THREADS__" << std::endl;
+        std::this_thread::sleep_for(std::chrono::milliseconds(__INTERVAL_MS__));
+        ++round;
+    }
+    for (auto &thread : workers) thread.join();
+    return 0;
+}

@@ -1118,6 +1118,11 @@ if(UVIM_BUILD_TESTS)
 
     find_package(Python3 COMPONENTS Interpreter QUIET)
     if(Python3_Interpreter_FOUND)
+        add_test(NAME debugger_examples
+            COMMAND ${CMAKE_COMMAND}
+                "-DUVIM_PYTHON_EXECUTABLE=${Python3_EXECUTABLE}"
+                "-DUVIM_PYTHON_TEST=${CMAKE_SOURCE_DIR}/tests/debugger_examples_test.py"
+                -P ${CMAKE_SOURCE_DIR}/tests/run_python_test.cmake)
         add_test(NAME debugger_bridge
             COMMAND ${CMAKE_COMMAND}
                 "-DUVIM_PYTHON_EXECUTABLE=${Python3_EXECUTABLE}"
