@@ -251,6 +251,7 @@ void Theme::rebuildSequences()
     search_seq_.clear();
     source_mapping_seq_.clear();
     external_source_seq_.clear();
+    assembly_selection_seq_.clear();
     status_bar_seq_.clear();
     tab_bar_seq_.clear();
     panel_seq_.clear();
@@ -278,6 +279,12 @@ void Theme::rebuildSequences()
     source_mapping_seq_ = bgSeq({(background.r * 3 + green.r) / 4,
                                  (background.g * 3 + green.g) / 4,
                                  (background.b * 3 + green.b) / 4, true});
+    const Color blue{70, 125, 205, true};
+    assembly_selection_seq_ = bgSeq(
+        asm_selection_bg_.set ? asm_selection_bg_
+                              : Color{(background.r * 3 + blue.r) / 4,
+                                      (background.g * 3 + blue.g) / 4,
+                                      (background.b * 3 + blue.b) / 4, true});
     const Color red{160, 45, 45, true};
     external_source_seq_ = bgSeq(
         asm_external_bg_.set ? asm_external_bg_
@@ -332,6 +339,11 @@ void Theme::rebuildSequences()
 const std::string& Theme::sourceMapping() const
 {
     return source_mapping_seq_;
+}
+
+const std::string& Theme::assemblySelection() const
+{
+    return assembly_selection_seq_;
 }
 
 const std::string& Theme::externalSource() const
@@ -435,6 +447,7 @@ void Theme::applyOverrides(
     set_color("theme.ui.success", ui_success_);
     set_color("theme.ui.error", ui_error_);
     set_color("theme.asm.external_bg", asm_external_bg_);
+    set_color("theme.asm.selection_bg", asm_selection_bg_);
     set_color("theme.ui.directory", ui_directory_);
     set_color("theme.ui.gutter", ui_gutter_);
     set_color("theme.ui.prompt", ui_prompt_);

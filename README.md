@@ -871,7 +871,10 @@ then enter `:asm . -O2`, optionally with `--split` or the `--` flag picker.
 The full buffer is compiled to preserve includes and surrounding declarations;
 only assembly mapped to the selected source lines is shown. Character selections
 include every source line they touch. The title shows the selected line range,
-and the source pane keeps the full file with its original line numbers.
+and the source pane keeps the full file with its original line numbers. In the
+split, the selected source range has a persistent muted blue background; green
+marks the currently linked source line. Customize the range tint with
+`selection_bg = "#28354e"` under `[theme.asm]` in your theme/config file.
 Optimized-away selections show an explanation instead of a compile error.
 Run `:asm .` from normal mode to browse the complete output again.
 

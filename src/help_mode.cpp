@@ -1577,6 +1577,8 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "only assembly mapped to the selected source lines. The full",
             "buffer is compiled so includes and declarations still work.",
             "The title shows the range; --split keeps original source lines.",
+            "The range stays blue; green marks the currently linked line.",
+            "Customize the range background with theme.asm.selection_bg.",
             "Normal-mode :asm . shows the full output again.",
             "",
             "`:asm .` / `:asm` compiles C/C++ or Mlang (.mla), including",

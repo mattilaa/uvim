@@ -43,6 +43,8 @@ public:
     // Subtle background tint; preserves the syntax foreground colors.
     const std::string& sourceMapping() const;
     const std::string& externalSource() const;
+    // Persistent source range represented by a filtered assembly view.
+    const std::string& assemblySelection() const;
     const std::string& statusBar() const;
     const std::string& tabBar() const;
     const std::string& panel() const;
@@ -71,6 +73,7 @@ private:
     Color base_bg_;
 
     Color asm_external_bg_;
+    Color asm_selection_bg_;
     Color ui_dim_;
     Color ui_accent_;
     Color ui_info_;
@@ -99,6 +102,7 @@ private:
     std::string search_seq_;
     std::string source_mapping_seq_;
     std::string external_source_seq_;
+    std::string assembly_selection_seq_;
     std::string status_bar_seq_;
     std::string tab_bar_seq_;
     std::string panel_seq_;

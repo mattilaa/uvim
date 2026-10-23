@@ -1488,3 +1488,55 @@ TEST(AssemblyViewCompilerTest, SelectedBodyKeepsDeclarationContextAndSourceNumbe
     }
     std::filesystem::remove_all(root);
 }
+
+TEST_F(AssemblyViewTest, FilteredSourceRangeStaysTintedWhileBrowsingSplit)
+{
+    *editor.lines = {"int example(int x) {", "    x += 1;", "    return x;",
+                     "}"};
+    *editor.cursorY = 0;
+    auto sm = makeMachine(editor, NormalMode{});
+    sm.dispatch('V');
+    sm.dispatch('j');
+    sm.dispatch('j');
+    dispatch_command(sm, fakeCommand(root, "--split"));
+    auto* view = sm.getState<AssemblyMode>();
+    ASSERT_NE(view, nullptr);
+    ASSERT_TRUE(waitFor(editor, [&] { return !view->content->compiling; }));
+    ASSERT_TRUE(view->content->result.success);
+    const auto tint = editor.theme.assemblySelection();
+    auto sourceRow = [&](int line)
+    {
+        return tint + editor.theme.uiGutter() + " " + std::to_string(line) +
+               " ";
+    };
+    testing::internal::CaptureStdout();
+    view->draw(editor);
+    const auto first = testing::internal::GetCapturedStdout();
+    if(!tint.empty())
+    {
+        EXPECT_NE(first.find(sourceRow(2)), std::string::npos);
+        EXPECT_NE(first.find(sourceRow(3)), std::string::npos);
+        EXPECT_EQ(first.find(sourceRow(4)), std::string::npos);
+    }
+    // Moving the linked highlight leaves the rest of the range tinted.
+    sm.dispatch('j');
+    testing::internal::CaptureStdout();
+    view->draw(editor);
+    const auto next = testing::internal::GetCapturedStdout();
+    if(!tint.empty())
+    {
+        EXPECT_NE(next.find(sourceRow(1)), std::string::npos);
+        EXPECT_NE(next.find(sourceRow(3)), std::string::npos);
+        EXPECT_EQ(next.find(sourceRow(4)), std::string::npos);
+    }
+    EXPECT_NE(next.find(editor.theme.sourceMapping()), std::string::npos);
+    write_file(root / "range-theme.toml",
+               "[theme.asm]\nselection_bg = \"#28354e\"\n");
+    ASSERT_TRUE(
+        editor.theme.loadFromFile((root / "range-theme.toml").string()));
+#ifdef UVIM_ENABLE_TERMINAL_COLORS
+    EXPECT_EQ(editor.theme.assemblySelection(), color::rgbBg(0x28, 0x35, 0x4e));
+#else
+    EXPECT_TRUE(editor.theme.assemblySelection().empty());
+#endif
+}

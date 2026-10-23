@@ -406,6 +406,14 @@ Alias for `theme.base.fg`.
 \par theme.base.background
 Alias for `theme.base.bg`.
 
+\par theme.asm.selection_bg
+Background color for the source range used to filter a visual-selection assembly
+view. Defaults to a muted blue tint derived from the editor background. The tint
+stays on the selected range while browsing; the currently linked source line uses
+the green mapping highlight and the active cursor keeps its usual highlight.
+Syntax foreground colors are preserved. Example: `selection_bg = "#28354e"`
+under `[theme.asm]`. Applies to the source pane of `:asm . --split`.
+
 \par theme.asm.external_bg
 Color. Default: a subtle dark red blended with the theme base background.
 Background for assembly rows whose compiler-provided origin is an external

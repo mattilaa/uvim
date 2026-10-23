@@ -759,6 +759,9 @@ void AssemblyMode::draw(Editor& editor)
                 out += editor.theme.sourceMapping();
             else if(active && current)
                 out += editor.theme.selection();
+            else if(source && sourceRange && index + 1 >= sourceRange->first &&
+                    index + 1 <= sourceRange->second)
+                out += editor.theme.assemblySelection();
             else if(!source && hasOrigins &&
                     !result.sourceOrigins[index].mainSource &&
                     !result.sourceOrigins[index].path.empty())

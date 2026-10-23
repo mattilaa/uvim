@@ -152,7 +152,9 @@ includes common Normal/Insert/Visual/Command mode bindings.
   assembly mapped to those lines. Compilation still uses the full buffer for
   includes/types/declarations. Character selections include whole touched lines.
   `--split` and the `--` flag picker work with selections; the source pane keeps
-  original line numbers. Normal-mode `:asm .` shows the complete output again.
+  original line numbers and tints the filtered range blue; green marks the
+  currently linked line. Customize the tint with `theme.asm.selection_bg`.
+  Normal-mode `:asm .` shows the complete output again.
 - The assembly browser requires the build option `UVIM_ENABLE_ASM_VIEW=ON`
   and auxiliary views. Only the `full` configurator preset enables it by default;
   toggle Assembly browser in `uvim-config` or use `--enable/--disable asm-view`.
