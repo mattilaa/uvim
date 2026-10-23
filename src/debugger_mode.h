@@ -71,6 +71,10 @@ struct DebuggerMode
     std::unordered_set<int> breakpointLines;
     bool breakpointListOpen = false;
     int breakpointCursor = 0, breakpointOffset = 0;
+    bool sizePopupOpen = false;
+    std::string sizePopupTitle;
+    std::vector<std::string> sizePopupLines;
+    int sizePopupCursor = 0, sizePopupOffset = 0;
     std::vector<std::string> promptCommands, promptMenuEntries;
     int promptMenuCursor = 0, promptMenuOffset = 0;
 

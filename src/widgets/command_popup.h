@@ -17,6 +17,7 @@ struct CommandPopupView
     int cursor = 0;
     std::string_view title{};
     std::string_view emptyMessage = "No matches";
+    int maxRows = 8;
 };
 
 std::string_view commandDocumentation(std::string_view command);

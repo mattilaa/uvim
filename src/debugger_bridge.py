@@ -17,6 +17,10 @@ def emit(**value):
     print(json.dumps(value, ensure_ascii=True), flush=True)
 
 
+def emit_layout(expression, rows, append=False):
+    emit(layoutTitle='Size and padding: ' + expression, layoutLines=rows, layoutAppend=append)
+
+
 def lldb_module():
     try:
         return importlib.import_module('lldb')
@@ -295,7 +299,7 @@ class LLDB:
         if not value.IsValid():
             value = frame.EvaluateExpression(expression)
         if kind == 'layout' and value.IsValid() and value.GetType().IsValid():
-            emit(output=type_layout(value.GetType(), expression), inspection=True)
+            emit_layout(expression, type_layout(value.GetType(), expression))
             return
         if not value.IsValid() or value.GetError().Fail():
             raise ValueError(f'Cannot evaluate {expression}: {value.GetError()}')
@@ -707,7 +711,12 @@ class GDB:
             if line is None:
                 raise RuntimeError('GDB disconnected')
             if line.startswith(('~', '@', '&')):
-                emit(output=mi_value(line[1:])[0].splitlines())
+                rows = mi_value(line[1:])[0].splitlines()
+                active = next(iter(self.pending.values()), '')
+                if line.startswith('~') and isinstance(active, tuple) and active[0] == 'inspection-layout-type':
+                    active[3].extend(rows)
+                else:
+                    emit(output=rows)
                 continue
             match = re.match(r'(\d*)([\^*=])([\w-]+)(?:,(.*))?$', line)
             if not match:
@@ -733,8 +742,11 @@ class GDB:
                                   ('inspection-assembly', expression, address, count))
                         continue
                     if isinstance(kind, tuple) and kind[0] in ('inspection-size', 'inspection-layout-type'):
-                        emit(output=['Layout unavailable: ' + data.get('msg', 'missing type information')],
-                             inspection=kind[0] == 'inspection-size' and kind[2])
+                        rows = ['Layout unavailable: ' + data.get('msg', 'missing type information')]
+                        if kind[2]:
+                            emit_layout(kind[1], rows, append=kind[0] == 'inspection-layout-type')
+                        else:
+                            emit(output=rows)
                         continue
                     if kind == 'source-frames':
                         self.refresh()
@@ -749,11 +761,18 @@ class GDB:
                         self.refresh()
                     elif kind[0] == 'inspection-size':
                         _, expression, focus = kind
-                        emit(output=[f'Storage: {expression}, {data.get("value", "unknown")} bytes'], inspection=focus)
+                        rows = [f'Storage: {expression}, {data.get("value", "unknown")} bytes (includes padding)']
+                        if focus:
+                            emit_layout(expression, rows)
+                        else:
+                            emit(output=rows)
                         self.send('-interpreter-exec console ' + json.dumps('ptype /o ' + expression),
-                                  ('inspection-layout-type', expression))
+                                  ('inspection-layout-type', expression, focus, []))
                     elif kind[0] == 'inspection-layout-type':
-                        pass  # ptype /o publishes field offsets and holes via console records.
+                        if kind[2]:
+                            emit_layout(kind[1], kind[3], append=True)
+                        elif kind[3]:
+                            emit(output=kind[3])
                     elif kind[0] == 'inspection-address':
                         _, operation, expression, count = kind
                         try:
@@ -870,7 +889,11 @@ def main():
                     try:
                         engine.command(command)
                     except Exception as error:
-                        emit(output=[str(error)], inspection=True)
+                        layout = re.match(r'^(?:layout|(?:p|print)\s+--layout)\b\s*(.*)', command.strip())
+                        if layout:
+                            emit_layout(layout[1] or '<expression>', [str(error)])
+                        else:
+                            emit(output=[str(error)], inspection=True)
     except Exception as error:
         emit(state='error', output=[str(error)])
     finally:

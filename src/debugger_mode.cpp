@@ -187,14 +187,46 @@ const std::vector<DebuggerCommandEntry>& debuggerCommands()
 }
 
 void moveMenuCursor(int& cursor, int& offset, int size, int delta,
-                    int screenRows)
+                    int screenRows, int maxRows = 8)
 {
     cursor = std::clamp(cursor + delta, 0, std::max(0, size - 1));
-    const int rows = std::max(1, std::min(8, screenRows - 2));
+    const int rows = std::max(1, std::min(maxRows, screenRows - 2));
     if(cursor < offset)
         offset = cursor;
     if(cursor >= offset + rows)
         offset = cursor - rows + 1;
+}
+
+std::vector<std::string> wrapLayoutLines(const std::vector<std::string>& lines,
+                                         int screenCols)
+{
+    const int width = std::max(1, screenCols - 6);
+    std::vector<std::string> result;
+    for(const auto& line : lines)
+    {
+        size_t start = 0;
+        std::string prefix;
+        do
+        {
+            size_t end = start;
+            int cells = static_cast<int>(prefix.size());
+            while(end < line.size())
+            {
+                const auto next = static_cast<size_t>(
+                    text_utils::nextUtf8CharStart(line, static_cast<int>(end)));
+                const int glyphWidth = text_utils::utf8DisplayWidth(
+                    std::string_view(line).substr(end, next - end));
+                if(end > start && cells + glyphWidth > width)
+                    break;
+                cells += glyphWidth;
+                end = next;
+            }
+            result.push_back(prefix + line.substr(start, end - start));
+            start = end;
+            prefix.assign(std::min(2, width / 3), ' ');
+        } while(start < line.size());
+    }
+    return result;
 }
 
 // The shared popup uses absolute row positions. Fold its rows into the frame
@@ -531,6 +563,22 @@ void DebuggerMode::applyMessage(const std::string& message)
     {
         pane = 1;
         cursor[1] = offset[1] = std::max(0, outputStart - discarded);
+    }
+    if(auto lines = json_utils::find(*doc, "layoutLines");
+       lines && lines->IsArray())
+    {
+        const bool append = json_utils::get_bool(*doc, "layoutAppend");
+        const auto title = safe(json_utils::get_string(*doc, "layoutTitle"));
+        if(!append)
+        {
+            sizePopupOpen = true;
+            sizePopupTitle = title;
+            sizePopupLines.clear();
+            sizePopupCursor = sizePopupOffset = 0;
+            breakpointListOpen = promptActive = false;
+        }
+        if(sizePopupOpen && sizePopupTitle == title)
+            strings("layoutLines", sizePopupLines, true);
     }
     if(auto list = json_utils::find(*doc, "threads");
        !retainSnapshot && list && list->IsArray())
@@ -886,6 +934,39 @@ std::optional<ModeState> DebuggerMode::handle(ModeContext& ctx,
         return {};
     }
 #endif
+    if(sizePopupOpen)
+    {
+        if(key == 27 || key == 'q' ||
+           key == keyCode(control::ControlKey::ENTER))
+            sizePopupOpen = false;
+        else
+        {
+            const int count = static_cast<int>(
+                wrapLayoutLines(sizePopupLines, ctx.editor->screenCols).size());
+            const int page =
+                std::max(1, std::min(18, ctx.editor->screenRows - 2));
+            int delta = 0;
+            if(key == 'j' || key == keyCode(control::ControlKey::CTRL_J) ||
+               key == keyCode(navigation::NavigationKey::ARROW_DOWN))
+                delta = 1;
+            else if(key == 'k' || key == keyCode(control::ControlKey::CTRL_K) ||
+                    key == keyCode(navigation::NavigationKey::ARROW_UP))
+                delta = -1;
+            else if(key == keyCode(navigation::NavigationKey::PAGE_DOWN))
+                delta = page;
+            else if(key == keyCode(navigation::NavigationKey::PAGE_UP))
+                delta = -page;
+            else if(key == 'g' ||
+                    key == keyCode(navigation::NavigationKey::HOME))
+                delta = -count;
+            else if(key == 'G' ||
+                    key == keyCode(navigation::NavigationKey::END))
+                delta = count;
+            moveMenuCursor(sizePopupCursor, sizePopupOffset, count, delta,
+                           ctx.editor->screenRows, 18);
+        }
+        return {};
+    }
     if(promptActive)
     {
         if(key == 27)
@@ -1277,7 +1358,18 @@ void DebuggerMode::drawContent(Editor& editor)
     std::vector<std::string> menuEntries;
     int menuCursor = 0, menuOffset = 0;
     std::string menuTitle;
-    if(breakpointListOpen)
+    if(sizePopupOpen)
+    {
+        menuEntries = wrapLayoutLines(sizePopupLines, width);
+        moveMenuCursor(sizePopupCursor, sizePopupOffset, menuEntries.size(), 0,
+                       editor.screenRows, 18);
+        menuCursor = sizePopupCursor;
+        menuOffset = sizePopupOffset;
+        menuTitle = sizePopupTitle + "  " +
+                    std::to_string(sizePopupCursor + 1) + "/" +
+                    std::to_string(menuEntries.size());
+    }
+    else if(breakpointListOpen)
     {
         moveMenuCursor(breakpointCursor, breakpointOffset, breakpoints.size(),
                        0, editor.screenRows);
@@ -1313,22 +1405,28 @@ void DebuggerMode::drawContent(Editor& editor)
         menuTitle = "Debugger commands [" + backend +
                     "]  Ctrl-J/K select  Tab/Enter choose";
     }
-    if(breakpointListOpen || !menuEntries.empty())
+    if(sizePopupOpen || breakpointListOpen || !menuEntries.empty())
     {
         std::vector<int> filtered;
         for(int i = 0; i < static_cast<int>(menuEntries.size()); ++i)
             filtered.push_back(i);
         std::string popup;
-        widgets::drawCommandPopup(popup,
-                                  {.frame = {.theme = editor.theme,
-                                             .screenRows = editor.screenRows,
-                                             .screenCols = width},
-                                   .entries = menuEntries,
-                                   .filtered = filtered,
-                                   .offset = menuOffset,
-                                   .cursor = menuCursor,
-                                   .title = menuTitle,
-                                   .emptyMessage = "No breakpoints"});
+        widgets::drawCommandPopup(
+            popup,
+            {.frame = {.theme = editor.theme,
+                       .screenRows = editor.screenRows,
+                       .screenCols = width},
+             .entries = menuEntries,
+             .filtered = filtered,
+             .offset = menuOffset,
+             .cursor = menuCursor,
+             .title = menuTitle,
+             .emptyMessage =
+                 sizePopupOpen ? "No layout information" : "No breakpoints",
+             .maxRows =
+                 sizePopupOpen
+                     ? std::clamp(static_cast<int>(menuEntries.size()), 1, 18)
+                     : 8});
         overlayPopupRows(rows, popup, editor.theme);
     }
     widgets::ViewStatusBarView status{.theme = editor.theme};
@@ -1340,13 +1438,21 @@ void DebuggerMode::drawContent(Editor& editor)
             ? backend
             : "frame #" + std::to_string(frameIndex) + " " + frameFunction;
     status.state = displayState;
-    status.flags.push_back(breakpointListOpen ? "Breakpoints" : names[pane]);
-    status.flags.push_back(attach ? "q detaches" : "q ends session");
+    status.flags.push_back(sizePopupOpen        ? "Size/padding"
+                           : breakpointListOpen ? "Breakpoints"
+                                                : names[pane]);
+    status.flags.push_back(sizePopupOpen ? "Esc closes popup"
+                           : attach      ? "q detaches"
+                                         : "q ends session");
     editor.appendViewStatusBar(out, std::move(status));
     out += Terminal::cursorPos(editor.screenRows + 2, 1);
     out += editor.theme.reset();
     out += Terminal::ESC_CLEAR_LINE;
-    if(promptActive)
+    if(sizePopupOpen)
+        out += fit(" Size/padding: j/k or Ctrl-J/K scroll  PgUp/PgDn page  "
+                   "g/G first/last  Esc/Enter close",
+                   width);
+    else if(promptActive)
     {
         out += fit(safe(":" + prompt), width);
         out += Terminal::cursorPos(

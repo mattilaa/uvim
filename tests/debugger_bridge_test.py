@@ -92,9 +92,17 @@ class BridgeTests(unittest.TestCase):
             gdb.lines.put('1^done,value="12"')
             with patch.object(bridge, 'emit') as emit:
                 gdb.poll()
-                emit.assert_called_with(output=['Storage: item, 12 bytes'], inspection=True)
+                emit.assert_called_with(layoutTitle='Size and padding: item',
+                                        layoutLines=['Storage: item, 12 bytes (includes padding)'], layoutAppend=False)
             send.assert_called_with('-interpreter-exec console "ptype /o item"',
-                                    ('inspection-layout-type', 'item'))
+                                    ('inspection-layout-type', 'item', True, []))
+            gdb.pending['7'] = send.call_args.args[1]
+            gdb.lines.put('~"/* 3-byte hole */\\n"')
+            gdb.lines.put('7^done')
+            with patch.object(bridge, 'emit') as emit:
+                gdb.poll()
+                emit.assert_called_with(layoutTitle='Size and padding: item',
+                                        layoutLines=['/* 3-byte hole */'], layoutAppend=True)
             gdb.pending['2'] = ('inspection-function', 'callback', 4096, 2)
             gdb.lines.put('2^error,msg="No function contains specified address"')
             gdb.poll()
@@ -356,10 +364,10 @@ class LiveTests(unittest.TestCase):
                             printed = next(m['output'] for m in reversed(messages) if m.get('inspection'))
                             self.assertTrue(any('Top-level padding: 6 bytes' in row for row in printed), printed)
                             engine.command('layout item')
-                            self.assertIn('12 bytes', messages[-1]['output'][0])
-                            self.assertTrue(any('alignment 4 bytes' in row for row in messages[-1]['output']))
+                            self.assertIn('12 bytes', messages[-1]['layoutLines'][0])
+                            self.assertTrue(any('alignment 4 bytes' in row for row in messages[-1]['layoutLines']))
                             engine.command('layout nested')
-                            nested = messages[-1]['output']
+                            nested = messages[-1]['layoutLines']
                             self.assertIn('16 bytes', nested[0])
                             self.assertTrue(any('nested.child' in row and '12 bytes' in row for row in nested), nested)
                             self.assertTrue(any('Top-level padding: 6 bytes' in row for row in nested), nested)

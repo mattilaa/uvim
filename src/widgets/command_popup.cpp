@@ -301,7 +301,8 @@ void drawCommandPopup(std::string& output, const CommandPopupView& view)
     const PopupFrameView& frame = view.frame;
     output += frame.theme.baseFg();
 
-    int rows = std::min(8, std::max(1, frame.screenRows - 2));
+    int rows =
+        std::min(std::max(1, view.maxRows), std::max(1, frame.screenRows - 2));
     if(rows <= 0)
         return;
 

@@ -134,6 +134,69 @@ TEST(RealModeTransitionsTest, DebuggerInspectionShowsNewResultsAndKeepsVariableI
     EXPECT_TRUE(debug->variableExpressions.empty());
 }
 
+TEST(RealModeTransitionsTest, DebuggerSizePopupScrollsAndRestoresVariableFocus)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.screenRows = 32;
+    editor.screenCols = 100;
+    auto sm = makeMachine(editor, DebuggerMode{"app", false});
+    auto* debug = sm.getState<DebuggerMode>();
+    ASSERT_NE(debug, nullptr);
+    debug->applyMessage("{\"state\":\"stopped\",\"variables\":[\"item\"],"
+                        "\"variableExpressions\":[\"item\"]}");
+    sm.dispatch('v');
+    const auto output = debug->output;
+    debug->applyMessage("{\"layoutTitle\":\"Size and padding: "
+                        "item\",\"layoutLines\":[\"Storage: item, 12 "
+                        "bytes\",\"Padding: 6 bytes\"]}");
+    EXPECT_TRUE(debug->sizePopupOpen);
+    EXPECT_EQ(debug->pane, 2);
+    EXPECT_EQ(debug->output, output);
+    testing::internal::CaptureStdout();
+    debug->draw(editor);
+    const auto popup = testing::internal::GetCapturedStdout();
+    EXPECT_NE(popup.find("Size and padding: item"), std::string::npos);
+    EXPECT_NE(popup.find("Storage: item, 12 bytes"), std::string::npos);
+    EXPECT_NE(popup.find(ascii::utf8(ascii::BOX_ROUNDED_TOP_LEFT)),
+              std::string::npos);
+    for(int i = 0; i < 40; ++i)
+        debug->sizePopupLines.push_back("  member " + std::to_string(i));
+    sm.dispatch(keyCode(control::ControlKey::CTRL_J));
+    EXPECT_EQ(debug->sizePopupCursor, 1);
+    EXPECT_EQ(debug->cursor[2], 0);
+    sm.dispatch(keyCode(control::ControlKey::CTRL_K));
+    EXPECT_EQ(debug->sizePopupCursor, 0);
+    sm.dispatch(keyCode(navigation::NavigationKey::PAGE_DOWN));
+    EXPECT_GT(debug->sizePopupOffset, 0);
+    sm.dispatch('G');
+    EXPECT_EQ(debug->sizePopupCursor, 41);
+    sm.dispatch('g');
+    EXPECT_EQ(debug->sizePopupCursor, 0);
+    sm.dispatch('q');
+    EXPECT_FALSE(debug->sizePopupOpen);
+    EXPECT_EQ(debug->pane, 2);
+    EXPECT_NE(sm.getState<DebuggerMode>(), nullptr);
+    testing::internal::CaptureStdout();
+    debug->draw(editor);
+    const auto restored = testing::internal::GetCapturedStdout();
+    EXPECT_EQ(restored.find(Terminal::ESC_CLEAR_SCREEN), std::string::npos);
+    EXPECT_EQ(restored.find("Size and padding: item"), std::string::npos);
+    // Delayed GDB field output must not reopen a dismissed popup.
+    debug->applyMessage(
+        "{\"layoutTitle\":\"Size and padding: "
+        "item\",\"layoutAppend\":true,\"layoutLines\":[\"late field\"]}");
+    EXPECT_FALSE(debug->sizePopupOpen);
+    debug->applyMessage("{\"layoutTitle\":\"Size and padding: "
+                        "item\",\"layoutLines\":[\"Storage: item\"]}");
+    debug->applyMessage(
+        "{\"layoutTitle\":\"Size and padding: "
+        "item\",\"layoutAppend\":true,\"layoutLines\":[\"Padding: 6 bytes\"]}");
+    EXPECT_EQ(debug->sizePopupLines.size(), 2u);
+    sm.dispatch(keyCode(control::ControlKey::ENTER));
+    EXPECT_FALSE(debug->sizePopupOpen);
+}
+
 TEST(RealModeTransitionsTest,
      DebuggerBreakpointCompletionPreservesLineAndDoesNotExecute)
 {

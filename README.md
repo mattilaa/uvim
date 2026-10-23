@@ -1819,8 +1819,11 @@ In Variables, select a row with `j`/`k`: `p` or Enter prints the value, `a`
 disassembles its function-pointer/address value, and `m` reads the variable's
 storage as hex bytes and ASCII. `s` shows the whole variable size including
 padding, member sizes, and nested member layouts (`i` is an alias).
-Printing a local variable also includes its storage layout. Results open in
-Output; press `v` to return.
+Size inspection opens a popup while preserving the selected variable. Scroll
+with `j`/`k`, Ctrl+J/K, or Page Up/Down; `g`/`G` jumps to the first/last row.
+Esc, Enter, or `q` closes it. Long layout lines wrap to fit the popup.
+Printing a local variable also includes its storage layout in Output;
+disassembly and raw bytes appear there too. Press `v` to return to Variables.
 The same inspection is available for expressions and numeric addresses:
 
 ```text
