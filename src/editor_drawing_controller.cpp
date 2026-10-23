@@ -340,6 +340,16 @@ void EditorDrawingController::refreshScreen()
         return;
     }
 
+    if(editor.currentMode == DEBUGGER)
+    {
+#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
+        if(editor.modeStateMachine)
+            if(auto* state = editor.modeStateMachine->getState<DebuggerMode>())
+                state->draw(editor);
+#endif
+        return;
+    }
+
     if(editor.currentMode == COMMAND_OUTPUT)
     {
 #ifdef UVIM_ENABLE_AUXILIARY_VIEWS

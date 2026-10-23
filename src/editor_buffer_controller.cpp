@@ -167,6 +167,7 @@ void Editor::ensureBufferForModeImpl(Mode mode)
     case GIT_PATCH:
     case COMMAND_OUTPUT:
     case ASSEMBLY:
+    case DEBUGGER:
         return;
     default:
         break;

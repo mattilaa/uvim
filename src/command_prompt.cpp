@@ -75,7 +75,7 @@ bool CommandPrompt::handle(
                         helpCompletion = true;
                     }
                     else if(cmd == "e" || cmd == "edit" || cmd == "tabe" ||
-                            cmd == "tabnew" || cmd == "w" || cmd == "cd")
+                            cmd == "tabnew" || cmd == "w" || cmd == "cd" || cmd == "dbgrun")
                     {
                         completions = ctx.getPathCompletionsRecursive(pathPart);
                     }

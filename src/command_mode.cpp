@@ -432,6 +432,10 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
             std::string path;
             if(ctx.takeCommandRequest(mode, path))
             {
+#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
+                if(mode == DEBUGGER)
+                    return DebuggerMode{path.substr(2), path.rfind("a ", 0) == 0};
+#endif
 #ifdef UVIM_ENABLE_ASM_VIEW
                 if(mode == ASSEMBLY)
                     return AssemblyMode{path, assemblySourceRange};
@@ -873,7 +877,7 @@ void CommandMode::handleTabCompletion(ModeContext& ctx)
                     helpCompletion = true;
                 }
                 else if(cmd == "e" || cmd == "edit" || cmd == "tabe" ||
-                        cmd == "tabnew")
+                        cmd == "tabnew" || cmd == "dbgrun")
                 {
                     completions = ctx.getPathCompletionsRecursive(pathPart);
                 }

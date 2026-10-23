@@ -45,7 +45,7 @@ std::vector<std::string> helpSearchTopics()
             "files",   "filebrowser", "run",       "buffers",    "windows",
             "search",  "regex",       "clipboard", "git",        "ga",
             "gb",      "gbb",         "gbl",       "gj",         "gbv",
-            "gs",
+            "gs", "dbgrun", "dbgattach",
 #ifdef UVIM_ENABLE_ASM_VIEW
             "asm",
 #endif
@@ -143,6 +143,8 @@ std::string helpTopicDescription(const std::string& topic)
     if(topic == "asm")
         return "Compile and browse C/C++ or Mlang assembly";
 #endif
+    if(topic == "dbgrun" || topic == "dbgattach")
+        return "Launch or attach a native debugger";
     if(topic == "emitasm")
         return "Emit C/C++ assembly";
     if(topic == "lsp")
@@ -1144,8 +1146,41 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
     std::transform(topic_lower.begin(), topic_lower.end(), topic_lower.begin(),
                    ::tolower);
 
-    // Load help content based on topic
-    if(topic_lower.empty() || topic_lower == "index" || topic_lower == "help")
+    if(topic_lower == "dbgrun" || topic_lower == "dbgattach")
+    {
+        lines = {
+            "# Debugger",
+            "",
+            "`:dbgrun path/to/binary [arguments]` launches and stops at entry.",
+            "`:dbgattach PID` attaches to a running process.",
+            "Add `--backend lldb|gdb|mladbg` before the binary or PID.",
+            "Quote executable paths and arguments containing spaces.",
+            "Build with -g -O0 for source and local variable information.",
+            "",
+            "Source and output are shown in their own panes. At a stop,",
+            "variables and threads appear on the right. Small terminals",
+            "show the focused pane alone.",
+            "",
+            "`j/k` selects rows. `Ctrl+Shift+H/J/K/L` focuses adjacent panes.",
+            "Use Alt+h/j/k/l when the terminal uses alternate pane chords.",
+            "Enter on a thread selects it and refreshes source and locals.",
+            "",
+            "`:b path/to/file:42` sets a breakpoint. Tab completes the path",
+            "and preserves the line suffix; Enter executes the command.",
+            "`:c`, `:n`, `:s`, `:f`: continue, step over, into, out.",
+            "The same letters work outside the prompt; r restarts.",
+            "Ctrl-C interrupts; other prompt commands go to the backend.",
+            "Esc cancels the prompt. q/Esc outside it closes the session.",
+            "Attached processes detach; launched processes terminate.",
+            "",
+            "Requires macOS/Linux, Python 3, and LLDB bindings or GDB.",
+            "MLADBG_PYTHON selects Python; MLADBG_LLDB locates bindings.",
+            "For a mladbg checkout, set UVIM_MLADBG_MODULE to its",
+            "tools/mladbg/mladbg.py. UVIM_GDB selects a GDB executable.",
+            "Locals show top-level values; program stdin is not exposed.",
+        };
+    }
+    else if(topic_lower.empty() || topic_lower == "index" || topic_lower == "help")
     {
         lines = {
             "# uvim Help",

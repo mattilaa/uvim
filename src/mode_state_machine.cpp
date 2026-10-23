@@ -174,6 +174,7 @@ struct ModeStateToMode
 #endif
 
 #ifdef UVIM_ENABLE_AUXILIARY_VIEWS
+    Mode operator()(const DebuggerMode&) const { return DEBUGGER; }
     Mode operator()(const CommandOutputMode&) const
     {
         return COMMAND_OUTPUT;
@@ -325,6 +326,10 @@ std::optional<ModeState> dispatchEditorCommand(ModeContext& ctx,
     std::string path;
     if(ctx.takeCommandRequest(mode, path))
     {
+#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
+        if(mode == DEBUGGER)
+            return DebuggerMode{path.substr(2), path.rfind("a ", 0) == 0};
+#endif
 #ifdef UVIM_ENABLE_ASM_VIEW
         if(mode == ASSEMBLY)
             return AssemblyMode{path};
@@ -539,11 +544,14 @@ ModeState stateForMode(ModeContext& ctx, Mode mode)
         return NormalMode{};
 #endif
 #ifdef UVIM_ENABLE_AUXILIARY_VIEWS
+    case DEBUGGER:
+        return DebuggerMode{};
     case COMMAND_OUTPUT:
         return CommandOutputMode{};
     case GLYPH_SELECT:
         return GlyphSelectMode{};
 #else
+    case DEBUGGER:
     case COMMAND_OUTPUT:
     case GLYPH_SELECT:
         return NormalMode{};

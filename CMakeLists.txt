@@ -417,7 +417,13 @@ if(UVIM_ENABLE_BROWSER_TOOLS)
 endif()
 
 if(UVIM_ENABLE_AUXILIARY_VIEWS)
+    file(READ "${CMAKE_CURRENT_SOURCE_DIR}/src/debugger_bridge.py" UVIM_DEBUGGER_BRIDGE)
+    set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS src/debugger_bridge.py)
+    configure_file(src/debugger_bridge.h.in generated/debugger_bridge.h @ONLY)
+    include_directories("${CMAKE_CURRENT_BINARY_DIR}/generated")
     list(APPEND MODE_STATE_MACHINE_SOURCES
+        src/debugger_mode.cpp
+        src/editor_execution_debugger_command.cpp
         src/references_mode.cpp
         src/lsp_info_mode.cpp
         src/tool_info_mode.cpp
@@ -952,6 +958,7 @@ if(UVIM_BUILD_TESTS)
 
     set(UVIM_REAL_MODE_TEST_FILES
         tests/editor_alternate_file_test.cpp
+        tests/real_mode_debugger_test.cpp
         tests/real_mode_assembly_test.cpp
         tests/real_mode_browser_test.cpp
         tests/real_mode_function_browser_test.cpp
@@ -1111,6 +1118,11 @@ if(UVIM_BUILD_TESTS)
 
     find_package(Python3 COMPONENTS Interpreter QUIET)
     if(Python3_Interpreter_FOUND)
+        add_test(NAME debugger_bridge
+            COMMAND ${CMAKE_COMMAND}
+                "-DUVIM_PYTHON_EXECUTABLE=${Python3_EXECUTABLE}"
+                "-DUVIM_PYTHON_TEST=${CMAKE_SOURCE_DIR}/tests/debugger_bridge_test.py"
+                -P ${CMAKE_SOURCE_DIR}/tests/run_python_test.cmake)
         add_test(
             NAME ci_build_warning_gate
             COMMAND ${CMAKE_COMMAND}

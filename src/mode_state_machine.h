@@ -15,6 +15,7 @@
 #endif
 #ifdef UVIM_ENABLE_AUXILIARY_VIEWS
 #include "command_output_mode.h"
+#include "debugger_mode.h"
 #endif
 #ifdef UVIM_ENABLE_BROWSER_TOOLS
 #include "file_browser_mode.h"

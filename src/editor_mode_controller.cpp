@@ -204,6 +204,12 @@ public:
 #endif
 #ifdef UVIM_ENABLE_AUXILIARY_VIEWS
     std::optional<Mode> operator()(ModeContext& ctx,
+                                   const DebuggerMode& state) const
+    {
+        return recognize(ctx, state);
+    }
+
+    std::optional<Mode> operator()(ModeContext& ctx,
                                    const CommandOutputMode& state) const
     {
         return recognize(ctx, state);

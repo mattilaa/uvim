@@ -1579,6 +1579,8 @@ std::string Editor::getModeString() const
         return "RUN";
     case ASSEMBLY:
         return "ASM";
+    case DEBUGGER:
+        return "DEBUG";
     case GLYPH_SELECT:
         return "GLYPH";
     case ANSI_TOOLS:

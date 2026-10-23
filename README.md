@@ -1751,3 +1751,39 @@ robot --outputdir tests/robot/output tests/robot/
 ```sh
 deactivate
 ```
+
+### Debugger view
+
+Use `:dbgrun path/to/binary [arguments...]` to launch a native executable and
+stop at entry, or `:dbgattach <pid>` to attach to a running process. Build the
+program with debug information (`-g`, preferably `-O0`) for source and locals.
+Quote paths or arguments containing spaces. LLDB is the default backend;
+select another with `:dbgrun --backend gdb ./app` or
+`:dbgattach --backend mladbg 1234`.
+
+The debugger has its own source and output view. When execution stops, variables
+and threads appear on the right. Use `j`/`k` (or arrows) to select rows and
+`Ctrl+Shift+H/J/K/L` to focus the pane in that direction. Terminals without
+extended key reporting use the editor's existing Alt+h/j/k/l fallback. Select a
+thread with Enter to inspect its source and variables. Small terminals show the
+focused pane alone.
+
+Press `:` for debugger commands. `:b path/to/file:42` sets a breakpoint; Tab
+completes the path while preserving an existing `:42` suffix. Completion inserts
+the path without executing the command. `:c`, `:n`, `:s`, and `:f` continue, step
+over, step into, and step out; the same letters work without the prompt.
+`:run` (or `r`) restarts the program. Ctrl-C interrupts execution. Other commands
+are passed to the selected debugger (`:p expression`, `:bt`, etc.). Esc cancels
+the prompt; `q` or Esc outside the prompt closes the session. Closing an attach
+session detaches and leaves the process alive; closing a launched session ends
+that process.
+
+Debugger support is included with `UVIM_ENABLE_AUXILIARY_VIEWS` on macOS and
+Linux. It uses Python 3 and the installed debugger: LLDB requires matching Python
+bindings, and GDB uses its MI interface. `MLADBG_PYTHON` selects the Python
+interpreter, `MLADBG_LLDB` selects LLDB for locating bindings, and `UVIM_GDB`
+selects the GDB executable. The mladbg backend loads the command engine from
+MLang's installed `share/mlang/debugger/mladbg.py`; for a checkout, set
+`UVIM_MLADBG_MODULE=/path/to/mlang/tools/mladbg/mladbg.py`. The program's stdin is
+separate from editor commands; interactive program input is not exposed in this
+first version. Variables currently show top-level values and summaries.
