@@ -1152,6 +1152,114 @@ TEST(RealModeTransitionsTest,
     EXPECT_FALSE(debug->output.empty());
     std::filesystem::remove_all(dir);
 }
+
+TEST(RealModeTransitionsTest, DebuggerFrameAndProcessPickersAcceptRegexQueries)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    {
+        auto sm = makeMachine(editor, DebuggerMode{"app", false});
+        auto* debug = sm.getState<DebuggerMode>();
+        debug->applyMessage("{\"state\":\"stopped\"}");
+        sm.dispatch(':');
+        for(char key : std::string("frame -- re:^(main|worker)$"))
+            sm.dispatch(key);
+        debug->applyMessage(
+            "{\"frames\":[{\"id\":\"0\",\"function\":\"main\"},{\"id\":\"1\","
+            "\"function\":\"other\"},{\"id\":\"2\",\"function\":\"worker\"}]}");
+        ASSERT_EQ(debug->frameMatches.size(), 2u);
+        for(int index : debug->frameMatches)
+            EXPECT_NE(debug->stackFrames[index].symbol, "other");
+    }
+    DebuggerProcessPicker picker;
+    picker.loader = []
+    {
+        return DebuggerProcessList{{{12, "cpp", "/tmp/cpp"},
+                                    {34, "python", "/usr/bin/python"},
+                                    {56, "mlang", "/tmp/mlang"}},
+                                   {}};
+    };
+    auto ctx = createModeContext(&editor);
+    EXPECT_TRUE(picker.update(ctx, ":dbgattach -- re:(cpp|mlang)$"));
+    EXPECT_EQ(editor.commandPopupFiltered.size(), 2u);
+    EXPECT_TRUE(picker.update(ctx, ":dbgattach -- re:["));
+    EXPECT_TRUE(editor.commandPopupFiltered.empty());
+    EXPECT_NE(editor.commandPopupEmptyMessage.find("Invalid regex"),
+              std::string::npos);
+    picker.close(ctx);
+}
+
+TEST(RealModeTransitionsTest, DebuggerProcessRegexShorthandFiltersWhileTyping)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    int loads = 0;
+    CommandMode command;
+    command.processPicker.loader = [&]
+    {
+        ++loads;
+        return recordedDebuggerProcesses();
+    };
+    auto sm = makeMachine(editor, std::move(command));
+    for(char key : std::string("dbgattach re:"))
+        sm.dispatch(key);
+    ASSERT_TRUE(editor.commandPopupActive);
+    EXPECT_EQ(editor.commandPopupQuery, "re:");
+    EXPECT_EQ(editor.commandPopupFiltered.size(), 3u);
+    for(char key : std::string("^compiler$"))
+        sm.dispatch(key);
+    ASSERT_EQ(editor.commandPopupFiltered.size(), 1u);
+    EXPECT_EQ(editor.commandPopupFiltered[0], 1);
+    EXPECT_EQ(editor.commandBuffer, ":dbgattach re:^compiler$");
+    EXPECT_EQ(loads, 1);
+    sm.dispatch(keyCode(control::ControlKey::CTRL_J));
+    EXPECT_EQ(editor.commandBuffer, ":dbgattach re:^compiler$");
+    sm.dispatch(keyCode(control::ControlKey::CTRL_U));
+    EXPECT_EQ(editor.commandBuffer, ":dbgattach re:");
+    EXPECT_EQ(editor.commandPopupFiltered.size(), 3u);
+    for(char key : std::string("^[A-Za-z]+$"))
+        sm.dispatch(key);
+    ASSERT_EQ(editor.commandPopupFiltered.size(), 1u);
+    EXPECT_EQ(editor.commandPopupFiltered[0], 1);
+    sm.dispatch(keyCode(control::ControlKey::CTRL_U));
+    for(char key : std::string("^[0-9]{4}$"))
+        sm.dispatch(key);
+    ASSERT_EQ(editor.commandPopupFiltered.size(), 1u);
+    EXPECT_EQ(editor.commandPopupFiltered[0], 0);
+    sm.dispatch(keyCode(control::ControlKey::TAB));
+    EXPECT_FALSE(editor.commandPopupActive);
+    EXPECT_EQ(editor.commandBuffer, ":dbgattach 1234");
+}
+
+TEST(RealModeTransitionsTest,
+     DebuggerProcessRegexShorthandPreservesBackendAndRecoversFromInvalidClass)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    CommandMode command;
+    command.initialInput = "dbgattach --backend gdb re:";
+    command.processPicker.loader = recordedDebuggerProcesses;
+    auto sm = makeMachine(editor, std::move(command));
+    ASSERT_TRUE(editor.commandPopupActive);
+    sm.dispatch('[');
+    EXPECT_TRUE(editor.commandPopupFiltered.empty());
+    EXPECT_NE(editor.commandPopupEmptyMessage.find("Invalid regex"),
+              std::string::npos);
+    for(char key : std::string("A-Za-z0-9]"))
+        sm.dispatch(key);
+    EXPECT_EQ(editor.commandPopupFiltered.size(), 3u);
+    sm.dispatch(keyCode(control::ControlKey::CTRL_U));
+    EXPECT_EQ(editor.commandBuffer, ":dbgattach --backend gdb re:");
+    for(char key : std::string("^debugger-[a-z]+$"))
+        sm.dispatch(key);
+    ASSERT_EQ(editor.commandPopupFiltered.size(), 1u);
+    sm.dispatch(keyCode(control::ControlKey::ENTER));
+    const auto* debug = sm.getState<DebuggerMode>();
+    ASSERT_NE(debug, nullptr);
+    EXPECT_EQ(debug->backend, "gdb");
+    EXPECT_EQ(debug->target, "1234");
+}
+
 #else
 using namespace uvim_test;
 
@@ -1165,30 +1273,6 @@ TEST(RealModeTransitionsTest, DebuggerCommandsAreUnavailableWhenDisabled)
     dispatch_command(sm, "dbgattach 1234");
     EXPECT_EQ(modeForState(sm.state()), NORMAL);
     EXPECT_TRUE(editor.getCommandCompletions("dbg").empty());
-}
-TEST(RealModeTransitionsTest, DebuggerFrameAndProcessPickersAcceptRegexQueries)
-{
-    Editor editor = Editor::createForTests();
-    editor.createNewBuffer();
-    {
-        auto sm = makeMachine(editor, DebuggerMode{"app", false});
-        auto* debug = sm.getState<DebuggerMode>();
-        debug->applyMessage("{\"state\":\"stopped\"}");
-        sm.dispatch(':');
-        for(char key : std::string("frame -- re:^(main|worker)$")) sm.dispatch(key);
-        debug->applyMessage("{\"frames\":[{\"id\":\"0\",\"function\":\"main\"},{\"id\":\"1\",\"function\":\"other\"},{\"id\":\"2\",\"function\":\"worker\"}]}");
-        ASSERT_EQ(debug->frameMatches.size(), 2u);
-        for(int index : debug->frameMatches) EXPECT_NE(debug->stackFrames[index].symbol, "other");
-    }
-    DebuggerProcessPicker picker;
-    picker.loader = [] { return DebuggerProcessList{{{12,"cpp","/tmp/cpp"}, {34,"python","/usr/bin/python"}, {56,"mlang","/tmp/mlang"}}, {}}; };
-    auto ctx = createModeContext(&editor);
-    EXPECT_TRUE(picker.update(ctx, ":dbgattach -- re:(cpp|mlang)$"));
-    EXPECT_EQ(editor.commandPopupFiltered.size(), 2u);
-    EXPECT_TRUE(picker.update(ctx, ":dbgattach -- re:["));
-    EXPECT_TRUE(editor.commandPopupFiltered.empty());
-    EXPECT_NE(editor.commandPopupEmptyMessage.find("Invalid regex"), std::string::npos);
-    picker.close(ctx);
 }
 
 #endif

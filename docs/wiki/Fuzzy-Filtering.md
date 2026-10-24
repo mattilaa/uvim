@@ -37,11 +37,25 @@ The debugger's Ctrl+P file picker uses the same filtering and row suffixes. In v
 ## Debugger pickers
 
 ```text
-:dbgattach -- re:(app|worker)
+:dbgattach re:(app|worker)
+:dbgattach re:^worker_[0-9]+$
+:dbgattach re:^[0-9]{4}$
 :frame -- re:^(main|worker)$
 ```
 
-The process picker searches the displayed PID, executable name, and path. The frame picker searches frame labels and function symbols. Ctrl+J/K and Enter keep their usual selection behavior. Regex text does not run a debugger command until a picker selection is accepted. See the [debugger guide](Debugger.md) for the other picker controls.
+Typing `:dbgattach re:` immediately opens the process list and updates results
+as you type; `--` is optional for explicit regex queries. Use
+`:dbgattach --backend gdb re:pattern` to choose a backend. Ctrl+U clears a direct
+regex query while preserving `re:`. The older `:dbgattach -- re:pattern` form
+still works.
+
+The process picker searches the displayed label and each PID, executable name,
+and path independently, so anchors such as `^worker_[0-9]+$` match names and
+`^[0-9]{4}$` matches PIDs. Character classes `[A-Z]`, `[a-z]`, and `[0-9]` are
+supported. Use `[A-Za-z0-9]` to combine them; commas and spaces inside brackets
+are literal characters. Matching is case-insensitive.
+
+ The frame picker searches frame labels and function symbols. Ctrl+J/K and Enter keep their usual selection behavior. Regex text does not run a debugger command until a picker selection is accepted. See the [debugger guide](Debugger.md) for the other picker controls.
 
 ## Commands, buffers, functions, and help
 

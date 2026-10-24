@@ -33,8 +33,13 @@ std::string display(std::string text)
     return text;
 }
 
-std::optional<std::pair<std::string, std::string>>
-pickerInput(std::string_view input)
+struct PickerInput
+{
+    std::string prefix, query;
+    bool directRegex = false;
+};
+
+std::optional<PickerInput> pickerInput(std::string_view input)
 {
     input = trim(input);
     if(input.starts_with(':'))
@@ -55,10 +60,15 @@ pickerInput(std::string_view input)
         prefix += " --backend " + std::string(backend);
         input = trim(input.substr(end));
     }
+    // Explicit regex queries open the picker without the -- marker. In
+    // particular, re: is already a valid empty regex while the user types.
+    if(editor::helper::isRegexQuery(input))
+        return PickerInput{prefix, std::string(input),
+                           input.starts_with("re:")};
     // --query works immediately after opening; --backend remains an option.
     if(!input.starts_with("--") || input == "--backend")
         return {};
-    return std::pair{prefix, std::string(trim(input.substr(2)))};
+    return PickerInput{prefix, std::string(trim(input.substr(2))), false};
 }
 } // namespace
 
@@ -130,8 +140,9 @@ bool DebuggerProcessPicker::update(ModeContext& ctx, std::string_view input,
     if(!active || refresh)
         processes = loader();
     active = true;
-    commandPrefix = parsed->first;
-    const auto& query = parsed->second;
+    commandPrefix = parsed->prefix;
+    directRegex = parsed->directRegex;
+    const auto& query = parsed->query;
     auto& editor = *ctx.editor;
     editor.commandPopupActive = true;
     editor.commandPopupAll.clear();
@@ -154,6 +165,10 @@ bool DebuggerProcessPicker::update(ModeContext& ctx, std::string_view input,
         int score = query.empty() ? 0
                                   : editor::helper::fuzzyScoreWithPositions(
                                         query, label, positions);
+        if(editor::helper::isRegexQuery(query))
+            for(const auto& field : {pid, process.name, process.executable})
+                score = std::max(score, editor::helper::fuzzyScoreWithPositions(
+                                            query, field, positions));
         if(query == pid)
             score += 100000;
         if(score >= 0)
@@ -175,9 +190,9 @@ bool DebuggerProcessPicker::update(ModeContext& ctx, std::string_view input,
     if(const auto error = editor::helper::regexQueryError(query);
        !error.empty())
         editor.commandPopupEmptyMessage = error;
-    ctx.setStatusMessage(
-        "Processes: type name/PID | Ctrl-J/K: select | Enter: attach | Tab: "
-        "insert PID | Ctrl-R: refresh | Esc: close");
+    ctx.setStatusMessage("Processes: type name/PID or re:regex | Ctrl-J/K: "
+                         "select | Enter: attach | Tab: "
+                         "insert PID | Ctrl-R: refresh | Esc: close");
     ctx.requestFullRedraw();
     return true;
 }
@@ -222,7 +237,7 @@ DebuggerProcessPicker::handle(ModeContext& ctx, int key, std::string& input)
     else if(key == keyCode(control::ControlKey::CTRL_U))
     {
         input = std::string(input.starts_with(':') ? ":" : "") + commandPrefix +
-                " -- ";
+                (directRegex ? " re:" : " -- ");
         update(ctx, input);
     }
     else if(key == keyCode(control::ControlKey::ESC))

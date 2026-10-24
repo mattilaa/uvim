@@ -1774,6 +1774,13 @@ select another with `:dbgrun --backend gdb ./app` or
 
 Type `:dbgattach --` to browse processes in a glyph popup. Continue typing to
 fuzzy-filter by executable name or PID (for example, `:dbgattach -- cpp`).
+You can also type `:dbgattach re:` to open the list immediately and filter it
+as you type a regex, without `--`. For example, `:dbgattach re:^worker_[0-9]+$`
+matches process names, and `:dbgattach re:^[0-9]{4}$` matches four-digit PIDs.
+Use `[A-Za-z0-9]` for letters or digits; commas and spaces inside a character
+class are literal matches. Regex matching is case-insensitive. Ctrl+U preserves
+the direct `re:` prefix so you can enter another expression. With an explicit
+backend, use `:dbgattach --backend gdb re:pattern`.
 Ctrl+J/K or arrows select a row; Enter attaches to it. Tab inserts its PID
 without attaching, Esc closes the list, and Ctrl+R refreshes the process snapshot.
 `Ctrl+U` clears the filter. For another backend, use

@@ -17,6 +17,15 @@ Quote paths and arguments containing spaces. LLDB is the default backend.
 
 Type `:dbgattach --` without pressing Enter to open the process picker. Continue typing to fuzzy-find an executable name or PID. Ctrl+J/K or arrows selects; Enter attaches; Tab inserts the PID without attaching. Ctrl+R refreshes, Ctrl+U clears the filter, and Esc closes the picker. For example, `:dbgattach --backend gdb -- app` filters processes and uses GDB.
 
+For live regex filtering, type `:dbgattach re:` and continue with a pattern;
+no `--` or Enter is needed to display the list. Examples include
+`:dbgattach re:^worker_[0-9]+$` for names and `:dbgattach re:^[0-9]{4}$` for PIDs.
+Names, paths, and PIDs are also matched independently, so anchors work on each
+field. Character classes are supported: `[A-Za-z0-9]` means a letter or digit.
+Commas and spaces inside brackets are literal characters. Matching is
+case-insensitive. Ctrl+U preserves the direct `re:` prefix, and
+`:dbgattach --backend gdb re:pattern` selects another backend.
+
 ## Panes and execution
 
 The Source and Output panes are joined by Variables and Threads when execution stops. The focused pane has an accented glyph border; small terminals show that pane alone.
