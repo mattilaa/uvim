@@ -36,12 +36,40 @@ class BridgeTests(unittest.TestCase):
             self.assertEqual([f['id'] for f in frames], ['0', '4'])
             self.assertFalse(frames[0]['selected'])
             self.assertEqual(frames[1], dict(id='4', function='main', path='/tmp/app.c',
-                                              line=42, address='0x2000', selected=True))
+                                              line=42, address='0x2000', module='', selected=True))
             self.assertTrue(gdb.user_frame_selected)
             gdb.pending['3'] = 'frames-picker-current'
             gdb.lines.put('3^error,msg="No stack available"')
             gdb.poll()
             emit.assert_called_with(frames=[], framesError='No stack available')
+
+    def test_gdb_library_assembly_preview_is_read_only_and_preserves_request_identity(self):
+        gdb = bridge.GDB.__new__(bridge.GDB)
+        gdb.lines, gdb.pending, gdb.master = queue.Queue(), {}, -1
+        with patch.object(gdb, 'send') as send, patch.object(bridge, 'emit') as emit:
+            gdb.command('frame-disasm 4 17')
+            send.assert_called_once_with('-stack-list-frames 4 4', ('preview-frame', '4', 17))
+            gdb.pending['1'] = send.call_args.args[1]
+            gdb.lines.put('1^done,stack=[frame={level="4",addr="0x1000",func="library_function"}]')
+            gdb.poll()
+            send.assert_called_with('-data-disassemble -a 0x1000 -- 2', ('preview-function', '4', 4096, 17))
+            gdb.pending['2'] = send.call_args.args[1]
+            gdb.lines.put('2^error,msg="No function contains specified address"')
+            gdb.poll()
+            send.assert_called_with('-data-disassemble -s 0x1000 -e 0x1200 -- 2', ('preview-assembly', '4', 4096, 17))
+            gdb.pending['3'] = send.call_args.args[1]
+            gdb.lines.put('3^done,asm_insns=[{address="0x1000",opcodes="90",inst="nop"}]')
+            gdb.poll()
+            preview = emit.call_args.kwargs['framePreview']
+            self.assertEqual(preview['id'], '4')
+            self.assertEqual(preview['token'], 17)
+            self.assertIn('0x1000', preview['lines'][0])
+            self.assertIn('nop', preview['lines'][0])
+            self.assertTrue(all('select' not in call.args[0] for call in send.call_args_list))
+            gdb.pending['4'] = ('preview-assembly', '4', 4096, 18)
+            gdb.lines.put('4^error,msg="Cannot access memory"')
+            gdb.poll()
+            emit.assert_called_with(framePreview=dict(id='4', token=18, lines=[], error='Cannot access memory'))
 
     def test_gdb_explicit_frame_selection_survives_pending_auto_selection(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -509,6 +537,13 @@ class LiveTests(unittest.TestCase):
                             self.assertTrue(any(f['selected'] and f['id'] == str(caller_index) for f in frames), frames)
                             self.assertTrue(any('main' in f['function'] and f['path'] == item['source'] for f in frames), frames)
                             self.assertTrue(all(f['address'].startswith('0x') for f in frames))
+                            self.assertEqual(process.GetSelectedThread().GetSelectedFrame().GetFrameID(), caller_index)
+                            engine.command('frame-disasm 0 17')
+                            preview = messages[-1]['framePreview']
+                            self.assertEqual(preview['id'], '0')
+                            self.assertEqual(preview['token'], 17)
+                            self.assertTrue(preview['lines'])
+                            self.assertTrue(all(row.startswith('0x') for row in preview['lines']))
                             self.assertEqual(process.GetSelectedThread().GetSelectedFrame().GetFrameID(), caller_index)
                             engine.marker = None  # A stop event can still be pending on the first command.
                             engine.command('frame 0')

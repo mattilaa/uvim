@@ -211,6 +211,24 @@ class LLDB:
         verb, _, rest = text.partition(' ')
         location = rest.strip().strip('"\'')
         path, colon, row = location.rpartition(':')
+        if verb == 'frame-disasm':
+            if not re.fullmatch(r'\d+ \d+', rest):
+                raise ValueError('Invalid frame preview request')
+            identity, token = map(int, rest.split())
+            process = self.target.GetProcess()
+            if process.GetState() not in (self.lldb.eStateStopped, self.lldb.eStateCrashed,
+                                         self.lldb.eStateSuspended):
+                raise ValueError('Pause execution before previewing assembly')
+            thread = process.GetSelectedThread()
+            if identity >= thread.GetNumFrames():
+                raise ValueError(f'Stack frame {identity} does not exist')
+            frame = thread.GetFrameAtIndex(identity)
+            if not frame.IsValid():
+                raise ValueError(f'Stack frame {identity} is unavailable')
+            rows = self.disassembly_rows(frame.GetPC(), 32)
+            emit(framePreview=dict(id=str(identity), token=token,
+                                   lines=[row for row in rows if row.startswith('0x')]))
+            return
         if text == 'frames':
             process = self.target.GetProcess()
             if process.GetState() not in (self.lldb.eStateStopped, self.lldb.eStateCrashed,
@@ -228,6 +246,7 @@ class LLDB:
                 frames.append(dict(id=str(frame.GetFrameID()),
                                    function=frame.GetFunctionName() or frame.GetSymbol().GetName() or '<unknown>',
                                    path=path, line=line, address=f'0x{frame.GetPC():x}',
+                                   module=frame.GetModule().GetFileSpec().GetFilename() or '',
                                    selected=frame.GetFrameID() == selected))
             emit(frames=frames)
             return
@@ -367,43 +386,48 @@ class LLDB:
                 if pointee.IsValid() and pointee.GetByteSize() > 0:
                     rows += type_layout(pointee, '*(' + expression + ')')
         else:
-            start = self.target.ResolveLoadAddress(address)
-            instructions = self.target.ReadInstructions(start, count)
-            if not instructions.GetSize():
-                raise ValueError(f'No instructions at 0x{address:x}')
-            function = start.GetFunction()
-            symbol = function if function.IsValid() else start.GetSymbol()
-            begin, end = symbol.GetStartAddress(), symbol.GetEndAddress()
-            function_end = None
-            if begin.IsValid() and end.IsValid():
-                low, high = begin.GetLoadAddress(self.target), end.GetLoadAddress(self.target)
-                if 0 <= low < high < self.lldb.LLDB_INVALID_ADDRESS:
-                    rows.append(f'Function: {symbol.GetName()}, {high - low} code bytes')
-                    if low <= address < high:
-                        function_end = high
-            if function_end is None:
-                rows.append('Function size: unavailable; displaying bytes at the requested address')
-            rows.append('Function padding: not identified separately by debug symbols')
-            displayed_bytes, displayed_count = 0, 0
-            for instruction in instructions:
-                location = instruction.GetAddress().GetLoadAddress(self.target)
-                if function_end is not None and location >= function_end:
-                    break
-                data = instruction.GetData(self.target)
-                error = self.lldb.SBError()
-                encoded = ' '.join(f'{data.GetUnsignedInt8(error, i):02x}'
-                                   for i in range(min(instruction.GetByteSize(), 16)))
-                if error.Fail():
-                    encoded = '??'
-                displayed_bytes += instruction.GetByteSize()
-                displayed_count += 1
-                mnemonic = instruction.GetMnemonic(self.target) or '?'
-                operands = instruction.GetOperands(self.target) or ''
-                comment = instruction.GetComment(self.target) or ''
-                rows.append(f'0x{location:016x}  {mnemonic} {operands}  [{encoded}]' +
-                            (f'  ; {comment}' if comment else ''))
-            rows.append(f'Displayed: {displayed_count} instructions, {displayed_bytes} bytes')
+            rows += self.disassembly_rows(address, count)
         emit(output=rows, inspection=True)
+
+    def disassembly_rows(self, address, count):
+        rows = []
+        start = self.target.ResolveLoadAddress(address)
+        instructions = self.target.ReadInstructions(start, count)
+        if not instructions.GetSize():
+            raise ValueError(f'No instructions at 0x{address:x}')
+        function = start.GetFunction()
+        symbol = function if function.IsValid() else start.GetSymbol()
+        begin, end = symbol.GetStartAddress(), symbol.GetEndAddress()
+        function_end = None
+        if begin.IsValid() and end.IsValid():
+            low, high = begin.GetLoadAddress(self.target), end.GetLoadAddress(self.target)
+            if 0 <= low < high < self.lldb.LLDB_INVALID_ADDRESS:
+                rows.append(f'Function: {symbol.GetName()}, {high - low} code bytes')
+                if low <= address < high:
+                    function_end = high
+        if function_end is None:
+            rows.append('Function size: unavailable; displaying bytes at the requested address')
+        rows.append('Function padding: not identified separately by debug symbols')
+        displayed_bytes, displayed_count = 0, 0
+        for instruction in instructions:
+            location = instruction.GetAddress().GetLoadAddress(self.target)
+            if function_end is not None and location >= function_end:
+                break
+            data = instruction.GetData(self.target)
+            error = self.lldb.SBError()
+            encoded = ' '.join(f'{data.GetUnsignedInt8(error, i):02x}'
+                               for i in range(min(instruction.GetByteSize(), 16)))
+            if error.Fail():
+                encoded = '??'
+            displayed_bytes += instruction.GetByteSize()
+            displayed_count += 1
+            mnemonic = instruction.GetMnemonic(self.target) or '?'
+            operands = instruction.GetOperands(self.target) or ''
+            comment = instruction.GetComment(self.target) or ''
+            rows.append(f'0x{location:016x}  {mnemonic} {operands}  [{encoded}]' +
+                        (f'  ; {comment}' if comment else ''))
+        rows.append(f'Displayed: {displayed_count} instructions, {displayed_bytes} bytes')
+        return rows
 
     def caller_step_command(self, text):
         # Source shown after attach may be several frames above the actual PC.
@@ -718,6 +742,13 @@ class GDB:
         if text == 'frames':
             self.send('-stack-info-frame', 'frames-picker-current')
             return
+        if verb == 'frame-disasm':
+            if not re.fullmatch(r'\d+ \d+', rest):
+                raise ValueError('Invalid frame preview request')
+            identity, token = rest.split()
+            self.send(f'-stack-list-frames {int(identity)} {int(identity)}',
+                      ('preview-frame', identity, int(token)))
+            return
         aliases = {'run': '-exec-run', 'r': '-exec-run', 'continue': '-exec-continue',
                    'c': '-exec-continue', 'next': '-exec-next', 'n': '-exec-next',
                    'step': '-exec-step', 's': '-exec-step', 'finish': '-exec-finish',
@@ -791,6 +822,15 @@ class GDB:
             elif prefix == '^':
                 kind = self.pending.pop(token, '')
                 if result == 'error':
+                    if isinstance(kind, tuple) and kind[0].startswith('preview-'):
+                        if kind[0] == 'preview-function':
+                            _, identity, address, token = kind
+                            self.send(f'-data-disassemble -s 0x{address:x} -e 0x{address + 512:x} -- 2',
+                                      ('preview-assembly', identity, address, token))
+                        else:
+                            emit(framePreview=dict(id=kind[1], token=kind[-1], lines=[],
+                                                   error=data.get('msg', 'Cannot preview assembly')))
+                        continue
                     if kind in ('frames-picker-current', 'frames-picker'):
                         emit(frames=[], framesError=data.get('msg', 'Cannot read stack frames'))
                         continue
@@ -812,7 +852,20 @@ class GDB:
                                 inspection=isinstance(kind, tuple),
                                 **({'state': 'error'} if kind == 'startup' else {})))
                 elif isinstance(kind, tuple):
-                    if kind[0] == 'inspection-value':
+                    if kind[0] == 'preview-frame':
+                        _, identity, preview_token = kind
+                        frames = data.get('stack', [])
+                        try:
+                            address = int(frames[0].get('addr', '0'), 0)
+                            if address == 0:
+                                raise ValueError()
+                        except (ValueError, IndexError):
+                            emit(framePreview=dict(id=identity, token=preview_token, lines=[],
+                                                   error='No instruction address for this frame'))
+                            continue
+                        self.send(f'-data-disassemble -a 0x{address:x} -- 2',
+                                  ('preview-function', identity, address, preview_token))
+                    elif kind[0] == 'inspection-value':
                         emit(output=[f'{kind[1]} = {data.get("value", "<unavailable>")}'], inspection=True)
                         self.send('-data-evaluate-expression ' + json.dumps(f'sizeof({kind[1]})'),
                                   ('inspection-size', kind[1], False))
@@ -848,6 +901,9 @@ class GDB:
                                       ('inspection-function', expression, address, count))
                     else:
                         _, expression, address, count = kind
+                        preview_token = count if kind[0].startswith('preview-') else None
+                        if preview_token is not None:
+                            count = 32
                         rows = [f'{"Memory" if kind[0] == "inspection-memory" else "Disassembly"}: {expression} @ 0x{address:x}']
                         if kind[0] == 'inspection-memory':
                             total = 0
@@ -859,7 +915,7 @@ class GDB:
                                 rows.append(f'Only {total} of {count} bytes are readable')
                         else:
                             instructions = data.get('asm_insns', [])
-                            if kind[0] == 'inspection-function' and instructions:
+                            if kind[0] in ('inspection-function', 'preview-function') and instructions:
                                 low = min(int(i['address'], 0) for i in instructions)
                                 high = max(int(i['address'], 0) + len(i.get('opcodes', '').split()) for i in instructions)
                                 rows.append(f'Function: {instructions[0].get("func-name", "?")}, {high - low} code bytes')
@@ -874,7 +930,11 @@ class GDB:
                                             f'[{instruction.get("opcodes", "")}]  <{symbol}+{offset}>')
                             rows.append(f'Displayed: {len(shown)} instructions, ' +
                                         str(sum(len(i.get('opcodes', '').split()) for i in shown)) + ' bytes')
-                        emit(output=rows, inspection=True)
+                        if preview_token is not None:
+                            emit(framePreview=dict(id=expression, token=preview_token,
+                                                   lines=[row for row in rows if row.startswith('0x')]))
+                        else:
+                            emit(output=rows, inspection=True)
                         if kind[0] == 'inspection-memory':
                             self.send('-data-evaluate-expression ' + json.dumps(f'sizeof(*({expression}))'),
                                       ('inspection-size', f'*({expression})', False))
@@ -888,6 +948,7 @@ class GDB:
                         frames.append(dict(id=identity, function=frame.get('func', '<unknown>'),
                                            path=frame.get('fullname', frame.get('file', '')),
                                            line=int(frame.get('line', 0)), address=frame.get('addr', ''),
+                                           module=frame.get('from', ''),
                                            selected=identity == getattr(self, 'frame_picker_selected', '0')))
                     emit(frames=frames)
                 elif kind == 'breakpoints':
@@ -959,6 +1020,10 @@ def main():
                     try:
                         engine.command(command)
                     except Exception as error:
+                        preview = re.fullmatch(r'frame-disasm (\d+) (\d+)', command)
+                        if preview:
+                            emit(framePreview=dict(id=preview[1], token=int(preview[2]), lines=[], error=str(error)))
+                            continue
                         if command == 'frames':
                             emit(frames=[], framesError=str(error))
                             continue

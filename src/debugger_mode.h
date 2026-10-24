@@ -32,7 +32,8 @@ struct DebuggerBreakpoint
 
 struct DebuggerStackFrame
 {
-    std::string id, label, symbol;
+    std::string id, label, symbol, path, address, module;
+    int line = 0;
     bool selected = false;
 };
 
@@ -86,6 +87,11 @@ struct DebuggerMode
     std::vector<DebuggerStackFrame> stackFrames;
     std::vector<int> frameMatches;
     int framePickerCursor = 0, framePickerOffset = 0;
+    bool framePreviewAssembly = false, framePreviewSourceAvailable = false;
+    std::string framePreviewKey, framePreviewId, framePreviewPath;
+    std::vector<std::string> framePreviewLines;
+    PreviewHighlight framePreviewHighlight;
+    int framePreviewLine = 0, framePreviewToken = 0;
     std::vector<std::string> promptCommands, promptMenuEntries;
     int promptMenuCursor = 0, promptMenuOffset = 0;
 
@@ -121,5 +127,7 @@ private:
     void inspectSelectedVariable(char action);
     bool updateFramePicker(bool refresh = false);
     void filterFrames(bool selectCurrent = false);
+    void updateFramePreview();
+    const DebuggerStackFrame* previewFrame() const;
 };
 } // namespace editor::statemachine

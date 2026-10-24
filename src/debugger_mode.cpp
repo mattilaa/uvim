@@ -272,6 +272,11 @@ std::optional<std::string_view> framePickerQuery(std::string_view prompt)
         prompt.remove_prefix(1);
     return prompt;
 }
+
+int framePickerRows(int screenRows)
+{
+    return std::clamp(screenRows / 3, 1, 8);
+}
 } // namespace
 
 struct DebuggerTransport
@@ -627,11 +632,37 @@ void DebuggerMode::applyMessage(const std::string& message)
                              (line > 0 ? ":" + std::to_string(line) : "");
                 const auto address =
                     safe(json_utils::get_string(frame, "address"));
+                const auto module =
+                    safe(json_utils::get_string(frame, "module"));
+                if(!module.empty() && path.empty())
+                    label += "  [" + module + "]";
                 if(!address.empty())
                     label += "  " + address;
-                stackFrames.push_back({id, std::move(label), symbol, selected});
+                stackFrames.push_back({id, std::move(label), symbol, path,
+                                       address, module, line, selected});
             }
         filterFrames(true);
+    }
+    if(auto preview = json_utils::find(*doc, "framePreview");
+       framePickerOpen && framePreviewAssembly && preview &&
+       preview->IsObject() &&
+       json_utils::get_string(*preview, "id") == framePreviewId &&
+       json_utils::get_int(*preview, "token") == framePreviewToken)
+    {
+        framePreviewLines.clear();
+        const auto error = safe(json_utils::get_string(*preview, "error"));
+        if(!error.empty())
+            framePreviewLines.push_back(error);
+        else if(auto lines = json_utils::find(*preview, "lines");
+                lines && lines->IsArray())
+            for(const auto& line : lines->GetArray())
+                if(line.IsString())
+                    framePreviewLines.push_back(safe(line.GetString()));
+        framePreviewLine = error.empty() && !framePreviewLines.empty() ? 1 : 0;
+        if(framePreviewLines.empty())
+            framePreviewLines.push_back(
+                "No instructions available for this frame");
+        framePreviewHighlight = {};
     }
     if(auto list = json_utils::find(*doc, "threads");
        !retainSnapshot && list && list->IsArray())
@@ -847,6 +878,10 @@ bool DebuggerMode::updateFramePicker(bool refresh)
     }
     if(!framePickerOpen || refresh)
     {
+        if(!framePickerOpen)
+            framePreviewAssembly = false;
+        framePreviewKey.clear();
+        ++framePreviewToken;
         stackFrames.clear();
         framePickerError.clear();
         framePickerLoading = false;
@@ -904,6 +939,100 @@ void DebuggerMode::filterFrames(bool selectCurrent)
         if(selectCurrent && query.empty() && stackFrames[index].selected)
             framePickerCursor = static_cast<int>(frameMatches.size());
         frameMatches.push_back(index);
+    }
+    updateFramePreview();
+}
+
+const DebuggerStackFrame* DebuggerMode::previewFrame() const
+{
+    if(framePickerCursor < 0 ||
+       framePickerCursor >= static_cast<int>(frameMatches.size()))
+        return nullptr;
+    const int index = frameMatches[framePickerCursor];
+    return index >= 0 && index < static_cast<int>(stackFrames.size())
+               ? &stackFrames[index]
+               : nullptr;
+}
+
+void DebuggerMode::updateFramePreview()
+{
+    const auto* frame = previewFrame();
+    if(!frame)
+    {
+        framePreviewKey.clear();
+        framePreviewId.clear();
+        framePreviewLines.clear();
+        framePreviewSourceAvailable = false;
+        framePreviewPath.clear();
+        framePreviewHighlight = {};
+        framePreviewLine = 0;
+        ++framePreviewToken;
+        return;
+    }
+    const auto key =
+        frame->id + (framePreviewAssembly ? "|assembly|" : "|source|") +
+        frame->path + ":" + std::to_string(frame->line) + "@" + frame->address;
+    if(key == framePreviewKey)
+        return;
+    const bool reuseSource = !framePreviewAssembly &&
+                             framePreviewSourceAvailable &&
+                             framePreviewPath == frame->path;
+    framePreviewKey = key;
+    framePreviewId = frame->id;
+    framePreviewLine = 0;
+    ++framePreviewToken;
+    if(framePreviewAssembly)
+    {
+        framePreviewSourceAvailable = false;
+        framePreviewPath = "frame-preview.s";
+        framePreviewHighlight = {};
+        framePreviewLines = {"Loading frame assembly..."};
+        if(transport && !transport->ended && state == "stopped")
+            transport->send("frame-disasm " + frame->id + " " +
+                            std::to_string(framePreviewToken));
+        else
+            framePreviewLines = {
+                "Assembly preview requires a connected, stopped debugger"};
+        return;
+    }
+    framePreviewPath = frame->path;
+    if(!reuseSource)
+    {
+        framePreviewSourceAvailable = false;
+        framePreviewHighlight = {};
+        framePreviewLines.clear();
+        std::error_code error;
+        const auto size = std::filesystem::file_size(frame->path, error);
+        if(!error && size <= 20 * 1024 * 1024 && frame->line > 0 &&
+           frame->line <= 200000)
+        {
+            std::ifstream file(frame->path);
+            std::string line;
+            bool binary = false;
+            while(framePreviewLines.size() < 200000 && std::getline(file, line))
+            {
+                if(line.find('\0') != std::string::npos)
+                {
+                    binary = true;
+                    break;
+                }
+                framePreviewLines.push_back(safe(line));
+            }
+            framePreviewSourceAvailable =
+                !binary && file.eof() &&
+                frame->line <= static_cast<int>(framePreviewLines.size());
+            if(!file.eof() && !binary && framePreviewLines.size() == 200000)
+                framePreviewSourceAvailable = frame->line <= 200000;
+        }
+    }
+    if(framePreviewSourceAvailable && frame->line > 0 &&
+       frame->line <= static_cast<int>(framePreviewLines.size()))
+        framePreviewLine = frame->line;
+    else
+    {
+        framePreviewSourceAvailable = false;
+        framePreviewLines = {"Source unavailable for this frame. Ctrl+D "
+                             "previews library assembly."};
     }
 }
 
@@ -1098,6 +1227,12 @@ std::optional<ModeState> DebuggerMode::handle(ModeContext& ctx,
     {
         if(framePickerOpen)
         {
+            if(key == keyCode(control::ControlKey::CTRL_D))
+            {
+                framePreviewAssembly = !framePreviewAssembly;
+                updateFramePreview();
+                return {};
+            }
             if(key == 27)
             {
                 prompt = "frame ";
@@ -1119,7 +1254,9 @@ std::optional<ModeState> DebuggerMode::handle(ModeContext& ctx,
                         : -1;
                 moveMenuCursor(framePickerCursor, framePickerOffset,
                                frameMatches.size(), delta,
-                               ctx.editor->screenRows);
+                               ctx.editor->screenRows,
+                               framePickerRows(ctx.editor->screenRows));
+                updateFramePreview();
                 return {};
             }
             if(key == keyCode(control::ControlKey::CTRL_R))
@@ -1335,13 +1472,46 @@ void DebuggerMode::drawContent(Editor& editor)
     const auto displayState =
         state == "running" && !displayRunning ? std::string("stopped") : state;
     const int width = std::max(1, editor.screenCols);
+    const auto* preview = framePickerOpen ? previewFrame() : nullptr;
+    const bool previewing = preview != nullptr;
     const auto rects =
-        paneRects(editor, hasStoppedSnapshot || state == "stopped", pane);
+        paneRects(editor, hasStoppedSnapshot || state == "stopped",
+                  previewing ? 0 : pane);
     clamp(editor);
     const int sourceRows = std::max(0, rects[0].height - 2);
+    const int previewRows =
+        sourceRows > 0 ? std::clamp(editor.screenRows -
+                                        framePickerRows(editor.screenRows) - 1 -
+                                        (rects[0].y + 1),
+                                    1, sourceRows)
+                       : 0;
+    const auto& shownSource = previewing ? framePreviewLines : source;
+    auto& shownHighlight = previewing ? framePreviewHighlight : highlight;
+    const auto& shownPath = previewing ? framePreviewPath : sourcePath;
+    const int shownLine = previewing ? framePreviewLine : executionLine;
+    const int sourceOffset =
+        previewing
+            ? std::clamp(shownLine > 0 ? shownLine - 1 - previewRows / 2 : 0, 0,
+                         std::max(0, static_cast<int>(shownSource.size()) -
+                                         previewRows))
+            : offset[0];
     editor.highlightPreviewLines(
-        highlight, sourcePath, source,
-        std::min(source.size(), static_cast<size_t>(offset[0] + sourceRows)));
+        shownHighlight, shownPath, shownSource,
+        std::min(shownSource.size(),
+                 static_cast<size_t>(sourceOffset + sourceRows)));
+    auto shownBreakpoints = breakpointLines;
+    if(previewing)
+    {
+        shownBreakpoints.clear();
+        if(!framePreviewAssembly && framePreviewSourceAvailable)
+            for(const auto& bp : breakpoints)
+                if(bp.enabled)
+                    for(const auto& location : bp.locations)
+                        if(location.enabled &&
+                           debuggerSourcePath(location.path) ==
+                               debuggerSourcePath(preview->path))
+                            shownBreakpoints.insert(location.line);
+    }
     std::vector<std::string> rows(std::max(2, editor.screenRows));
     std::string out;
     int activeRow = -1;
@@ -1367,11 +1537,14 @@ void DebuggerMode::drawContent(Editor& editor)
     };
     header(1, " Debugger [" + backend + "] " + displayState +
                   "  Focus: " + names[pane] + "  " + target);
-    header(2, " j/k rows   b breakpoint   Ctrl-P file   Tab next pane   "
-              "Shift-Tab previous pane   v variables   t threads   : command   "
-              "q quit");
+    header(2, framePickerOpen
+                  ? " Frame preview only   Ctrl-J/K frames   Ctrl+D "
+                    "source/assembly   Enter selects   Esc cancels"
+                  : " j/k rows   b breakpoint   Ctrl-P file   Tab next pane   "
+                    "Shift-Tab previous pane   v variables   t threads   : "
+                    "command   q quit");
     const std::array<const std::vector<std::string>*, 4> lists{
-        &source, &output, &variables, &threads};
+        &shownSource, &output, &variables, &threads};
     for(int which = 0; which < 4; ++which)
     {
         const auto& rect = rects[which];
@@ -1384,11 +1557,28 @@ void DebuggerMode::drawContent(Editor& editor)
         auto at = [&](int row) { atPosition(rect.y + row, rect.x); };
         std::string title =
             std::string(pane == which ? "> " : " ") + names[which];
-        if(which == 0 && sourcePinned)
+        if(which == 0 && previewing)
+        {
+            title = " " +
+                    std::string(framePreviewAssembly ? "Assembly preview #"
+                                                     : "Preview #") +
+                    preview->id;
+            if(framePreviewAssembly)
+                title += " " + (preview->module.empty() ? preview->symbol
+                                                        : preview->module);
+            else if(!preview->path.empty())
+                title +=
+                    " " +
+                    std::filesystem::path(preview->path).filename().string() +
+                    ":" + std::to_string(preview->line) + " " + preview->symbol;
+            else
+                title += " " + preview->symbol + " (source unavailable)";
+        }
+        else if(which == 0 && sourcePinned)
             title += " (browse)";
         else if(displayRunning && hasStoppedSnapshot && which != 1)
             title += " (last stop)";
-        if(which == 0)
+        if(which == 0 && !previewing)
         {
             if(!sourcePinned && !frameFunction.empty())
                 title +=
@@ -1417,13 +1607,14 @@ void DebuggerMode::drawContent(Editor& editor)
             at(row + 1);
             out += border;
             ascii::append(out, ascii::BOX_LIGHT_VERTICAL);
-            const int index = offset[which] + row;
+            const int index = (which == 0 ? sourceOffset : offset[which]) + row;
             const auto& lines = *lists[which];
             out += editor.theme.reset();
-            const bool selected = pane == which && cursor[which] == index;
+            const bool selected = !(which == 0 && previewing) &&
+                                  pane == which && cursor[which] == index;
             const bool executing = displayState == "stopped" && which == 0 &&
-                                   index + 1 == executionLine &&
-                                   (executionPath.empty() ||
+                                   shownLine > 0 && index + 1 == shownLine &&
+                                   (previewing || executionPath.empty() ||
                                     debuggerSourcePath(sourcePath) ==
                                         debuggerSourcePath(executionPath));
             const auto rowBackground = [&]() -> std::string
@@ -1468,7 +1659,11 @@ void DebuggerMode::drawContent(Editor& editor)
             }
             else
             {
-                const auto prefix = which == 0
+                const auto prefix = which == 0 && previewing &&
+                                            (framePreviewAssembly ||
+                                             !framePreviewSourceAvailable)
+                                        ? std::string(executing ? "> " : "  ")
+                                    : which == 0
                                         ? std::string(executing  ? ">"
                                                       : selected ? "+"
                                                                  : " ") +
@@ -1477,7 +1672,7 @@ void DebuggerMode::drawContent(Editor& editor)
                 const int prefixWidth =
                     std::min(inner, text_utils::utf8DisplayWidth(prefix));
                 const bool breakpoint =
-                    which == 0 && breakpointLines.contains(index + 1);
+                    which == 0 && shownBreakpoints.contains(index + 1);
                 if(breakpoint)
                     out +=
                         color::rgbBg(170, 35, 50) + color::rgbFg(255, 255, 255);
@@ -1493,10 +1688,10 @@ void DebuggerMode::drawContent(Editor& editor)
                 const int available = inner - prefixWidth;
                 const auto text = fit(lines[index], available);
                 if(which == 0 &&
-                   index < static_cast<int>(highlight.tokens.size()))
+                   index < static_cast<int>(shownHighlight.tokens.size()))
                 {
                     std::vector<TokenType> colors(text.size(), TOKEN_NORMAL);
-                    for(const auto& token : highlight.tokens[index])
+                    for(const auto& token : shownHighlight.tokens[index])
                         for(int c = std::max(0, token.start);
                             c < std::min(static_cast<int>(text.size()),
                                          token.start + token.length);
@@ -1548,14 +1743,21 @@ void DebuggerMode::drawContent(Editor& editor)
     else if(framePickerOpen)
     {
         moveMenuCursor(framePickerCursor, framePickerOffset,
-                       frameMatches.size(), 0, editor.screenRows);
+                       frameMatches.size(), 0, editor.screenRows,
+                       framePickerRows(editor.screenRows));
         for(const int index : frameMatches)
             menuEntries.push_back(stackFrames[index].label);
         menuCursor = framePickerCursor;
         menuOffset = framePickerOffset;
         menuTitle = "Stack frames " + std::to_string(frameMatches.size()) +
-                    "/" + std::to_string(stackFrames.size()) +
-                    "  Ctrl-J/K select  Enter choose  Ctrl-R refresh";
+                    "/" + std::to_string(stackFrames.size());
+        if(preview && !framePreviewAssembly && !preview->path.empty())
+            menuTitle +=
+                "  " +
+                std::filesystem::path(preview->path).filename().string() + ":" +
+                std::to_string(preview->line);
+        menuTitle += "  Ctrl-J/K select  Ctrl-D source/asm  Enter choose  "
+                     "Ctrl-R refresh";
     }
     else if(breakpointListOpen)
     {
@@ -1620,7 +1822,8 @@ void DebuggerMode::drawContent(Editor& editor)
              .maxRows =
                  sizePopupOpen
                      ? std::clamp(static_cast<int>(menuEntries.size()), 1, 18)
-                     : 8});
+                 : framePickerOpen ? framePickerRows(editor.screenRows)
+                                   : 8});
         overlayPopupRows(rows, popup, editor.theme);
     }
     widgets::ViewStatusBarView status{.theme = editor.theme};

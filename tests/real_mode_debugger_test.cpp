@@ -107,6 +107,90 @@ TEST(RealModeTransitionsTest,
     EXPECT_NE(sm.getState<DebuggerMode>(), nullptr);
 }
 
+TEST(RealModeTransitionsTest,
+     DebuggerFramePickerPreviewsSourceAndLibraryAssemblyWithoutSelecting)
+{
+    auto dir = make_temp_dir("uvim_frame_preview_");
+    auto original = dir / "original.cpp";
+    auto other = dir / "preview.cpp";
+    write_file(original, "int main() {\n  return 0;\n}\n");
+    write_file(other, "int other() {\n  int value = 7;\n  // "
+                      "PREVIEW_TARGET_LINE\n  return value;\n}\n");
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.screenRows = 32;
+    editor.screenCols = 120;
+    auto sm = makeMachine(editor, DebuggerMode{"app", false});
+    auto* debug = sm.getState<DebuggerMode>();
+    ASSERT_NE(debug, nullptr);
+    std::string originalPath, previewPath;
+    json_utils::append_escaped(originalPath, original.string());
+    json_utils::append_escaped(previewPath, other.string());
+    debug->applyMessage(
+        "{\"state\":\"stopped\",\"path\":" + originalPath +
+        ",\"line\":2,\"frame\":0,\"variables\":[\"original value\"]}");
+    const auto source = debug->source;
+    const auto output = debug->output;
+    const auto cursor = debug->cursor;
+    sm.dispatch(':');
+    for(char key : std::string("frame --"))
+        sm.dispatch(key);
+    debug->applyMessage(
+        "{\"frames\":[{\"id\":\"0\",\"function\":\"main\",\"path\":" +
+        originalPath +
+        ",\"line\":2,\"selected\":true},{\"id\":\"7\",\"function\":\"other\","
+        "\"path\":" +
+        previewPath +
+        ",\"line\":3},{\"id\":\"9\",\"function\":\"library_call\",\"module\":"
+        "\"libexample.so\",\"address\":\"0x3000\"}]}");
+    sm.dispatch(keyCode(control::ControlKey::CTRL_J));
+    EXPECT_EQ(debug->framePreviewId, "7");
+    EXPECT_TRUE(debug->framePreviewSourceAvailable);
+    EXPECT_EQ(debug->framePreviewLine, 3);
+    testing::internal::CaptureStdout();
+    debug->draw(editor);
+    const auto rendered = testing::internal::GetCapturedStdout();
+    EXPECT_NE(rendered.find("Preview #7 preview.cpp:3"), std::string::npos);
+    EXPECT_NE(rendered.find("PREVIEW_TARGET_LINE"), std::string::npos);
+    EXPECT_NE(rendered.find(">3 "), std::string::npos);
+    EXPECT_EQ(debug->source, source);
+    EXPECT_EQ(debug->sourcePath, original.string());
+    EXPECT_EQ(debug->cursor, cursor);
+    EXPECT_EQ(debug->frameIndex, 0);
+    EXPECT_EQ(debug->variables, (std::vector<std::string>{"original value"}));
+    sm.dispatch(keyCode(control::ControlKey::CTRL_J));
+    EXPECT_FALSE(debug->framePreviewSourceAvailable);
+    EXPECT_NE(debug->framePreviewLines[0].find("Ctrl+D"), std::string::npos);
+    sm.dispatch(keyCode(control::ControlKey::CTRL_D));
+    EXPECT_TRUE(debug->framePreviewAssembly);
+    const auto token = debug->framePreviewToken;
+    debug->applyMessage("{\"framePreview\":{\"id\":\"9\",\"token\":" +
+                        std::to_string(token - 1) +
+                        ",\"lines\":[\"stale response\"]}}");
+    EXPECT_NE(debug->framePreviewLines[0], "stale response");
+    debug->applyMessage(
+        "{\"framePreview\":{\"id\":\"9\",\"token\":" + std::to_string(token) +
+        ",\"lines\":[\"0x3000 nop\",\"0x3001 ret\"]}}");
+    EXPECT_EQ(debug->framePreviewLines[0], "0x3000 nop");
+    testing::internal::CaptureStdout();
+    debug->draw(editor);
+    const auto assembly = testing::internal::GetCapturedStdout();
+    EXPECT_NE(assembly.find("Assembly preview #9 libexample.so"),
+              std::string::npos);
+    EXPECT_NE(assembly.find("0x3000"), std::string::npos);
+    EXPECT_EQ(debug->output, output);
+    EXPECT_EQ(debug->frameIndex, 0);
+    sm.dispatch(27);
+    EXPECT_FALSE(debug->framePickerOpen);
+    EXPECT_EQ(debug->source, source);
+    testing::internal::CaptureStdout();
+    debug->draw(editor);
+    const auto restored = testing::internal::GetCapturedStdout();
+    EXPECT_EQ(restored.find("Assembly preview"), std::string::npos);
+    EXPECT_EQ(restored.find(Terminal::ESC_CLEAR_SCREEN), std::string::npos);
+    std::filesystem::remove_all(dir);
+}
+
 TEST(RealModeTransitionsTest, DebuggerFramePickerCancelsAndShowsErrors)
 {
     Editor editor = Editor::createForTests();
