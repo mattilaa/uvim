@@ -653,6 +653,8 @@ void DebuggerMode::on_enter(ModeContext& ctx)
 
 void DebuggerMode::on_exit(ModeContext& ctx)
 {
+    closeAssemblyHelp(*ctx.editor);
+    assemblyHelp->active = false;
 #ifdef UVIM_ENABLE_SEARCH_TOOLS
     if(filePicker)
     {
@@ -667,6 +669,8 @@ void DebuggerMode::on_exit(ModeContext& ctx)
 
 void DebuggerMode::processIdle(Editor& editor)
 {
+    if(assemblyHelpOpen)
+        updateAssemblyHelp(editor);
     if(runningStatusDeadline &&
        std::chrono::steady_clock::now() >= *runningStatusDeadline)
     {
@@ -897,6 +901,7 @@ void DebuggerMode::applyMessage(const std::string& message)
                         framePreviewLine = static_cast<int>(i + 1);
                         break;
                     }
+        framePreviewCursor = std::max(0, framePreviewLine - 1);
         framePreviewScroll = 0;
         if(framePreviewLines.empty())
             framePreviewLines.push_back(
@@ -1219,6 +1224,7 @@ void DebuggerMode::updateFramePreview()
     framePreviewKey = key;
     framePreviewId = frame->id;
     framePreviewLine = 0;
+    framePreviewCursor = 0;
     framePreviewScroll = 0;
     ++framePreviewToken;
     if(framePreviewAssembly)
@@ -1397,6 +1403,71 @@ void DebuggerMode::clamp(const Editor& editor)
     }
 }
 
+std::string DebuggerMode::selectedDisassembly() const
+{
+    std::string instruction;
+    if(framePickerOpen && framePreviewAssembly && framePreviewCursor >= 0 &&
+       framePreviewCursor < static_cast<int>(framePreviewLines.size()))
+        instruction = framePreviewLines[framePreviewCursor];
+    else if(!promptActive && !framePickerOpen && pane == 1 && cursor[1] >= 0 &&
+            cursor[1] < static_cast<int>(output.size()) &&
+            cursor[1] < static_cast<int>(assemblyOutputLines.size()) &&
+            assemblyOutputLines[cursor[1]])
+        instruction = output[cursor[1]];
+    if(!codeAddress(instruction))
+        return {};
+    const auto start = instruction.find_first_of(" \t");
+    instruction.erase(0, start);
+    instruction.erase(0, instruction.find_first_not_of(" \t"));
+    // Strip the bridge's raw-byte column; keep instruction memory operands.
+    if(const auto bytes = instruction.find("  ["); bytes != std::string::npos)
+        instruction.resize(bytes);
+    return instruction;
+}
+
+void DebuggerMode::closeAssemblyHelp(Editor& editor)
+{
+    assemblyHelpOpen = false;
+    ++assemblyHelp->docsGeneration;
+    if(assemblyHelpTask)
+        editor.tasks.cancel(assemblyHelpTask);
+    assemblyHelpTask = 0;
+    assemblyHelp->docsLoading = assemblyHelp->docsIndicator = false;
+    assemblyHelpRefreshAt.reset();
+    assemblyHelpInstruction.clear();
+}
+
+void DebuggerMode::updateAssemblyHelp(Editor& editor, bool immediate)
+{
+    const auto instruction = selectedDisassembly();
+    const auto now = std::chrono::steady_clock::now();
+    if(instruction != assemblyHelpInstruction || immediate)
+    {
+        ++assemblyHelp->docsGeneration;
+        if(assemblyHelpTask)
+            editor.tasks.cancel(assemblyHelpTask);
+        assemblyHelpTask = 0;
+        assemblyHelp->docsLoading = assemblyHelp->docsIndicator = false;
+        assemblyHelpInstruction = instruction;
+        assemblyHelpRefreshAt =
+            immediate ? now : now + std::chrono::milliseconds(300);
+    }
+    if(assemblyHelpRefreshAt && now >= *assemblyHelpRefreshAt)
+    {
+        assemblyHelpRefreshAt.reset();
+        assemblyHelpOffset = 0;
+        assemblyHelpTask =
+            assembly_instruction_help::load(editor, assemblyHelp, instruction);
+        editor.needsFullRedraw = true;
+    }
+    if(assemblyHelp->docsLoading && !assemblyHelp->docsIndicator &&
+       now - assemblyHelp->docsStarted >= std::chrono::milliseconds(300))
+    {
+        assemblyHelp->docsIndicator = true;
+        editor.needsFullRedraw = true;
+    }
+}
+
 std::optional<ModeState> DebuggerMode::handle(ModeContext& ctx,
                                               const ModeKeyEvent& event)
 {
@@ -1465,6 +1536,30 @@ std::optional<ModeState> DebuggerMode::handle(ModeContext& ctx,
         }
         return {};
     }
+    const bool assemblyPreview = framePickerOpen && framePreviewAssembly;
+    const bool helpToggle = assemblyPreview
+                                ? key == keyCode(control::ControlKey::CTRL_I)
+                                : !promptActive && pane == 1 && key == 'i';
+    if(assemblyHelpOpen &&
+       (helpToggle || key == keyCode(control::ControlKey::ESC)))
+    {
+        closeAssemblyHelp(*ctx.editor);
+        return {};
+    }
+    if(helpToggle && !selectedDisassembly().empty())
+    {
+        assemblyHelpOpen = true;
+        updateAssemblyHelp(*ctx.editor, true);
+        return {};
+    }
+    if(assemblyHelpOpen && (key == keyCode(control::ControlKey::CTRL_J) ||
+                            key == keyCode(control::ControlKey::CTRL_K)))
+    {
+        assemblyHelpOffset = std::max(
+            0, assemblyHelpOffset +
+                   (key == keyCode(control::ControlKey::CTRL_J) ? 1 : -1));
+        return {};
+    }
     if(promptActive)
     {
         if(framePickerOpen)
@@ -1475,14 +1570,20 @@ std::optional<ModeState> DebuggerMode::handle(ModeContext& ctx,
             {
                 const auto viewport = framePreviewViewport(
                     *ctx.editor, framePreviewLine, framePreviewLines.size());
+                framePreviewCursor = std::clamp(
+                    framePreviewCursor +
+                        (key == keyCode(control::ControlKey::SHIFT_CTRL_J)
+                             ? 1
+                             : -1),
+                    0,
+                    std::max(0,
+                             static_cast<int>(framePreviewLines.size()) - 1));
                 framePreviewScroll =
-                    std::clamp(
-                        viewport.base + framePreviewScroll +
-                            (key == keyCode(control::ControlKey::SHIFT_CTRL_J)
-                                 ? 1
-                                 : -1),
-                        0, viewport.maximum) -
+                    std::clamp(framePreviewCursor - viewport.rows / 2, 0,
+                               viewport.maximum) -
                     viewport.base;
+                if(assemblyHelpOpen)
+                    updateAssemblyHelp(*ctx.editor);
                 return {};
             }
             if(key == keyCode(control::ControlKey::CTRL_D))
@@ -1739,6 +1840,15 @@ void DebuggerMode::drawContent(Editor& editor)
         paneRects(editor, hasStoppedSnapshot || state == "stopped",
                   previewing ? 0 : pane);
     clamp(editor);
+    if(assemblyHelpOpen)
+    {
+        if((!framePickerOpen && (promptActive || pane != 1)) ||
+           (framePickerOpen && !framePreviewAssembly) || sizePopupOpen ||
+           breakpointListOpen)
+            closeAssemblyHelp(editor);
+        else
+            updateAssemblyHelp(editor);
+    }
     const int sourceRows = std::max(0, rects[0].height - 2);
     const auto& shownSource = previewing ? framePreviewLines : source;
     auto& shownHighlight = previewing ? framePreviewHighlight : highlight;
@@ -1804,7 +1914,8 @@ void DebuggerMode::drawContent(Editor& editor)
     header(2, framePickerOpen
                   ? " Ctrl-J/K frames   Ctrl+D source/assembly   " +
                         std::string(Terminal::shiftChordLabel()) +
-                        "+J/K scroll assembly   Enter selects   Esc cancels"
+                        "+J/K browse assembly   Ctrl-I help   Enter selects   "
+                        "Esc cancels"
                   : " j/k rows   b breakpoint   Ctrl-P file   Tab next pane   "
                     "Shift-Tab previous pane   v variables   t threads   : "
                     "command   q quit");
@@ -1879,8 +1990,10 @@ void DebuggerMode::drawContent(Editor& editor)
             const int index = (which == 0 ? sourceOffset : offset[which]) + row;
             const auto& lines = *lists[which];
             out += editor.theme.reset();
-            const bool selected = !(which == 0 && previewing) &&
-                                  pane == which && cursor[which] == index;
+            const bool selected =
+                which == 0 && previewing
+                    ? framePreviewAssembly && framePreviewCursor == index
+                    : pane == which && cursor[which] == index;
             const bool executing = displayState == "stopped" && which == 0 &&
                                    shownLine > 0 && index + 1 == shownLine &&
                                    (previewing || executionPath.empty() ||
@@ -1931,7 +2044,9 @@ void DebuggerMode::drawContent(Editor& editor)
                 const auto prefix = which == 0 && previewing &&
                                             (framePreviewAssembly ||
                                              !framePreviewSourceAvailable)
-                                        ? std::string(executing ? "> " : "  ")
+                                        ? std::string(executing  ? "> "
+                                                      : selected ? "+ "
+                                                                 : "  ")
                                     : which == 0
                                         ? std::string(executing  ? ">"
                                                       : selected ? "+"
@@ -2125,6 +2240,15 @@ void DebuggerMode::drawContent(Editor& editor)
              .rowSpans = menuSpans});
         overlayPopupRows(rows, popup, editor.theme);
     }
+    if(assemblyHelpOpen)
+    {
+        std::string popup;
+        assembly_instruction_help::draw(
+            popup, editor, *assemblyHelp, assemblyHelpOffset,
+            framePickerOpen ? "Ctrl-I/Esc: close | Ctrl-J/K: scroll"
+                            : "i/Esc: close | Ctrl-J/K: scroll");
+        overlayPopupRows(rows, popup, editor.theme);
+    }
     widgets::ViewStatusBarView status{.theme = editor.theme};
     status.modeLabel = name();
     status.context =
@@ -2145,7 +2269,14 @@ void DebuggerMode::drawContent(Editor& editor)
     out += Terminal::cursorPos(editor.screenRows + 2, 1);
     out += editor.theme.reset();
     out += Terminal::ESC_CLEAR_LINE;
-    if(sizePopupOpen)
+    if(assemblyHelpOpen && !promptActive)
+        out += fit(framePickerOpen
+                       ? " Instruction help: Ctrl-I/Esc close  Ctrl-J/K scroll "
+                         " Ctrl+Shift-J/K or Alt-J/K browse instructions"
+                       : " Instruction help: i/Esc close  Ctrl-J/K scroll  j/k "
+                         "browse instructions",
+                   width);
+    else if(sizePopupOpen)
         out += fit(" Size/padding: j/k or Ctrl-J/K scroll  PgUp/PgDn page  "
                    "g/G first/last  Esc/Enter close",
                    width);
@@ -2163,6 +2294,10 @@ void DebuggerMode::drawContent(Editor& editor)
     else if(pane == 2)
         out += fit(" Variables: j/k select  p/Enter print  a disassemble  "
                    "m raw bytes  s size/padding",
+                   width);
+    else if(pane == 1 && !selectedDisassembly().empty())
+        out += fit(" Disassembly: j/k rows  i instruction help  Tab next pane  "
+                   ": command",
                    width);
     else if(sourcePinned)
         out += fit(" Browsing source: j/k row  b toggle breakpoint  Ctrl-P "

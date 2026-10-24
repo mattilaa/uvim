@@ -200,7 +200,7 @@ TEST(RealModeTransitionsTest,
         ",\"lines\":[" + instructions + "]}}");
     const auto picked = debug->framePickerCursor;
     sm.dispatch(keyCode(control::ControlKey::SHIFT_CTRL_J));
-    EXPECT_EQ(debug->framePreviewScroll, 1);
+    EXPECT_EQ(debug->framePreviewCursor, 1);
     EXPECT_EQ(debug->framePickerCursor, picked);
     EXPECT_EQ(debug->frameIndex, 0);
     EXPECT_EQ(debug->cursor, cursor);
@@ -209,8 +209,9 @@ TEST(RealModeTransitionsTest,
     const auto bottom = debug->framePreviewScroll;
     EXPECT_GT(bottom, 0);
     EXPECT_LT(bottom, 80);
+    EXPECT_EQ(debug->framePreviewCursor, 79);
     sm.dispatch(keyCode(control::ControlKey::SHIFT_CTRL_K));
-    EXPECT_EQ(debug->framePreviewScroll, bottom - 1);
+    EXPECT_EQ(debug->framePreviewCursor, 78);
     for(int i = 0; i < 200; ++i)
         sm.dispatch(keyCode(control::ControlKey::SHIFT_CTRL_K));
     EXPECT_EQ(debug->framePreviewScroll, 0);
@@ -223,6 +224,103 @@ TEST(RealModeTransitionsTest,
     EXPECT_EQ(restored.find("Assembly preview"), std::string::npos);
     EXPECT_EQ(restored.find(Terminal::ESC_CLEAR_SCREEN), std::string::npos);
     std::filesystem::remove_all(dir);
+}
+
+TEST(RealModeTransitionsTest,
+     DebuggerInstructionHelpPreservesFrameSearchAndTracksAssemblyRow)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.screenRows = 32;
+    editor.screenCols = 120;
+    editor.asmDocsApi = false;
+    auto sm = makeMachine(editor, DebuggerMode{"app", false});
+    auto* debug = sm.getState<DebuggerMode>();
+    ASSERT_NE(debug, nullptr);
+    debug->started = true; // Exercise inspection without starting a debugger.
+    debug->applyMessage("{\"state\":\"stopped\"}");
+    sm.dispatch(':');
+    for(char key : std::string("frame --"))
+        sm.dispatch(key);
+    debug->applyMessage("{\"frames\":[{\"id\":\"0\",\"function\":\"library_"
+                        "call\",\"address\":\"0x3001\"}]}");
+    sm.dispatch('i');
+    EXPECT_EQ(debug->prompt, "frame -- i");
+    EXPECT_FALSE(debug->assemblyHelpOpen);
+    sm.dispatch(keyCode(control::ControlKey::CTRL_U));
+    sm.dispatch(keyCode(control::ControlKey::CTRL_D));
+    debug->applyMessage(
+        "{\"framePreview\":{\"id\":\"0\",\"token\":" +
+        std::to_string(debug->framePreviewToken) +
+        ",\"lines\":[\"0x3000 movq %rdi, %rax  [48 89 f8]\",\"0x3001 addq $1, "
+        "%rax  [48 83 c0 01]\",\"0x3005 retq  [c3]\"]}}");
+    EXPECT_EQ(debug->framePreviewCursor, 1);
+    const auto prompt = debug->prompt;
+    const auto picked = debug->framePickerCursor;
+    sm.dispatch(keyCode(control::ControlKey::CTRL_I));
+    EXPECT_TRUE(debug->assemblyHelpOpen);
+    EXPECT_TRUE(debug->framePickerOpen);
+    EXPECT_EQ(debug->prompt, prompt);
+#ifdef UVIM_ENABLE_ASM_DOCS
+    EXPECT_EQ(debug->assemblyHelp->docsTitle, "add (x86)");
+    EXPECT_NE(debug->assemblyHelp->docsText.find("addq $1, %rax"),
+              std::string::npos);
+    EXPECT_EQ(debug->assemblyHelp->docsText.find("[48 83"), std::string::npos);
+#else
+    EXPECT_NE(debug->assemblyHelp->docsText.find("not compiled"),
+              std::string::npos);
+#endif
+    sm.dispatch(keyCode(control::ControlKey::CTRL_J));
+    EXPECT_EQ(debug->assemblyHelpOffset, 1);
+    EXPECT_EQ(debug->framePickerCursor, picked);
+    sm.dispatch(keyCode(control::ControlKey::CTRL_K));
+    EXPECT_EQ(debug->assemblyHelpOffset, 0);
+    sm.dispatch(keyCode(control::ControlKey::SHIFT_CTRL_J));
+    EXPECT_EQ(debug->framePreviewCursor, 2);
+    EXPECT_EQ(debug->framePickerCursor, picked);
+    EXPECT_EQ(debug->prompt, prompt);
+    std::this_thread::sleep_for(std::chrono::milliseconds(320));
+    debug->processIdle(editor);
+#ifdef UVIM_ENABLE_ASM_DOCS
+    EXPECT_EQ(debug->assemblyHelp->docsTitle, "ret (x86)");
+#endif
+    testing::internal::CaptureStdout();
+    debug->draw(editor);
+    const auto rendered = testing::internal::GetCapturedStdout();
+    EXPECT_NE(rendered.find("Inspect:"), std::string::npos);
+    EXPECT_NE(rendered.find("Ctrl-I/Esc: close"), std::string::npos);
+    sm.dispatch(27);
+    EXPECT_FALSE(debug->assemblyHelpOpen);
+    EXPECT_TRUE(debug->framePickerOpen);
+    EXPECT_EQ(debug->prompt, prompt);
+    // In assembly preview, Tab/Ctrl-I share a key code and both toggle help.
+    sm.dispatch(keyCode(control::ControlKey::TAB));
+    EXPECT_TRUE(debug->assemblyHelpOpen);
+    sm.dispatch(keyCode(control::ControlKey::CTRL_I));
+    EXPECT_FALSE(debug->assemblyHelpOpen);
+    sm.dispatch(27);
+    sm.dispatch(27);
+    debug->pane = 1;
+    debug->output = {"0x4000 movq %rdi, %rax  [48 89 f8]", "0x4003 retq  [c3]"};
+    debug->assemblyOutputLines = {true, true};
+    debug->cursor[1] = 0;
+    sm.dispatch('i');
+    EXPECT_TRUE(debug->assemblyHelpOpen);
+#ifdef UVIM_ENABLE_ASM_DOCS
+    EXPECT_EQ(debug->assemblyHelp->docsTitle, "mov (x86)");
+#endif
+    sm.dispatch('j');
+    EXPECT_EQ(debug->cursor[1], 1);
+    testing::internal::CaptureStdout();
+    debug->draw(editor);
+    testing::internal::GetCapturedStdout();
+    sm.dispatch('i');
+    EXPECT_FALSE(debug->assemblyHelpOpen);
+    debug->output = {"ordinary process output"};
+    debug->assemblyOutputLines = {false};
+    debug->cursor[1] = 0;
+    sm.dispatch('i');
+    EXPECT_FALSE(debug->assemblyHelpOpen);
 }
 
 TEST(RealModeTransitionsTest, DebuggerFramePickerCancelsAndShowsErrors)

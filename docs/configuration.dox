@@ -201,7 +201,7 @@ with `:set <name>?` and can be persisted in `[editor]`.
 
 \par editor.asmdocsapi
 Boolean. Default: true. Prefer cached/Compiler Explorer API instruction
-information in the assembly inspection popup. The exact inspected instruction is
+information in assembly and debugger instruction inspection popups. The exact inspected instruction is
 shown above the documentation; any API operand forms/examples precede fetch metadata. Fetching is asynchronous; built-in help stays visible until API content
 arrives and remains the fallback when fetching fails. Row navigation restarts a
 300 ms debounce before changing inspector content. Pending retrieval shows a

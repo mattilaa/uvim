@@ -137,87 +137,6 @@ std::vector<std::string> wrappedDocs(std::string_view text, int width)
     return lines;
 }
 
-enum class DocumentationBlock
-{
-    None,
-    Text,
-    Assembly
-};
-
-std::string coloredDocumentation(std::string_view line, const Theme& theme,
-                                 DocumentationBlock& block,
-                                 const std::vector<Token>& assemblyTokens)
-{
-    const auto first = line.find_first_not_of(' ');
-    const auto text = first == std::string_view::npos ? std::string_view{}
-                                                      : line.substr(first);
-    if(text.starts_with("```"))
-    {
-        block = block != DocumentationBlock::None ? DocumentationBlock::None
-                : text == "```asm" || text == "```assembly" || text == "```s"
-                    ? DocumentationBlock::Assembly
-                    : DocumentationBlock::Text;
-        return theme.uiDim() + std::string(line);
-    }
-    if(block == DocumentationBlock::Assembly)
-    {
-        std::string out;
-        appendSyntax(out, std::string(line), assemblyTokens, 0,
-                     text_utils::utf8DisplayWidth(line), theme, 0);
-        return out;
-    }
-    // API HTML is cached as plain text, so its section headings have no '#'.
-    auto heading = text;
-    while(!heading.empty() && (heading.back() == ' ' || heading.back() == ':'))
-        heading.remove_suffix(1);
-    const bool section =
-        heading == "Description" || heading == "Operation" ||
-        heading == "Flags Affected" || heading == "Affected Flags" ||
-        heading == "Exceptions" || heading == "Protected Mode Exceptions" ||
-        heading == "Real-Address Mode Exceptions" ||
-        heading == "Virtual-8086 Mode Exceptions" ||
-        heading == "Compatibility Mode Exceptions" ||
-        heading == "64-Bit Mode Exceptions" ||
-        heading == "Intrinsic Equivalent" ||
-        heading == "Intel C/C++ Compiler Intrinsic Equivalent" ||
-        heading == "Opcode" || heading == "Instruction Operand Encoding" ||
-        heading == "Syntax" || heading == "Examples";
-    if(text.starts_with('#') || section)
-        return theme.uiAccent() + Terminal::ESC_BOLD + std::string(line);
-
-    const bool reference =
-        text.starts_with("Documentation:") || text.starts_with("Reference:") ||
-        text.starts_with("Source:") || text.starts_with("API:");
-    const auto& bodyColor = reference ? theme.uiDim() : theme.baseFg();
-    std::string out = bodyColor;
-    size_t pos = 0;
-    while(pos < line.size())
-    {
-        if(line.substr(pos).starts_with("https://") ||
-           line.substr(pos).starts_with("http://"))
-        {
-            const auto end = line.find_first_of(" \t)", pos);
-            const auto length =
-                end == std::string_view::npos ? line.size() - pos : end - pos;
-            out += theme.uiDim() + std::string(line.substr(pos, length)) +
-                   bodyColor;
-            pos += length;
-        }
-        else if(line[pos] == '`')
-        {
-            const auto end = line.find('`', pos + 1);
-            const auto length = end == std::string_view::npos
-                                    ? line.size() - pos
-                                    : end - pos + 1;
-            out += theme.syntax(TOKEN_KEYWORD) +
-                   std::string(line.substr(pos, length)) + bodyColor;
-            pos += length;
-        }
-        else
-            out += line[pos++];
-    }
-    return out;
-}
 } // namespace
 
 void AssemblyMode::on_enter(ModeContext& ctx)
@@ -361,8 +280,8 @@ void AssemblyMode::ensureVisible(const Editor& editor)
     const int sourceCount =
         content ? static_cast<int>(content->result.sourceLines.size()) : 0;
     sourceCursor = std::clamp(sourceCursor, 0, std::max(0, sourceCount - 1));
-    sourceOffset = std::clamp(sourceCursor - rows / 2, 0,
-                              std::max(0, sourceCount - rows));
+    sourceOffset =
+        std::clamp(sourceCursor - rows / 2, 0, std::max(0, sourceCount - rows));
 }
 
 int AssemblyMode::linkedSourceLine() const
@@ -418,7 +337,7 @@ void AssemblyMode::processIdle(Editor& editor,
     if(docsRefreshAt && now >= *docsRefreshAt)
         inspectLine(editor);
     if(content->docsLoading && !content->docsIndicator &&
-       now - docsStarted >= std::chrono::milliseconds(300))
+       now - content->docsStarted >= std::chrono::milliseconds(300))
     {
         content->docsIndicator = true;
         editor.needsFullRedraw = true;
@@ -453,114 +372,8 @@ void AssemblyMode::inspectLine(Editor& editor)
             "It may be a declaration, a comment, or optimized away.";
         return;
     }
-#ifndef UVIM_ENABLE_ASM_DOCS
-    content->docsText =
-        "Instruction documentation is not compiled into this build.";
-    content->docsTitle = "Instruction help";
-#else
-    const auto help =
-        asm_documentation::embedded(content->result.lines[cursor]);
-    if(!help)
-    {
-        content->docsTitle = "Instruction help";
-        content->docsText =
-            "No instruction documentation for this row "
-            "(labels, directives and comments have no instruction help).";
-        return;
-    }
-    const std::string& instruction = content->result.lines[cursor];
-    const auto start = instruction.find_first_not_of(" \t");
-    const std::string example =
-        "```asm\n" +
-        instruction.substr(start == std::string::npos ? 0 : start) +
-        "\n```\n\n";
-    content->docsTitle = help->title;
-    content->docsText = example + help->text;
-    if(!editor.asmDocsApi)
-        return;
-    content->docsLoading = true;
-    docsStarted = std::chrono::steady_clock::now();
-    auto text = std::make_shared<std::string>();
-    auto title = std::make_shared<std::string>();
-    const auto generation = content->docsGeneration;
-    std::weak_ptr<Content> weak = content;
-    docsTask =
-        editor.tasks
-            .submit(TaskQueue::Job{
-                "assembly instruction help", "asm-docs",
-                [line = content->result.lines[cursor], example, text,
-                 title](TaskQueue::Context& task)
-                {
-                    if(task.cancelled())
-                        return;
-                    auto location = asm_documentation::find(line, 0, true);
-                    if(!location)
-                        return;
-                    *title = location->mnemonic + " (" + location->arch + ")";
-                    std::ifstream file(location->path);
-                    std::string row;
-                    for(int i = 0; std::getline(file, row); ++i)
-                    {
-                        if(i < location->line)
-                            continue;
-                        if(location->line > 0 && i > location->line &&
-                           row.rfind("## ", 0) == 0)
-                            break;
-                        *text += row + '\n';
-                    }
-                    // Cached API documents include a summary and fetch
-                    // metadata. Put the API's operand forms/examples first in
-                    // the small popup.
-                    if(location->line == 0)
-                    {
-                        for(std::string_view marker :
-                            {"Compiler Explorer documentation:",
-                             "Source documentation fallback:"})
-                        {
-                            const auto start = text->find(marker);
-                            if(start == std::string::npos)
-                                continue;
-                            text->erase(0, start + marker.size());
-                            const auto first = text->find_first_not_of("\r\n");
-                            if(first != std::string::npos)
-                                text->erase(0, first);
-                            break;
-                        }
-                    }
-                    if(!text->empty())
-                        *text = example + *text;
-                },
-                [weak, generation, text, title, &editor]
-                {
-                    if(auto state = weak.lock();
-                       state && state->active &&
-                       state->docsGeneration == generation)
-                    {
-                        state->docsLoading = false;
-                        state->docsIndicator = false;
-                        if(!text->empty())
-                        {
-                            state->docsText = std::move(*text);
-                            if(!title->empty())
-                                state->docsTitle = std::move(*title);
-                        }
-                        editor.needsFullRedraw = true;
-                    }
-                },
-                [weak, generation, &editor]
-                {
-                    if(auto state = weak.lock();
-                       state && state->active &&
-                       state->docsGeneration == generation)
-                    {
-                        state->docsLoading = false;
-                        state->docsIndicator = false;
-                        editor.needsFullRedraw = true;
-                    }
-                },
-                false})
-            .id;
-#endif
+    docsTask = assembly_instruction_help::load(editor, content,
+                                               content->result.lines[cursor]);
 }
 
 std::optional<ModeState> AssemblyMode::handle(ModeContext& ctx,
@@ -802,7 +615,8 @@ void AssemblyMode::draw(Editor& editor)
             else if(!source && (!result.success || result.lines.empty()) &&
                     row < static_cast<int>(errors.size()))
             {
-                out += result.success ? editor.theme.uiInfo() : editor.theme.uiError();
+                out += result.success ? editor.theme.uiInfo()
+                                      : editor.theme.uiError();
                 message = " " + errors[row];
             }
             const auto text = clipped(message, width);
@@ -885,74 +699,8 @@ void AssemblyMode::draw(Editor& editor)
                            : clipped(status.state, stateWidth);
     editor.appendViewStatusBar(out, std::move(status));
 
-    if(inspect && editor.screenRows >= 8 && editor.screenCols >= 20)
-    {
-        const int width = std::max(12, std::min(84, editor.screenCols - 4));
-        const int height = std::max(4, std::min(15, editor.screenRows - 5));
-        const int left = editor.screenCols - width;
-        const int top = editor.screenRows - height - 1;
-        const auto docs = wrappedDocs(content->docsText, width - 4);
-        docsOffset =
-            std::clamp(docsOffset, 0,
-                       std::max(0, static_cast<int>(docs.size()) - height + 2));
-        std::vector<std::string> coloredDocs;
-        PreviewHighlight instructionHighlight;
-        editor.highlightPreviewLines(instructionHighlight, "inspection.s", docs,
-                                     docs.size());
-        const std::vector<Token> noTokens;
-        auto block = DocumentationBlock::None;
-        for(size_t i = 0; i < docs.size(); ++i)
-            coloredDocs.push_back(
-                coloredDocumentation(docs[i], editor.theme, block,
-                                     i < instructionHighlight.tokens.size()
-                                         ? instructionHighlight.tokens[i]
-                                         : noTokens));
-        for(int row = 0; row < height; ++row)
-        {
-            out += Terminal::cursorPos(top + row, left);
-            out += editor.theme.panel();
-            out += editor.theme.uiAccent();
-            if(row == 0 || row == height - 1)
-            {
-                std::string title =
-                    row == 0 ? " Inspect: " + content->docsTitle +
-                                   (content->docsIndicator ? " ... " : " ")
-                             : " i: close | Ctrl-J/K: scroll ";
-                title = clipped(title, width - 2);
-                text_utils::appendU8(out, row == 0
-                                              ? ascii::BOX_ROUNDED_TOP_LEFT
-                                              : ascii::BOX_ROUNDED_BOTTOM_LEFT);
-                out += Terminal::ESC_BOLD;
-                out += title;
-                out += editor.theme.reset() + editor.theme.panel() +
-                       editor.theme.uiAccent();
-                text_utils::appendUtf8Repeat(
-                    out, ascii::BOX_LIGHT_HORIZONTAL,
-                    std::max(0,
-                             width - 2 - text_utils::utf8DisplayWidth(title)));
-                text_utils::appendU8(
-                    out, row == 0 ? ascii::BOX_ROUNDED_TOP_RIGHT
-                                  : ascii::BOX_ROUNDED_BOTTOM_RIGHT);
-            }
-            else
-            {
-                const int index = docsOffset + row - 1;
-                const std::string text =
-                    index < static_cast<int>(docs.size()) ? docs[index] : "";
-                text_utils::appendU8(out, ascii::BOX_LIGHT_VERTICAL_RIGHT_PAD);
-                out += index < static_cast<int>(coloredDocs.size())
-                           ? coloredDocs[index]
-                           : editor.theme.baseFg();
-                out += editor.theme.reset() + editor.theme.panel();
-                out.append(
-                    std::max(0, width - 3 - text_utils::utf8DisplayWidth(text)),
-                    ' ');
-                out += editor.theme.uiAccent();
-                text_utils::appendU8(out, ascii::BOX_LIGHT_VERTICAL);
-            }
-            out += editor.theme.reset();
-        }
-    }
+    if(inspect)
+        assembly_instruction_help::draw(out, editor, *content, docsOffset);
     Terminal::write(out);
     Terminal::flush();
 }

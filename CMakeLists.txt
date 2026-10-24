@@ -447,6 +447,9 @@ if(UVIM_ENABLE_AUXILIARY_VIEWS)
         src/command_output_mode.cpp
     )
 endif()
+if(UVIM_ENABLE_ASM_VIEW OR UVIM_ENABLE_DEBUGGER)
+    list(APPEND MODE_STATE_MACHINE_SOURCES src/assembly_instruction_help.cpp)
+endif()
 if(UVIM_ENABLE_ASM_VIEW)
     list(APPEND MODE_STATE_MACHINE_SOURCES
         src/assembly_mode.cpp

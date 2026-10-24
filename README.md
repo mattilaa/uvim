@@ -1754,6 +1754,10 @@ deactivate
 
 ### Debugger view
 
+See the [debugger wiki guide](docs/wiki/Debugger.md) and
+[disassembly and instruction help](docs/wiki/Debugger-Disassembly.md) for
+workflows and key-reference tables.
+
 Use `:dbgrun path/to/binary [arguments...]` to launch a native executable and
 stop at entry, or `:dbgattach <pid>` to attach to a running process. Build the
 program with debug information (`-g`, preferably `-O0`) for source and locals.
@@ -1795,9 +1799,17 @@ a frame previews its source in the Source pane and highlights the target row
 before Enter; the debugger's selected frame and variables remain unchanged.
 Ctrl+D switches the preview between source and assembly. For frames without
 local source, use Ctrl+D to inspect the library instructions at that frame's
-program counter. Ctrl+Shift+J/K scrolls the assembly preview without changing
+program counter. Ctrl+Shift+J/K selects assembly rows without changing
 the highlighted frame; Alt+J/K provides the terminal fallback with
 `:set iskitty=false`. The same keys scroll the Output pane when focused.
+Press Ctrl+I to toggle instruction documentation for the selected assembly row
+while the frame search prompt is open; `i` remains part of the search filter.
+Tab also toggles help here because terminals encode Ctrl+I as Tab. Switch back
+to source preview with Ctrl+D to use Tab to insert the frame number. In Output,
+press `i` on a disassembly instruction to toggle the same help. The popup uses
+the assembly view's built-in documentation and optional `asmdocsapi` lookup;
+Ctrl+J/K scrolls its text, Esc closes it, and help follows the selected instruction
+after a short pause while browsing.
 Disassembly colors distinguish addresses, instructions,
 registers, immediate values, raw bytes, symbols, and comments in both previews
 and Output. The preview header identifies the file/line or library;

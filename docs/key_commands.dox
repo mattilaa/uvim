@@ -166,6 +166,13 @@ includes common Normal/Insert/Visual/Command mode bindings.
   previous text stays visible while browsing. Fast responses cancel the indicator,
   and inspector requests do not produce queue/download status messages.
   `:set asmdocsapi=false` uses built-in help only.
+- Debugger disassembly uses the same instruction documentation popup. In a
+  `:frame --` assembly preview, `Ctrl-i` (also Tab) toggles help while `i`
+  remains a fuzzy-search character. `Ctrl-Shift-j/k` (or `Alt-j/k` with
+  `:set iskitty=false`) selects instruction rows. In Output, select a
+  disassembly instruction and press `i`. `Ctrl-j/k` scrolls help; `Esc`
+  closes it without closing the frame picker. Return to source with `Ctrl-d`
+  to use Tab to insert the frame number. The `asmdocsapi` setting applies here too.
 - Assembly browsing starts each newly selected row at the beginning in both
   panes, including linked source jumps. `h/l` pans the current line; `0` returns
   it to the beginning. Pane switches and split toggles also reset horizontal pan.

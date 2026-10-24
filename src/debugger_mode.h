@@ -1,4 +1,5 @@
 #pragma once
+#include "assembly_instruction_help.h"
 #include "mode_context.h"
 #include "mode_state.h"
 #include "preview_highlight.h"
@@ -95,6 +96,11 @@ struct DebuggerMode
     std::vector<std::string> framePreviewLines;
     PreviewHighlight framePreviewHighlight;
     int framePreviewLine = 0, framePreviewToken = 0, framePreviewScroll = 0;
+    int framePreviewCursor = 0;
+    bool assemblyHelpOpen = false;
+    int assemblyHelpOffset = 0;
+    std::shared_ptr<assembly_instruction_help::State> assemblyHelp =
+        std::make_shared<assembly_instruction_help::State>();
     std::vector<std::string> promptCommands, promptMenuEntries;
     int promptMenuCursor = 0, promptMenuOffset = 0;
 
@@ -120,6 +126,12 @@ private:
     std::vector<std::string> drawnRows;
     std::string drawnFooter;
     int drawnWidth = 0;
+    TaskQueue::TaskId assemblyHelpTask = 0;
+    std::string assemblyHelpInstruction;
+    std::optional<std::chrono::steady_clock::time_point> assemblyHelpRefreshAt;
+    std::string selectedDisassembly() const;
+    void updateAssemblyHelp(Editor& editor, bool immediate = false);
+    void closeAssemblyHelp(Editor& editor);
     void execute(const std::string& command);
     void complete(ModeContext& ctx);
     void clamp(const Editor& editor);
