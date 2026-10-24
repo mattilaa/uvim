@@ -387,7 +387,7 @@ class LLDB:
                     rows += type_layout(pointee, '*(' + expression + ')')
         else:
             rows += self.disassembly_rows(address, count)
-        emit(output=rows, inspection=True)
+        emit(output=rows, inspection=True, outputKind='assembly' if kind == 'disasm' else 'memory')
 
     def disassembly_rows(self, address, count):
         rows = []
@@ -934,7 +934,8 @@ class GDB:
                             emit(framePreview=dict(id=expression, token=preview_token,
                                                    lines=[row for row in rows if row.startswith('0x')]))
                         else:
-                            emit(output=rows, inspection=True)
+                            emit(output=rows, inspection=True,
+                                 outputKind='memory' if kind[0] == 'inspection-memory' else 'assembly')
                         if kind[0] == 'inspection-memory':
                             self.send('-data-evaluate-expression ' + json.dumps(f'sizeof(*({expression}))'),
                                       ('inspection-size', f'*({expression})', False))

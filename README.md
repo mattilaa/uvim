@@ -1786,12 +1786,16 @@ pressing Enter. Fuzzy-find by frame number, symbol, source path, or address;
 Ctrl+J/K (or arrows) selects and Enter switches to that frame. Tab inserts its
 frame number into the prompt without selecting it. The current frame has a `*`
 marker. Ctrl+R refreshes, Ctrl+U clears the filter, and Esc returns to the frame
-prompt. The picker reads up to 256 frames from the stopped process. Highlighting
+prompt. The picker reads up to 256 frames from the stopped process. Frames with
+unavailable local source are dimmed and marked `[no source]`; readable-source
+frames and the current frame use distinct theme colors. Highlighting
 a frame previews its source in the Source pane and highlights the target row
 before Enter; the debugger's selected frame and variables remain unchanged.
 Ctrl+D switches the preview between source and assembly. For frames without
 local source, use Ctrl+D to inspect the library instructions at that frame's
-program counter. The preview header identifies the file/line or library;
+program counter. Disassembly colors distinguish addresses, instructions,
+registers, immediate values, raw bytes, symbols, and comments in both previews
+and Output. The preview header identifies the file/line or library;
 Esc restores the original source view.
 With LLDB/mladbg, `n` or `s` from an inspected caller finishes its pending call
 and stops at the next source line before normal stepping resumes. During a step,

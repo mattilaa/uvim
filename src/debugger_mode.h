@@ -35,6 +35,7 @@ struct DebuggerStackFrame
     std::string id, label, symbol, path, address, module;
     int line = 0;
     bool selected = false;
+    bool sourceAvailable = false;
 };
 
 struct DebuggerMode
@@ -61,6 +62,7 @@ struct DebuggerMode
     int frameIndex = 0;
     std::string frameFunction, stopFunction;
     std::vector<std::string> source, variables, threads, threadIds, output;
+    std::vector<bool> assemblyOutputLines;
     std::vector<std::string> variableExpressions;
     // Source, output, variables, threads. Each pane preserves its selection.
     int pane = 0;

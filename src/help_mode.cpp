@@ -1181,6 +1181,7 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "Enter selects the frame; Tab inserts its ID without selecting.",
             "* marks the current frame. Ctrl-R refreshes; Ctrl-U clears the filter.",
             "Esc returns to the frame prompt. Lists up to 256 frames while paused.",
+            "Frames without readable local source are dimmed and marked [no source].",
             "Highlighting previews the file and target row in Source before Enter.",
             "Ctrl-D toggles source/library assembly at the highlighted frame's PC.",
             "Previewing does not select a frame or change its variables.",

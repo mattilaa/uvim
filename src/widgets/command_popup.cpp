@@ -392,17 +392,35 @@ void drawCommandPopup(std::string& output, const CommandPopupView& view)
             line += "...";
         }
 
-        if(!view.filtered.empty() &&
-           (i + view.offset) < (int)view.filtered.size() &&
-           (i + view.offset) == view.cursor)
+        const int visibleIndex = i + view.offset;
+        const int entryIndex =
+            visibleIndex >= 0 &&
+                    visibleIndex < static_cast<int>(view.filtered.size())
+                ? view.filtered[visibleIndex]
+                : -1;
+        const auto rowColor =
+            entryIndex >= 0 &&
+                    entryIndex < static_cast<int>(view.rowColors.size())
+                ? std::string_view(view.rowColors[entryIndex])
+                : std::string_view{};
+        const bool current = !view.filtered.empty() &&
+                             (i + view.offset) < (int)view.filtered.size() &&
+                             (i + view.offset) == view.cursor;
+        if(current)
         {
             output += frame.theme.selection();
+            output += rowColor;
             output.append(line);
             output += frame.theme.reset();
         }
         else
         {
-            if(!cmdPart.empty())
+            if(!rowColor.empty())
+            {
+                output += rowColor;
+                output += line;
+            }
+            else if(!cmdPart.empty())
             {
                 output += frame.theme.uiAccent();
                 output += cmdPart;
@@ -423,8 +441,12 @@ void drawCommandPopup(std::string& output, const CommandPopupView& view)
         }
 
         int pad = innerW - text_utils::displayWidth(line);
+        if(current && !rowColor.empty())
+            output += frame.theme.selection();
         if(pad > 0)
             output.append(pad, ' ');
+        if(current && !rowColor.empty())
+            output += frame.theme.reset();
         text_utils::appendU8(output, ascii::BOX_LIGHT_VERTICAL_LEFT_PAD);
     }
 

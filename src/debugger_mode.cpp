@@ -21,6 +21,7 @@
 #include <sstream>
 #include <stdexcept>
 #include <thread>
+#include <unordered_map>
 #ifndef _WIN32
 #include <fcntl.h>
 #include <signal.h>
@@ -92,6 +93,157 @@ std::string safe(std::string text)
         if(static_cast<unsigned char>(c) < 32 || c == 127)
             c = ' ';
     return text;
+}
+
+bool readableFrameSource(const std::string& path)
+{
+    std::error_code error;
+    const auto size = std::filesystem::file_size(path, error);
+    if(error || size == 0 || size > 20 * 1024 * 1024)
+        return false;
+    std::ifstream file(path, std::ios::binary);
+    std::array<char, 4096> bytes{};
+    file.read(bytes.data(), static_cast<std::streamsize>(bytes.size()));
+    const auto end = bytes.begin() + file.gcount();
+    return end != bytes.begin() && std::find(bytes.begin(), end, '\0') == end;
+}
+
+bool assemblyRegister(std::string word)
+{
+    std::transform(word.begin(), word.end(), word.begin(), [](unsigned char c)
+                   { return static_cast<char>(std::tolower(c)); });
+    if(word.starts_with('%'))
+        word.erase(0, 1);
+    if(const auto dot = word.find('.'); dot != std::string::npos)
+        word.resize(dot);
+    static const std::unordered_set<std::string> names{
+        "rax", "rbx",  "rcx", "rdx", "rsi", "rdi",  "rbp",  "rsp",  "rip",
+        "eax", "ebx",  "ecx", "edx", "esi", "edi",  "ebp",  "esp",  "eip",
+        "ax",  "bx",   "cx",  "dx",  "al",  "bl",   "cl",   "dl",   "ah",
+        "bh",  "ch",   "dh",  "sp",  "lr",  "pc",   "fp",   "ip",   "xzr",
+        "wzr", "zero", "ra",  "gp",  "tp",  "fpcr", "fpsr", "cpsr", "nzcv",
+        "cs",  "ds",   "es",  "fs",  "gs",  "ss"};
+    if(names.contains(word))
+        return true;
+    const auto digit = word.find_first_of("0123456789");
+    if(digit == std::string::npos)
+        return false;
+    const auto prefix = word.substr(0, digit);
+    static const std::unordered_set<std::string> numbered{
+        "x", "w", "r",   "v",   "q",   "d",  "s",  "a",  "t",
+        "f", "p", "xmm", "ymm", "zmm", "mm", "cr", "dr", "st"};
+    if(!numbered.contains(prefix))
+        return false;
+    auto end = digit;
+    while(end < word.size() &&
+          std::isdigit(static_cast<unsigned char>(word[end])))
+        ++end;
+    return end == word.size() ||
+           (prefix == "r" && end + 1 == word.size() &&
+            std::string_view("bwd").find(word[end]) != std::string_view::npos);
+}
+
+std::vector<Token> disassemblyTokens(const std::string& line)
+{
+    std::vector<Token> tokens;
+    if(!line.starts_with("0x"))
+        return tokens;
+    auto add = [&](TokenType type, size_t start, size_t end)
+    {
+        tokens.push_back(
+            {type, static_cast<int>(start), static_cast<int>(end - start)});
+    };
+    size_t pos = 2;
+    while(pos < line.size() &&
+          std::isxdigit(static_cast<unsigned char>(line[pos])))
+        ++pos;
+    add(TOKEN_TYPE, 0, pos);
+    while(pos < line.size() && line[pos] == ' ')
+        ++pos;
+    const auto mnemonic = pos;
+    while(pos < line.size() && line[pos] != ' ')
+        ++pos;
+    add(TOKEN_KEYWORD, mnemonic, pos);
+    auto comment = line.find(';', pos);
+    for(const auto marker : {"# ", "//"})
+        comment = std::min(comment, line.find(marker, pos));
+    const size_t end = comment == std::string::npos ? line.size() : comment;
+    if(comment != std::string::npos)
+        add(TOKEN_COMMENT, comment, line.size());
+    auto bytes = line.rfind("  [", end);
+    auto bytesEnd = bytes == std::string::npos ? std::string::npos
+                                               : line.find(']', bytes + 3);
+    if(bytesEnd == std::string::npos || bytesEnd >= end ||
+       bytesEnd < bytes + 5 ||
+       !std::all_of(
+           line.begin() + (bytes == std::string::npos ? 0 : bytes + 3),
+           line.begin() + (bytesEnd == std::string::npos ? 0 : bytesEnd),
+           [](unsigned char c)
+           { return std::isxdigit(c) || c == ' ' || c == '?'; }))
+        bytes = std::string::npos;
+    while(pos < end)
+    {
+        if(bytes != std::string::npos && pos == bytes + 2)
+        {
+            add(TOKEN_STRING, pos, bytesEnd + 1);
+            pos = bytesEnd + 1;
+            continue;
+        }
+        const auto start = pos;
+        const auto ch = static_cast<unsigned char>(line[pos]);
+        if(ch == '<')
+        {
+            const auto close = line.find('>', pos + 1);
+            pos = close != std::string::npos && close < end ? close + 1 : end;
+            add(TOKEN_FUNCTION, start, pos);
+        }
+        else if(std::isdigit(ch) ||
+                (std::string_view("#$+-").find(ch) != std::string_view::npos &&
+                 pos + 1 < end &&
+                 (std::isdigit(static_cast<unsigned char>(line[pos + 1])) ||
+                  line[pos + 1] == '-')))
+        {
+            if(line[pos] == '#' || line[pos] == '$')
+                ++pos;
+            if(pos < end && (line[pos] == '+' || line[pos] == '-'))
+                ++pos;
+            if(pos + 1 < end && line[pos] == '0' &&
+               (line[pos + 1] == 'x' || line[pos + 1] == 'X'))
+            {
+                pos += 2;
+                while(pos < end &&
+                      std::isxdigit(static_cast<unsigned char>(line[pos])))
+                    ++pos;
+            }
+            else
+                while(pos < end &&
+                      (std::isdigit(static_cast<unsigned char>(line[pos])) ||
+                       line[pos] == '.'))
+                    ++pos;
+            if(pos == start)
+                ++pos;
+            add(TOKEN_NUMBER, start, pos);
+        }
+        else if(std::isalpha(ch) || ch == '_' || ch == '%')
+        {
+            ++pos;
+            while(pos < end &&
+                  (std::isalnum(static_cast<unsigned char>(line[pos])) ||
+                   line[pos] == '_' || line[pos] == '.'))
+                ++pos;
+            const auto word = line.substr(start, pos - start);
+            add(assemblyRegister(word) ? TOKEN_MEMBER : TOKEN_FUNCTION, start,
+                pos);
+        }
+        else
+        {
+            ++pos;
+            if(std::string_view("[](),:+-*/!").find(ch) !=
+               std::string_view::npos)
+                add(TOKEN_OPERATOR, start, pos);
+        }
+    }
+    return tokens;
 }
 
 std::string fit(const std::string& text, int width)
@@ -579,10 +731,18 @@ void DebuggerMode::applyMessage(const std::string& message)
         }
     }
     const int outputStart = static_cast<int>(output.size());
+    assemblyOutputLines.resize(output.size(), false);
     strings("output", output, true);
+    assemblyOutputLines.resize(output.size(),
+                               json_utils::get_string(*doc, "outputKind") ==
+                                   "assembly");
     const int discarded = std::max(0, static_cast<int>(output.size()) - 2000);
     if(output.size() > 2000)
+    {
         output.erase(output.begin(), output.end() - 2000);
+        assemblyOutputLines.erase(assemblyOutputLines.begin(),
+                                  assemblyOutputLines.begin() + discarded);
+    }
     if(json_utils::get_bool(*doc, "inspection"))
     {
         pane = 1;
@@ -614,6 +774,8 @@ void DebuggerMode::applyMessage(const std::string& message)
         if(state != "stopped")
             framePickerError = "Pause execution before browsing stack frames";
         else
+        {
+            std::unordered_map<std::string, bool> sourceFiles;
             for(const auto& frame : frames->GetArray())
             {
                 const auto id = json_utils::get_string(frame, "id");
@@ -627,6 +789,17 @@ void DebuggerMode::applyMessage(const std::string& message)
                     std::string(selected ? "* #" : "  #") + id + " " + symbol;
                 const auto path = safe(json_utils::get_string(frame, "path"));
                 const int line = json_utils::get_int(frame, "line");
+                bool sourceAvailable = false;
+                if(!path.empty() && line > 0 && line <= 200000)
+                {
+                    const auto [file, added] =
+                        sourceFiles.try_emplace(path, false);
+                    if(added)
+                        file->second = readableFrameSource(path);
+                    sourceAvailable = file->second;
+                }
+                if(!sourceAvailable)
+                    label += " [no source]";
                 if(!path.empty())
                     label += "  " + path +
                              (line > 0 ? ":" + std::to_string(line) : "");
@@ -639,8 +812,10 @@ void DebuggerMode::applyMessage(const std::string& message)
                 if(!address.empty())
                     label += "  " + address;
                 stackFrames.push_back({id, std::move(label), symbol, path,
-                                       address, module, line, selected});
+                                       address, module, line, selected,
+                                       sourceAvailable});
             }
+        }
         filterFrames(true);
     }
     if(auto preview = json_utils::find(*doc, "framePreview");
@@ -1034,6 +1209,8 @@ void DebuggerMode::updateFramePreview()
         framePreviewLines = {"Source unavailable for this frame. Ctrl+D "
                              "previews library assembly."};
     }
+    stackFrames[frameMatches[framePickerCursor]].sourceAvailable =
+        framePreviewSourceAvailable;
 }
 
 void DebuggerMode::updatePromptMenu()
@@ -1495,10 +1672,17 @@ void DebuggerMode::drawContent(Editor& editor)
                          std::max(0, static_cast<int>(shownSource.size()) -
                                          previewRows))
             : offset[0];
-    editor.highlightPreviewLines(
-        shownHighlight, shownPath, shownSource,
-        std::min(shownSource.size(),
-                 static_cast<size_t>(sourceOffset + sourceRows)));
+    if(previewing && framePreviewAssembly)
+    {
+        shownHighlight.tokens.clear();
+        for(const auto& line : shownSource)
+            shownHighlight.tokens.push_back(disassemblyTokens(line));
+    }
+    else
+        editor.highlightPreviewLines(
+            shownHighlight, shownPath, shownSource,
+            std::min(shownSource.size(),
+                     static_cast<size_t>(sourceOffset + sourceRows)));
     auto shownBreakpoints = breakpointLines;
     if(previewing)
     {
@@ -1687,11 +1871,22 @@ void DebuggerMode::drawContent(Editor& editor)
                 }
                 const int available = inner - prefixWidth;
                 const auto text = fit(lines[index], available);
+                std::vector<Token> assemblyTokens;
+                const std::vector<Token>* tokens = nullptr;
                 if(which == 0 &&
                    index < static_cast<int>(shownHighlight.tokens.size()))
+                    tokens = &shownHighlight.tokens[index];
+                else if(which == 1 &&
+                        index < static_cast<int>(assemblyOutputLines.size()) &&
+                        assemblyOutputLines[index])
+                {
+                    assemblyTokens = disassemblyTokens(lines[index]);
+                    tokens = &assemblyTokens;
+                }
+                if(tokens)
                 {
                     std::vector<TokenType> colors(text.size(), TOKEN_NORMAL);
-                    for(const auto& token : shownHighlight.tokens[index])
+                    for(const auto& token : *tokens)
                         for(int c = std::max(0, token.start);
                             c < std::min(static_cast<int>(text.size()),
                                          token.start + token.length);
@@ -1727,6 +1922,7 @@ void DebuggerMode::drawContent(Editor& editor)
     saveRow();
     activeRow = -1;
     std::vector<std::string> menuEntries;
+    std::vector<std::string> menuColors;
     int menuCursor = 0, menuOffset = 0;
     std::string menuTitle;
     if(sizePopupOpen)
@@ -1746,7 +1942,13 @@ void DebuggerMode::drawContent(Editor& editor)
                        frameMatches.size(), 0, editor.screenRows,
                        framePickerRows(editor.screenRows));
         for(const int index : frameMatches)
+        {
             menuEntries.push_back(stackFrames[index].label);
+            menuColors.push_back(
+                !stackFrames[index].sourceAvailable ? editor.theme.uiDim()
+                : stackFrames[index].selected       ? editor.theme.uiSuccess()
+                                                    : editor.theme.uiInfo());
+        }
         menuCursor = framePickerCursor;
         menuOffset = framePickerOffset;
         menuTitle = "Stack frames " + std::to_string(frameMatches.size()) +
@@ -1823,7 +2025,8 @@ void DebuggerMode::drawContent(Editor& editor)
                  sizePopupOpen
                      ? std::clamp(static_cast<int>(menuEntries.size()), 1, 18)
                  : framePickerOpen ? framePickerRows(editor.screenRows)
-                                   : 8});
+                                   : 8,
+             .rowColors = menuColors});
         overlayPopupRows(rows, popup, editor.theme);
     }
     widgets::ViewStatusBarView status{.theme = editor.theme};

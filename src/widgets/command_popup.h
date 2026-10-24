@@ -2,6 +2,7 @@
 
 #include "widgets/popup_base.h"
 
+#include <span>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -18,6 +19,9 @@ struct CommandPopupView
     std::string_view title{};
     std::string_view emptyMessage = "No matches";
     int maxRows = 8;
+    // Optional foreground colors, indexed like entries. Selection keeps its
+    // background.
+    std::span<const std::string> rowColors{};
 };
 
 std::string_view commandDocumentation(std::string_view command);
