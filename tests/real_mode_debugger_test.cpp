@@ -1135,6 +1135,138 @@ TEST(RealModeTransitionsTest, DebuggerFilePickerKeepsSessionAndPinsOtherSource)
 #endif
 
 TEST(RealModeTransitionsTest,
+     DebuggerBreakpointListFollowsFilesRowsAndMetadataRefreshes)
+{
+    auto dir = make_temp_dir("uvim_breakpoint_follow_");
+    const auto original = dir / "running.cpp";
+    const auto first = dir / "first.cpp";
+    const auto second = dir / "second.cpp";
+    write_file(original, "int main() {\nreturn 0;\n}\n");
+    std::string code;
+    for(int row = 1; row <= 80; ++row)
+        code += "int first_" + std::to_string(row) + " = 1;\n";
+    write_file(first, code);
+    write_file(second, "one\ntwo\nthree\nFOUR_TARGET\nfive\nsix\nSEVEN_"
+                       "TARGET\neight\nnine\nTEN_TARGET\n");
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.screenRows = 32;
+    editor.screenCols = 160;
+    auto sm = makeMachine(editor, DebuggerMode{"app", false});
+    auto* debug = sm.getState<DebuggerMode>();
+    ASSERT_NE(debug, nullptr);
+    std::string runningPath, firstPath, secondPath, missingPath;
+    json_utils::append_escaped(runningPath, original.string());
+    json_utils::append_escaped(firstPath, first.string());
+    json_utils::append_escaped(secondPath, second.string());
+    json_utils::append_escaped(missingPath, (dir / "missing.cpp").string());
+    debug->applyMessage(
+        "{\"state\":\"stopped\",\"path\":" + runningPath +
+        ",\"line\":2,\"frame\":7,\"variables\":[\"count = "
+        "42\"],\"breakpoints\":["
+        "{\"id\":\"1\",\"locations\":[{\"path\":" +
+        firstPath +
+        ",\"line\":3}]},"
+        "{\"id\":\"2\",\"locations\":[{\"path\":" +
+        firstPath +
+        ",\"line\":60}]},"
+        "{\"id\":\"3\",\"enabled\":false,\"locations\":[{\"path\":" +
+        secondPath +
+        ",\"line\":4}]},"
+        "{\"id\":\"4\",\"pending\":true,\"locations\":[]},"
+        "{\"id\":\"5\",\"locations\":[{\"path\":" +
+        missingPath + ",\"line\":9}]}]}");
+    debug->pane = 2;
+    dispatch_command(sm, "bps");
+    EXPECT_TRUE(debug->breakpointListOpen);
+    EXPECT_TRUE(debug->sourcePinned);
+    EXPECT_EQ(debug->sourcePath,
+              EditorPathUtilities::resolveEditorPath(first.string()).string());
+    EXPECT_EQ(debug->cursor[0], 2);
+    EXPECT_EQ(debug->pane, 0);
+    const auto firstSource = debug->source;
+    sm.dispatch(keyCode(control::ControlKey::CTRL_J));
+    EXPECT_EQ(debug->cursor[0], 59);
+    EXPECT_EQ(debug->source, firstSource);
+    EXPECT_GT(debug->offset[0], 0);
+    testing::internal::CaptureStdout();
+    debug->draw(editor);
+    const auto rendered = testing::internal::GetCapturedStdout();
+    EXPECT_NE(rendered.find("+60 "), std::string::npos);
+    EXPECT_NE(rendered.find("first_60"), std::string::npos);
+    sm.dispatch(keyCode(control::ControlKey::CTRL_J));
+    EXPECT_EQ(debug->sourcePath,
+              EditorPathUtilities::resolveEditorPath(second.string()).string());
+    EXPECT_EQ(debug->cursor[0], 3);
+    EXPECT_EQ(debug->source[3], "FOUR_TARGET");
+    EXPECT_EQ(debug->frameIndex, 7);
+    EXPECT_EQ(debug->executionPath, original.string());
+    EXPECT_EQ(debug->executionLine, 2);
+    EXPECT_EQ(debug->variables, (std::vector<std::string>{"count = 42"}));
+    sm.dispatch(keyCode(control::ControlKey::CTRL_J));
+    EXPECT_FALSE(debug->breakpointSourceError.empty());
+    EXPECT_EQ(debug->source[3], "FOUR_TARGET");
+    sm.dispatch(keyCode(control::ControlKey::CTRL_J));
+    EXPECT_NE(debug->breakpointSourceError.find("Source unavailable"),
+              std::string::npos);
+    EXPECT_EQ(debug->cursor[0], 3);
+    // Deleting a selected breakpoint follows the replacement list selection.
+    debug->applyMessage(
+        "{\"breakpoints\":[{\"id\":\"1\",\"locations\":[{\"path\":" +
+        firstPath + ",\"line\":3}]},{\"id\":\"3\",\"locations\":[{\"path\":" +
+        secondPath + ",\"line\":7}]}]}");
+    EXPECT_EQ(debug->breakpointCursor, 1);
+    EXPECT_EQ(debug->cursor[0], 6);
+    EXPECT_EQ(debug->source[6], "SEVEN_TARGET");
+    EXPECT_TRUE(debug->breakpointSourceError.empty());
+    // Preserve the selected ID through reordering and follow its new row.
+    debug->applyMessage(
+        "{\"breakpoints\":[{\"id\":\"3\",\"locations\":[{\"path\":" +
+        secondPath + ",\"line\":10}]},{\"id\":\"1\",\"locations\":[{\"path\":" +
+        firstPath + ",\"line\":3}]}]}");
+    EXPECT_EQ(debug->breakpointCursor, 0);
+    EXPECT_EQ(debug->cursor[0], 9);
+    sm.dispatch(27);
+    EXPECT_FALSE(debug->breakpointListOpen);
+    EXPECT_TRUE(debug->sourcePinned);
+    EXPECT_EQ(debug->cursor[0], 9);
+    debug->followExecutionOnStop = true;
+    debug->applyMessage("{\"state\":\"stopped\",\"path\":" + runningPath +
+                        ",\"line\":3}");
+    EXPECT_FALSE(debug->sourcePinned);
+    EXPECT_EQ(debug->sourcePath, original.string());
+    EXPECT_EQ(debug->cursor[0], 2);
+    std::filesystem::remove_all(dir);
+}
+
+TEST(RealModeTransitionsTest,
+     DebuggerBreakpointListFollowsLocationsArrivingAfterOpening)
+{
+    auto dir = make_temp_dir("uvim_breakpoint_late_");
+    const auto file = dir / "late.cpp";
+    write_file(file, "one\ntwo\nthree\n");
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    auto sm = makeMachine(editor, DebuggerMode{"app", false});
+    auto* debug = sm.getState<DebuggerMode>();
+    debug->state = "stopped";
+    dispatch_command(sm, "bps");
+    EXPECT_TRUE(debug->breakpointListOpen);
+    EXPECT_TRUE(debug->source.empty());
+    std::string path;
+    json_utils::append_escaped(path, file.string());
+    debug->applyMessage(
+        "{\"breakpoints\":[{\"id\":\"1\",\"locations\":[{\"path\":" + path +
+        ",\"line\":3}]}]}");
+    EXPECT_EQ(debug->sourcePath,
+              EditorPathUtilities::resolveEditorPath(file.string()).string());
+    EXPECT_EQ(debug->cursor[0], 2);
+    sm.dispatch(keyCode(control::ControlKey::CTRL_K));
+    EXPECT_EQ(debug->cursor[0], 2);
+    std::filesystem::remove_all(dir);
+}
+
+TEST(RealModeTransitionsTest,
      DebuggerSourceSelectionRejectsBinaryWithoutChangingSource)
 {
     auto dir = make_temp_dir("uvim_debugger_bad_source_");

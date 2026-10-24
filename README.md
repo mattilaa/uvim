@@ -1844,8 +1844,13 @@ still execute directly. Other native backend commands can also be entered.
 completes the path while preserving an existing `:42` suffix. Completion inserts
 the path without executing the command. Enabled breakpoints use a red background
 on their source line numbers. `:bps` opens a breakpoint list: Ctrl+J/K (or arrows)
-selects a row, `d` deletes that breakpoint from the backend, and Esc/`q` closes
-the list. `:delete ID`, `:disable ID`, and `:enable ID` also work. Pending and
+selects a row and follows its source file and line immediately. `d` deletes
+that breakpoint from the backend, and Esc/`q` closes the list. The browsed source
+stays visible after closing; execution commands and frame/thread selection
+return to the execution source at the next stopped update. Browsing preserves
+the selected debugger frame and locals. Breakpoints with several locations
+follow their first listed location; unavailable source is identified in the
+footer without replacing the current file. `:delete ID`, `:disable ID`, and `:enable ID` also work. Pending and
 disabled breakpoints are identified in the list; gutter markers update when
 breakpoints resolve, change, or are removed.
 

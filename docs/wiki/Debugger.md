@@ -69,7 +69,16 @@ Ctrl+D switches the preview to assembly, including for library frames with no lo
 
 Tab completes breakpoint paths while retaining a row suffix. Enabled breakpoints have red source-row numbers. In Source, `j`/`k` selects a row and `b` toggles its breakpoint. An existing disabled breakpoint is enabled; an existing enabled breakpoint is removed.
 
-`:bps` opens the breakpoint list. Ctrl+J/K or arrows selects; `d` removes the selected breakpoint; Esc or `q` closes the list. Pending and disabled breakpoints are labeled.
+`:bps` opens the breakpoint list. Ctrl+J/K or arrows selects a breakpoint and
+immediately follows its file and line in Source, including for disabled
+breakpoints. The selected debugger frame and locals are preserved. `d` removes
+the selected breakpoint and the source follows the replacement selection;
+metadata refreshes preserve the selected breakpoint ID when possible. Esc or
+`q` closes the list and leaves the browsed source visible. Stepping, continuing,
+or selecting a frame/thread returns to execution source at the next stop.
+Pending and disabled breakpoints are labeled. A breakpoint with multiple
+locations follows its first listed location. Missing or unreadable source is
+identified in the footer while the current source stays visible.
 
 Ctrl+P opens the file finder inside the debugger when search tools are included in the build. Filter files, select with Ctrl+J/K, and press Enter to browse one. A suffix such as `helper.hpp:42` selects a source row. Press `b` to set a breakpoint there. Stepping, continuing, or selecting another frame or thread returns to the execution source at the next stop.
 

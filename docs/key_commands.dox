@@ -56,6 +56,9 @@ includes common Normal/Insert/Visual/Command mode bindings.
   forces fuzzy matching. Ctrl-P accepts `/pattern/:LINE` for source-row jumps.
   In the file browser, `:filter re:pattern` filters the listing when
   `filebrowser.fuzzy` is enabled; Esc or `:filter` clears it.
+- `:bps` in the debugger follows the selected breakpoint's file and line
+  while browsing with Ctrl-j/k or arrows. Esc closes the list and retains
+  the browsed source; `d` deletes the selected breakpoint.
 
 - `Ctrl-a` : project grep search
 - `/` : project grep search
