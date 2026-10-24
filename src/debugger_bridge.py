@@ -211,8 +211,51 @@ class LLDB:
         verb, _, rest = text.partition(' ')
         location = rest.strip().strip('"\'')
         path, colon, row = location.rpartition(':')
+        if text == 'frames':
+            process = self.target.GetProcess()
+            if process.GetState() not in (self.lldb.eStateStopped, self.lldb.eStateCrashed,
+                                         self.lldb.eStateSuspended):
+                emit(frames=[], framesError='Pause execution before browsing stack frames')
+                return
+            thread = process.GetSelectedThread()
+            selected = thread.GetSelectedFrame().GetFrameID()
+            frames = []
+            for index in range(min(thread.GetNumFrames(), 256)):
+                frame = thread.GetFrameAtIndex(index)
+                if not frame.IsValid():
+                    continue
+                path, line = self.frame_source(frame)
+                frames.append(dict(id=str(frame.GetFrameID()),
+                                   function=frame.GetFunctionName() or frame.GetSymbol().GetName() or '<unknown>',
+                                   path=path, line=line, address=f'0x{frame.GetPC():x}',
+                                   selected=frame.GetFrameID() == selected))
+            emit(frames=frames)
+            return
         if text == 'bps':
             self.publish_breakpoints()
+        elif (verb == 'frame' and re.fullmatch(r'(?:select\s+)?-?\d+', rest.strip())) or verb in ('up', 'down'):
+            process = self.target.GetProcess()
+            if process.GetState() not in (self.lldb.eStateStopped, self.lldb.eStateCrashed,
+                                         self.lldb.eStateSuspended):
+                raise ValueError('Pause execution before selecting a stack frame')
+            thread = process.GetSelectedThread()
+            if verb == 'frame':
+                index = int(rest.split()[-1])
+            else:
+                if rest.strip() and not re.fullmatch(r'[1-9]\d*', rest.strip()):
+                    raise ValueError(f'Usage: {verb} [POSITIVE_COUNT]')
+                delta = int(rest.strip() or '1')
+                index = thread.GetSelectedFrame().GetFrameID() + (delta if verb == 'up' else -delta)
+            if not 0 <= index < thread.GetNumFrames():
+                raise ValueError(f'Stack frame {index} does not exist')
+            selected = thread.SetSelectedFrame(index)
+            if not selected.IsValid():
+                raise ValueError(f'Cannot select stack frame {index}')
+            self.source_selection_pending = False
+            # We already published this stop. The first pending poll must not
+            # reselect the stop-reason thread or replace a source-less frame.
+            self.marker = (process.GetState(), process.GetStopID())
+            emit(output=[f'Selected frame #{index}: {selected.GetFunctionName() or "<unknown>"}'])
         elif verb in ('b', 'break') and colon and row.isdigit():
             if int(row) <= 0:
                 raise ValueError('Breakpoint line must be positive')
@@ -279,6 +322,8 @@ class LLDB:
         self.target = self.debugger.GetSelectedTarget()
         if select_thread:
             self.select_source_frame(prefer_application=True)
+            process = self.target.GetProcess()
+            self.marker = (process.GetState(), process.GetStopID())
         self.publish_breakpoints()
         self.snapshot()
 
@@ -614,6 +659,7 @@ def gdb_breakpoints(data):
 class GDB:
     def __init__(self, backend, attach, target, args):
         self.attached = attach
+        self.user_frame_selected = False
         self.proc = subprocess.Popen([os.environ.get('UVIM_GDB', 'gdb'), '--quiet', '--nx', '--interpreter=mi2'],
                                      stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                      stderr=subprocess.STDOUT, text=True, bufsize=1)
@@ -654,6 +700,8 @@ class GDB:
     def command(self, text):
         text = text.strip()
         verb, _, rest = text.partition(' ')
+        if verb in ('frame', 'up', 'down'):
+            self.user_frame_selected = True
         request = inspection_request(text)
         if request:
             kind, expression, count = request
@@ -666,6 +714,9 @@ class GDB:
             return
         if verb in ('p', 'print') and rest.strip() and not rest.startswith('/'):
             self.send('-data-evaluate-expression ' + json.dumps(rest), ('inspection-value', rest))
+            return
+        if text == 'frames':
+            self.send('-stack-info-frame', 'frames-picker-current')
             return
         aliases = {'run': '-exec-run', 'r': '-exec-run', 'continue': '-exec-continue',
                    'c': '-exec-continue', 'next': '-exec-next', 'n': '-exec-next',
@@ -680,7 +731,10 @@ class GDB:
                 raise ValueError(f'Usage: {verb} BREAKPOINT_ID')
             self.send('-break-' + verb + ' ' + rest.strip(), 'breakpoint-change')
         elif verb == 'thread':
+            self.user_frame_selected = False
             self.send('-thread-select ' + str(int(rest)), 'select')
+        elif verb == 'frame' and re.fullmatch(r'(?:select\s+)?\d+', rest.strip()):
+            self.send('-stack-select-frame ' + str(int(rest.split()[-1])), 'refresh')
         elif verb in ('locals', 'threads'):
             native = 'info locals' if verb == 'locals' else 'info threads'
             self.send('-interpreter-exec console ' + json.dumps(native), 'refresh')
@@ -726,6 +780,7 @@ class GDB:
             if prefix == '=' and result.startswith('breakpoint-'):
                 self.request_breakpoints()
             elif prefix == '*' and result == 'running':
+                self.user_frame_selected = False
                 emit(state='running')
             elif prefix == '*' and result == 'stopped':
                 if data.get('reason', '').startswith('exited'):
@@ -736,6 +791,9 @@ class GDB:
             elif prefix == '^':
                 kind = self.pending.pop(token, '')
                 if result == 'error':
+                    if kind in ('frames-picker-current', 'frames-picker'):
+                        emit(frames=[], framesError=data.get('msg', 'Cannot read stack frames'))
+                        continue
                     if isinstance(kind, tuple) and kind[0] == 'inspection-function':
                         _, expression, address, count = kind
                         self.send(f'-data-disassemble -s 0x{address:x} -e 0x{address + count * 16:x} -- 2',
@@ -820,6 +878,18 @@ class GDB:
                         if kind[0] == 'inspection-memory':
                             self.send('-data-evaluate-expression ' + json.dumps(f'sizeof(*({expression}))'),
                                       ('inspection-size', f'*({expression})', False))
+                elif kind == 'frames-picker-current':
+                    self.frame_picker_selected = str(data.get('frame', {}).get('level', '0'))
+                    self.send('-stack-list-frames 0 255', 'frames-picker')
+                elif kind == 'frames-picker':
+                    frames = []
+                    for frame in data.get('stack', [])[:256]:
+                        identity = str(frame.get('level', '0'))
+                        frames.append(dict(id=identity, function=frame.get('func', '<unknown>'),
+                                           path=frame.get('fullname', frame.get('file', '')),
+                                           line=int(frame.get('line', 0)), address=frame.get('addr', ''),
+                                           selected=identity == getattr(self, 'frame_picker_selected', '0')))
+                    emit(frames=frames)
                 elif kind == 'breakpoints':
                     emit(breakpoints=gdb_breakpoints(data))
                 elif kind == 'breakpoint-change':
@@ -841,7 +911,7 @@ class GDB:
                     preferred = next((f for f in readable if application_source(f.get('fullname', f.get('file', '')), f.get('func', ''))), None)
                     frame = preferred or next(iter(readable), None)
                     emit(stopFunction=frames[0].get('func', '') if frames else '')
-                    if frame is not None:
+                    if frame is not None and not getattr(self, 'user_frame_selected', False):
                         self.send('-stack-select-frame ' + str(int(frame['level'])), 'refresh')
                     else:
                         self.refresh()
@@ -889,6 +959,9 @@ def main():
                     try:
                         engine.command(command)
                     except Exception as error:
+                        if command == 'frames':
+                            emit(frames=[], framesError=str(error))
+                            continue
                         layout = re.match(r'^(?:layout|(?:p|print)\s+--layout)\b\s*(.*)', command.strip())
                         if layout:
                             emit_layout(layout[1] or '<expression>', [str(error)])

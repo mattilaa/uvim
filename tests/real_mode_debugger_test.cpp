@@ -31,6 +31,116 @@ TEST(RealModeTransitionsTest, DebuggerCommandsSelectRunAndAttach)
     EXPECT_EQ(debug->target, "1234");
 }
 
+TEST(RealModeTransitionsTest,
+     DebuggerFramePickerFiltersSymbolsAndInsertsFrameIdentity)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.screenRows = 30;
+    editor.screenCols = 120;
+    auto sm = makeMachine(editor, DebuggerMode{"app", false});
+    auto* debug = sm.getState<DebuggerMode>();
+    ASSERT_NE(debug, nullptr);
+    debug->applyMessage("{\"state\":\"stopped\"}");
+    sm.dispatch(':');
+    for(char key : std::string("frame --"))
+        sm.dispatch(key);
+    EXPECT_TRUE(debug->framePickerOpen);
+    EXPECT_TRUE(debug->promptActive);
+    const std::string frames =
+        "{\"frames\":[{\"id\":\"0\",\"function\":\"__semwait_signal\",\"address\":"
+        "\"0x1000\"},"
+        "{\"id\":\"4\",\"function\":\"main::entry_point\",\"path\":\"/tmp/"
+        "app.cpp\",\"line\":42,\"address\":\"0x2000\",\"selected\":true},"
+        "{\"id\":\"7\",\"function\":\"caller\",\"address\":\"0x3000\"},"
+        "{\"id\":\"invalid\",\"function\":\"bad ID\"}]}";
+    debug->applyMessage(frames);
+    ASSERT_EQ(debug->frameMatches.size(), 3u);
+    EXPECT_EQ(debug->framePickerCursor, 1);
+    EXPECT_EQ(debug->stackFrames[1].id, "4");
+    testing::internal::CaptureStdout();
+    debug->draw(editor);
+    const auto rendered = testing::internal::GetCapturedStdout();
+    EXPECT_NE(rendered.find("Stack frames"), std::string::npos);
+    EXPECT_NE(rendered.find("main::entry_point"), std::string::npos);
+    EXPECT_NE(rendered.find("/tmp/app.cpp:42"), std::string::npos);
+    // Query characters work immediately after --, without requiring a space.
+    for(char key : std::string("mai"))
+        sm.dispatch(key);
+    ASSERT_FALSE(debug->frameMatches.empty());
+    EXPECT_EQ(debug->stackFrames[debug->frameMatches[0]].id, "4");
+    sm.dispatch(keyCode(control::ControlKey::CTRL_U));
+    for(char key : std::string("entry"))
+        sm.dispatch(key);
+    EXPECT_EQ(debug->prompt, "frame -- entry");
+    ASSERT_EQ(debug->frameMatches.size(), 1u);
+    EXPECT_EQ(debug->stackFrames[debug->frameMatches[0]].id, "4");
+    sm.dispatch(keyCode(control::ControlKey::CTRL_U));
+    ASSERT_EQ(debug->frameMatches.size(), 3u);
+    sm.dispatch(keyCode(control::ControlKey::CTRL_J));
+    EXPECT_EQ(debug->framePickerCursor, 1);
+    sm.dispatch(keyCode(control::ControlKey::CTRL_J));
+    EXPECT_EQ(debug->framePickerCursor, 2);
+    sm.dispatch(keyCode(control::ControlKey::CTRL_K));
+    EXPECT_EQ(debug->framePickerCursor, 1);
+    sm.dispatch(keyCode(control::ControlKey::TAB));
+    EXPECT_FALSE(debug->framePickerOpen);
+    EXPECT_TRUE(debug->promptActive);
+    EXPECT_EQ(debug->prompt, "frame 4");
+    EXPECT_FALSE(debug->followExecutionOnStop);
+    sm.dispatch(27);
+    EXPECT_FALSE(debug->promptActive);
+    sm.dispatch(':');
+    for(char key : std::string("frame --zzz"))
+        sm.dispatch(key);
+    debug->applyMessage(frames);
+    EXPECT_TRUE(debug->frameMatches.empty());
+    sm.dispatch(keyCode(control::ControlKey::ENTER));
+    EXPECT_TRUE(debug->framePickerOpen);
+    sm.dispatch(keyCode(control::ControlKey::CTRL_U));
+    sm.dispatch('7');
+    ASSERT_FALSE(debug->frameMatches.empty());
+    EXPECT_EQ(debug->stackFrames[debug->frameMatches[0]].id, "7");
+    sm.dispatch(keyCode(control::ControlKey::ENTER));
+    EXPECT_FALSE(debug->framePickerOpen);
+    EXPECT_FALSE(debug->promptActive);
+    EXPECT_NE(sm.getState<DebuggerMode>(), nullptr);
+}
+
+TEST(RealModeTransitionsTest, DebuggerFramePickerCancelsAndShowsErrors)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    auto sm = makeMachine(editor, DebuggerMode{"app", false});
+    auto* debug = sm.getState<DebuggerMode>();
+    ASSERT_NE(debug, nullptr);
+    debug->applyMessage("{\"state\":\"stopped\"}");
+    sm.dispatch(':');
+    for(char key : std::string("frame --"))
+        sm.dispatch(key);
+    debug->applyMessage(
+        "{\"frames\":[],\"framesError\":\"No selected thread\"}");
+    EXPECT_EQ(debug->framePickerError, "No selected thread");
+    sm.dispatch(keyCode(control::ControlKey::CTRL_R));
+    EXPECT_FALSE(debug->framePickerLoading);
+    EXPECT_EQ(debug->framePickerError, "Debugger is not connected");
+    sm.dispatch(27);
+    EXPECT_FALSE(debug->framePickerOpen);
+    EXPECT_TRUE(debug->promptActive);
+    EXPECT_EQ(debug->prompt, "frame ");
+    debug->applyMessage("{\"frames\":[{\"id\":\"0\",\"function\":\"late\"}]}");
+    EXPECT_FALSE(debug->framePickerOpen);
+    sm.dispatch(27);
+    sm.dispatch(':');
+    for(char key : std::string("frame --"))
+        sm.dispatch(key);
+    debug->applyMessage("{\"frames\":[{\"id\":\"0\",\"function\":\"main\"}]}");
+    debug->applyMessage("{\"state\":\"running\"}");
+    EXPECT_TRUE(debug->frameMatches.empty());
+    EXPECT_EQ(debug->framePickerError,
+              "Pause execution before browsing stack frames");
+}
+
 TEST(RealModeTransitionsTest, DebuggerRejectsInvalidLaunchRequests)
 {
     for(const auto& command :
@@ -47,6 +157,32 @@ TEST(RealModeTransitionsTest, DebuggerRejectsInvalidLaunchRequests)
         EXPECT_EQ(debug->state, "error") << command;
         EXPECT_FALSE(debug->output.empty());
     }
+}
+
+TEST(RealModeTransitionsTest,
+     DebuggerFrameSelectionReturnsToUnchangedExecutionLine)
+{
+    auto dir = make_temp_dir("uvim_debugger_frame_");
+    auto file = dir / "recursive.cpp";
+    write_file(file,
+               "int recurse(int depth) {\n  return recurse(depth - 1);\n}\n");
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    auto sm = makeMachine(editor, DebuggerMode{"app", false});
+    auto* debug = sm.getState<DebuggerMode>();
+    ASSERT_NE(debug, nullptr);
+    std::string path;
+    json_utils::append_escaped(path, file.string());
+    const auto location = "\"path\":" + path + ",\"line\":2";
+    debug->applyMessage("{\"state\":\"stopped\",\"frame\":0," + location + "}");
+    ASSERT_TRUE(debug->selectSourceFile(file.string(), 3));
+    EXPECT_EQ(debug->cursor[0], 2);
+    debug->followExecutionOnStop = true;
+    debug->applyMessage("{\"state\":\"stopped\",\"frame\":1," + location + "}");
+    EXPECT_EQ(debug->frameIndex, 1);
+    EXPECT_FALSE(debug->sourcePinned);
+    EXPECT_EQ(debug->cursor[0], 1);
+    std::filesystem::remove_all(dir);
 }
 
 TEST(RealModeTransitionsTest, DebuggerStoppedPanesAndPromptNavigation)
@@ -69,27 +205,29 @@ TEST(RealModeTransitionsTest, DebuggerStoppedPanesAndPromptNavigation)
     EXPECT_EQ(debug->source.size(), 4u);
     EXPECT_EQ(debug->executionLine, 2);
     EXPECT_EQ(debug->cursor[0], 1);
-    sm.dispatch(keyCode(control::ControlKey::SHIFT_CTRL_L));
+    sm.dispatch(keyCode(control::ControlKey::TAB));
+    EXPECT_EQ(debug->pane, 1);
+    sm.dispatch(keyCode(control::ControlKey::TAB));
     EXPECT_EQ(debug->pane, 2);
     sm.dispatch('j');
     EXPECT_EQ(debug->cursor[2], 1);
-    sm.dispatch(keyCode(control::ControlKey::SHIFT_CTRL_J));
+    sm.dispatch(keyCode(control::ControlKey::TAB));
     EXPECT_EQ(debug->pane, 3);
     sm.dispatch('j');
     EXPECT_EQ(debug->cursor[3], 1);
-    sm.dispatch(keyCode(control::ControlKey::SHIFT_CTRL_K));
-    EXPECT_EQ(debug->pane, 2);
-    sm.dispatch(keyCode(control::ControlKey::SHIFT_CTRL_H));
-    sm.dispatch(keyCode(control::ControlKey::SHIFT_CTRL_J));
-    EXPECT_EQ(debug->pane, 1);
-    sm.dispatch(keyCode(control::ControlKey::SHIFT_CTRL_H));
-    EXPECT_EQ(debug->pane, 1);
-    sm.dispatch(keyCode(control::ControlKey::SHIFT_CTRL_L));
+    sm.dispatch(keyCode(control::ControlKey::TAB));
+    EXPECT_EQ(debug->pane, 0);
+    sm.dispatch(keyCode(control::ControlKey::SHIFT_TAB));
     EXPECT_EQ(debug->pane, 3);
-    sm.dispatch(keyCode(control::ControlKey::SHIFT_CTRL_L));
-    EXPECT_EQ(debug->pane, 3);
-    sm.dispatch(keyCode(control::ControlKey::SHIFT_CTRL_K));
+    sm.dispatch(keyCode(control::ControlKey::SHIFT_TAB));
     EXPECT_EQ(debug->pane, 2);
+    for(auto key :
+        {control::ControlKey::SHIFT_CTRL_H, control::ControlKey::SHIFT_CTRL_J,
+         control::ControlKey::SHIFT_CTRL_K, control::ControlKey::SHIFT_CTRL_L})
+    {
+        sm.dispatch(keyCode(key));
+        EXPECT_EQ(debug->pane, 2);
+    }
     sm.dispatch(':');
     sm.dispatch('j');
     EXPECT_EQ(debug->prompt, "j");

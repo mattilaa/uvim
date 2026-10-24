@@ -874,6 +874,8 @@ int Terminal::readKeyInternal(int timeoutMs)
                 // sequences don't break basic editing.
                 auto decode = [](int mod, int keyCh) -> int
                 {
+                    if(mod == 2 && keyCh == '\t')
+                        return keyCode(control::ControlKey::SHIFT_TAB);
                     int lower = keyCh;
                     if(lower >= 'A' && lower <= 'Z')
                         lower = lower - 'A' + 'a';

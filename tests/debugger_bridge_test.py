@@ -20,6 +20,47 @@ spec.loader.exec_module(bridge)
 
 
 class BridgeTests(unittest.TestCase):
+    def test_gdb_frame_picker_lists_symbols_without_selecting_a_frame(self):
+        gdb = bridge.GDB.__new__(bridge.GDB)
+        gdb.lines, gdb.pending, gdb.master = queue.Queue(), {}, -1
+        gdb.user_frame_selected = True
+        with patch.object(gdb, 'send') as send, patch.object(bridge, 'emit') as emit:
+            gdb.command('frames')
+            send.assert_called_once_with('-stack-info-frame', 'frames-picker-current')
+            gdb.pending = {'1': 'frames-picker-current', '2': 'frames-picker'}
+            gdb.lines.put('1^done,frame={level="4",func="main"}')
+            gdb.lines.put('2^done,stack=[frame={level="0",func="sleep",addr="0x1000"},frame={level="4",func="main",fullname="/tmp/app.c",line="42",addr="0x2000"}]')
+            gdb.poll()
+            send.assert_called_with('-stack-list-frames 0 255', 'frames-picker')
+            frames = emit.call_args.kwargs['frames']
+            self.assertEqual([f['id'] for f in frames], ['0', '4'])
+            self.assertFalse(frames[0]['selected'])
+            self.assertEqual(frames[1], dict(id='4', function='main', path='/tmp/app.c',
+                                              line=42, address='0x2000', selected=True))
+            self.assertTrue(gdb.user_frame_selected)
+            gdb.pending['3'] = 'frames-picker-current'
+            gdb.lines.put('3^error,msg="No stack available"')
+            gdb.poll()
+            emit.assert_called_with(frames=[], framesError='No stack available')
+
+    def test_gdb_explicit_frame_selection_survives_pending_auto_selection(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / 'frame.c'
+            source.write_text('int main(void) { return 0; }')
+            gdb = bridge.GDB.__new__(bridge.GDB)
+            gdb.lines, gdb.pending, gdb.master = queue.Queue(), {'1': 'source-frames'}, -1
+            gdb.lines.put('1^done,stack=[frame={level="3",func="main",fullname=' + json.dumps(str(source)) + ',line="1"}]')
+            with patch.object(gdb, 'send') as send, patch.object(gdb, 'refresh') as refresh, patch.object(bridge, 'emit'):
+                gdb.command('frame 0')
+                send.assert_called_once_with('-stack-select-frame 0', 'refresh')
+                gdb.poll()
+                send.assert_called_once_with('-stack-select-frame 0', 'refresh')
+                refresh.assert_called_once()
+                self.assertTrue(gdb.user_frame_selected)
+                gdb.lines.put('*running,thread-id="all"')
+                gdb.poll()
+                self.assertFalse(gdb.user_frame_selected)
+
     def test_type_layout_counts_holes_tail_padding_and_overlapping_union_fields(self):
         def type_(size, members, bases=0):
             value = MagicMock()
@@ -462,6 +503,26 @@ class LiveTests(unittest.TestCase):
                                     time.sleep(.02)
                                 self.fail(f'Step timed out: {messages}')
                             self.assertGreater(snapshot()['frame'], 0, snapshot())
+                            caller_index = snapshot()['frame']
+                            engine.command('frames')
+                            frames = messages[-1]['frames']
+                            self.assertTrue(any(f['selected'] and f['id'] == str(caller_index) for f in frames), frames)
+                            self.assertTrue(any('main' in f['function'] and f['path'] == item['source'] for f in frames), frames)
+                            self.assertTrue(all(f['address'].startswith('0x') for f in frames))
+                            self.assertEqual(process.GetSelectedThread().GetSelectedFrame().GetFrameID(), caller_index)
+                            engine.marker = None  # A stop event can still be pending on the first command.
+                            engine.command('frame 0')
+                            self.assertEqual(snapshot()['frame'], 0)
+                            engine.poll()
+                            self.assertEqual(snapshot()['frame'], 0)
+                            engine.command('frame ' + str(caller_index))
+                            engine.command('down')
+                            self.assertEqual(snapshot()['frame'], caller_index - 1)
+                            engine.command('up')
+                            self.assertEqual(snapshot()['frame'], caller_index)
+                            with self.assertRaises(ValueError):
+                                engine.command('frame 999999')
+                            self.assertEqual(process.GetSelectedThread().GetSelectedFrame().GetFrameID(), caller_index)
                             step('n')
                             step('next')
                             engine.command('thread 2')

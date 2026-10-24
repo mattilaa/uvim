@@ -178,7 +178,7 @@ const std::vector<DebuggerCommandEntry>& debuggerCommands()
         {"bt", "Print stack frames", ""},
         {"threads", "List threads", ""},
         {"thread ", "Select a thread by ID", ""},
-        {"frame ", "Select a stack frame", ""},
+        {"frame ", "Select frame ID; -- opens fuzzy frame picker", ""},
         {"up", "Inspect the caller frame", ""},
         {"down", "Inspect a younger frame", ""},
         {"help", "Show native debugger help", ""},
@@ -259,6 +259,18 @@ std::string quotedJson(std::string_view value)
     std::string result;
     json_utils::append_escaped(result, value);
     return result;
+}
+
+std::optional<std::string_view> framePickerQuery(std::string_view prompt)
+{
+    constexpr std::string_view prefix = "frame --";
+    if(!prompt.starts_with(prefix) ||
+       (prompt.size() > prefix.size() && prompt[prefix.size()] != ' '))
+        return {};
+    prompt.remove_prefix(prefix.size());
+    while(!prompt.empty() && prompt.front() == ' ')
+        prompt.remove_prefix(1);
+    return prompt;
 }
 } // namespace
 
@@ -527,6 +539,13 @@ void DebuggerMode::applyMessage(const std::string& message)
         state = json_utils::get_string(*doc, "state");
     if(state == "stopped")
         hasStoppedSnapshot = true;
+    if(framePickerOpen && state != "stopped")
+    {
+        stackFrames.clear();
+        frameMatches.clear();
+        framePickerLoading = false;
+        framePickerError = "Pause execution before browsing stack frames";
+    }
     if(state != "running")
         runningStatusDeadline.reset();
     else if(previousState != "running" && hasStoppedSnapshot)
@@ -576,9 +595,43 @@ void DebuggerMode::applyMessage(const std::string& message)
             sizePopupLines.clear();
             sizePopupCursor = sizePopupOffset = 0;
             breakpointListOpen = promptActive = false;
+            framePickerOpen = false;
         }
         if(sizePopupOpen && sizePopupTitle == title)
             strings("layoutLines", sizePopupLines, true);
+    }
+    if(auto frames = json_utils::find(*doc, "frames");
+       framePickerOpen && frames && frames->IsArray())
+    {
+        stackFrames.clear();
+        framePickerLoading = false;
+        framePickerError = safe(json_utils::get_string(*doc, "framesError"));
+        if(state != "stopped")
+            framePickerError = "Pause execution before browsing stack frames";
+        else
+            for(const auto& frame : frames->GetArray())
+            {
+                const auto id = json_utils::get_string(frame, "id");
+                if(id.empty() ||
+                   id.find_first_not_of("0123456789") != std::string::npos)
+                    continue;
+                const bool selected = json_utils::get_bool(frame, "selected");
+                const auto symbol =
+                    safe(json_utils::get_string(frame, "function"));
+                auto label =
+                    std::string(selected ? "* #" : "  #") + id + " " + symbol;
+                const auto path = safe(json_utils::get_string(frame, "path"));
+                const int line = json_utils::get_int(frame, "line");
+                if(!path.empty())
+                    label += "  " + path +
+                             (line > 0 ? ":" + std::to_string(line) : "");
+                const auto address =
+                    safe(json_utils::get_string(frame, "address"));
+                if(!address.empty())
+                    label += "  " + address;
+                stackFrames.push_back({id, std::move(label), symbol, selected});
+            }
+        filterFrames(true);
     }
     if(auto list = json_utils::find(*doc, "threads");
        !retainSnapshot && list && list->IsArray())
@@ -600,7 +653,9 @@ void DebuggerMode::applyMessage(const std::string& message)
             executionLine != line;
         executionPath = path;
         executionLine = line;
-        if(state == "stopped" && followExecutionOnStop)
+        const bool followingRequested =
+            state == "stopped" && followExecutionOnStop;
+        if(followingRequested)
         {
             sourcePinned = false;
             followExecutionOnStop = false;
@@ -618,7 +673,8 @@ void DebuggerMode::applyMessage(const std::string& message)
                 while(source.size() < 200000 && std::getline(file, text))
                     source.push_back(safe(text));
             }
-            if((sourceChanged || backendMoved || previousState == "running") &&
+            if((sourceChanged || backendMoved || followingRequested ||
+                previousState == "running") &&
                line > 0)
             {
                 cursor[0] = line - 1;
@@ -782,11 +838,82 @@ void DebuggerMode::toggleSelectedBreakpoint()
         execute("b " + sourcePath + ":" + std::to_string(line));
 }
 
+bool DebuggerMode::updateFramePicker(bool refresh)
+{
+    if(!framePickerQuery(prompt))
+    {
+        framePickerOpen = false;
+        return false;
+    }
+    if(!framePickerOpen || refresh)
+    {
+        stackFrames.clear();
+        framePickerError.clear();
+        framePickerLoading = false;
+        if(state != "stopped")
+            framePickerError = "Pause execution before browsing stack frames";
+        else if(!transport || transport->ended)
+            framePickerError = "Debugger is not connected";
+        else
+        {
+            framePickerLoading = true;
+            transport->send("frames");
+        }
+    }
+    framePickerOpen = true;
+    filterFrames();
+    return true;
+}
+
+void DebuggerMode::filterFrames(bool selectCurrent)
+{
+    frameMatches.clear();
+    framePickerCursor = framePickerOffset = 0;
+    const std::string query(framePickerQuery(prompt).value_or(""));
+    std::vector<std::pair<int, int>> ranked;
+    std::vector<int> positions;
+    for(int i = 0; i < static_cast<int>(stackFrames.size()); ++i)
+    {
+        int score = query.empty() ? 0
+                                  : editor::helper::fuzzyScoreWithPositions(
+                                        query, stackFrames[i].label, positions);
+        if(!query.empty())
+        {
+            const int symbolScore = editor::helper::fuzzyScoreWithPositions(
+                query, stackFrames[i].symbol, positions);
+            if(symbolScore >= 0)
+            {
+                const bool prefix =
+                    !positions.empty() && positions.front() == 0 &&
+                    positions.back() == static_cast<int>(query.size()) - 1;
+                score = std::max(score,
+                                 100000 + symbolScore + (prefix ? 10000 : 0));
+            }
+        }
+        if(query == stackFrames[i].id || query == "#" + stackFrames[i].id)
+            score = 1000000;
+        if(score >= 0)
+            ranked.emplace_back(i, score);
+    }
+    std::stable_sort(ranked.begin(), ranked.end(),
+                     [](const auto& a, const auto& b)
+                     { return a.second > b.second; });
+    for(const auto& [index, score] : ranked)
+    {
+        (void)score;
+        if(selectCurrent && query.empty() && stackFrames[index].selected)
+            framePickerCursor = static_cast<int>(frameMatches.size());
+        frameMatches.push_back(index);
+    }
+}
+
 void DebuggerMode::updatePromptMenu()
 {
     promptCommands.clear();
     promptMenuEntries.clear();
     promptMenuCursor = promptMenuOffset = 0;
+    if(updateFramePicker())
+        return;
     if(!promptActive || prompt.find_first_of(" \t") != std::string::npos)
         return;
     std::vector<std::pair<int, int>> ranked;
@@ -969,6 +1096,64 @@ std::optional<ModeState> DebuggerMode::handle(ModeContext& ctx,
     }
     if(promptActive)
     {
+        if(framePickerOpen)
+        {
+            if(key == 27)
+            {
+                prompt = "frame ";
+                framePickerOpen = false;
+                updatePromptMenu();
+                return {};
+            }
+            if(key == keyCode(control::ControlKey::CTRL_J) ||
+               key == keyCode(navigation::NavigationKey::ARROW_DOWN) ||
+               key == keyCode(control::ControlKey::CTRL_K) ||
+               key == keyCode(control::ControlKey::SHIFT_TAB) ||
+               key == keyCode(navigation::NavigationKey::ARROW_UP))
+            {
+                const int delta =
+                    key == keyCode(control::ControlKey::CTRL_J) ||
+                            key ==
+                                keyCode(navigation::NavigationKey::ARROW_DOWN)
+                        ? 1
+                        : -1;
+                moveMenuCursor(framePickerCursor, framePickerOffset,
+                               frameMatches.size(), delta,
+                               ctx.editor->screenRows);
+                return {};
+            }
+            if(key == keyCode(control::ControlKey::CTRL_R))
+            {
+                updateFramePicker(true);
+                return {};
+            }
+            if(key == keyCode(control::ControlKey::CTRL_U))
+            {
+                prompt = "frame -- ";
+                filterFrames();
+                return {};
+            }
+            if(key == keyCode(control::ControlKey::ENTER) || key == '\t')
+            {
+                if(framePickerCursor < 0 ||
+                   framePickerCursor >= static_cast<int>(frameMatches.size()))
+                    return {};
+                const auto command =
+                    "frame " + stackFrames[frameMatches[framePickerCursor]].id;
+                framePickerOpen = false;
+                prompt = command;
+                if(key == keyCode(control::ControlKey::ENTER))
+                {
+                    execute(command);
+                    promptActive = false;
+                    prompt.clear();
+                }
+                updatePromptMenu();
+                return {};
+            }
+            if(prompt == "frame --" && key > 32 && key < 127)
+                prompt += ' ';
+        }
         if(key == 27)
         {
             promptActive = false;
@@ -1093,14 +1278,6 @@ std::optional<ModeState> DebuggerMode::handle(ModeContext& ctx,
         pane = 2;
     else if(key == 't' && paneCount == 4)
         pane = 3;
-    else if(key == keyCode(control::ControlKey::SHIFT_CTRL_H))
-        pane = pane >= 2 ? pane - 2 : pane;
-    else if(key == keyCode(control::ControlKey::SHIFT_CTRL_L) && paneCount == 4)
-        pane = pane < 2 ? pane + 2 : pane;
-    else if(key == keyCode(control::ControlKey::SHIFT_CTRL_J))
-        pane = pane == 2 || pane == 3 ? 3 : 1;
-    else if(key == keyCode(control::ControlKey::SHIFT_CTRL_K))
-        pane = pane == 2 || pane == 3 ? 2 : 0;
     else if(key == 'j' || key == keyCode(navigation::NavigationKey::ARROW_DOWN))
         ++cursor[pane];
     else if(key == 'k' || key == keyCode(navigation::NavigationKey::ARROW_UP))
@@ -1190,10 +1367,9 @@ void DebuggerMode::drawContent(Editor& editor)
     };
     header(1, " Debugger [" + backend + "] " + displayState +
                   "  Focus: " + names[pane] + "  " + target);
-    header(2, " j/k rows   b breakpoint   Ctrl-P file   Tab panes   v "
-              "variables   t threads   " +
-                  std::string(Terminal::shiftChordLabel()) +
-                  "-H/J/K/L pane   : command   q quit");
+    header(2, " j/k rows   b breakpoint   Ctrl-P file   Tab next pane   "
+              "Shift-Tab previous pane   v variables   t threads   : command   "
+              "q quit");
     const std::array<const std::vector<std::string>*, 4> lists{
         &source, &output, &variables, &threads};
     for(int which = 0; which < 4; ++which)
@@ -1369,6 +1545,18 @@ void DebuggerMode::drawContent(Editor& editor)
                     std::to_string(sizePopupCursor + 1) + "/" +
                     std::to_string(menuEntries.size());
     }
+    else if(framePickerOpen)
+    {
+        moveMenuCursor(framePickerCursor, framePickerOffset,
+                       frameMatches.size(), 0, editor.screenRows);
+        for(const int index : frameMatches)
+            menuEntries.push_back(stackFrames[index].label);
+        menuCursor = framePickerCursor;
+        menuOffset = framePickerOffset;
+        menuTitle = "Stack frames " + std::to_string(frameMatches.size()) +
+                    "/" + std::to_string(stackFrames.size()) +
+                    "  Ctrl-J/K select  Enter choose  Ctrl-R refresh";
+    }
     else if(breakpointListOpen)
     {
         moveMenuCursor(breakpointCursor, breakpointOffset, breakpoints.size(),
@@ -1405,7 +1593,8 @@ void DebuggerMode::drawContent(Editor& editor)
         menuTitle = "Debugger commands [" + backend +
                     "]  Ctrl-J/K select  Tab/Enter choose";
     }
-    if(sizePopupOpen || breakpointListOpen || !menuEntries.empty())
+    if(sizePopupOpen || framePickerOpen || breakpointListOpen ||
+       !menuEntries.empty())
     {
         std::vector<int> filtered;
         for(int i = 0; i < static_cast<int>(menuEntries.size()); ++i)
@@ -1422,7 +1611,12 @@ void DebuggerMode::drawContent(Editor& editor)
              .cursor = menuCursor,
              .title = menuTitle,
              .emptyMessage =
-                 sizePopupOpen ? "No layout information" : "No breakpoints",
+                 framePickerOpen
+                     ? (framePickerLoading         ? "Loading stack frames..."
+                        : framePickerError.empty() ? "No matching stack frames"
+                                                   : framePickerError)
+                 : sizePopupOpen ? "No layout information"
+                                 : "No breakpoints",
              .maxRows =
                  sizePopupOpen
                      ? std::clamp(static_cast<int>(menuEntries.size()), 1, 18)
@@ -1439,6 +1633,7 @@ void DebuggerMode::drawContent(Editor& editor)
             : "frame #" + std::to_string(frameIndex) + " " + frameFunction;
     status.state = displayState;
     status.flags.push_back(sizePopupOpen        ? "Size/padding"
+                           : framePickerOpen    ? "Stack frames"
                            : breakpointListOpen ? "Breakpoints"
                                                 : names[pane]);
     status.flags.push_back(sizePopupOpen ? "Esc closes popup"

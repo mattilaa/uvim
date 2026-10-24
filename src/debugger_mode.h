@@ -30,6 +30,12 @@ struct DebuggerBreakpoint
     std::vector<DebuggerBreakpointLocation> locations;
 };
 
+struct DebuggerStackFrame
+{
+    std::string id, label, symbol;
+    bool selected = false;
+};
+
 struct DebuggerMode
 {
     static constexpr const char* name()
@@ -75,6 +81,11 @@ struct DebuggerMode
     std::string sizePopupTitle;
     std::vector<std::string> sizePopupLines;
     int sizePopupCursor = 0, sizePopupOffset = 0;
+    bool framePickerOpen = false, framePickerLoading = false;
+    std::string framePickerError;
+    std::vector<DebuggerStackFrame> stackFrames;
+    std::vector<int> frameMatches;
+    int framePickerCursor = 0, framePickerOffset = 0;
     std::vector<std::string> promptCommands, promptMenuEntries;
     int promptMenuCursor = 0, promptMenuOffset = 0;
 
@@ -108,5 +119,7 @@ private:
     void drawContent(Editor& editor);
     void toggleSelectedBreakpoint();
     void inspectSelectedVariable(char action);
+    bool updateFramePicker(bool refresh = false);
+    void filterFrames(bool selectCurrent = false);
 };
 } // namespace editor::statemachine

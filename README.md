@@ -1771,17 +1771,22 @@ than command arguments, and omits the current editor process.
 
 The debugger has its own source and output view. When execution stops, variables
 and threads appear on the right. Use `j`/`k` (or arrows) to select rows and
-`Ctrl+Shift+H/J/K/L` to focus the pane in that direction. Terminals without
-extended key reporting use the editor's existing Alt+h/j/k/l fallback. Select a
-thread with Enter to inspect its source and variables. Small terminals show the
-focused pane alone. Tab/Shift-Tab cycles panes; `v` focuses Variables and `t`
+Tab to select the next pane and Shift-Tab to select the previous pane. Select
+a thread with Enter to inspect its source and variables. Small terminals show
+the focused pane alone; `v` focuses Variables and `t`
 focuses Threads. The active pane is named in the header and has an accented
 glyph border. `j`/`k` moves the selection within that focused pane.
 
 Attaching commonly stops inside a system call such as sleep. The debugger
 selects the nearest readable application frame so source and locals remain
 visible. The source title and footer identify the inspected caller frame.
-`:frame 0` shows the actual stop frame; `:up`/`:down` selects other frames.
+`:frame 0` shows the actual stop frame; `:up`/`:down` selects other frames. Type
+`:frame --` to open a picker for the selected thread's stack frames without
+pressing Enter. Fuzzy-find by frame number, symbol, source path, or address;
+Ctrl+J/K (or arrows) selects and Enter switches to that frame. Tab inserts its
+frame number into the prompt without selecting it. The current frame has a `*`
+marker. Ctrl+R refreshes, Ctrl+U clears the filter, and Esc returns to the frame
+prompt. The picker reads up to 256 frames from the stopped process.
 With LLDB/mladbg, `n` or `s` from an inspected caller finishes its pending call
 and stops at the next source line before normal stepping resumes. During a step,
 the layout and viewport stay stable; panes retain values marked as the last stop
