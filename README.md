@@ -1581,6 +1581,13 @@ Fuzzy file finder:
 
 In normal mode:
 
+- Fuzzy pickers also accept `re:pattern` or `/pattern/` to filter with a
+  case-insensitive regular expression, for example `re:\.(cpp|h)$` in Ctrl-P,
+  `:dbgattach -- re:(app|worker)`, or `:frame -- re:^main$`. Plain text keeps
+  fuzzy matching; `fz:text` forces fuzzy interpretation. The file browser
+  accepts `:filter re:pattern` when `filebrowser.fuzzy` is enabled. See the
+  [fuzzy filtering guide](docs/wiki/Fuzzy-Filtering.md) for syntax, highlights,
+  command completion, and `:LINE` suffixes.
 - `/foo.*bar` - regex search forward
 - `?^word` - regex search backward
 

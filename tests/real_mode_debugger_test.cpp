@@ -1166,4 +1166,29 @@ TEST(RealModeTransitionsTest, DebuggerCommandsAreUnavailableWhenDisabled)
     EXPECT_EQ(modeForState(sm.state()), NORMAL);
     EXPECT_TRUE(editor.getCommandCompletions("dbg").empty());
 }
+TEST(RealModeTransitionsTest, DebuggerFrameAndProcessPickersAcceptRegexQueries)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    {
+        auto sm = makeMachine(editor, DebuggerMode{"app", false});
+        auto* debug = sm.getState<DebuggerMode>();
+        debug->applyMessage("{\"state\":\"stopped\"}");
+        sm.dispatch(':');
+        for(char key : std::string("frame -- re:^(main|worker)$")) sm.dispatch(key);
+        debug->applyMessage("{\"frames\":[{\"id\":\"0\",\"function\":\"main\"},{\"id\":\"1\",\"function\":\"other\"},{\"id\":\"2\",\"function\":\"worker\"}]}");
+        ASSERT_EQ(debug->frameMatches.size(), 2u);
+        for(int index : debug->frameMatches) EXPECT_NE(debug->stackFrames[index].symbol, "other");
+    }
+    DebuggerProcessPicker picker;
+    picker.loader = [] { return DebuggerProcessList{{{12,"cpp","/tmp/cpp"}, {34,"python","/usr/bin/python"}, {56,"mlang","/tmp/mlang"}}, {}}; };
+    auto ctx = createModeContext(&editor);
+    EXPECT_TRUE(picker.update(ctx, ":dbgattach -- re:(cpp|mlang)$"));
+    EXPECT_EQ(editor.commandPopupFiltered.size(), 2u);
+    EXPECT_TRUE(picker.update(ctx, ":dbgattach -- re:["));
+    EXPECT_TRUE(editor.commandPopupFiltered.empty());
+    EXPECT_NE(editor.commandPopupEmptyMessage.find("Invalid regex"), std::string::npos);
+    picker.close(ctx);
+}
+
 #endif

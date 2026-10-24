@@ -228,7 +228,32 @@ std::vector<Match> rank(const std::vector<Entry>& entries,
                         const std::string& query)
 {
     std::vector<Match> out;
-    const std::string q = lower(query);
+    if(editor::helper::isRegexQuery(query))
+    {
+        std::vector<std::pair<Match, int>> ranked;
+        for(int i = 0; i < static_cast<int>(entries.size()); ++i)
+        {
+            Match match{i, {}};
+            int score = editor::helper::fuzzyScoreWithPositions(
+                query, entries[i].title, match.positions);
+            for(const auto& name : entries[i].names)
+            {
+                std::vector<int> ignored;
+                score = std::max(score, editor::helper::fuzzyScoreWithPositions(
+                                            query, name, ignored));
+            }
+            if(score >= 0)
+                ranked.push_back({std::move(match), score});
+        }
+        std::stable_sort(ranked.begin(), ranked.end(),
+                         [](const auto& a, const auto& b)
+                         { return a.second > b.second; });
+        for(auto& entry : ranked)
+            out.push_back(std::move(entry.first));
+        return out;
+    }
+    const std::string q =
+        lower(query.starts_with("fz:") ? query.substr(3) : query);
     const std::vector<std::string> queryWords = words(q);
     if(queryWords.empty())
     {
@@ -243,6 +268,7 @@ std::vector<Match> rank(const std::vector<Entry>& entries,
         Tier tier;
         int score;
     };
+
     std::vector<Scored> scored;
     std::vector<int> positions;
     for(int i = 0; i < (int)entries.size(); ++i)
@@ -293,12 +319,13 @@ std::vector<Match> rank(const std::vector<Entry>& entries,
         else if(allContained)
             offer(Words, 1000 - (int)title.size());
 
-        int s = editor::helper::fuzzyScoreWithPositions(q, title, positions);
+        int s = editor::helper::fuzzyScoreWithPositions("fz:" + q, title,
+                                                        positions);
         if(s >= 0)
             offer(Fuzzy, s);
         for(const std::string& name : entry.names)
         {
-            s = editor::helper::fuzzyScoreWithPositions(q, lower(name),
+            s = editor::helper::fuzzyScoreWithPositions("fz:" + q, lower(name),
                                                         positions);
             if(s >= 0)
                 offer(Fuzzy, s);
@@ -321,7 +348,8 @@ std::vector<Match> rank(const std::vector<Entry>& entries,
         Match match{s.entry, {}};
         // Highlight the query's letters in the title when they are there.
         const std::string title = lower(entries[s.entry].title);
-        if(editor::helper::fuzzyScoreWithPositions(q, title, positions) >= 0)
+        if(editor::helper::fuzzyScoreWithPositions("fz:" + q, title,
+                                                   positions) >= 0)
             match.positions = positions;
         out.push_back(std::move(match));
     }

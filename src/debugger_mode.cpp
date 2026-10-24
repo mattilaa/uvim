@@ -1291,7 +1291,8 @@ void DebuggerMode::updatePromptMenu()
     promptMenuCursor = promptMenuOffset = 0;
     if(updateFramePicker())
         return;
-    if(!promptActive || prompt.find_first_of(" \t") != std::string::npos)
+    if(!promptActive || (prompt.find_first_of(" \t") != std::string::npos &&
+                         !editor::helper::isRegexQuery(prompt)))
         return;
     std::vector<std::pair<int, int>> ranked;
     std::vector<int> positions;
@@ -2207,8 +2208,13 @@ void DebuggerMode::drawContent(Editor& editor)
         menuTitle = "Debugger commands [" + backend +
                     "]  Ctrl-J/K select  Tab/Enter choose";
     }
+    const auto frameQuery =
+        framePickerOpen ? std::string(framePickerQuery(prompt).value_or(""))
+                        : std::string{};
+    const auto regexError =
+        editor::helper::regexQueryError(framePickerOpen ? frameQuery : prompt);
     if(sizePopupOpen || framePickerOpen || breakpointListOpen ||
-       !menuEntries.empty())
+       !menuEntries.empty() || (promptActive && !regexError.empty()))
     {
         std::vector<int> filtered;
         for(int i = 0; i < static_cast<int>(menuEntries.size()); ++i)
@@ -2225,7 +2231,8 @@ void DebuggerMode::drawContent(Editor& editor)
              .cursor = menuCursor,
              .title = menuTitle,
              .emptyMessage =
-                 framePickerOpen
+                 !regexError.empty() ? regexError
+                 : framePickerOpen
                      ? (framePickerLoading         ? "Loading stack frames..."
                         : framePickerError.empty() ? "No matching stack frames"
                                                    : framePickerError)

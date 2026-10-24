@@ -1,4 +1,6 @@
 #include "editor_mode_controller.h"
+#include "editor_utils.h"
+#include "picker_query.h"
 #include "real_mode_test_utils.h"
 
 #include <thread>
@@ -818,4 +820,159 @@ TEST(RealModeTransitionsTest, GrepSearchIndexesMultipleFilesConsistently)
     EXPECT_EQ(editor.rgCachedFiles.size(), static_cast<size_t>(fileCount));
     EXPECT_TRUE(std::filesystem::exists(root / ".rg" / "index.tsv"));
 }
+#endif
+
+TEST(RegexFuzzyQueryTest,
+     SupportsRegexAlternationClassesAnchorsAndHighlightPositions)
+{
+    using namespace editor::helper;
+    std::vector<int> positions;
+    EXPECT_GT(fuzzyScoreWithPositions("re:^(main|test)\\.(cpp|c)$", "MAIN.cpp",
+                                      positions),
+              0);
+    EXPECT_EQ(positions, (std::vector<int>{0, 1, 2, 3, 4, 5, 6, 7}));
+    EXPECT_LT(fuzzyScoreWithPositions("re:^main", "not_main.cpp", positions),
+              0);
+    EXPECT_TRUE(positions.empty());
+    EXPECT_GT(fuzzyScoreWithPositions("/foo[0-9]+/", "prefix foo42 suffix",
+                                      positions),
+              0);
+    EXPECT_EQ(positions, (std::vector<int>{7, 8, 9, 10, 11}));
+    EXPECT_GT(fuzzyScore("abc", "re:^\\D+$"), 0);
+    EXPECT_LT(fuzzyScore("123", "re:^\\D+$"), 0);
+    EXPECT_GT(fuzzyScore("foo/bar", "/foo\\/bar/"), 0);
+}
+
+TEST(RegexFuzzyQueryTest,
+     HandlesInvalidEmptyAndZeroWidthQueriesWithoutStalePositions)
+{
+    using namespace editor::helper;
+    std::vector<int> positions{99};
+    EXPECT_LT(fuzzyScoreWithPositions("re:[", "abc", positions), 0);
+    EXPECT_TRUE(positions.empty());
+    EXPECT_NE(regexQueryError("re:[").find("Invalid regex"), std::string::npos);
+    EXPECT_LT(fuzzyScore("abc", "re:["), 0);
+    EXPECT_GT(fuzzyScoreWithPositions("re:^", "abc", positions), 0);
+    EXPECT_TRUE(positions.empty());
+    EXPECT_TRUE(regexQueryError("re:^").empty());
+    EXPECT_GT(fuzzyScoreWithPositions("re:", "abc", positions), 0);
+    EXPECT_TRUE(positions.empty());
+    EXPECT_GT(fuzzyScore("abc", "//"), 0);
+    EXPECT_GT(fuzzyScore("abc", "re:$"), 0);
+}
+
+TEST(RegexFuzzyQueryTest, PreservesOrdinaryFuzzyQueriesAndProvidesLiteralEscape)
+{
+    using namespace editor::helper;
+    std::vector<int> positions;
+    EXPECT_GT(fuzzyScoreWithPositions("mn", "main.cpp", positions), 0);
+    EXPECT_EQ(positions, (std::vector<int>{0, 3}));
+    EXPECT_FALSE(isRegexQuery("/tmp/project"));
+    EXPECT_FALSE(isRegexQuery("fz:/tmp/"));
+    EXPECT_GT(fuzzyScore("/tmp/project", "fz:/tmp/"), 0);
+    EXPECT_GT(fuzzyScore("re:hello", "fz:re:"), 0);
+    EXPECT_FALSE(regexQueryScore("normal", "normal").has_value());
+    EXPECT_GT(fuzzyScoreWithPositions("re:main", "é main", positions), 0);
+    EXPECT_EQ(positions, (std::vector<int>{3, 4, 5, 6}));
+}
+
+TEST(RegexFuzzyQueryTest, PreservesRegexPrefixesAndLineSuffixes)
+{
+    EXPECT_EQ(parsePickerQuery("re:").pattern, "re:");
+    EXPECT_FALSE(parsePickerQuery("re:123").hasLine);
+    EXPECT_EQ(parsePickerQuery("re:123").pattern, "re:123");
+    const auto query = parsePickerQuery("/main\\.cpp$/:42");
+    EXPECT_EQ(query.pattern, "/main\\.cpp$/");
+    EXPECT_TRUE(query.hasLine);
+    EXPECT_EQ(query.line, 42);
+    EXPECT_EQ(parsePickerQuery("re:main$:12").pattern, "re:main$");
+    EXPECT_EQ(parsePickerQuery("/port:123/").pattern, "/port:123/");
+}
+
+TEST(RealModeTransitionsTest, FuzzyFindRegexFiltersNamesAndRetainsLineJump)
+{
+    auto root = make_temp_dir("uvim_fuzzy_regex_");
+    write_file(root / "main.cpp", numberedLines(10, "target", 7));
+    write_file(root / "main.h", "header\n");
+    write_file(root / "other.cpp", "other\n");
+    ScopedCurrentPath cwd(root);
+    Editor editor = Editor::createForTests();
+    editor.useGitFileIndex = false;
+    editor.createNewBuffer();
+    auto sm = makeMachine(editor, FuzzyFindMode{});
+    typeText(sm, "/^main\\.cpp$/:7");
+    auto* finder = sm.getState<FuzzyFindMode>();
+    ASSERT_NE(finder, nullptr);
+    ASSERT_EQ(finder->matches.size(), 1u);
+    EXPECT_EQ(finder->matches[0].file.name, "main.cpp");
+    EXPECT_EQ(finder->matches[0].matchPositions.size(), 8u);
+    sm.dispatch(keyCode(control::ControlKey::ENTER));
+    EXPECT_EQ(*editor.cursorY, 6);
+    EXPECT_EQ(std::filesystem::canonical(editor.currentBuffer->filename),
+              std::filesystem::canonical(root / "main.cpp"));
+}
+
+TEST(RealModeTransitionsTest,
+     BufferBrowserRegexMatchesFilenamesAndRecoversFromInvalidPattern)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    set_buffer_filename(editor, "/tmp/regex_main.cpp");
+    editor.createNewBuffer();
+    set_buffer_filename(editor, "/tmp/regex_other.h");
+    auto sm = makeMachine(editor, BufferBrowserMode{});
+    typeText(sm, "re:^regex_.*\\.cpp$");
+    auto* browser = sm.getState<BufferBrowserMode>();
+    ASSERT_NE(browser, nullptr);
+    ASSERT_EQ(browser->bufferMatches.size(), 1u);
+    EXPECT_EQ(browser->bufferMatches[0].bufferIndex, 0);
+    sm.dispatch(keyCode(control::ControlKey::CTRL_U));
+    typeText(sm, "re:[");
+    EXPECT_TRUE(browser->bufferMatches.empty());
+    sm.dispatch(keyCode(control::ControlKey::CTRL_U));
+    EXPECT_EQ(browser->bufferMatches.size(), 2u);
+}
+
+#ifdef UVIM_ENABLE_GIT_TOOLS
+TEST(RegexFuzzyQueryTest, GitLogFilteringUsesRegexAcrossCommitText)
+{
+    Editor editor = Editor::createForTests();
+    GitLogMode log;
+    log.entries = {{"abc123", "Fix debugger stepping"}, {"def456", "Update documentation"}};
+    log.query = "re:Fix.*stepp(ing)?";
+    log.rebuildFilter(editor);
+    ASSERT_EQ(log.filtered.size(), 1u);
+    EXPECT_EQ(log.filtered[0], 0);
+    log.query = "re:[";
+    log.rebuildFilter(editor);
+    EXPECT_TRUE(log.filtered.empty());
+    auto sm = makeMachine(editor, GitLogMode{log.entries, false});
+    typeText(sm, "re:Fix.*stepp(ing)?");
+    const auto* view = sm.getState<GitLogMode>();
+    ASSERT_NE(view, nullptr);
+    EXPECT_EQ(view->query, "re:Fix.*stepp(ing)?");
+    EXPECT_FALSE(view->searchActive);
+    ASSERT_EQ(view->filtered.size(), 1u);
+}
+#endif
+
+#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
+TEST(RegexFuzzyQueryTest, HelpSearchSupportsRegexAndInvalidPatternRecovery)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    auto sm = makeMachine(editor, HelpMode{});
+    sm.dispatch('/');
+    typeText(sm, "re:.*");
+    auto* help = sm.getState<HelpMode>();
+    ASSERT_NE(help, nullptr);
+    EXPECT_EQ(help->searchQuery, "re:.*");
+    EXPECT_FALSE(help->searchMatches.empty());
+    sm.dispatch(keyCode(control::ControlKey::CTRL_U));
+    typeText(sm, "re:[");
+    EXPECT_TRUE(help->searchMatches.empty());
+    sm.dispatch(keyCode(control::ControlKey::CTRL_U));
+    EXPECT_FALSE(help->searchMatches.empty());
+}
+
 #endif

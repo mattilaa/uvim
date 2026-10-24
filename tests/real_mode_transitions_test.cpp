@@ -4,9 +4,9 @@
 #include "widgets/command_popup.h"
 
 #include <algorithm>
+#include <chrono>
 #include <cstdio>
 #include <cstdlib>
-#include <chrono>
 #include <thread>
 
 using namespace uvim_test;
@@ -1499,6 +1499,7 @@ TEST(RealModeTransitionsTest, NormalNavigationKeysDoNotOverlapWithFollowingInput
         std::vector<int> keys;
         int startY, startX, endY, endX;
     };
+
     const MotionCase cases[] = {
         {"h", {'h'}, 1, 7, 1, 6},
         {"j", {'j'}, 0, 4, 1, 4},
@@ -1931,6 +1932,25 @@ std::vector<std::string> paletteTitles(
     return out;
 }
 
+TEST(RegexFuzzyQueryTest,
+     PaletteMatchesTitlesAndAliasesWithoutLowercasingRegexEscapes)
+{
+    const std::vector<command_palette::Entry> entries{
+        {"Open file", "", {"edit"}, {}}, {"Run tests 123", "", {"test123"}, {}}};
+    auto matches = command_palette::rank(entries, "re:^Open.*file$");
+    ASSERT_EQ(matches.size(), 1u);
+    EXPECT_EQ(matches[0].entry, 0);
+    EXPECT_FALSE(matches[0].positions.empty());
+    matches = command_palette::rank(entries, "/^(edit|nope)$/");
+    ASSERT_EQ(matches.size(), 1u);
+    EXPECT_EQ(matches[0].entry, 0);
+    EXPECT_TRUE(matches[0].positions.empty());
+    matches = command_palette::rank(entries, "re:^\\D+$");
+    ASSERT_EQ(matches.size(), 1u);
+    EXPECT_EQ(matches[0].entry, 0);
+    EXPECT_TRUE(command_palette::rank(entries, "re:[").empty());
+}
+
 // Opens the palette, types `query` and presses Enter on the best match.
 void runPalette(ModeStateMachine& sm, Editor& editor, const std::string& query)
 {
@@ -2174,4 +2194,19 @@ TEST(RealModeTransitionsTest, AssemblyCommandFollowsBuildFlag)
     EXPECT_NE(editor.statusMessage.find("Not an editor command"),
               std::string::npos);
 #endif
+}
+
+TEST(RealModeTransitionsTest, CommandPopupRegexFiltersAndTabInsertsTheCommand)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    auto sm = makeMachine(editor, NormalMode{});
+    sm.dispatch(':');
+    for(char key : std::string("re:^loctotal$|^not a command$"))
+        sm.dispatch(key);
+    ASSERT_TRUE(editor.commandPopupActive);
+    ASSERT_TRUE(editor.commandPopupSelection().has_value());
+    EXPECT_EQ(*editor.commandPopupSelection(), "loctotal");
+    sm.dispatch(keyCode(control::ControlKey::TAB));
+    EXPECT_EQ(editor.commandBuffer, ":loctotal");
 }

@@ -1,4 +1,5 @@
 #include "editor.h"
+#include "editor_utils.h"
 #include "mode_state_machine.h"
 #include "terminal.h"
 #include "text_utils.h"
@@ -198,7 +199,8 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
                            query.rfind("h ", 0) == 0;
         bool isGitQuery = query == "git" || query.rfind("git ", 0) == 0;
         if(text_utils::contains(query, keyChar(control::ControlKey::SPACE)) &&
-           !isSetQuery && !isHelpQuery && !isGitQuery)
+           !isSetQuery && !isHelpQuery && !isGitQuery &&
+           !editor::helper::isRegexQuery(query))
         {
             ctx.cancelCommandPopup();
             return;
@@ -586,7 +588,8 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
         // Argument completion (paths, ...) starts after a space.
         const std::string input = ctx.commandBuffer.substr(1);
         if(ctx.isCommandPopupActive() &&
-           !text_utils::contains(input, keyChar(control::ControlKey::SPACE)))
+           (!text_utils::contains(input, keyChar(control::ControlKey::SPACE)) ||
+            editor::helper::isRegexQuery(input)))
         {
             if(auto selection = ctx.commandPopupSelection())
             {

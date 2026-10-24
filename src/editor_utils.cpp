@@ -12,6 +12,7 @@
 #include <filesystem>
 #include <fstream>
 #include <limits.h>
+#include <regex>
 #include <sstream>
 #include <system_error>
 #include <unordered_set>
@@ -1798,8 +1799,107 @@ std::string expandTildePath(std::string path)
     return path;
 }
 
-int fuzzyScore(const std::string& text, const std::string& pattern)
+namespace
 {
+std::optional<std::string_view> regexQueryPattern(std::string_view query)
+{
+    if(query.starts_with("re:"))
+        return query.substr(3);
+    if(query.size() >= 2 && query.front() == '/' && query.back() == '/')
+    {
+        size_t escapes = 0;
+        for(size_t i = query.size() - 1; i > 0 && query[i - 1] == '\\'; --i)
+            ++escapes;
+        if(escapes % 2 == 0)
+            return query.substr(1, query.size() - 2);
+    }
+    return {};
+}
+
+struct RegexQueryCache
+{
+    bool initialized = false;
+    std::string pattern, error;
+    std::optional<std::regex> expression;
+};
+
+RegexQueryCache& compiledRegexQuery(std::string_view pattern)
+{
+    // Pickers score many candidates per keystroke. Compile once per pattern,
+    // caching invalid expressions too; worker threads keep independent caches.
+    thread_local RegexQueryCache cache;
+    if(!cache.initialized || cache.pattern != pattern)
+    {
+        cache.initialized = true;
+        cache.pattern = pattern;
+        cache.expression.reset();
+        cache.error.clear();
+        try
+        {
+            cache.expression.emplace(cache.pattern, std::regex::ECMAScript |
+                                                        std::regex::icase |
+                                                        std::regex::optimize);
+        }
+        catch(const std::regex_error& error)
+        {
+            cache.error = "Invalid regex: " + std::string(error.what());
+        }
+    }
+    return cache;
+}
+} // namespace
+
+bool isRegexQuery(std::string_view query)
+{
+    return regexQueryPattern(query).has_value();
+}
+
+std::string regexQueryError(std::string_view query)
+{
+    const auto pattern = regexQueryPattern(query);
+    return pattern ? compiledRegexQuery(*pattern).error : std::string{};
+}
+
+std::optional<int> regexQueryScore(std::string_view query,
+                                   std::string_view text,
+                                   std::vector<int>* positions)
+{
+    const auto pattern = regexQueryPattern(query);
+    if(!pattern)
+        return {};
+    if(positions)
+        positions->clear();
+    auto& cache = compiledRegexQuery(*pattern);
+    if(!cache.expression)
+        return -1;
+    std::match_results<std::string_view::const_iterator> match;
+    try
+    {
+        if(!std::regex_search(text.begin(), text.end(), match,
+                              *cache.expression))
+            return -1;
+    }
+    catch(const std::regex_error& error)
+    {
+        cache.error = "Invalid regex: " + std::string(error.what());
+        return -1;
+    }
+    const auto start = match.position();
+    const auto length = match.length();
+    if(positions)
+        for(std::ptrdiff_t i = 0; i < length; ++i)
+            positions->push_back(static_cast<int>(start + i));
+    return 10000 +
+           static_cast<int>(std::min<decltype(length)>(length, 5000)) * 10 -
+           static_cast<int>(std::min<decltype(start)>(start, 5000));
+}
+
+int fuzzyScore(const std::string& text, const std::string& query)
+{
+    if(const auto score = regexQueryScore(query, text))
+        return *score;
+    const std::string_view pattern =
+        std::string_view(query).substr(query.starts_with("fz:") ? 3 : 0);
     if(pattern.empty())
         return 0;
 
@@ -1856,11 +1956,15 @@ int fuzzyScore(const std::string& text, const std::string& pattern)
     return score;
 }
 
-int fuzzyScoreWithPositions(const std::string& needle,
+int fuzzyScoreWithPositions(const std::string& query,
                             const std::string& haystack,
                             std::vector<int>& matchPositions)
 {
     matchPositions.clear();
+    if(const auto score = regexQueryScore(query, haystack, &matchPositions))
+        return *score;
+    const std::string_view needle =
+        std::string_view(query).substr(query.starts_with("fz:") ? 3 : 0);
 
     if(needle.empty())
         return 0;

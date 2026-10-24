@@ -172,6 +172,9 @@ bool DebuggerProcessPicker::update(ModeContext& ctx, std::string_view input,
                                "  Ctrl-J/K select  Enter attach";
     editor.commandPopupEmptyMessage =
         processes.error.empty() ? "No matching processes" : processes.error;
+    if(const auto error = editor::helper::regexQueryError(query);
+       !error.empty())
+        editor.commandPopupEmptyMessage = error;
     ctx.setStatusMessage(
         "Processes: type name/PID | Ctrl-J/K: select | Enter: attach | Tab: "
         "insert PID | Ctrl-R: refresh | Esc: close");

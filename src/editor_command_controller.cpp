@@ -242,6 +242,10 @@ void Editor::updateCommandPopupImpl(std::string_view query)
     }
 
     commandPopupQuery = std::string(effectiveQuery);
+    commandPopupEmptyMessage =
+        editor::helper::regexQueryError(commandPopupQuery);
+    if(commandPopupEmptyMessage.empty())
+        commandPopupEmptyMessage = "No matches";
     commandPopupFiltered.clear();
     commandPopupCursor = 0;
     commandPopupOffset = 0;

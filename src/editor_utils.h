@@ -9,6 +9,7 @@
 #include "token_type.h"
 #include <filesystem>
 #include <functional>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -340,6 +341,16 @@ void collectProjectFileEntries(const std::string& dir, int depth,
 /// @param path Path to expand.
 /// @return Expanded path.
 std::string expandTildePath(std::string path);
+
+// Explicit regex filters: re:pattern or /pattern/. fz: forces ordinary fuzzy
+// matching when a query would otherwise be interpreted as a regex.
+bool isRegexQuery(std::string_view query);
+std::string regexQueryError(std::string_view query);
+// nullopt means this is an ordinary fuzzy query. Regex scores are positive on
+// a match (including zero-width matches), or -1 on failure/invalid expressions.
+std::optional<int> regexQueryScore(std::string_view query,
+                                   std::string_view text,
+                                   std::vector<int>* positions = nullptr);
 
 /// @brief Scores fuzzy match quality between text and pattern.
 /// @param text Candidate text.

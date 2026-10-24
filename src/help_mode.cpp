@@ -251,7 +251,7 @@ std::optional<ModeState> HelpMode::handle(ModeContext& ctx,
     std::optional<ModeState> nextState;
     if(commandPrompt &&
        (commandPrompt->isActive() ||
-        c == keyCode(command::CommandKey::KEY_COLON)) &&
+        (!searchActive && c == keyCode(command::CommandKey::KEY_COLON))) &&
        commandPrompt->handle(
            ctx, c, [&](std::string_view commandLine)
            { return executeCommand(ctx, commandLine); }, nextState))
@@ -1114,6 +1114,8 @@ void HelpMode::drawSearch(Editor& editor) const
                  "] <Enter> jump  <Esc> close  <j/k> navigate  <Ctrl-I> docs:";
         status += searchDocumentation ? "on" : "off";
     }
+    if(const auto error = editor::helper::regexQueryError(searchQuery); !error.empty())
+        status = error;
     editor.appendStatusLine(output, status, "");
 
     output += "\r\n";

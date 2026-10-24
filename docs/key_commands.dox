@@ -47,6 +47,13 @@ includes common Normal/Insert/Visual/Command mode bindings.
 - `.` : repeat last change
 
 \subsection keys_normal_search Search
+- Fuzzy pickers accept `re:pattern` or `/pattern/` for case-insensitive regex
+  filtering, including Ctrl-P, buffers, functions, palette, help, Git log,
+  command/history popups, and debugger frame/process pickers. `fz:text`
+  forces fuzzy matching. Ctrl-P accepts `/pattern/:LINE` for source-row jumps.
+  In the file browser, `:filter re:pattern` filters the listing when
+  `filebrowser.fuzzy` is enabled; Esc or `:filter` clears it.
+
 - `Ctrl-a` : project grep search
 - `/` : project grep search
 - `n` / `N` : next / previous match

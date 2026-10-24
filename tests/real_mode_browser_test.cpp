@@ -862,3 +862,28 @@ TEST(RealModeTransitionsTest, BufferBrowserCtrlShiftXAllMatchesReturnsWelcome)
     EXPECT_EQ(editor.currentMode, WELCOME);
     EXPECT_STREQ(sm.currentStateName(), "WELCOME");
 }
+
+TEST(RealModeTransitionsTest, FileBrowserFilterCommandAcceptsRegexAndClearsWithEscape)
+{
+    auto root = make_temp_dir("uvim_browser_regex_filter_");
+    write_file(root / "main.cpp", "int main() {}\n");
+    write_file(root / "other.h", "header\n");
+    ScopedCurrentPath cwd(root);
+    Editor editor = Editor::createForTests();
+    editor.fileBrowserFuzzy = true;
+    auto sm = makeMachine(editor, FileBrowserMode{root.string()});
+    dispatch_command(sm, "filter re:^main\\.cpp$");
+    auto* browser = sm.getState<FileBrowserMode>();
+    ASSERT_NE(browser, nullptr);
+    EXPECT_TRUE(browser->filterActive);
+    std::vector<std::string> names;
+    for(int i : browser->filterMatches)
+        if(browser->fileList[i].name != "..") names.push_back(browser->fileList[i].name);
+    EXPECT_EQ(names, (std::vector<std::string>{"main.cpp"}));
+    sm.dispatch(keyCode(control::ControlKey::ESC));
+    EXPECT_FALSE(browser->filterActive);
+    dispatch_command(sm, "filter re:[");
+    EXPECT_NE(editor.statusMessage.find("Invalid regex"), std::string::npos);
+    dispatch_command(sm, "filter");
+    EXPECT_FALSE(browser->filterActive);
+}

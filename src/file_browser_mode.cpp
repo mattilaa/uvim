@@ -1,6 +1,7 @@
 #include "ascii.h"
 #include "color_constant.h"
 #include "editor.h"
+#include "editor_utils.h"
 #include "file_utils.h"
 #include "gitignore.h"
 #include "header_help.h"
@@ -1325,7 +1326,8 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
         return std::nullopt;
     }
 
-#if defined(UVIM_ENABLE_MODERN_KEYBINDINGS) && defined(UVIM_ENABLE_MULTI_PANE_SPLITS)
+#if defined(UVIM_ENABLE_MODERN_KEYBINDINGS) &&                                 \
+    defined(UVIM_ENABLE_MULTI_PANE_SPLITS)
     if(ctx.editor && ctx.editor->splitActive)
     {
         auto switchBrowserPane = [&](int dx, int dy)
@@ -2600,8 +2602,11 @@ void FileBrowserMode::draw(Editor& editor) const
     Terminal::flush();
 }
 
-static int fuzzyScore(std::string_view text, std::string_view pattern)
+static int fuzzyScore(std::string_view text, std::string_view query)
 {
+    if(const auto score = editor::helper::regexQueryScore(query, text))
+        return *score;
+    const auto pattern = query.starts_with("fz:") ? query.substr(3) : query;
     if(pattern.empty())
         return 0;
 
@@ -3086,6 +3091,25 @@ FileBrowserMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
         {
             const std::string& cmd = command.cmd;
             const std::string& args = command.args;
+
+            if(cmd == "filter")
+            {
+                if(!args.empty() && !ctx.editor->fileBrowserFuzzy)
+                {
+                    ctx.setStatusMessage(
+                        "Enable filebrowser.fuzzy before filtering");
+                    return true;
+                }
+                filterQuery = args;
+                filterActive = !filterQuery.empty();
+                browserCursor = browserOffset = 0;
+                updateFilter(ctx);
+                const auto error = editor::helper::regexQueryError(filterQuery);
+                ctx.setStatusMessage(error.empty() ? "Filter: " + filterQuery
+                                                   : error);
+                ctx.requestFullRedraw();
+                return true;
+            }
 
             const auto runRegexSearch = [&](char prefix, bool backward) -> bool
             {
