@@ -36,6 +36,7 @@ struct DebuggerStackFrame
     int line = 0;
     bool selected = false;
     bool sourceAvailable = false;
+    std::vector<Token> colors;
 };
 
 struct DebuggerMode
@@ -93,7 +94,7 @@ struct DebuggerMode
     std::string framePreviewKey, framePreviewId, framePreviewPath;
     std::vector<std::string> framePreviewLines;
     PreviewHighlight framePreviewHighlight;
-    int framePreviewLine = 0, framePreviewToken = 0;
+    int framePreviewLine = 0, framePreviewToken = 0, framePreviewScroll = 0;
     std::vector<std::string> promptCommands, promptMenuEntries;
     int promptMenuCursor = 0, promptMenuOffset = 0;
 

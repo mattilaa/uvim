@@ -48,7 +48,8 @@ TEST(RealModeTransitionsTest,
     EXPECT_TRUE(debug->framePickerOpen);
     EXPECT_TRUE(debug->promptActive);
     const std::string frames =
-        "{\"frames\":[{\"id\":\"0\",\"function\":\"__semwait_signal\",\"address\":"
+        "{\"frames\":[{\"id\":\"0\",\"function\":\"__semwait_signal\","
+        "\"address\":"
         "\"0x1000\"},"
         "{\"id\":\"4\",\"function\":\"main::entry_point\",\"path\":\"/tmp/"
         "app.cpp\",\"line\":42,\"address\":\"0x2000\",\"selected\":true},"
@@ -63,7 +64,7 @@ TEST(RealModeTransitionsTest,
     const auto rendered = testing::internal::GetCapturedStdout();
     EXPECT_NE(rendered.find("Stack frames"), std::string::npos);
     EXPECT_NE(rendered.find("main::entry_point"), std::string::npos);
-    EXPECT_NE(rendered.find("/tmp/app.cpp:42"), std::string::npos);
+    EXPECT_NE(rendered.find("/tmp/app.cpp"), std::string::npos);
     // Query characters work immediately after --, without requiring a space.
     for(char key : std::string("mai"))
         sm.dispatch(key);
@@ -138,11 +139,18 @@ TEST(RealModeTransitionsTest,
     debug->applyMessage(
         "{\"frames\":[{\"id\":\"0\",\"function\":\"main\",\"path\":" +
         originalPath +
-        ",\"line\":2,\"selected\":true},{\"id\":\"7\",\"function\":\"other\","
+        ",\"line\":2,\"returnType\":\"int\",\"selected\":true},{\"id\":\"7\","
+        "\"function\":\"other\","
         "\"path\":" +
         previewPath +
         ",\"line\":3},{\"id\":\"9\",\"function\":\"library_call\",\"module\":"
         "\"libexample.so\",\"address\":\"0x3000\"}]}");
+    EXPECT_NE(debug->stackFrames[0].label.find("int main"), std::string::npos);
+    const auto& spans = debug->stackFrames[0].colors;
+    EXPECT_TRUE(std::any_of(spans.begin(), spans.end(), [](const Token& token)
+                            { return token.type == TOKEN_TYPE; }));
+    EXPECT_TRUE(std::any_of(spans.begin(), spans.end(), [](const Token& token)
+                            { return token.type == TOKEN_FUNCTION; }));
     sm.dispatch(keyCode(control::ControlKey::CTRL_J));
     EXPECT_EQ(debug->framePreviewId, "7");
     EXPECT_TRUE(debug->framePreviewSourceAvailable);
@@ -180,6 +188,32 @@ TEST(RealModeTransitionsTest,
     EXPECT_NE(assembly.find("0x3000"), std::string::npos);
     EXPECT_EQ(debug->output, output);
     EXPECT_EQ(debug->frameIndex, 0);
+    std::string instructions;
+    for(int i = 0; i < 80; ++i)
+    {
+        if(i)
+            instructions += ",";
+        instructions += "\"0x" + std::to_string(3000 + i) + " nop\"";
+    }
+    debug->applyMessage(
+        "{\"framePreview\":{\"id\":\"9\",\"token\":" + std::to_string(token) +
+        ",\"lines\":[" + instructions + "]}}");
+    const auto picked = debug->framePickerCursor;
+    sm.dispatch(keyCode(control::ControlKey::SHIFT_CTRL_J));
+    EXPECT_EQ(debug->framePreviewScroll, 1);
+    EXPECT_EQ(debug->framePickerCursor, picked);
+    EXPECT_EQ(debug->frameIndex, 0);
+    EXPECT_EQ(debug->cursor, cursor);
+    for(int i = 0; i < 200; ++i)
+        sm.dispatch(keyCode(control::ControlKey::SHIFT_CTRL_J));
+    const auto bottom = debug->framePreviewScroll;
+    EXPECT_GT(bottom, 0);
+    EXPECT_LT(bottom, 80);
+    sm.dispatch(keyCode(control::ControlKey::SHIFT_CTRL_K));
+    EXPECT_EQ(debug->framePreviewScroll, bottom - 1);
+    for(int i = 0; i < 200; ++i)
+        sm.dispatch(keyCode(control::ControlKey::SHIFT_CTRL_K));
+    EXPECT_EQ(debug->framePreviewScroll, 0);
     sm.dispatch(27);
     EXPECT_FALSE(debug->framePickerOpen);
     EXPECT_EQ(debug->source, source);
@@ -328,7 +362,8 @@ TEST(RealModeTransitionsTest, DebuggerStoppedPanesAndPromptNavigation)
     std::filesystem::remove_all(dir);
 }
 
-TEST(RealModeTransitionsTest, DebuggerInspectionShowsNewResultsAndKeepsVariableIdentity)
+TEST(RealModeTransitionsTest,
+     DebuggerInspectionShowsNewResultsAndKeepsVariableIdentity)
 {
     Editor editor = Editor::createForTests();
     editor.createNewBuffer();

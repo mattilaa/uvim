@@ -225,7 +225,17 @@ class LLDB:
             frame = thread.GetFrameAtIndex(identity)
             if not frame.IsValid():
                 raise ValueError(f'Stack frame {identity} is unavailable')
-            rows = self.disassembly_rows(frame.GetPC(), 32)
+            pc = frame.GetPC()
+            location = self.target.ResolveLoadAddress(pc)
+            function = location.GetFunction()
+            symbol = function if function.IsValid() else location.GetSymbol()
+            start = symbol.GetStartAddress()
+            address = start.GetLoadAddress(self.target) if start.IsValid() else pc
+            if not 0 < address <= pc:
+                address = pc
+            rows = self.disassembly_rows(address, 4096, focus=pc)
+            if not any(row.startswith(f'0x{pc:016x} ') for row in rows):
+                rows = self.disassembly_rows(pc, 256)
             emit(framePreview=dict(id=str(identity), token=token,
                                    lines=[row for row in rows if row.startswith('0x')]))
             return
@@ -243,10 +253,13 @@ class LLDB:
                 if not frame.IsValid():
                     continue
                 path, line = self.frame_source(frame)
+                type_ = frame.GetFunction().GetType()
+                return_type = type_.GetFunctionReturnType() if type_.IsValid() else None
                 frames.append(dict(id=str(frame.GetFrameID()),
                                    function=frame.GetFunctionName() or frame.GetSymbol().GetName() or '<unknown>',
                                    path=path, line=line, address=f'0x{frame.GetPC():x}',
                                    module=frame.GetModule().GetFileSpec().GetFilename() or '',
+                                   returnType=return_type.GetName() if return_type and return_type.IsValid() else '',
                                    selected=frame.GetFrameID() == selected))
             emit(frames=frames)
             return
@@ -389,12 +402,20 @@ class LLDB:
             rows += self.disassembly_rows(address, count)
         emit(output=rows, inspection=True, outputKind='assembly' if kind == 'disasm' else 'memory')
 
-    def disassembly_rows(self, address, count):
+    def disassembly_rows(self, address, count, focus=None):
         rows = []
         start = self.target.ResolveLoadAddress(address)
         instructions = self.target.ReadInstructions(start, count)
         if not instructions.GetSize():
             raise ValueError(f'No instructions at 0x{address:x}')
+        if focus is not None:
+            current = next((i for i, instruction in enumerate(instructions)
+                            if instruction.GetAddress().GetLoadAddress(self.target) == focus), None)
+            if current is None:
+                return []
+            first = max(0, current - 128)
+            instructions = [instructions.GetInstructionAtIndex(i)
+                            for i in range(first, min(first + 256, instructions.GetSize()))]
         function = start.GetFunction()
         symbol = function if function.IsValid() else start.GetSymbol()
         begin, end = symbol.GetStartAddress(), symbol.GetEndAddress()
@@ -822,6 +843,9 @@ class GDB:
             elif prefix == '^':
                 kind = self.pending.pop(token, '')
                 if result == 'error':
+                    if isinstance(kind, tuple) and kind[0] == 'frames-picker-types':
+                        emit(frames=kind[1])
+                        continue
                     if isinstance(kind, tuple) and kind[0].startswith('preview-'):
                         if kind[0] == 'preview-function':
                             _, identity, address, token = kind
@@ -852,7 +876,19 @@ class GDB:
                                 inspection=isinstance(kind, tuple),
                                 **({'state': 'error'} if kind == 'startup' else {})))
                 elif isinstance(kind, tuple):
-                    if kind[0] == 'preview-frame':
+                    if kind[0] == 'frames-picker-types':
+                        frames = kind[1]
+                        symbols = [symbol for file in data.get('symbols', {}).get('debug', [])
+                                   for symbol in file.get('symbols', [])]
+                        for frame in frames:
+                            types = {symbol.get('type', '') for symbol in symbols
+                                     if symbol.get('name') == frame['function']}
+                            if len(types) == 1:
+                                match = re.fullmatch(r'(.+?) \([^()]*\)', types.pop())
+                                if match:
+                                    frame['returnType'] = match[1]
+                        emit(frames=frames)
+                    elif kind[0] == 'preview-frame':
                         _, identity, preview_token = kind
                         frames = data.get('stack', [])
                         try:
@@ -903,7 +939,7 @@ class GDB:
                         _, expression, address, count = kind
                         preview_token = count if kind[0].startswith('preview-') else None
                         if preview_token is not None:
-                            count = 32
+                            count = 256
                         rows = [f'{"Memory" if kind[0] == "inspection-memory" else "Disassembly"}: {expression} @ 0x{address:x}']
                         if kind[0] == 'inspection-memory':
                             total = 0
@@ -922,7 +958,13 @@ class GDB:
                             else:
                                 rows.append('Function size: unavailable; displaying bytes at the requested address')
                             rows.append('Function padding: not identified separately by debug symbols')
-                            shown = [i for i in instructions if int(i['address'], 0) >= address][:count]
+                            if preview_token is not None:
+                                current = next((i for i, instruction in enumerate(instructions)
+                                                if int(instruction['address'], 0) >= address), 0)
+                                first = max(0, current - 128)
+                                shown = instructions[first:first + count]
+                            else:
+                                shown = [i for i in instructions if int(i['address'], 0) >= address][:count]
                             for instruction in shown:
                                 symbol = instruction.get('func-name', '')
                                 offset = instruction.get('offset', '0')
@@ -951,7 +993,13 @@ class GDB:
                                            line=int(frame.get('line', 0)), address=frame.get('addr', ''),
                                            module=frame.get('from', ''),
                                            selected=identity == getattr(self, 'frame_picker_selected', '0')))
-                    emit(frames=frames)
+                    names = sorted({frame['function'] for frame in frames})
+                    if names:
+                        pattern = '^(' + '|'.join(re.escape(name) for name in names) + ')$'
+                        self.send('-symbol-info-functions --name ' + json.dumps(pattern) + ' --max-results 256',
+                                  ('frames-picker-types', frames))
+                    else:
+                        emit(frames=frames)
                 elif kind == 'breakpoints':
                     emit(breakpoints=gdb_breakpoints(data))
                 elif kind == 'breakpoint-change':

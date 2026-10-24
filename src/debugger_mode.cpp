@@ -15,6 +15,7 @@
 #include "widgets/status_bar.h"
 #include <algorithm>
 #include <cctype>
+#include <charconv>
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
@@ -157,7 +158,7 @@ std::vector<Token> disassemblyTokens(const std::string& line)
     while(pos < line.size() &&
           std::isxdigit(static_cast<unsigned char>(line[pos])))
         ++pos;
-    add(TOKEN_TYPE, 0, pos);
+    add(TOKEN_COMMENT, 0, pos);
     while(pos < line.size() && line[pos] == ' ')
         ++pos;
     const auto mnemonic = pos;
@@ -428,6 +429,42 @@ std::optional<std::string_view> framePickerQuery(std::string_view prompt)
 int framePickerRows(int screenRows)
 {
     return std::clamp(screenRows / 3, 1, 8);
+}
+
+struct FramePreviewViewport
+{
+    int rows = 0, base = 0, maximum = 0;
+};
+
+FramePreviewViewport framePreviewViewport(const Editor& editor, int line,
+                                          size_t count)
+{
+    const auto source = paneRects(editor, true, 0)[0];
+    const int rows = std::max(0, source.height - 2);
+    const int visible =
+        rows > 0 ? std::clamp(editor.screenRows -
+                                  framePickerRows(editor.screenRows) - 1 -
+                                  (source.y + 1),
+                              1, rows)
+                 : 0;
+    const int maximum = std::max(0, static_cast<int>(count) - visible);
+    return {visible,
+            std::clamp(line > 0 ? line - 1 - visible / 2 : 0, 0, maximum),
+            maximum};
+}
+
+std::optional<uint64_t> codeAddress(std::string_view text)
+{
+    if(!text.starts_with("0x"))
+        return {};
+    text.remove_prefix(2);
+    text = text.substr(0, text.find_first_of(" \t"));
+    uint64_t value = 0;
+    const auto parsed =
+        std::from_chars(text.data(), text.data() + text.size(), value, 16);
+    return parsed.ec == std::errc{} && parsed.ptr == text.data() + text.size()
+               ? std::optional<uint64_t>{value}
+               : std::nullopt;
 }
 } // namespace
 
@@ -785,8 +822,23 @@ void DebuggerMode::applyMessage(const std::string& message)
                 const bool selected = json_utils::get_bool(frame, "selected");
                 const auto symbol =
                     safe(json_utils::get_string(frame, "function"));
-                auto label =
-                    std::string(selected ? "* #" : "  #") + id + " " + symbol;
+                auto label = std::string(selected ? "* #" : "  #") + id + " ";
+                std::vector<Token> colors{
+                    {TOKEN_NUMBER, 2, static_cast<int>(id.size() + 1)}};
+                const auto append = [&](TokenType type, const std::string& text)
+                {
+                    colors.push_back({type, static_cast<int>(label.size()),
+                                      static_cast<int>(text.size())});
+                    label += text;
+                };
+                const auto returnType =
+                    safe(json_utils::get_string(frame, "returnType"));
+                if(!returnType.empty() && !symbol.starts_with(returnType + " "))
+                    append(TOKEN_TYPE, returnType + " ");
+                const auto args = symbol.find('(');
+                append(TOKEN_FUNCTION, symbol.substr(0, args));
+                if(args != std::string::npos)
+                    append(TOKEN_TYPE, symbol.substr(args));
                 const auto path = safe(json_utils::get_string(frame, "path"));
                 const int line = json_utils::get_int(frame, "line");
                 bool sourceAvailable = false;
@@ -799,21 +851,24 @@ void DebuggerMode::applyMessage(const std::string& message)
                     sourceAvailable = file->second;
                 }
                 if(!sourceAvailable)
-                    label += " [no source]";
+                    append(TOKEN_COMMENT, " [no source]");
                 if(!path.empty())
-                    label += "  " + path +
-                             (line > 0 ? ":" + std::to_string(line) : "");
+                {
+                    append(TOKEN_STRING, "  " + path);
+                    if(line > 0)
+                        append(TOKEN_NUMBER, ":" + std::to_string(line));
+                }
                 const auto address =
                     safe(json_utils::get_string(frame, "address"));
                 const auto module =
                     safe(json_utils::get_string(frame, "module"));
                 if(!module.empty() && path.empty())
-                    label += "  [" + module + "]";
+                    append(TOKEN_TYPE, "  [" + module + "]");
                 if(!address.empty())
-                    label += "  " + address;
+                    append(TOKEN_COMMENT, "  " + address);
                 stackFrames.push_back({id, std::move(label), symbol, path,
                                        address, module, line, selected,
-                                       sourceAvailable});
+                                       sourceAvailable, std::move(colors)});
             }
         }
         filterFrames(true);
@@ -834,6 +889,15 @@ void DebuggerMode::applyMessage(const std::string& message)
                 if(line.IsString())
                     framePreviewLines.push_back(safe(line.GetString()));
         framePreviewLine = error.empty() && !framePreviewLines.empty() ? 1 : 0;
+        if(const auto* frame = previewFrame(); frame && error.empty())
+            if(const auto pc = codeAddress(frame->address))
+                for(size_t i = 0; i < framePreviewLines.size(); ++i)
+                    if(codeAddress(framePreviewLines[i]) == pc)
+                    {
+                        framePreviewLine = static_cast<int>(i + 1);
+                        break;
+                    }
+        framePreviewScroll = 0;
         if(framePreviewLines.empty())
             framePreviewLines.push_back(
                 "No instructions available for this frame");
@@ -1155,6 +1219,7 @@ void DebuggerMode::updateFramePreview()
     framePreviewKey = key;
     framePreviewId = frame->id;
     framePreviewLine = 0;
+    framePreviewScroll = 0;
     ++framePreviewToken;
     if(framePreviewAssembly)
     {
@@ -1404,6 +1469,22 @@ std::optional<ModeState> DebuggerMode::handle(ModeContext& ctx,
     {
         if(framePickerOpen)
         {
+            if(framePreviewAssembly &&
+               (key == keyCode(control::ControlKey::SHIFT_CTRL_J) ||
+                key == keyCode(control::ControlKey::SHIFT_CTRL_K)))
+            {
+                const auto viewport = framePreviewViewport(
+                    *ctx.editor, framePreviewLine, framePreviewLines.size());
+                framePreviewScroll =
+                    std::clamp(
+                        viewport.base + framePreviewScroll +
+                            (key == keyCode(control::ControlKey::SHIFT_CTRL_J)
+                                 ? 1
+                                 : -1),
+                        0, viewport.maximum) -
+                    viewport.base;
+                return {};
+            }
             if(key == keyCode(control::ControlKey::CTRL_D))
             {
                 framePreviewAssembly = !framePreviewAssembly;
@@ -1588,6 +1669,9 @@ std::optional<ModeState> DebuggerMode::handle(ModeContext& ctx,
         pane = (pane + 1) % paneCount;
     else if(key == keyCode(control::ControlKey::SHIFT_TAB))
         pane = (pane + paneCount - 1) % paneCount;
+    else if(pane == 1 && (key == keyCode(control::ControlKey::SHIFT_CTRL_J) ||
+                          key == keyCode(control::ControlKey::SHIFT_CTRL_K)))
+        cursor[1] += key == keyCode(control::ControlKey::SHIFT_CTRL_J) ? 1 : -1;
     else if(key == 'v' && paneCount == 4)
         pane = 2;
     else if(key == 't' && paneCount == 4)
@@ -1656,21 +1740,17 @@ void DebuggerMode::drawContent(Editor& editor)
                   previewing ? 0 : pane);
     clamp(editor);
     const int sourceRows = std::max(0, rects[0].height - 2);
-    const int previewRows =
-        sourceRows > 0 ? std::clamp(editor.screenRows -
-                                        framePickerRows(editor.screenRows) - 1 -
-                                        (rects[0].y + 1),
-                                    1, sourceRows)
-                       : 0;
     const auto& shownSource = previewing ? framePreviewLines : source;
     auto& shownHighlight = previewing ? framePreviewHighlight : highlight;
     const auto& shownPath = previewing ? framePreviewPath : sourcePath;
     const int shownLine = previewing ? framePreviewLine : executionLine;
+    const auto viewport =
+        framePreviewViewport(editor, shownLine, shownSource.size());
     const int sourceOffset =
         previewing
-            ? std::clamp(shownLine > 0 ? shownLine - 1 - previewRows / 2 : 0, 0,
-                         std::max(0, static_cast<int>(shownSource.size()) -
-                                         previewRows))
+            ? std::clamp(viewport.base +
+                             (framePreviewAssembly ? framePreviewScroll : 0),
+                         0, viewport.maximum)
             : offset[0];
     if(previewing && framePreviewAssembly)
     {
@@ -1722,8 +1802,9 @@ void DebuggerMode::drawContent(Editor& editor)
     header(1, " Debugger [" + backend + "] " + displayState +
                   "  Focus: " + names[pane] + "  " + target);
     header(2, framePickerOpen
-                  ? " Frame preview only   Ctrl-J/K frames   Ctrl+D "
-                    "source/assembly   Enter selects   Esc cancels"
+                  ? " Ctrl-J/K frames   Ctrl+D source/assembly   " +
+                        std::string(Terminal::shiftChordLabel()) +
+                        "+J/K scroll assembly   Enter selects   Esc cancels"
                   : " j/k rows   b breakpoint   Ctrl-P file   Tab next pane   "
                     "Shift-Tab previous pane   v variables   t threads   : "
                     "command   q quit");
@@ -1748,8 +1829,12 @@ void DebuggerMode::drawContent(Editor& editor)
                                                      : "Preview #") +
                     preview->id;
             if(framePreviewAssembly)
+            {
                 title += " " + (preview->module.empty() ? preview->symbol
                                                         : preview->module);
+                title += " [" + std::to_string(sourceOffset + 1) + "/" +
+                         std::to_string(shownSource.size()) + "]";
+            }
             else if(!preview->path.empty())
                 title +=
                     " " +
@@ -1923,6 +2008,7 @@ void DebuggerMode::drawContent(Editor& editor)
     activeRow = -1;
     std::vector<std::string> menuEntries;
     std::vector<std::string> menuColors;
+    std::vector<std::vector<widgets::PopupColorSpan>> menuSpans;
     int menuCursor = 0, menuOffset = 0;
     std::string menuTitle;
     if(sizePopupOpen)
@@ -1948,6 +2034,15 @@ void DebuggerMode::drawContent(Editor& editor)
                 !stackFrames[index].sourceAvailable ? editor.theme.uiDim()
                 : stackFrames[index].selected       ? editor.theme.uiSuccess()
                                                     : editor.theme.uiInfo());
+            auto& spans = menuSpans.emplace_back();
+            for(const auto& token : stackFrames[index].colors)
+                spans.push_back({static_cast<size_t>(token.start),
+                                 static_cast<size_t>(token.length),
+                                 token.type == TOKEN_COMMENT
+                                     ? editor.theme.uiDim()
+                                 : !stackFrames[index].sourceAvailable
+                                     ? editor.theme.dimmedSyntax(token.type, 2)
+                                     : editor.theme.syntax(token.type)});
         }
         menuCursor = framePickerCursor;
         menuOffset = framePickerOffset;
@@ -2026,7 +2121,8 @@ void DebuggerMode::drawContent(Editor& editor)
                      ? std::clamp(static_cast<int>(menuEntries.size()), 1, 18)
                  : framePickerOpen ? framePickerRows(editor.screenRows)
                                    : 8,
-             .rowColors = menuColors});
+             .rowColors = menuColors,
+             .rowSpans = menuSpans});
         overlayPopupRows(rows, popup, editor.theme);
     }
     widgets::ViewStatusBarView status{.theme = editor.theme};

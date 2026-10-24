@@ -75,7 +75,8 @@ std::string_view commandDocumentation(std::string_view cmd)
 
 #ifdef UVIM_ENABLE_DEBUGGER
     if(cmd == "dbgrun")
-        return "Debug an executable: dbgrun [--backend lldb|gdb|mladbg] BINARY [ARGS]";
+        return "Debug an executable: dbgrun [--backend lldb|gdb|mladbg] BINARY "
+               "[ARGS]";
     if(cmd == "dbgattach")
         return "Attach debugger: dbgattach [--backend lldb|gdb|mladbg] PID";
 #endif
@@ -337,9 +338,8 @@ void drawCommandPopup(std::string& output, const CommandPopupView& view)
     }
 
     int totalH = rows + 2;
-    const PopupPlacement placement =
-        placeBottomLeftPopup(frame.screenRows, frame.screenCols, totalW,
-                             totalH);
+    const PopupPlacement placement = placeBottomLeftPopup(
+        frame.screenRows, frame.screenCols, totalW, totalH);
     int top = placement.top;
     int left = placement.left;
 
@@ -379,9 +379,16 @@ void drawCommandPopup(std::string& output, const CommandPopupView& view)
                 int idx = view.filtered[visibleIndex];
                 if(idx >= 0 && idx < (int)view.entries.size())
                 {
-                    build_command_line_parts(view.entries[idx], commandColWidth,
-                                             innerW, cmdPart, gapPart, docPart);
-                    line = cmdPart + gapPart + docPart;
+                    if(idx < static_cast<int>(view.rowSpans.size()) &&
+                       !view.rowSpans[idx].empty())
+                        line = view.entries[idx];
+                    else
+                    {
+                        build_command_line_parts(view.entries[idx],
+                                                 commandColWidth, innerW,
+                                                 cmdPart, gapPart, docPart);
+                        line = cmdPart + gapPart + docPart;
+                    }
                 }
             }
         }
@@ -406,19 +413,43 @@ void drawCommandPopup(std::string& output, const CommandPopupView& view)
         const bool current = !view.filtered.empty() &&
                              (i + view.offset) < (int)view.filtered.size() &&
                              (i + view.offset) == view.cursor;
+        const auto appendStyled = [&]()
+        {
+            size_t position = 0;
+            if(entryIndex >= 0 &&
+               entryIndex < static_cast<int>(view.rowSpans.size()))
+                for(const auto& span : view.rowSpans[entryIndex])
+                {
+                    const auto start = std::min(line.size(), span.start);
+                    const auto end =
+                        start + std::min(line.size() - start, span.length);
+                    if(start < position || end <= start)
+                        continue;
+                    output.append(line, position, start - position);
+                    output += span.color;
+                    output.append(line, start, end - start);
+                    output += rowColor.empty() ? frame.theme.baseFg()
+                                               : std::string(rowColor);
+                    position = end;
+                }
+            output.append(line, position, line.size() - position);
+        };
         if(current)
         {
             output += frame.theme.selection();
             output += rowColor;
-            output.append(line);
+            appendStyled();
             output += frame.theme.reset();
         }
         else
         {
-            if(!rowColor.empty())
+            if(!rowColor.empty() ||
+               (entryIndex >= 0 &&
+                entryIndex < static_cast<int>(view.rowSpans.size()) &&
+                !view.rowSpans[entryIndex].empty()))
             {
                 output += rowColor;
-                output += line;
+                appendStyled();
             }
             else if(!cmdPart.empty())
             {

@@ -9,6 +9,12 @@
 
 namespace widgets
 {
+struct PopupColorSpan
+{
+    size_t start = 0, length = 0;
+    std::string color;
+};
+
 struct CommandPopupView
 {
     PopupFrameView frame;
@@ -22,6 +28,7 @@ struct CommandPopupView
     // Optional foreground colors, indexed like entries. Selection keeps its
     // background.
     std::span<const std::string> rowColors{};
+    std::span<const std::vector<PopupColorSpan>> rowSpans{};
 };
 
 std::string_view commandDocumentation(std::string_view command);

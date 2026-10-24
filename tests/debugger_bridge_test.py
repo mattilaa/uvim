@@ -31,13 +31,20 @@ class BridgeTests(unittest.TestCase):
             gdb.lines.put('1^done,frame={level="4",func="main"}')
             gdb.lines.put('2^done,stack=[frame={level="0",func="sleep",addr="0x1000"},frame={level="4",func="main",fullname="/tmp/app.c",line="42",addr="0x2000"}]')
             gdb.poll()
-            send.assert_called_with('-stack-list-frames 0 255', 'frames-picker')
+            self.assertIn('-symbol-info-functions', send.call_args.args[0])
+            gdb.pending['5'] = send.call_args.args[1]
+            gdb.lines.put('5^done,symbols={debug=[{symbols=[{name="main",type="int ()"}]}]}')
+            gdb.poll()
             frames = emit.call_args.kwargs['frames']
             self.assertEqual([f['id'] for f in frames], ['0', '4'])
             self.assertFalse(frames[0]['selected'])
             self.assertEqual(frames[1], dict(id='4', function='main', path='/tmp/app.c',
-                                              line=42, address='0x2000', module='', selected=True))
+                                              line=42, address='0x2000', module='', selected=True, returnType='int'))
             self.assertTrue(gdb.user_frame_selected)
+            gdb.pending['6'] = ('frames-picker-types', frames)
+            gdb.lines.put('6^error,msg="Undefined MI command"')
+            gdb.poll()
+            emit.assert_called_with(frames=frames)
             gdb.pending['3'] = 'frames-picker-current'
             gdb.lines.put('3^error,msg="No stack available"')
             gdb.poll()
@@ -537,12 +544,16 @@ class LiveTests(unittest.TestCase):
                             self.assertTrue(any(f['selected'] and f['id'] == str(caller_index) for f in frames), frames)
                             self.assertTrue(any('main' in f['function'] and f['path'] == item['source'] for f in frames), frames)
                             self.assertTrue(all(f['address'].startswith('0x') for f in frames))
+                            main = next(f for f in frames if 'main' in f['function'] and f['path'] == item['source'])
+                            self.assertEqual(main['returnType'], 'int')
                             self.assertEqual(process.GetSelectedThread().GetSelectedFrame().GetFrameID(), caller_index)
                             engine.command('frame-disasm 0 17')
                             preview = messages[-1]['framePreview']
                             self.assertEqual(preview['id'], '0')
                             self.assertEqual(preview['token'], 17)
                             self.assertTrue(preview['lines'])
+                            pc = process.GetSelectedThread().GetFrameAtIndex(0).GetPC()
+                            self.assertTrue(any(int(row.split()[0], 16) == pc for row in preview['lines']))
                             self.assertTrue(all(row.startswith('0x') for row in preview['lines']))
                             self.assertEqual(process.GetSelectedThread().GetSelectedFrame().GetFrameID(), caller_index)
                             engine.marker = None  # A stop event can still be pending on the first command.
