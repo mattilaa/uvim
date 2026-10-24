@@ -9,6 +9,7 @@ import sys
 import tempfile
 import time
 import unittest
+from unittest.mock import patch
 
 SCRIPT = Path(__file__).resolve().parents[1] / 'scripts/create_debugger_examples.py'
 SPEC = importlib.util.spec_from_file_location('debugger_examples', SCRIPT)
@@ -51,6 +52,20 @@ class DebuggerExamplesTests(unittest.TestCase):
                     tested += 1
         if not tested:
             self.skipTest('no fixture compilers installed')
+
+    def test_cpp_compiler_keeps_symlink_driver_name_and_configured_arguments(self):
+        with tempfile.TemporaryDirectory(prefix='uvim compiler ') as directory:
+            target = Path(directory) / 'clang'
+            target.write_text('#!/bin/sh\nexit 0\n')
+            target.chmod(0o755)
+            driver = Path(directory) / 'clang++'
+            driver.symlink_to(target.name)
+            args = EXAMPLES.argparse.Namespace(cc=None, cxx=None, mlang=None)
+            with patch.dict(os.environ, {'CXX': ''}), patch.object(
+                    EXAMPLES.shutil, 'which', side_effect=lambda name: str(driver) if name == 'clang++' else None):
+                self.assertEqual(EXAMPLES.compiler('cpp', args), [str(driver)])
+            args.cxx = EXAMPLES.shlex.join([str(driver), '-stdlib=libc++'])
+            self.assertEqual(EXAMPLES.compiler('cpp', args), [str(driver), '-stdlib=libc++'])
 
     def test_missing_compiler_and_invalid_thread_count_fail_before_creating_fixtures(self):
         with tempfile.TemporaryDirectory() as directory:

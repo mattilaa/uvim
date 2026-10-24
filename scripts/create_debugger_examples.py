@@ -34,14 +34,16 @@ def compiler(language, args):
         command = shlex.split(configured)
         if not command or not shutil.which(command[0]):
             raise ValueError(f'{language}: compiler not found: {configured}')
-        command[0] = str(Path(shutil.which(command[0])).resolve())
+        command[0] = os.path.abspath(shutil.which(command[0]))
         return command
     candidates = {'c': ['clang', 'gcc', 'cc'], 'cpp': ['clang++', 'g++', 'c++'],
                   'mlang': ['mlang', str(REPO.parent / 'mlang/build/mlang')]}[language]
     for candidate in candidates:
         path = shutil.which(candidate)
         if path:
-            return [str(Path(path).resolve())]
+            # Keep the driver spelling: clang++ may be a symlink to clang,
+            # and argv[0] selects C++ standard-library linking on Linux.
+            return [os.path.abspath(path)]
     raise ValueError(f'{language}: compiler not found; use --{env_name.lower()} or set {env_name}')
 
 

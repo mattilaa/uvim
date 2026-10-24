@@ -1069,65 +1069,67 @@ TEST(RealModeTransitionsTest, DebuggerFilePickerKeepsSessionAndPinsOtherSource)
     write_file(
         helper,
         "inline int helper() {\n    int value = 7;\n    return value;\n}\n");
-    ScopedCurrentPath cwd(dir);
-    Editor editor = Editor::createForTests();
-    editor.createNewBuffer();
-    editor.useGitFileIndex = false;
-    editor.currentBuffer->lines = {"untouched editor buffer"};
-    const auto buffer = editor.currentBuffer;
-    auto sm = makeMachine(editor, DebuggerMode{"program", false});
-    auto* debug = sm.getState<DebuggerMode>();
-    ASSERT_NE(debug, nullptr);
-    std::string mainPath, helperPath;
-    json_utils::append_escaped(mainPath, main.string());
-    json_utils::append_escaped(helperPath, helper.string());
-    debug->applyMessage("{\"state\":\"stopped\",\"path\":" + mainPath +
-                        ",\"line\":2}");
-    sm.dispatch(keyCode(control::ControlKey::CTRL_P));
-    ASSERT_NE(debug->filePicker, nullptr);
-    EXPECT_TRUE(debug->filePicker->singleSelection);
-    for(char c : std::string("helper.hpp:3"))
-        sm.dispatch(c);
-    ASSERT_EQ(debug->filePicker->matches.size(), 1u);
-    sm.dispatch(keyCode(control::ControlKey::ENTER));
-    EXPECT_EQ(sm.getState<DebuggerMode>(), debug);
-    EXPECT_EQ(debug->filePicker, nullptr);
-    EXPECT_TRUE(debug->sourcePinned);
-    EXPECT_EQ(std::filesystem::weakly_canonical(debug->sourcePath),
-              std::filesystem::weakly_canonical(helper));
-    EXPECT_EQ(debug->cursor[0], 2);
-    EXPECT_EQ(debug->pane, 0);
-    EXPECT_EQ(debug->state, "stopped");
-    EXPECT_EQ(editor.currentBuffer, buffer);
-    EXPECT_EQ(editor.currentBuffer->lines,
-              (std::vector<std::string>{"untouched editor buffer"}));
-    debug->applyMessage("{\"state\":\"stopped\",\"path\":" + mainPath +
-                        ",\"line\":2,\"breakpoints\":[{\"id\":\"1\","
-                        "\"enabled\":true,\"locations\":[{\"path\":" +
-                        helperPath + ",\"line\":3}]}]}");
-    EXPECT_EQ(std::filesystem::weakly_canonical(debug->sourcePath),
-              std::filesystem::weakly_canonical(helper));
-    EXPECT_EQ(debug->cursor[0], 2);
-    EXPECT_TRUE(debug->breakpointLines.contains(3));
-    testing::internal::CaptureStdout();
-    debug->draw(editor);
-    const auto rendered = testing::internal::GetCapturedStdout();
-    EXPECT_EQ(rendered.find(">2 "), std::string::npos);
-    EXPECT_NE(rendered.find("Source (browse)"), std::string::npos);
-    debug->followExecutionOnStop = true;
-    debug->applyMessage("{\"state\":\"stopped\",\"path\":" + mainPath +
-                        ",\"line\":3}");
-    EXPECT_FALSE(debug->sourcePinned);
-    EXPECT_EQ(debug->sourcePath, main.string());
-    EXPECT_EQ(debug->cursor[0], 2);
-    const auto previous = debug->source;
-    sm.dispatch(keyCode(control::ControlKey::CTRL_P));
-    ASSERT_NE(debug->filePicker, nullptr);
-    sm.dispatch(27);
-    EXPECT_EQ(debug->filePicker, nullptr);
-    EXPECT_EQ(debug->source, previous);
-    EXPECT_EQ(debug->cursor[0], 2);
-    EXPECT_TRUE(editor.fuzzyFileIndexInitialized);
+    {
+        ScopedCurrentPath cwd(dir);
+        Editor editor = Editor::createForTests();
+        editor.createNewBuffer();
+        editor.useGitFileIndex = false;
+        editor.currentBuffer->lines = {"untouched editor buffer"};
+        const auto buffer = editor.currentBuffer;
+        auto sm = makeMachine(editor, DebuggerMode{"program", false});
+        auto* debug = sm.getState<DebuggerMode>();
+        ASSERT_NE(debug, nullptr);
+        std::string mainPath, helperPath;
+        json_utils::append_escaped(mainPath, main.string());
+        json_utils::append_escaped(helperPath, helper.string());
+        debug->applyMessage("{\"state\":\"stopped\",\"path\":" + mainPath +
+                            ",\"line\":2}");
+        sm.dispatch(keyCode(control::ControlKey::CTRL_P));
+        ASSERT_NE(debug->filePicker, nullptr);
+        EXPECT_TRUE(debug->filePicker->singleSelection);
+        for(char c : std::string("helper.hpp:3"))
+            sm.dispatch(c);
+        ASSERT_EQ(debug->filePicker->matches.size(), 1u);
+        sm.dispatch(keyCode(control::ControlKey::ENTER));
+        EXPECT_EQ(sm.getState<DebuggerMode>(), debug);
+        EXPECT_EQ(debug->filePicker, nullptr);
+        EXPECT_TRUE(debug->sourcePinned);
+        EXPECT_EQ(std::filesystem::weakly_canonical(debug->sourcePath),
+                  std::filesystem::weakly_canonical(helper));
+        EXPECT_EQ(debug->cursor[0], 2);
+        EXPECT_EQ(debug->pane, 0);
+        EXPECT_EQ(debug->state, "stopped");
+        EXPECT_EQ(editor.currentBuffer, buffer);
+        EXPECT_EQ(editor.currentBuffer->lines,
+                  (std::vector<std::string>{"untouched editor buffer"}));
+        debug->applyMessage("{\"state\":\"stopped\",\"path\":" + mainPath +
+                            ",\"line\":2,\"breakpoints\":[{\"id\":\"1\","
+                            "\"enabled\":true,\"locations\":[{\"path\":" +
+                            helperPath + ",\"line\":3}]}]}");
+        EXPECT_EQ(std::filesystem::weakly_canonical(debug->sourcePath),
+                  std::filesystem::weakly_canonical(helper));
+        EXPECT_EQ(debug->cursor[0], 2);
+        EXPECT_TRUE(debug->breakpointLines.contains(3));
+        testing::internal::CaptureStdout();
+        debug->draw(editor);
+        const auto rendered = testing::internal::GetCapturedStdout();
+        EXPECT_EQ(rendered.find(">2 "), std::string::npos);
+        EXPECT_NE(rendered.find("Source (browse)"), std::string::npos);
+        debug->followExecutionOnStop = true;
+        debug->applyMessage("{\"state\":\"stopped\",\"path\":" + mainPath +
+                            ",\"line\":3}");
+        EXPECT_FALSE(debug->sourcePinned);
+        EXPECT_EQ(debug->sourcePath, main.string());
+        EXPECT_EQ(debug->cursor[0], 2);
+        const auto previous = debug->source;
+        sm.dispatch(keyCode(control::ControlKey::CTRL_P));
+        ASSERT_NE(debug->filePicker, nullptr);
+        sm.dispatch(27);
+        EXPECT_EQ(debug->filePicker, nullptr);
+        EXPECT_EQ(debug->source, previous);
+        EXPECT_EQ(debug->cursor[0], 2);
+        EXPECT_TRUE(editor.fuzzyFileIndexInitialized);
+    }
     std::filesystem::remove_all(dir);
 }
 #endif

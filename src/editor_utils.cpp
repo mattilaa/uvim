@@ -2036,6 +2036,20 @@ int fuzzyScoreWithPositions(const std::string& query,
 
 std::vector<std::string> getPathCompletions(std::string_view partial)
 {
+#ifdef _WIN32
+    // Filesystem paths typed or inserted with native separators must use the
+    // same completion logic as slash-separated paths, retaining their style.
+    if(partial.find('\\') != std::string_view::npos)
+    {
+        std::string normalized(partial);
+        std::replace(normalized.begin(), normalized.end(), '\\', '/');
+        auto matches = getPathCompletions(normalized);
+        for(auto& match : matches)
+            std::replace(match.begin(), match.end(), '/', '\\');
+        return matches;
+    }
+#endif
+
     std::vector<std::string> completions;
 
     std::string dirPath;
@@ -2199,6 +2213,20 @@ static void collectRecursiveCompletion(const std::string& dir,
 std::vector<std::string> getRecursivePathCompletions(std::string_view partial,
                                                      bool respectGitignore)
 {
+#ifdef _WIN32
+    // Filesystem paths typed or inserted with native separators must use the
+    // same completion logic as slash-separated paths, retaining their style.
+    if(partial.find('\\') != std::string_view::npos)
+    {
+        std::string normalized(partial);
+        std::replace(normalized.begin(), normalized.end(), '\\', '/');
+        auto matches = getRecursivePathCompletions(normalized, respectGitignore);
+        for(auto& match : matches)
+            std::replace(match.begin(), match.end(), '/', '\\');
+        return matches;
+    }
+#endif
+
     if(partial.empty())
         return getPathCompletions(partial);
 
