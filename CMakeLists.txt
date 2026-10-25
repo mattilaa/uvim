@@ -231,6 +231,7 @@ set(UVIM_CORE_SOURCES
     src/editor_execution_commands.cpp
     src/editor_execution_edit_command.cpp
     src/editor_execution_line_jump_command.cpp
+    src/editor_execution_substitute_command.cpp
     src/editor_execution_new_buffer_command.cpp
     src/editor_execution_no_buffer_only_command.cpp
     src/editor_execution_pwd_command.cpp
@@ -986,6 +987,7 @@ if(UVIM_BUILD_TESTS)
         tests/real_mode_insert_test.cpp
         tests/real_mode_lsp_rename_test.cpp
         tests/real_mode_search_test.cpp
+        tests/real_mode_substitute_test.cpp
         tests/real_mode_structural_navigation_test.cpp
         tests/real_mode_struct_size_test.cpp
         tests/real_mode_tool_popup_test.cpp

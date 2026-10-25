@@ -1595,6 +1595,15 @@ In command mode:
 
 - `:/foo.*bar` - regex search forward
 - `:?^word` - regex search backward
+- `:s/old/new/` - replace the first match on the current line
+- `:%s/old/new/g` - replace all matches in the buffer
+- `:2,10s/old/new/gi` - replace matches on lines 2–10, ignoring case
+- `:%%s/old/new/g` - stage replacements across project files as modified
+  buffers; review them and use `:wa` to save. Add `n` (`gn`) to count first.
+
+Substitution supports regex captures (`\1`–`\9`), the whole match (`&`),
+escaped delimiters, and one undo step per changed buffer. See the
+[search-and-replace guide](docs/wiki/Search-and-Replace.md) for ranges and flags.
 
 ## Function and local navigation
 

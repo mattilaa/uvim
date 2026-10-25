@@ -1,6 +1,7 @@
 #include "editor_command_controller.h"
 #include "editor.h"
 #include "editor_utils.h"
+#include "substitute_command.h"
 #ifndef UVIM_MINIMAL
 #include "widgets/command_history_popup.h"
 #include "widgets/command_popup.h"
@@ -233,6 +234,13 @@ void Editor::updateCommandPopupImpl(std::string_view query)
        commandBuffer.front() == ':')
     {
         effectiveQuery = std::string_view(commandBuffer).substr(1);
+    }
+
+    if(command::execution::isSubstituteCommand(effectiveQuery) &&
+       effectiveQuery != "s" && effectiveQuery != "substitute")
+    {
+        cancelCommandPopup();
+        return;
     }
 
     if(isLineJumpQuery(effectiveQuery))
@@ -595,7 +603,7 @@ Editor::getCommandCompletionsImpl(std::string_view prefix, Mode mode)
         "dbgrun", "dbgattach",
 #endif
         "tabnew", "tabe ", "tabn", "tabnext", "tabp", "tabprev",
-        "set",
+        "set", "s/", "%s/", "%%s/", "substitute/",
 #ifdef UVIM_ENABLE_FORMATTERS
         "format", "fmt",
 #endif

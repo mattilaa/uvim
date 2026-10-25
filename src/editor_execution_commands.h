@@ -13,6 +13,12 @@ public:
     bool execute(Editor& editor, const CommandRequest& request) const override;
 };
 
+class SubstituteCommand final : public EditorExecutionCommand
+{
+public:
+    bool execute(Editor& editor, const CommandRequest& request) const override;
+};
+
 class SetCommand final : public EditorExecutionCommand
 {
 public:
