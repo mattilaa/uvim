@@ -323,7 +323,7 @@ inline int wcwidth_win(wchar_t wc) noexcept
        (wc >= 0xFE00 && wc <= 0xFE0F) || // variation selectors
        wc == 0x2028 || wc == 0x2029)
         return 0;
-    if(wc == 0x2705 || wc == 0x2B1C) // checked and unchecked box emoji
+    if(wc == 0x2705) // white heavy check mark emoji
         return 2;
     if((wc >= 0x1100 && wc <= 0x115F) || // Hangul Jamo
        (wc >= 0x2E80 && wc <= 0x303E) || // CJK radicals / symbols

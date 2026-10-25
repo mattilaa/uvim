@@ -188,7 +188,7 @@ void SubstitutionMatchPicker::draw(bool backdrop, int& visibleRows)
                 {focused ? "> " : "  ", editor.theme.uiAccent()},
                 {entry.selected
                      ? (editor.utf8Mode ? "✅  " : "[x] ")
-                     : (editor.utf8Mode ? "⬜  " : "[ ] "),
+                     : "    ",
                  entry.selected ? editor.theme.baseFg() : editor.theme.uiDim()},
                 {std::to_string(entry.row + 1), editor.theme.uiWarning()},
                 {":", editor.theme.uiDim()},
