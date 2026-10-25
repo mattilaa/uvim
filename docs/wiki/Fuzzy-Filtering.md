@@ -1,6 +1,6 @@
 # Fuzzy filtering and regular expressions
 
-Fuzzy pickers accept explicit regular-expression queries in addition to ordinary fuzzy text. This applies to the file and buffer finders, function signatures, command palette, command and history popups, help search, Git log filtering, and debugger process and frame pickers. Existing fuzzy queries keep their ranking and navigation behavior.
+Fuzzy pickers accept explicit regular-expression queries in addition to ordinary fuzzy text. This applies to the file and buffer finders, function signatures, command palette, command and history popups, help search, Git log filtering, and debugger process and frame pickers. Ordered fuzzy matches rank above typo matches; navigation is unchanged.
 
 | Query | Meaning |
 | --- | --- |
@@ -12,6 +12,15 @@ Fuzzy pickers accept explicit regular-expression queries in addition to ordinary
 | `fz:re:example` | Search for the literal fuzzy text `re:example` |
 
 For alternation, type `re:^main\.(cpp|h)$` to match either extension.
+
+## Out-of-order characters
+
+Ordinary fuzzy filtering also finds compact matches when ASCII letters are
+out of order: `shtio` finds `something`, and `fiel` finds `file`. Correctly
+ordered matches rank first. Repeated letters must all exist in the candidate,
+and compact matches rank above widely separated letters. Two-character queries
+only permit an adjacent swap. Matching character highlights stay in display
+order. Regex queries keep their regex meaning and do not use this fallback.
 
 ## Matching and highlighting
 

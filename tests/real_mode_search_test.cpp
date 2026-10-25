@@ -976,3 +976,76 @@ TEST(RegexFuzzyQueryTest, HelpSearchSupportsRegexAndInvalidPatternRecovery)
 }
 
 #endif
+
+TEST(FuzzyTypoTest, FindsSomethingWithOutOfOrderCharactersAndSortedHighlights)
+{
+    std::vector<int> positions;
+    const int typo = editor::helper::fuzzyScoreWithPositions(
+        "shtio", "something", positions);
+    EXPECT_GT(typo, 0);
+    EXPECT_EQ(positions, (std::vector<int>{0, 1, 4, 5, 6}));
+    EXPECT_GT(
+        editor::helper::fuzzyScoreWithPositions("shtio", "shtio", positions),
+        typo);
+    EXPECT_GT(
+        editor::helper::fuzzyScoreWithPositions("fiel", "file", positions), 0);
+    EXPECT_EQ(positions, (std::vector<int>{0, 1, 2, 3}));
+}
+
+TEST(FuzzyTypoTest,
+     PreservesRepeatedLettersAndRejectsScatteredOrMissingCharacters)
+{
+    std::vector<int> positions;
+    EXPECT_GT(
+        editor::helper::fuzzyScoreWithPositions("bkoo", "book", positions), 0);
+    EXPECT_EQ(positions, (std::vector<int>{0, 1, 2, 3}));
+    EXPECT_LT(editor::helper::fuzzyScoreWithPositions("bkk", "book", positions),
+              0);
+    EXPECT_TRUE(positions.empty());
+    EXPECT_GT(editor::helper::fuzzyScoreWithPositions("ab", "ba", positions),
+              0);
+    EXPECT_LT(
+        editor::helper::fuzzyScoreWithPositions("ab", "b____a", positions), 0);
+    EXPECT_LT(editor::helper::fuzzyScoreWithPositions(
+                  "shtio", "s________o________mething", positions),
+              0);
+    EXPECT_LT(editor::helper::fuzzyScoreWithPositions("shtiox", "something",
+                                                      positions),
+              0);
+}
+
+TEST(FuzzyTypoTest, LeavesRegexExactAndKeepsUtf8ByteOffsetsIntact)
+{
+    std::vector<int> positions;
+    EXPECT_LT(editor::helper::fuzzyScoreWithPositions("re:shtio", "something",
+                                                      positions),
+              0);
+    EXPECT_LT(editor::helper::fuzzyScoreWithPositions("/shtio/", "something",
+                                                      positions),
+              0);
+    EXPECT_GT(editor::helper::fuzzyScoreWithPositions("fz:shtio", "é something",
+                                                      positions),
+              0);
+    EXPECT_EQ(positions, (std::vector<int>{3, 4, 7, 8, 9}));
+    EXPECT_LT(editor::helper::fuzzyScoreWithPositions("éa", "aé", positions),
+              0);
+}
+
+TEST(FuzzyTypoTest, FileFinderRanksOrderedNamesAboveReorderedMatches)
+{
+    Editor editor = Editor::createForTests();
+    FuzzyFindMode finder;
+    finder.projectFiles = {{"something.cpp", "something.cpp", false},
+                           {"shtio.cpp", "shtio.cpp", false},
+                           {"unrelated.cpp", "unrelated.cpp", false}};
+    finder.projectFilesInitialized = true;
+    auto sm = makeMachine(editor, std::move(finder));
+    typeText(sm, "shtio");
+    const auto* state = sm.getState<FuzzyFindMode>();
+    ASSERT_NE(state, nullptr);
+    ASSERT_EQ(state->matches.size(), 2u);
+    EXPECT_EQ(state->matches[0].file.name, "shtio.cpp");
+    EXPECT_EQ(state->matches[1].file.name, "something.cpp");
+    EXPECT_EQ(state->matches[1].matchPositions,
+              (std::vector<int>{0, 1, 4, 5, 6}));
+}

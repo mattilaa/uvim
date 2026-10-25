@@ -358,7 +358,8 @@ std::optional<int> regexQueryScore(std::string_view query,
 /// @return Match score, or -1 if pattern does not match.
 int fuzzyScore(const std::string& text, const std::string& pattern);
 
-/// @brief Scores fuzzy match quality and records matched character positions.
+/// @brief Scores ordered fuzzy matches, with a lower-ranked compact fallback
+/// for out-of-order ASCII characters. Records sorted byte positions.
 /// @param needle Pattern to match.
 /// @param haystack Candidate text.
 /// @param matchPositions Matched character offsets.

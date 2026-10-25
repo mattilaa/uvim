@@ -5,6 +5,7 @@
 #include "json_utils.h"
 #include "text_utils.h"
 #include <algorithm>
+#include <array>
 #include <cctype>
 #include <charconv>
 #include <chrono>
@@ -1956,6 +1957,84 @@ int fuzzyScore(const std::string& text, const std::string& query)
     return score;
 }
 
+namespace
+{
+int outOfOrderFuzzyScore(std::string_view query, std::string_view text,
+                         std::vector<int>& positions)
+{
+    positions.clear();
+    if(query.size() < 2 || query.size() > text.size())
+        return -1;
+    const auto lower = [](unsigned char ch) -> unsigned char
+    { return ch >= 'A' && ch <= 'Z' ? ch - 'A' + 'a' : ch; };
+    std::array<size_t, 256> required{}, present{};
+    for(unsigned char ch : query)
+    {
+        // Do not rearrange UTF-8 bytes. Ordered matching remains available.
+        if(ch >= 128)
+            return -1;
+        ++required[lower(ch)];
+    }
+    size_t missing = query.size(), left = 0, bestStart = 0, bestEnd = 0;
+    int bestScore = -1;
+    for(size_t right = 0; right < text.size(); ++right)
+    {
+        const auto ch = lower(static_cast<unsigned char>(text[right]));
+        if(required[ch] && present[ch]++ < required[ch])
+            --missing;
+        if(missing)
+            continue;
+        // Find a compact window containing every typed character, including
+        // repeated letters. Its positions are independent of query order.
+        while(left < right)
+        {
+            const auto first = lower(static_cast<unsigned char>(text[left]));
+            if(required[first] && present[first] <= required[first])
+                break;
+            if(required[first])
+                --present[first];
+            ++left;
+        }
+        const size_t width = right - left + 1;
+        const size_t maximum = query.size() == 2 ? 2 : query.size() * 3 + 4;
+        if(width <= maximum)
+        {
+            const bool boundary =
+                left == 0 || text[left - 1] == '/' || text[left - 1] == '\\' ||
+                text[left - 1] == '_' || text[left - 1] == '-' ||
+                text[left - 1] == '.' || text[left - 1] == ' ';
+            const int score =
+                std::max(1, 800 + (boundary ? 100 : 0) -
+                                static_cast<int>(std::min<size_t>(
+                                    width - query.size(), 50)) *
+                                    12 -
+                                static_cast<int>(std::min<size_t>(left, 200)));
+            if(score > bestScore)
+            {
+                bestScore = score;
+                bestStart = left;
+                bestEnd = right + 1;
+            }
+        }
+        const auto first = lower(static_cast<unsigned char>(text[left++]));
+        --present[first];
+        ++missing;
+    }
+    if(bestScore < 0)
+        return -1;
+    for(size_t i = bestStart; i < bestEnd; ++i)
+    {
+        const auto ch = lower(static_cast<unsigned char>(text[i]));
+        if(required[ch])
+        {
+            positions.push_back(static_cast<int>(i));
+            --required[ch];
+        }
+    }
+    return bestScore;
+}
+} // namespace
+
 int fuzzyScoreWithPositions(const std::string& query,
                             const std::string& haystack,
                             std::vector<int>& matchPositions)
@@ -2028,10 +2107,11 @@ int fuzzyScoreWithPositions(const std::string& query,
     }
 
     if(needleIdx != needle.length())
-        return -1;
+        return outOfOrderFuzzyScore(needle, haystack, matchPositions);
 
     score -= static_cast<int>(haystack.length());
-    return score;
+    // Keep ordered subsequences above the typo fallback, even on long paths.
+    return 10000 + std::max(0, score);
 }
 
 std::vector<std::string> getPathCompletions(std::string_view partial)
