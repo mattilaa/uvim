@@ -1605,6 +1605,11 @@ Add `c` (`:%s/old/new/gc` or `:%%s/old/new/gc`) to confirm each occurrence:
 `y` replaces, `n` skips, `a` accepts all remaining matches, `l` replaces this
 match and stops, and `q`/Esc stops while keeping earlier approvals.
 
+Use `p` (`:%s/old/new/gp` or `:%%s/old/new/gp`) for a match list: j/k
+moves, Ctrl-D/U moves half a page, Space toggles green selections, `r` clears
+selections, Enter applies all selected replacements together, and Esc cancels.
+Long lists show a scrollbar on the popup's right edge.
+
 Substitution supports regex captures (`\1`–`\9`), the whole match (`&`),
 escaped delimiters, and one undo step per changed buffer. See the
 [search-and-replace guide](docs/wiki/Search-and-Replace.md) for ranges and flags.

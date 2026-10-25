@@ -55,6 +55,9 @@ includes common Normal/Insert/Visual/Command mode bindings.
   Regex captures use `\1` through `\9`; `&` inserts the whole match.
   Each changed buffer gets one undo step. Add `c` to confirm each occurrence:
   `y` replace, `n` skip, `a` all, `l` last, `q`/Esc stop.
+  Add `p` for a match list: j/k moves, Ctrl-D/U moves half a page, Space
+  toggles green selections, `r` clears selections, Enter applies selected
+  replacements, Esc cancels. Long lists show a scrollbar.
 
 - Fuzzy pickers accept `re:pattern` or `/pattern/` for case-insensitive regex
   filtering, including Ctrl-P, buffers, functions, palette, help, Git log,

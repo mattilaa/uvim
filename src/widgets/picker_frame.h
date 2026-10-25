@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -78,6 +79,11 @@ public:
     void previewRow(int row, int lineNumber, std::string_view text,
                     bool current, const std::vector<Span>& spans = {});
     void previewMessage(int row, std::string_view text);
+    // Compose a preview row with multiple foreground colours.
+    void beginPreviewRow(int row);
+    void endPreviewRow(int usedWidth);
+    // Show the visible portion of a long list on the floating box's right edge.
+    void scrollbar(size_t totalRows, size_t firstVisibleRow);
 
     const PickerLayout& layout() const
     {

@@ -232,6 +232,7 @@ set(UVIM_CORE_SOURCES
     src/editor_execution_edit_command.cpp
     src/editor_execution_line_jump_command.cpp
     src/editor_execution_substitute_command.cpp
+    src/substitution_match_picker.cpp
     src/editor_execution_new_buffer_command.cpp
     src/editor_execution_no_buffer_only_command.cpp
     src/editor_execution_pwd_command.cpp

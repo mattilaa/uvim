@@ -286,19 +286,52 @@ void PickerCanvas::previewRow(int row, int lineNumber, std::string_view text,
     out_ += theme_.reset();
 }
 
+void PickerCanvas::beginPreviewRow(int row)
+{
+    out_ += Terminal::cursorPos(bodyTop() + row, layout_.previewLeft);
+    out_ += theme_.reset();
+}
+
+void PickerCanvas::endPreviewRow(int usedWidth)
+{
+    if(usedWidth < layout_.previewCols)
+        out_.append(layout_.previewCols - usedWidth, ' ');
+    out_ += theme_.reset();
+}
+
+void PickerCanvas::scrollbar(size_t totalRows, size_t firstVisibleRow)
+{
+    if(!layout_.floating || totalRows <= static_cast<size_t>(bodyRows()))
+        return;
+    const int trackRows = bodyRows();
+    const int thumbRows = std::max(
+        1, static_cast<int>(static_cast<size_t>(trackRows) * trackRows /
+                            totalRows));
+    const size_t maxOffset = totalRows - trackRows;
+    const int thumbTop = static_cast<int>(
+        std::min(firstVisibleRow, maxOffset) * (trackRows - thumbRows) /
+        maxOffset);
+    for(int row = 0; row < trackRows; ++row)
+    {
+        out_ += Terminal::cursorPos(bodyTop() + row,
+                                    layout_.boxLeft + layout_.boxCols - 1);
+        const bool thumb = row >= thumbTop && row < thumbTop + thumbRows;
+        out_ += thumb ? theme_.uiInfo() : theme_.uiDim();
+        out_ += thumb ? (unicode_ ? "█" : "#")
+                      : (unicode_ ? "│" : "|");
+    }
+    out_ += theme_.reset();
+}
+
 void PickerCanvas::previewMessage(int row, std::string_view text)
 {
     if(!layout_.preview || row < 0 || row >= bodyRows())
         return;
-    out_ += Terminal::cursorPos(bodyTop() + row, layout_.previewLeft);
-    out_ += theme_.reset();
+    beginPreviewRow(row);
     out_ += theme_.uiDim();
     const std::string clipped = clipToWidth(text, layout_.previewCols);
     out_ += clipped;
-    const int used = text_utils::utf8DisplayWidth(clipped);
-    if(used < layout_.previewCols)
-        out_.append(layout_.previewCols - used, ' ');
-    out_ += theme_.reset();
+    endPreviewRow(text_utils::utf8DisplayWidth(clipped));
 }
 
 std::vector<std::string> loadPreviewLines(const std::string& path,

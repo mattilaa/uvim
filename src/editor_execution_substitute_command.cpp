@@ -4,6 +4,7 @@
 #include "editor_utils.h"
 #include "gitignore.h"
 #include "substitute_command.h"
+#include "substitution_match_picker.h"
 #include "terminal.h"
 #include "text_utils.h"
 #include "widgets/picker_frame.h"
@@ -45,7 +46,7 @@ struct Substitution
     int first = 0, last = 0;
     std::string pattern, replacement;
     bool global = false, insensitive = false, countOnly = false;
-    bool quietNoMatch = false, project = false, confirm = false;
+    bool quietNoMatch = false, project = false, confirm = false, pick = false;
 };
 
 bool address(std::string_view& text, int current, int last, int visualFirst,
@@ -167,38 +168,6 @@ struct Confirmation
     Editor& editor;
     bool all = false, stopped = false, seen = false, drawn = false;
 
-    static std::string previewText(std::string_view text, int width)
-    {
-        std::string out;
-        int used = 0;
-        for(size_t i = 0; i < text.size() && used < width;)
-        {
-            const auto ch = static_cast<unsigned char>(text[i]);
-            if(ch < 32 || ch == 127 || (ch >= 0x80 && ch < 0xa0))
-            {
-                const std::string escaped = ch == '\n'   ? "\\n"
-                                            : ch == '\t' ? "\\t"
-                                                         : "?";
-                if(used + static_cast<int>(escaped.size()) > width)
-                    break;
-                out += escaped;
-                used += static_cast<int>(escaped.size());
-                ++i;
-            }
-            else
-            {
-                const size_t length = ch < 0xc0   ? 1
-                                      : ch < 0xe0 ? 2
-                                      : ch < 0xf0 ? 3
-                                                  : 4;
-                out.append(text.substr(i, length));
-                i += length;
-                ++used;
-            }
-        }
-        return out;
-    }
-
     bool accept(std::string_view path, int row, const std::string& line,
                 const std::smatch& match, const std::string& replacement)
     {
@@ -211,47 +180,33 @@ struct Confirmation
             {std::max(1, editor.screenRows - 2), editor.screenCols, true, 90,
              40, false});
         Terminal::beginCapture();
-        if(!drawn)
+        if(!drawn && editor.hasBuffer())
             editor.drawFullScreen();
         drawn = true;
         std::string out;
         widgets::PickerCanvas canvas(out, layout, editor.theme,
                                      editor.utf8Mode);
+        const auto separator = substitutionSeparator(editor);
         canvas.frame("Confirm replacement",
-                     "y yes | n skip | a all | l last | q/Esc stop", 0);
+                     "y yes" + separator + "n skip" + separator + "a all" +
+                         separator + "l last" + separator + "q/Esc stop",
+                     0);
         const auto put =
             [&](int index, std::string_view text, const std::string& color)
         {
             if(index >= canvas.bodyRows())
                 return;
             canvas.beginRow(index);
-            const auto clipped = previewText(text, layout.cols);
+            const auto clipped = substitutionPreviewText(text, layout.cols);
             out += color;
             out += clipped;
             out += editor.theme.reset();
             canvas.endRow(text_utils::utf8DisplayWidth(clipped));
         };
-        std::string displayPath =
-            path.empty() ? "[No Name]" : std::string(path);
-        if(!path.empty())
-        {
-            std::error_code ec;
-            const auto root =
-                editor.projectRoot.empty()
-                    ? EditorPathUtilities::currentWorkingDirectory()
-                    : EditorPathUtilities::resolveEditorPath(
-                          editor.projectRoot);
-            const auto relative = std::filesystem::relative(
-                std::filesystem::path(path), root, ec);
-            if(!ec && !relative.empty() && relative.begin()->string() != "..")
-                displayPath = relative.generic_string();
-            else
-                displayPath = std::filesystem::path(path).filename().string() +
-                              " | " + std::string(path);
-        }
+        const std::string displayPath = substitutionDisplayPath(editor, path);
         const std::string location =
             "Line " + std::to_string(row + 1) + ", column " +
-            std::to_string(match.position() + 1) + " | " + displayPath;
+            std::to_string(match.position() + 1) + separator + displayPath;
         put(0, location, editor.theme.uiAccent());
         // Center long source excerpts on the occurrence being considered.
         const size_t start = static_cast<size_t>(match.position());
@@ -302,7 +257,8 @@ std::vector<std::string> replaceLines(const std::vector<std::string>& source,
                                       const std::regex& expression,
                                       size_t& matches, size_t& matchedLines,
                                       Confirmation* confirmation = nullptr,
-                                      std::string_view path = {})
+                                      std::string_view path = {},
+                                      SubstitutionMatchPicker* picker = nullptr)
 {
     std::vector<std::string> result;
     result.reserve(source.size());
@@ -327,11 +283,18 @@ std::vector<std::string> replaceLines(const std::vector<std::string>& source,
                     ? std::string{}
                     : expandReplacement(match, substitution.replacement);
             const bool accepted =
-                !confirmation || substitution.countOnly ||
-                confirmation->accept(path, row, line, match, replacement);
+                substitution.countOnly ||
+                (picker ? picker->consider(
+                              path, row, static_cast<size_t>(match.position()),
+                              static_cast<size_t>(match.length()), line,
+                              replacement)
+                        : !confirmation ||
+                              confirmation->accept(path, row, line, match,
+                                                   replacement));
             if(!accepted)
             {
-                if(!substitution.global || confirmation->stopped)
+                if(!substitution.global ||
+                   (confirmation && confirmation->stopped))
                     break;
                 continue;
             }
@@ -494,7 +457,10 @@ bool replaceProject(Editor& editor, const Substitution& substitution,
     std::vector<Change> changes;
     size_t matches = 0, matchedLines = 0, matchedFiles = 0;
     Confirmation confirmation{editor};
-    auto* session = substitution.confirm && !substitution.countOnly
+    SubstitutionMatchPicker picker(editor);
+    auto* batch =
+        substitution.pick && !substitution.countOnly ? &picker : nullptr;
+    auto* session = substitution.confirm && !substitution.countOnly && !batch
                         ? &confirmation
                         : nullptr;
     for(const auto& path : paths)
@@ -539,15 +505,39 @@ bool replaceProject(Editor& editor, const Substitution& substitution,
         allLines.first = 0;
         allLines.last = static_cast<int>(source.size()) - 1;
         const auto previousMatches = matches;
+        const auto previousItems = picker.size();
         auto result = replaceLines(source, allLines, expression, matches,
-                                   matchedLines, session, path);
+                                   matchedLines, session, path, batch);
         matchedFiles += previousMatches != matches;
-        if(!substitution.countOnly && result != source)
+        if(!substitution.countOnly &&
+           (result != source || picker.size() != previousItems))
             changes.push_back(
                 {path, std::move(source), std::move(result), existing});
     }
     if(!matches && !substitution.quietNoMatch && !confirmation.seen)
         return fail("Pattern not found in project: " + substitution.pattern);
+
+    if(batch && picker.size() > 0)
+    {
+        if(!picker.choose())
+            return fail("Replacement selection cancelled");
+        matches = matchedLines = matchedFiles = 0;
+        std::vector<Change> selected;
+        for(auto& change : changes)
+        {
+            Substitution allLines = substitution;
+            allLines.first = 0;
+            allLines.last = static_cast<int>(change.before.size()) - 1;
+            const auto previous = matches;
+            change.after =
+                replaceLines(change.before, allLines, expression, matches,
+                             matchedLines, nullptr, change.path, batch);
+            matchedFiles += previous != matches;
+            if(change.after != change.before)
+                selected.push_back(std::move(change));
+        }
+        changes = std::move(selected);
+    }
 
     const int original = editor.currentBufferIndex;
     // Open only files that will change. Verify every snapshot before applying
@@ -658,7 +648,7 @@ bool SubstituteCommand::execute(Editor& editor,
     text.remove_prefix(pos);
     text.remove_prefix(text.starts_with("substitute") ? 10 : 1);
     if(text.empty() || !delimiter(text.front()))
-        return fail("Usage: [range]s/pattern/replacement/[gcineI]");
+        return fail("Usage: [range]s/pattern/replacement/[gcpineI]");
     const char separator = text.front();
     text.remove_prefix(1);
     if(!segment(text, separator, substitution.pattern, true) ||
@@ -669,6 +659,9 @@ bool SubstituteCommand::execute(Editor& editor,
     {
         switch(flag)
         {
+        case 'p':
+            substitution.pick = true;
+            break;
         case 'c':
             substitution.confirm = true;
             break;
@@ -717,13 +710,26 @@ bool SubstituteCommand::execute(Editor& editor,
 
     size_t matches = 0, matchedLines = 0;
     Confirmation confirmation{editor};
+    SubstitutionMatchPicker picker(editor);
+    auto* batch =
+        substitution.pick && !substitution.countOnly ? &picker : nullptr;
     auto result = replaceLines(
         *editor.lines, substitution, expression, matches, matchedLines,
-        substitution.confirm && !substitution.countOnly ? &confirmation
-                                                        : nullptr,
-        editor.currentBuffer->filename);
+        substitution.confirm && !substitution.countOnly && !batch
+            ? &confirmation
+            : nullptr,
+        editor.currentBuffer->filename, batch);
     if(!matches && !substitution.quietNoMatch && !confirmation.seen)
         return fail("Pattern not found: " + substitution.pattern);
+    if(batch && picker.size() > 0)
+    {
+        if(!picker.choose())
+            return fail("Replacement selection cancelled");
+        matches = matchedLines = 0;
+        result = replaceLines(*editor.lines, substitution, expression, matches,
+                              matchedLines, nullptr,
+                              editor.currentBuffer->filename, batch);
+    }
 
     if(!substitution.countOnly)
         applyReplacement(editor, std::move(result));

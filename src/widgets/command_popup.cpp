@@ -23,7 +23,7 @@ std::string_view commandDocumentation(std::string_view cmd)
     if(cmd == "%%s/")
         return "Replace across project files; stage buffers, then :wa to save";
     if(cmd == "s/" || cmd == "%s/" || cmd == "substitute/")
-        return "Replace text: [range]s/pattern/replacement/[gcineI]";
+        return "Replace text: [range]s/pattern/replacement/[gcpineI]";
     if(cmd == "-O0")
         return "Disable optimization for easier source comparison";
     if(cmd == "-O1")

@@ -43,6 +43,7 @@ Tab completion leave substitution expressions intact while you type.
 | --- | --- |
 | `g` | Replace all matches on each line instead of just the first |
 | `c` | Ask before each replacement |
+| `p` | Pick replacements from a selectable match list |
 | `i` | Ignore case |
 | `I` | Use case-sensitive matching; the last `i` or `I` wins |
 | `n` | Count matches without modifying text |
@@ -75,7 +76,43 @@ Stopping preserves earlier approvals and leaves remaining text unchanged.
 Each changed buffer still gets one undo step. Rejecting every occurrence
 creates no undo entries and does not open project buffers. Without `g`, only
 the first match per line is considered. Combining `n` with `c` only counts
-matches and does not ask questions. Commands without `c` replace immediately.
+matches and does not ask questions. Commands without `c` or `p` replace immediately.
+
+## Selecting matches from a list
+
+Use `p` to select several occurrences and apply them together:
+
+```text
+:%s/old/new/gp
+:%%s/old/new/gp
+```
+
+The popup lists each match with its file, line, column, and source excerpt.
+The focused row shows the expanded replacement; wide terminals also show a
+preview pane. Line numbers, columns, directories, filenames, and matched text
+use distinct colors. The inspection pane uses the same colors and shows the
+replacement in green. Initially no matches are selected.
+
+| Key | Action |
+| --- | --- |
+| `j` / `k`, arrows | Move between matches |
+| Ctrl+D / Ctrl+U | Move down / up half a page |
+| Space | Toggle the focused match |
+| `r` | Reset by clearing all selections |
+| Enter | Apply all selected replacements at once |
+| Esc, Ctrl+C, `q` | Cancel and discard the selections |
+| Page Up / Page Down, Home / End | Browse longer lists |
+
+Selected rows have a green background; the focused selected row uses a brighter
+green. A scrollbar on the popup's right edge marks the visible part of long
+lists. Selecting matches does not change text. Enter creates one undo step per
+changed buffer. Project files remain unsaved until `:w` or `:wa`, and files with
+no selected changes are not opened. Confirming an empty selection changes
+nothing. Cancelling leaves all text untouched.
+
+`p` takes precedence over `c` when combined. `n` takes precedence over both
+interactive modes and only counts matches. Without `g`, the list contains only
+the first match on each line. Ranges and capture replacements work as usual.
 
 ## Project-wide replacement
 

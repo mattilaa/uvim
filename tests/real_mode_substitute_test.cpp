@@ -391,3 +391,160 @@ TEST(SubstituteTest, ProjectConfirmationQuitDoesNotOpenSkippedFiles)
     EXPECT_EQ(read_file(root / "b.txt"), "foo\n");
     EXPECT_EQ(Terminal::bufferedKeyCount(), 0);
 }
+
+TEST(SubstituteTest, BatchPickerTogglesRowsWithSpaceAndMovesBothDirections)
+{
+    auto editor = Editor::createForTests();
+    contents(editor, {"foo foo foo"});
+    const int before = editor.currentBuffer->undoIndex;
+    // Select first and third, return to second to toggle it on and back off.
+    confirmKeys(" jj k  \r");
+    editor.executeCommand("%s/foo/bar/gp");
+    EXPECT_EQ(editor.lines->front(), "bar foo bar");
+    EXPECT_EQ(editor.statusMessage, "2 substitutions on 1 lines");
+    EXPECT_EQ(editor.currentBuffer->undoIndex, before + 1);
+    editor.undo();
+    EXPECT_EQ(editor.lines->front(), "foo foo foo");
+    EXPECT_FALSE(*editor.dirty);
+    EXPECT_EQ(Terminal::bufferedKeyCount(), 0);
+}
+
+TEST(SubstituteTest, BatchPickerResetClearsAllSelectionsBeforeApplying)
+{
+    auto editor = Editor::createForTests();
+    contents(editor, {"foo foo", "foo"});
+    confirmKeys(" j rj \r");
+    editor.executeCommand("%s/foo/bar/gp");
+    EXPECT_EQ(*editor.lines, (std::vector<std::string>{"foo foo", "bar"}));
+    EXPECT_EQ(editor.statusMessage, "1 substitutions on 1 lines");
+    EXPECT_EQ(Terminal::bufferedKeyCount(), 0);
+}
+
+TEST(SubstituteTest, BatchPickerCancelDiscardsAllSelectionsAndCreatesNoUndo)
+{
+    for(const char cancel : {'q', '\x1b', '\x03'})
+    {
+        auto editor = Editor::createForTests();
+        contents(editor, {"foo foo"});
+        const int before = editor.currentBuffer->undoIndex;
+        confirmKeys(std::string(" ") + cancel);
+        editor.executeCommand("%s/foo/bar/gp");
+        EXPECT_EQ(editor.lines->front(), "foo foo");
+        EXPECT_FALSE(*editor.dirty);
+        EXPECT_EQ(editor.currentBuffer->undoIndex, before);
+        EXPECT_EQ(editor.statusMessage,
+                  "substitute: Replacement selection cancelled");
+        EXPECT_EQ(Terminal::bufferedKeyCount(), 0);
+    }
+}
+
+TEST(SubstituteTest, BatchPickerApplyEmptyOrResetSelectionIsNoOp)
+{
+    for(const std::string keys : {"\r", " r\r"})
+    {
+        auto editor = Editor::createForTests();
+        contents(editor, {"foo foo"});
+        const int before = editor.currentBuffer->undoIndex;
+        confirmKeys(keys);
+        editor.executeCommand("%s/foo/bar/gp");
+        EXPECT_EQ(editor.lines->front(), "foo foo");
+        EXPECT_FALSE(*editor.dirty);
+        EXPECT_EQ(editor.currentBuffer->undoIndex, before);
+        EXPECT_EQ(editor.statusMessage, "0 substitutions on 0 lines");
+    }
+}
+
+TEST(SubstituteTest, BatchPickerRespectsRangesFirstMatchAndCaptureReplacements)
+{
+    auto editor = Editor::createForTests();
+    contents(editor, {"foo1 foo2", "foo3 foo4", "foo5 foo6"});
+    confirmKeys(" j \r");
+    editor.executeCommand(R"(2,3s/foo([0-9])/\1\n&/p)");
+    EXPECT_EQ(*editor.lines,
+              (std::vector<std::string>{"foo1 foo2", "3", "foo3 foo4", "5",
+                                        "foo5 foo6"}));
+    EXPECT_EQ(Terminal::bufferedKeyCount(), 0);
+}
+
+TEST(SubstituteTest, BatchPickerScrollsToMatchesBeyondFirstPage)
+{
+    auto editor = Editor::createForTests();
+    contents(editor, std::vector<std::string>(40, "foo"));
+    editor.screenRows = 16;
+    editor.screenCols = 60;
+    confirmKeys(std::string(39, 'j') + " \r");
+    editor.executeCommand("%s/foo/bar/gp");
+    EXPECT_EQ(editor.lines->back(), "bar");
+    EXPECT_EQ(std::count(editor.lines->begin(), editor.lines->end(), "foo"),
+              39);
+    EXPECT_EQ(Terminal::bufferedKeyCount(), 0);
+}
+
+TEST(SubstituteTest, ProjectBatchPickerOnlyOpensSelectedChangedFiles)
+{
+    const auto root = make_temp_dir("uvim_project_batch_pick_");
+    write_file(root / "a.txt", "foo foo\n");
+    write_file(root / "b.txt", "foo\n");
+    auto editor = Editor::createForTests();
+    editor.projectRoot = root.string();
+    confirmKeys("jj \r");
+    editor.executeCommand("%%s/foo/bar/gp");
+    ASSERT_EQ(editor.buffers.size(), 1u);
+    EXPECT_EQ(editor.lines->front(), "bar");
+    EXPECT_EQ(editor.currentBuffer->filename,
+              std::filesystem::canonical(root / "b.txt").string());
+    EXPECT_EQ(read_file(root / "a.txt"), "foo foo\n");
+    EXPECT_EQ(read_file(root / "b.txt"), "foo\n");
+    EXPECT_NE(editor.statusMessage.find("1 substitutions in 1 project files"),
+              std::string::npos);
+    editor.undo();
+    EXPECT_EQ(editor.lines->front(), "foo");
+    EXPECT_FALSE(*editor.dirty);
+    EXPECT_EQ(Terminal::bufferedKeyCount(), 0);
+}
+
+TEST(SubstituteTest, ProjectBatchPickerCancelledOrEmptyNeverOpensBuffers)
+{
+    const auto root = make_temp_dir("uvim_project_batch_cancel_");
+    write_file(root / "a.txt", "foo\n");
+    for(const std::string keys : {" \x1b", " r\r", "\r"})
+    {
+        auto editor = Editor::createForTests();
+        editor.projectRoot = root.string();
+        confirmKeys(keys);
+        editor.executeCommand("%%s/foo/bar/gp");
+        EXPECT_TRUE(editor.buffers.empty());
+        EXPECT_EQ(read_file(root / "a.txt"), "foo\n");
+        EXPECT_EQ(Terminal::bufferedKeyCount(), 0);
+    }
+}
+
+TEST(SubstituteTest, BatchPickerKeepsNoOpMatchesInProjectReplayOrder)
+{
+    const auto root = make_temp_dir("uvim_project_batch_noop_");
+    write_file(root / "a.txt", "foo\n");
+    write_file(root / "b.txt", "bar\n");
+    auto editor = Editor::createForTests();
+    editor.projectRoot = root.string();
+    confirmKeys("j \r");
+    editor.executeCommand("%%s/foo|bar/foo/gp");
+    ASSERT_EQ(editor.buffers.size(), 1u);
+    EXPECT_EQ(editor.currentBuffer->filename,
+              std::filesystem::canonical(root / "b.txt").string());
+    EXPECT_EQ(editor.lines->front(), "foo");
+    EXPECT_EQ(Terminal::bufferedKeyCount(), 0);
+}
+
+TEST(SubstituteTest, CountOnlyOverridesBatchPickerAndBatchOverridesConfirm)
+{
+    auto editor = Editor::createForTests();
+    contents(editor, {"foo foo"});
+    confirmKeys("x");
+    editor.executeCommand("%s/foo/bar/gpcn");
+    EXPECT_EQ(editor.statusMessage, "2 matches on 1 lines");
+    EXPECT_EQ(Terminal::readKey(), 'x');
+    confirmKeys(" \r");
+    editor.executeCommand("%s/foo/bar/gpc");
+    EXPECT_EQ(editor.lines->front(), "bar foo");
+    EXPECT_EQ(Terminal::bufferedKeyCount(), 0);
+}
