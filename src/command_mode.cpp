@@ -1,5 +1,6 @@
 #include "editor.h"
 #include "editor_utils.h"
+#include "substitute_command.h"
 #include "mode_state_machine.h"
 #include "terminal.h"
 #include "text_utils.h"
@@ -834,6 +835,9 @@ void CommandMode::handleTabCompletion(ModeContext& ctx)
 {
     std::string input = ctx.commandBuffer.substr(
         1); // Remove keyCode(command::CommandKey::KEY_COLON)
+    if(command::execution::isSubstituteCommand(input) &&
+       input != "s" && input != "substitute")
+        return;
     bool wholeCompletion = false;
     bool helpCompletion = false;
     bool locCompletionLocal = false;

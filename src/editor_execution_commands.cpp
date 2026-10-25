@@ -9,6 +9,7 @@ std::vector<std::unique_ptr<EditorExecutionCommand>> buildCommands()
 {
     std::vector<std::unique_ptr<EditorExecutionCommand>> commands;
     commands.push_back(std::make_unique<SearchCommand>());
+    commands.push_back(std::make_unique<SubstituteCommand>());
     commands.push_back(std::make_unique<SetCommand>());
     commands.push_back(std::make_unique<ReloadCurrentFileCommand>());
 #ifdef UVIM_ENABLE_BROWSER_TOOLS

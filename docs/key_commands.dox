@@ -47,6 +47,18 @@ includes common Normal/Insert/Visual/Command mode bindings.
 - `.` : repeat last change
 
 \subsection keys_normal_search Search
+- `:s/old/new/` : replace the first match on the current line
+- `:%s/old/new/g` : replace all matches in the current buffer
+- `:2,10s/old/new/gi` : replace in a line range, ignoring case
+- `:%%s/old/new/g` : stage project-wide replacements in modified buffers;
+  review and save with `:wa`. Add `n` (`gn`) to count without changing text.
+  Regex captures use `\1` through `\9`; `&` inserts the whole match.
+  Each changed buffer gets one undo step. Add `c` to confirm each occurrence:
+  `y` replace, `n` skip, `a` all, `l` last, `q`/Esc stop.
+  Add `p` for a match list: j/k moves, Ctrl-D/U moves half a page, Space
+  toggles green selections, `r` clears selections, Enter applies selected
+  replacements, Esc cancels. Long lists show a scrollbar.
+
 - Fuzzy pickers accept `re:pattern` or `/pattern/` for case-insensitive regex
   filtering, including Ctrl-P, buffers, functions, palette, help, Git log,
   command/history popups, and debugger frame/process pickers. Typing

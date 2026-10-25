@@ -1,5 +1,6 @@
 #include "editor.h"
 #include "editor_utils.h"
+#include "substitute_command.h"
 #include "mode_state_machine.h"
 #include "terminal.h"
 #include "text_utils.h"
@@ -40,6 +41,9 @@ bool CommandPrompt::handle(
     auto handleTabCompletion = [&](bool reverse)
     {
         std::string inputText = input;
+        if(command::execution::isSubstituteCommand(inputText) &&
+           inputText != "s" && inputText != "substitute")
+            return;
         bool wholeCompletion = false;
         bool helpCompletion = false;
         bool locCompletion = false;
@@ -221,6 +225,14 @@ bool CommandPrompt::handle(
             if(!ctx.isCommandPopupActive())
                 ctx.startCommandPopup();
             ctx.updateCommandPopup("");
+            return;
+        }
+
+        // View search prompts own '/' and '?' input, including Tab selection.
+        // Command names containing delimiters must not capture those searches.
+        if(input.starts_with('/') || input.starts_with('?'))
+        {
+            ctx.cancelCommandPopup();
             return;
         }
 

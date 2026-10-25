@@ -1595,6 +1595,24 @@ In command mode:
 
 - `:/foo.*bar` - regex search forward
 - `:?^word` - regex search backward
+- `:s/old/new/` - replace the first match on the current line
+- `:%s/old/new/g` - replace all matches in the buffer
+- `:2,10s/old/new/gi` - replace matches on lines 2–10, ignoring case
+- `:%%s/old/new/g` - stage replacements across project files as modified
+  buffers; review them and use `:wa` to save. Add `n` (`gn`) to count first.
+
+Add `c` (`:%s/old/new/gc` or `:%%s/old/new/gc`) to confirm each occurrence:
+`y` replaces, `n` skips, `a` accepts all remaining matches, `l` replaces this
+match and stops, and `q`/Esc stops while keeping earlier approvals.
+
+Use `p` (`:%s/old/new/gp` or `:%%s/old/new/gp`) for a match list: j/k
+moves, Ctrl-D/U moves half a page, Space toggles green selections, `r` clears
+selections, Enter applies all selected replacements together, and Esc cancels.
+Long lists show a scrollbar on the popup's right edge.
+
+Substitution supports regex captures (`\1`–`\9`), the whole match (`&`),
+escaped delimiters, and one undo step per changed buffer. See the
+[search-and-replace guide](docs/wiki/Search-and-Replace.md) for ranges and flags.
 
 ## Function and local navigation
 
