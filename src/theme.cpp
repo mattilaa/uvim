@@ -50,7 +50,7 @@ Theme Theme::defaults()
 
     t.syntax_[TOKEN_NORMAL] = t.base_fg_;
     t.syntax_[TOKEN_KEYWORD] = {0xC4, 0xA7, 0xE7, true};
-    t.syntax_[TOKEN_TYPE] = {0x9C, 0xCF, 0xD8, true};
+    t.syntax_[TOKEN_TYPE] = {0xB7, 0xA3, 0xDB, true};
     t.syntax_[TOKEN_STRING] = {0x9E, 0xCE, 0x6A, true};
     t.syntax_[TOKEN_CHAR] = {0x9E, 0xCE, 0x6A, true};
     t.syntax_[TOKEN_COMMENT] = {0x6E, 0x6A, 0x86, true};
@@ -58,7 +58,7 @@ Theme Theme::defaults()
     t.syntax_[TOKEN_NUMBER] = {0xEB, 0x6F, 0x92, true};
     t.syntax_[TOKEN_OPERATOR] = {0xF6, 0xC1, 0x77, true};
     t.syntax_[TOKEN_FUNCTION] = {0x6B, 0x86, 0xC9, true};
-    t.syntax_[TOKEN_MEMBER] = {0x89, 0xDC, 0xEB, true};
+    t.syntax_[TOKEN_MEMBER] = {0xA6, 0xA4, 0xB5, true};
     t.syntax_[TOKEN_NAMESPACE_1] = {0x9B, 0x7F, 0xBF, true};
     t.syntax_[TOKEN_NAMESPACE_2] = {0xAA, 0x8D, 0xCE, true};
     t.syntax_[TOKEN_NAMESPACE_3] = {0xB7, 0x9A, 0xDC, true};

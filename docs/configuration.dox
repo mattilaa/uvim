@@ -33,7 +33,7 @@ fg = "#e0def4"
 bg = "#1f1d2e"
 
 [theme.syntax]
-type = "#9ccfd8"
+type = "#b7a3db"
 \endcode
 
 \section config_examples Examples
@@ -130,9 +130,9 @@ accent = "#c4a7e7"
 info = "#9ccfd8"
 
 [theme.syntax]
-type = "#9ccfd8"
+type = "#b7a3db"
 function = "#6b86c9"
-member = "#89dceb"
+member = "#a6a4b5"
 \endcode
 
 \section config_editor Editor settings
@@ -361,6 +361,8 @@ Valid values: `normal`, `keyword`, `type`, `string`, `char`, `comment`,
 
 \par editor.syntax.cpp.member_color
 Token name. Default: `member`. Color used for C++ members (fields/accesses).
+The default theme uses dim gray-white for members, distinct from normal local
+variables and colored types. Override `theme.syntax.member` to choose a color.
 Valid values: `normal`, `keyword`, `type`, `string`, `char`, `comment`,
 `preprocessor`, `number`, `operator`, `function`, `member`.
 
@@ -499,7 +501,7 @@ Default: `#e0def4`.
 Default: `#c4a7e7`.
 
 \par theme.syntax.type
-Default: `#9ccfd8`.
+Default: `#b7a3db`.
 
 \par theme.syntax.string
 Default: `#9ece6a`.
@@ -523,7 +525,7 @@ Default: `#f6c177`.
 Default: `#6b86c9`.
 
 \par theme.syntax.member
-Default: `#89dceb`.
+Default: `#a6a4b5`.
 Configure this separately to make members lighter/darker than functions.
 
 \par theme.syntax.namespace1
