@@ -96,6 +96,15 @@ std::string safe(std::string text)
     return text;
 }
 
+std::string sourceTextLine(std::string text)
+{
+    // getline removes LF; binary streams and CRLF files on POSIX retain CR.
+    // Remove only that terminator, preserving intentional trailing spaces.
+    if(!text.empty() && text.back() == '\r')
+        text.pop_back();
+    return safe(std::move(text));
+}
+
 bool readableFrameSource(const std::string& path)
 {
     std::error_code error;
@@ -946,7 +955,7 @@ void DebuggerMode::applyMessage(const std::string& message)
                 std::ifstream file(path);
                 std::string text;
                 while(source.size() < 200000 && std::getline(file, text))
-                    source.push_back(safe(text));
+                    source.push_back(sourceTextLine(text));
             }
             if((sourceChanged || backendMoved || followingRequested ||
                 previousState == "running") &&
@@ -1071,7 +1080,7 @@ bool DebuggerMode::selectSourceFile(const std::string& path, int line)
                              "200000 lines");
             return false;
         }
-        contents.push_back(safe(text));
+        contents.push_back(sourceTextLine(text));
     }
     if(file.bad())
     {
@@ -1294,7 +1303,7 @@ void DebuggerMode::updateFramePreview()
                     binary = true;
                     break;
                 }
-                framePreviewLines.push_back(safe(line));
+                framePreviewLines.push_back(sourceTextLine(line));
             }
             framePreviewSourceAvailable =
                 !binary && file.eof() &&

@@ -1267,6 +1267,47 @@ TEST(RealModeTransitionsTest,
 }
 
 TEST(RealModeTransitionsTest,
+     DebuggerSourceReadersStripCRLFWithoutRemovingRealSpaces)
+{
+    auto dir = make_temp_dir("uvim_debugger_crlf_");
+    const auto sourceFile = dir / "source.cpp";
+    {
+        std::ofstream file(sourceFile, std::ios::binary);
+        ASSERT_TRUE(file.good());
+        file << "one \r\ntwo\r\nthree\r\n";
+    }
+    const std::vector<std::string> expected{"one ", "two", "three"};
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    auto sm = makeMachine(editor, DebuggerMode{"app", false});
+    auto* debug = sm.getState<DebuggerMode>();
+    ASSERT_NE(debug, nullptr);
+    std::string path;
+    json_utils::append_escaped(path, sourceFile.string());
+    debug->applyMessage("{\"state\":\"stopped\",\"path\":" + path +
+                        ",\"line\":2}");
+    EXPECT_EQ(debug->source, expected);
+    ASSERT_TRUE(debug->selectSourceFile(sourceFile.string(), 2));
+    EXPECT_EQ(debug->source, expected);
+    debug->applyMessage(
+        "{\"breakpoints\":[{\"id\":\"1\",\"locations\":[{\"path\":" + path +
+        ",\"line\":3}]}]}");
+    dispatch_command(sm, "bps");
+    EXPECT_EQ(debug->cursor[0], 2);
+    EXPECT_EQ(debug->source, expected);
+    sm.dispatch(27);
+    sm.dispatch(':');
+    for(char key : std::string("frame --"))
+        sm.dispatch(key);
+    debug->applyMessage(
+        "{\"frames\":[{\"id\":\"0\",\"function\":\"main\",\"path\":" + path +
+        ",\"line\":2,\"selected\":true}]}");
+    EXPECT_TRUE(debug->framePreviewSourceAvailable);
+    EXPECT_EQ(debug->framePreviewLines, expected);
+    std::filesystem::remove_all(dir);
+}
+
+TEST(RealModeTransitionsTest,
      DebuggerSourceSelectionRejectsBinaryWithoutChangingSource)
 {
     auto dir = make_temp_dir("uvim_debugger_bad_source_");
