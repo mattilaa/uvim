@@ -998,6 +998,8 @@ void DebuggerMode::applyMessage(const std::string& message)
                        std::max(0, static_cast<int>(breakpoints.size()) - 1));
     }
     updateBreakpointLines();
+    if(breakpointListOpen && json_utils::has(*doc, "breakpoints"))
+        followSelectedBreakpoint();
     if(!hasStoppedSnapshot && state != "stopped" && pane > 1)
         pane = 0;
 }
@@ -1015,6 +1017,36 @@ void DebuggerMode::updateBreakpointLines()
                    !location.path.empty() &&
                    debuggerSourcePath(location.path) == source)
                     breakpointLines.insert(location.line);
+}
+
+void DebuggerMode::followSelectedBreakpoint()
+{
+    breakpointSourceError.clear();
+    if(breakpointCursor < 0 ||
+       breakpointCursor >= static_cast<int>(breakpoints.size()))
+        return;
+    const auto& breakpoint = breakpoints[breakpointCursor];
+    if(breakpoint.locations.empty() ||
+       breakpoint.locations.front().path.empty() ||
+       breakpoint.locations.front().line <= 0)
+    {
+        breakpointSourceError =
+            "No source location for breakpoint #" + breakpoint.id;
+        return;
+    }
+    const auto& location = breakpoint.locations.front();
+    if(!source.empty() &&
+       debuggerSourcePath(sourcePath) == debuggerSourcePath(location.path))
+    {
+        sourcePinned = true;
+        pane = 0;
+        cursor[0] = std::clamp(location.line - 1, 0,
+                               static_cast<int>(source.size()) - 1);
+        offset[0] = std::max(0, cursor[0] - 5);
+    }
+    else if(!selectSourceFile(location.path, location.line))
+        breakpointSourceError =
+            "Source unavailable for breakpoint #" + breakpoint.id;
 }
 
 bool DebuggerMode::selectSourceFile(const std::string& path, int line)
@@ -1291,7 +1323,8 @@ void DebuggerMode::updatePromptMenu()
     promptMenuCursor = promptMenuOffset = 0;
     if(updateFramePicker())
         return;
-    if(!promptActive || prompt.find_first_of(" \t") != std::string::npos)
+    if(!promptActive || (prompt.find_first_of(" \t") != std::string::npos &&
+                         !editor::helper::isRegexQuery(prompt)))
         return;
     std::vector<std::pair<int, int>> ranked;
     std::vector<int> positions;
@@ -1331,6 +1364,7 @@ void DebuggerMode::execute(const std::string& command)
     if(command == "bps")
     {
         breakpointListOpen = true;
+        followSelectedBreakpoint();
         if(transport && !transport->ended)
             transport->send("bps");
         return;
@@ -1722,6 +1756,7 @@ std::optional<ModeState> DebuggerMode::handle(ModeContext& ctx,
     }
     if(breakpointListOpen)
     {
+        const int previous = breakpointCursor;
         if(key == 27 || key == 'q')
             breakpointListOpen = false;
         else if(key == 'j' || key == keyCode(control::ControlKey::CTRL_J) ||
@@ -1743,6 +1778,8 @@ std::optional<ModeState> DebuggerMode::handle(ModeContext& ctx,
         }
         else if(key == 3)
             execute("interrupt");
+        if(breakpointListOpen && breakpointCursor != previous)
+            followSelectedBreakpoint();
         return {};
     }
     if(key == keyCode(control::ControlKey::CTRL_P))
@@ -1964,7 +2001,9 @@ void DebuggerMode::drawContent(Editor& editor)
                 title +=
                     " #" + std::to_string(frameIndex) + " " + frameFunction;
             if(!sourcePath.empty())
-                title += " " + sourcePath;
+                title +=
+                    " " + sourcePath +
+                    (sourcePinned ? ":" + std::to_string(cursor[0] + 1) : "");
         }
         if(which == 3 && !displayRunning)
             title += " (Enter selects)";
@@ -2197,7 +2236,7 @@ void DebuggerMode::drawContent(Editor& editor)
         menuCursor = breakpointCursor;
         menuOffset = breakpointOffset;
         menuTitle = "Breakpoints " + std::to_string(breakpoints.size()) +
-                    "  Ctrl-J/K select  d delete  Esc close";
+                    "  Ctrl-J/K preview source  d delete  Esc close";
     }
     else if(promptActive && !promptMenuEntries.empty())
     {
@@ -2207,8 +2246,13 @@ void DebuggerMode::drawContent(Editor& editor)
         menuTitle = "Debugger commands [" + backend +
                     "]  Ctrl-J/K select  Tab/Enter choose";
     }
+    const auto frameQuery =
+        framePickerOpen ? std::string(framePickerQuery(prompt).value_or(""))
+                        : std::string{};
+    const auto regexError =
+        editor::helper::regexQueryError(framePickerOpen ? frameQuery : prompt);
     if(sizePopupOpen || framePickerOpen || breakpointListOpen ||
-       !menuEntries.empty())
+       !menuEntries.empty() || (promptActive && !regexError.empty()))
     {
         std::vector<int> filtered;
         for(int i = 0; i < static_cast<int>(menuEntries.size()); ++i)
@@ -2225,7 +2269,8 @@ void DebuggerMode::drawContent(Editor& editor)
              .cursor = menuCursor,
              .title = menuTitle,
              .emptyMessage =
-                 framePickerOpen
+                 !regexError.empty() ? regexError
+                 : framePickerOpen
                      ? (framePickerLoading         ? "Loading stack frames..."
                         : framePickerError.empty() ? "No matching stack frames"
                                                    : framePickerError)
@@ -2253,7 +2298,9 @@ void DebuggerMode::drawContent(Editor& editor)
     status.modeLabel = name();
     status.context =
         sourcePinned
-            ? "source " + std::filesystem::path(sourcePath).filename().string()
+            ? "source " +
+                  std::filesystem::path(sourcePath).filename().string() + ":" +
+                  std::to_string(cursor[0] + 1)
         : frameFunction.empty()
             ? backend
             : "frame #" + std::to_string(frameIndex) + " " + frameFunction;
@@ -2289,8 +2336,12 @@ void DebuggerMode::drawContent(Editor& editor)
         out += Terminal::ESC_SHOW_CURSOR;
     }
     else if(breakpointListOpen)
-        out +=
-            fit(" Breakpoints: Ctrl-J/K selects  d deletes  Esc closes", width);
+        out += fit(breakpointSourceError.empty()
+                       ? " Breakpoints: Ctrl-J/K previews file/line  d deletes "
+                         " Esc closes"
+                       : " " + breakpointSourceError +
+                             "  Ctrl-J/K browse  Esc closes",
+                   width);
     else if(pane == 2)
         out += fit(" Variables: j/k select  p/Enter print  a disassemble  "
                    "m raw bytes  s size/padding",

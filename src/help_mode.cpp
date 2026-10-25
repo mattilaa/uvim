@@ -251,7 +251,7 @@ std::optional<ModeState> HelpMode::handle(ModeContext& ctx,
     std::optional<ModeState> nextState;
     if(commandPrompt &&
        (commandPrompt->isActive() ||
-        c == keyCode(command::CommandKey::KEY_COLON)) &&
+        (!searchActive && c == keyCode(command::CommandKey::KEY_COLON))) &&
        commandPrompt->handle(
            ctx, c, [&](std::string_view commandLine)
            { return executeCommand(ctx, commandLine); }, nextState))
@@ -1114,6 +1114,8 @@ void HelpMode::drawSearch(Editor& editor) const
                  "] <Enter> jump  <Esc> close  <j/k> navigate  <Ctrl-I> docs:";
         status += searchDocumentation ? "on" : "off";
     }
+    if(const auto error = editor::helper::regexQueryError(searchQuery); !error.empty())
+        status = error;
     editor.appendStatusLine(output, status, "");
 
     output += "\r\n";
@@ -1159,6 +1161,9 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "",
             "`:dbgrun path/to/binary [arguments]` launches and stops at entry.",
             "`:dbgattach PID` attaches to a running process.",
+            "`:dbgattach re:` opens live process regex filtering without --.",
+            "`re:^worker_[0-9]+$` matches names; `re:^[0-9]{4}$` matches PIDs.",
+            "Use [A-Za-z0-9] for letters/digits; commas/spaces are literal.",
             "`:dbgattach --` opens the process picker; type name/PID to filter.",
             "Ctrl-J/K or arrows select; Enter attaches; Tab inserts the PID.",
             "Esc closes the picker, Ctrl-R refreshes, Ctrl-U clears its query.",
@@ -1210,7 +1215,8 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "Ctrl-J/K selects; Tab/Enter chooses. Argument commands insert",
             "their prefix so you can finish typing. Native commands also work.",
             "",
-            "`:bps` lists breakpoints. Ctrl-J/K selects; d deletes; Esc closes.",
+            "`:bps` lists breakpoints. Ctrl-J/K follows source; d deletes.",
+            "Esc closes the list and keeps the browsed file and row visible.",
             "Enabled breakpoints have red source line-number backgrounds.",
             "In Source, j/k selects a row and b toggles its breakpoint.",
             "Ctrl-P picks another project file without leaving the debugger.",

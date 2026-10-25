@@ -238,4 +238,20 @@ TEST_F(FunctionBrowserTest, JumpChangesOnlyTheActiveSplitPane)
     EXPECT_EQ(editor.splitPanes[other].cursorY, otherRow);
 }
 #endif
+TEST_F(FunctionBrowserTest, RegexFiltersSignaturesWithoutChangingTheSource)
+{
+    auto sm = makeMachine(editor, FunctionBrowserMode{});
+    for(char key : std::string("re:second.*str")) sm.dispatch(key);
+    auto* browser = sm.getState<FunctionBrowserMode>();
+    ASSERT_NE(browser, nullptr);
+    ASSERT_EQ(browser->matches.size(), 1u);
+    EXPECT_EQ(browser->matches[0], 1);
+    EXPECT_TRUE(*editor.dirty);
+    sm.dispatch(keyCode(control::ControlKey::CTRL_U));
+    for(char key : std::string("re:[")) sm.dispatch(key);
+    EXPECT_TRUE(browser->matches.empty());
+    sm.dispatch(keyCode(control::ControlKey::CTRL_U));
+    EXPECT_EQ(browser->matches.size(), 2u);
+}
+
 #endif

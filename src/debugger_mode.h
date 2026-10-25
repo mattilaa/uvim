@@ -82,6 +82,7 @@ struct DebuggerMode
     std::unordered_set<int> breakpointLines;
     bool breakpointListOpen = false;
     int breakpointCursor = 0, breakpointOffset = 0;
+    std::string breakpointSourceError;
     bool sizePopupOpen = false;
     std::string sizePopupTitle;
     std::vector<std::string> sizePopupLines;
@@ -139,6 +140,7 @@ private:
     void updatePromptMenu();
     void drawContent(Editor& editor);
     void toggleSelectedBreakpoint();
+    void followSelectedBreakpoint();
     void inspectSelectedVariable(char action);
     bool updateFramePicker(bool refresh = false);
     void filterFrames(bool selectCurrent = false);

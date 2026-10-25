@@ -47,6 +47,19 @@ includes common Normal/Insert/Visual/Command mode bindings.
 - `.` : repeat last change
 
 \subsection keys_normal_search Search
+- Fuzzy pickers accept `re:pattern` or `/pattern/` for case-insensitive regex
+  filtering, including Ctrl-P, buffers, functions, palette, help, Git log,
+  command/history popups, and debugger frame/process pickers. Typing
+  `:dbgattach re:` opens live process filtering without `--`; name and PID
+  anchors work independently, including `re:^worker_[0-9]+$` and
+  `re:^[0-9]{4}$`. `[A-Za-z0-9]` matches letters or digits. `fz:text`
+  forces fuzzy matching. Ctrl-P accepts `/pattern/:LINE` for source-row jumps.
+  In the file browser, `:filter re:pattern` filters the listing when
+  `filebrowser.fuzzy` is enabled; Esc or `:filter` clears it.
+- `:bps` in the debugger follows the selected breakpoint's file and line
+  while browsing with Ctrl-j/k or arrows. Esc closes the list and retains
+  the browsed source; `d` deletes the selected breakpoint.
+
 - `Ctrl-a` : project grep search
 - `/` : project grep search
 - `n` / `N` : next / previous match

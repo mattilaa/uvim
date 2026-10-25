@@ -1581,6 +1581,13 @@ Fuzzy file finder:
 
 In normal mode:
 
+- Fuzzy pickers also accept `re:pattern` or `/pattern/` to filter with a
+  case-insensitive regular expression, for example `re:\.(cpp|h)$` in Ctrl-P,
+  `:dbgattach -- re:(app|worker)`, or `:frame -- re:^main$`. Plain text keeps
+  fuzzy matching; `fz:text` forces fuzzy interpretation. The file browser
+  accepts `:filter re:pattern` when `filebrowser.fuzzy` is enabled. See the
+  [fuzzy filtering guide](docs/wiki/Fuzzy-Filtering.md) for syntax, highlights,
+  command completion, and `:LINE` suffixes.
 - `/foo.*bar` - regex search forward
 - `?^word` - regex search backward
 
@@ -1767,6 +1774,13 @@ select another with `:dbgrun --backend gdb ./app` or
 
 Type `:dbgattach --` to browse processes in a glyph popup. Continue typing to
 fuzzy-filter by executable name or PID (for example, `:dbgattach -- cpp`).
+You can also type `:dbgattach re:` to open the list immediately and filter it
+as you type a regex, without `--`. For example, `:dbgattach re:^worker_[0-9]+$`
+matches process names, and `:dbgattach re:^[0-9]{4}$` matches four-digit PIDs.
+Use `[A-Za-z0-9]` for letters or digits; commas and spaces inside a character
+class are literal matches. Regex matching is case-insensitive. Ctrl+U preserves
+the direct `re:` prefix so you can enter another expression. With an explicit
+backend, use `:dbgattach --backend gdb re:pattern`.
 Ctrl+J/K or arrows select a row; Enter attaches to it. Tab inserts its PID
 without attaching, Esc closes the list, and Ctrl+R refreshes the process snapshot.
 `Ctrl+U` clears the filter. For another backend, use
@@ -1830,8 +1844,13 @@ still execute directly. Other native backend commands can also be entered.
 completes the path while preserving an existing `:42` suffix. Completion inserts
 the path without executing the command. Enabled breakpoints use a red background
 on their source line numbers. `:bps` opens a breakpoint list: Ctrl+J/K (or arrows)
-selects a row, `d` deletes that breakpoint from the backend, and Esc/`q` closes
-the list. `:delete ID`, `:disable ID`, and `:enable ID` also work. Pending and
+selects a row and follows its source file and line immediately. `d` deletes
+that breakpoint from the backend, and Esc/`q` closes the list. The browsed source
+stays visible after closing; execution commands and frame/thread selection
+return to the execution source at the next stopped update. Browsing preserves
+the selected debugger frame and locals. Breakpoints with several locations
+follow their first listed location; unavailable source is identified in the
+footer without replacing the current file. `:delete ID`, `:disable ID`, and `:enable ID` also work. Pending and
 disabled breakpoints are identified in the list; gutter markers update when
 breakpoints resolve, change, or are removed.
 

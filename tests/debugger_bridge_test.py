@@ -339,7 +339,7 @@ class BridgeTests(unittest.TestCase):
         self.assertFalse(result[1]['enabled'])
         self.assertFalse(result[1]['locations'][1]['enabled'])
         self.assertTrue(result[2]['pending'])
-        self.assertEqual(result[2]['locations'][0]['path'], '/tmp/future.cpp')
+        self.assertEqual(result[2]['locations'][0]['path'], os.path.abspath('/tmp/future.cpp'))
         separate = bridge.gdb_breakpoints({'BreakpointTable': {'body': [
             {'number': '9', 'type': 'breakpoint', 'enabled': 'y', 'addr': '<MULTIPLE>'},
             {'number': '9.1', 'enabled': 'y', 'fullname': '/tmp/template.hpp', 'line': '42'}]}})

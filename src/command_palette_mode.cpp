@@ -1,4 +1,5 @@
 #include "command_palette_mode.h"
+#include "editor_utils.h"
 
 #include "command_mode.h"
 #include "editor.h"
@@ -316,6 +317,9 @@ void CommandPaletteMode::draw(Editor& editor) const
                          ? std::string("No matches")
                          : std::to_string(matches.size()) +
                                (matches.size() == 1 ? " command" : " commands");
+    if(const auto error = editor::helper::regexQueryError(query);
+       !error.empty())
+        status.context = error;
     status.index = matches.empty() ? 0 : cursor + 1;
     status.count = static_cast<int>(matches.size());
     editor.appendViewStatusBar(output, std::move(status));

@@ -1,4 +1,5 @@
 #include "editor.h"
+#include "editor_utils.h"
 #include "mode_state_machine.h"
 #include "terminal.h"
 #include "text_utils.h"
@@ -246,7 +247,7 @@ bool CommandPrompt::handle(
                            input.rfind("h ", 0) == 0;
         bool isGitQuery = input == "git" || input.rfind("git ", 0) == 0;
         if(text_utils::contains(input, ' ') && !isSetQuery && !isHelpQuery &&
-           !isGitQuery)
+           !isGitQuery && !editor::helper::isRegexQuery(input))
         {
             ctx.cancelCommandPopup();
             return;
@@ -454,7 +455,8 @@ bool CommandPrompt::handle(
         // takes the popup's highlighted item, fuzzy matches included
         // (":lcto" -> ":loctotal"); argument completion starts after a
         // space.
-        if(ctx.isCommandPopupActive() && !text_utils::contains(input, ' '))
+        if(ctx.isCommandPopupActive() && (!text_utils::contains(input, ' ') ||
+                                          editor::helper::isRegexQuery(input)))
         {
             if(auto selection = ctx.commandPopupSelection())
             {

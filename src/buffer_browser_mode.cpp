@@ -211,7 +211,9 @@ std::optional<ModeState> BufferBrowserMode::handle(ModeContext& ctx,
 #endif
     }
     else if(c == keyCode(control::ControlKey::CTRL_A) ||
-            c == keyCode(command::CommandKey::KEY_SLASH))
+            (c == keyCode(command::CommandKey::KEY_SLASH) &&
+             !editor::helper::isRegexQuery(bufferQuery) &&
+             !bufferQuery.starts_with("fz:")))
     {
 #ifdef UVIM_ENABLE_SEARCH_TOOLS
         return GrepSearchMode{};
@@ -342,6 +344,9 @@ void BufferBrowserMode::draw(Editor& editor) const
     else
         status.context = std::to_string(editor.buffers.size()) +
                          (editor.buffers.size() == 1 ? " buffer" : " buffers");
+    if(const auto error = editor::helper::regexQueryError(bufferQuery);
+       !error.empty())
+        status.context = error;
     status.index = bufferMatches.empty() ? 0 : bufferCursor + 1;
     status.count = static_cast<int>(bufferMatches.size());
     editor.appendViewStatusBar(output, std::move(status));

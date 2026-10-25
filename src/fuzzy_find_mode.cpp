@@ -561,6 +561,9 @@ void FuzzyFindMode::draw(Editor& editor, bool drawBackdrop) const
         summary = "No matches";
     else
         summary = std::to_string(projectFiles.size()) + " files";
+    if(const auto error = editor::helper::regexQueryError(pattern);
+       !error.empty())
+        summary = error;
     if(!selectedFiles.empty())
         summary += ", " + std::to_string(selectedFiles.size()) + " selected";
 

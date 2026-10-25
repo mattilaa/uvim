@@ -60,13 +60,13 @@ Source Assembly Split Supports Linked Navigation And Pane Keys
     Send Keys    j
     Expect Text    source L2
     Send Keys    \x1bl
-    Expect Text    Assembly [active]
+    Expect Text Matching    Assembly \\[[^]]+\\] \\[active\\]
     Send Keys    \x1bh
     Expect Text    Source [active]
     Send Keys    v
     Expect Mode    ASM
     Send Keys    v
-    Expect Text    Assembly [active]
+    Expect Text Matching    Assembly \\[[^]]+\\] \\[active\\]
     Send Escape
     Expect Mode    NORMAL
     Send Keys    :q!

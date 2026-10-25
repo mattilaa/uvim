@@ -1012,6 +1012,19 @@ std::optional<ModeState> GitLogMode::handle(ModeContext& ctx,
         return std::nullopt;
     }
 
+    // Once explicitly in regex/literal filter mode, printable characters are
+    // query text rather than single-letter Git actions or local-search keys.
+    if((editor::helper::isRegexQuery(query) || query.starts_with("fz:")) &&
+       c >= 32 && c < 127)
+    {
+        query += static_cast<char>(c);
+        rebuildFilter(*ed);
+        if(rangeSelectActive)
+            apply_range_selection();
+        ctx.requestFullRedraw();
+        return std::nullopt;
+    }
+
     if(c == keyCode(control::ControlKey::ESC) && rangeSelectActive)
     {
         rangeSelectActive = false;
@@ -1517,6 +1530,9 @@ void GitLogMode::draw(Editor& editor) const
     }
     right += " ";
 
+    if(const auto error = editor::helper::regexQueryError(query);
+       !error.empty())
+        status = error;
     editor.appendStatusLine(output, status, right);
 
     output += Terminal::NEWLINE_CLEAR;

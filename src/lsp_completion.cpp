@@ -1,5 +1,6 @@
 #include "ascii.h"
 #include "editor.h"
+#include "editor_utils.h"
 #include "emoji_list.h"
 #include "lsp_client.h"
 #include "terminal.h"
@@ -461,9 +462,12 @@ static int computeCompletionAnchor(const std::string& line, int cursorX)
     }
 }
 
-static inline int fuzzyScore(const std::string& text,
-                             const std::string& pattern)
+static inline int fuzzyScore(const std::string& text, const std::string& query)
 {
+    if(const auto score = editor::helper::regexQueryScore(query, text))
+        return *score;
+    const std::string_view pattern =
+        std::string_view(query).substr(query.starts_with("fz:") ? 3 : 0);
     if(pattern.empty())
         return 0;
 

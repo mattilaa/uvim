@@ -262,7 +262,9 @@ void FunctionBrowserMode::draw(Editor& editor)
         else if(matches.empty() && row == 0)
         {
             output += editor.theme.uiDim();
-            output += clipped("  " + (query.empty()
+            const auto error = editor::helper::regexQueryError(query);
+            output += clipped("  " + (!error.empty() ? error
+                                      : query.empty()
                                           ? emptyMessage
                                           : "No matching function signatures"),
                               editor.screenCols);

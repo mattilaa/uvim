@@ -18,6 +18,12 @@ struct PickerQuery
 inline PickerQuery parsePickerQuery(std::string_view query)
 {
     PickerQuery parsed;
+    if((query.starts_with("re:") || query.starts_with("fz:")) &&
+       query.rfind(':') == 2)
+    {
+        parsed.pattern = std::string(query);
+        return parsed;
+    }
     size_t digits = 0;
     while(digits < query.size() &&
           query[query.size() - 1 - digits] >= '0' &&

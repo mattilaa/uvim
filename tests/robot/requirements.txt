@@ -3,3 +3,4 @@ pexpect>=4.9.0
 robotframework-lsp
 robotframework-robocop>=6.0
 PyYAML
+typing_extensions>=4.0; python_version < "3.11"

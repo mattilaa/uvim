@@ -43,6 +43,7 @@ struct DebuggerProcessPicker
 private:
     DebuggerProcessList processes;
     std::string commandPrefix;
+    bool directRegex = false;
     std::optional<std::string> selection(ModeContext& ctx) const;
 };
 } // namespace editor::statemachine

@@ -42,7 +42,7 @@ class UvimTui:
         self.child.delaybeforesend = 0.01
         self.child.setwinsize(24, 80)
 
-    def _wait_for_text(self, text, timeout):
+    def _wait_for_text(self, text, timeout, regex=False):
         self._ensure_child()
         deadline = time.monotonic() + float(timeout)
         buffer = ""
@@ -58,7 +58,8 @@ class UvimTui:
                 if len(buffer) > 65536:
                     buffer = buffer[-65536:]
             cleaned = _strip_ansi(buffer)
-            if text in cleaned:
+            matched = re.search(text, cleaned) if regex else text in cleaned
+            if matched:
                 return
         cleaned_tail = _strip_ansi(buffer)[-200:]
         raise AssertionError(
@@ -93,6 +94,9 @@ class UvimTui:
 
     def expect_text(self, text, timeout=5.0):
         self._wait_for_text(text, timeout)
+
+    def expect_text_matching(self, pattern, timeout=5.0):
+        self._wait_for_text(pattern, timeout, regex=True)
 
     def expect_raw_text(self, text, timeout=5.0):
         self._wait_for_raw_text(text, timeout)
@@ -217,6 +221,10 @@ def expect_mode(mode, timeout=5.0):
 
 def expect_text(text, timeout=5.0):
     _TUI.expect_text(text, timeout=timeout)
+
+
+def expect_text_matching(pattern, timeout=5.0):
+    _TUI.expect_text_matching(pattern, timeout=timeout)
 
 
 def expect_raw_text(text, timeout=5.0):

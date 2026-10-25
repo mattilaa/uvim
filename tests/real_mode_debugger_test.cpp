@@ -1069,68 +1069,202 @@ TEST(RealModeTransitionsTest, DebuggerFilePickerKeepsSessionAndPinsOtherSource)
     write_file(
         helper,
         "inline int helper() {\n    int value = 7;\n    return value;\n}\n");
-    ScopedCurrentPath cwd(dir);
-    Editor editor = Editor::createForTests();
-    editor.createNewBuffer();
-    editor.useGitFileIndex = false;
-    editor.currentBuffer->lines = {"untouched editor buffer"};
-    const auto buffer = editor.currentBuffer;
-    auto sm = makeMachine(editor, DebuggerMode{"program", false});
-    auto* debug = sm.getState<DebuggerMode>();
-    ASSERT_NE(debug, nullptr);
-    std::string mainPath, helperPath;
-    json_utils::append_escaped(mainPath, main.string());
-    json_utils::append_escaped(helperPath, helper.string());
-    debug->applyMessage("{\"state\":\"stopped\",\"path\":" + mainPath +
-                        ",\"line\":2}");
-    sm.dispatch(keyCode(control::ControlKey::CTRL_P));
-    ASSERT_NE(debug->filePicker, nullptr);
-    EXPECT_TRUE(debug->filePicker->singleSelection);
-    for(char c : std::string("helper.hpp:3"))
-        sm.dispatch(c);
-    ASSERT_EQ(debug->filePicker->matches.size(), 1u);
-    sm.dispatch(keyCode(control::ControlKey::ENTER));
-    EXPECT_EQ(sm.getState<DebuggerMode>(), debug);
-    EXPECT_EQ(debug->filePicker, nullptr);
-    EXPECT_TRUE(debug->sourcePinned);
-    EXPECT_EQ(std::filesystem::weakly_canonical(debug->sourcePath),
-              std::filesystem::weakly_canonical(helper));
-    EXPECT_EQ(debug->cursor[0], 2);
-    EXPECT_EQ(debug->pane, 0);
-    EXPECT_EQ(debug->state, "stopped");
-    EXPECT_EQ(editor.currentBuffer, buffer);
-    EXPECT_EQ(editor.currentBuffer->lines,
-              (std::vector<std::string>{"untouched editor buffer"}));
-    debug->applyMessage("{\"state\":\"stopped\",\"path\":" + mainPath +
-                        ",\"line\":2,\"breakpoints\":[{\"id\":\"1\","
-                        "\"enabled\":true,\"locations\":[{\"path\":" +
-                        helperPath + ",\"line\":3}]}]}");
-    EXPECT_EQ(std::filesystem::weakly_canonical(debug->sourcePath),
-              std::filesystem::weakly_canonical(helper));
-    EXPECT_EQ(debug->cursor[0], 2);
-    EXPECT_TRUE(debug->breakpointLines.contains(3));
-    testing::internal::CaptureStdout();
-    debug->draw(editor);
-    const auto rendered = testing::internal::GetCapturedStdout();
-    EXPECT_EQ(rendered.find(">2 "), std::string::npos);
-    EXPECT_NE(rendered.find("Source (browse)"), std::string::npos);
-    debug->followExecutionOnStop = true;
-    debug->applyMessage("{\"state\":\"stopped\",\"path\":" + mainPath +
-                        ",\"line\":3}");
-    EXPECT_FALSE(debug->sourcePinned);
-    EXPECT_EQ(debug->sourcePath, main.string());
-    EXPECT_EQ(debug->cursor[0], 2);
-    const auto previous = debug->source;
-    sm.dispatch(keyCode(control::ControlKey::CTRL_P));
-    ASSERT_NE(debug->filePicker, nullptr);
-    sm.dispatch(27);
-    EXPECT_EQ(debug->filePicker, nullptr);
-    EXPECT_EQ(debug->source, previous);
-    EXPECT_EQ(debug->cursor[0], 2);
-    EXPECT_TRUE(editor.fuzzyFileIndexInitialized);
+    {
+        ScopedCurrentPath cwd(dir);
+        Editor editor = Editor::createForTests();
+        editor.createNewBuffer();
+        editor.useGitFileIndex = false;
+        editor.currentBuffer->lines = {"untouched editor buffer"};
+        const auto buffer = editor.currentBuffer;
+        auto sm = makeMachine(editor, DebuggerMode{"program", false});
+        auto* debug = sm.getState<DebuggerMode>();
+        ASSERT_NE(debug, nullptr);
+        std::string mainPath, helperPath;
+        json_utils::append_escaped(mainPath, main.string());
+        json_utils::append_escaped(helperPath, helper.string());
+        debug->applyMessage("{\"state\":\"stopped\",\"path\":" + mainPath +
+                            ",\"line\":2}");
+        sm.dispatch(keyCode(control::ControlKey::CTRL_P));
+        ASSERT_NE(debug->filePicker, nullptr);
+        EXPECT_TRUE(debug->filePicker->singleSelection);
+        for(char c : std::string("helper.hpp:3"))
+            sm.dispatch(c);
+        ASSERT_EQ(debug->filePicker->matches.size(), 1u);
+        sm.dispatch(keyCode(control::ControlKey::ENTER));
+        EXPECT_EQ(sm.getState<DebuggerMode>(), debug);
+        EXPECT_EQ(debug->filePicker, nullptr);
+        EXPECT_TRUE(debug->sourcePinned);
+        EXPECT_EQ(std::filesystem::weakly_canonical(debug->sourcePath),
+                  std::filesystem::weakly_canonical(helper));
+        EXPECT_EQ(debug->cursor[0], 2);
+        EXPECT_EQ(debug->pane, 0);
+        EXPECT_EQ(debug->state, "stopped");
+        EXPECT_EQ(editor.currentBuffer, buffer);
+        EXPECT_EQ(editor.currentBuffer->lines,
+                  (std::vector<std::string>{"untouched editor buffer"}));
+        debug->applyMessage("{\"state\":\"stopped\",\"path\":" + mainPath +
+                            ",\"line\":2,\"breakpoints\":[{\"id\":\"1\","
+                            "\"enabled\":true,\"locations\":[{\"path\":" +
+                            helperPath + ",\"line\":3}]}]}");
+        EXPECT_EQ(std::filesystem::weakly_canonical(debug->sourcePath),
+                  std::filesystem::weakly_canonical(helper));
+        EXPECT_EQ(debug->cursor[0], 2);
+        EXPECT_TRUE(debug->breakpointLines.contains(3));
+        testing::internal::CaptureStdout();
+        debug->draw(editor);
+        const auto rendered = testing::internal::GetCapturedStdout();
+        EXPECT_EQ(rendered.find(">2 "), std::string::npos);
+        EXPECT_NE(rendered.find("Source (browse)"), std::string::npos);
+        debug->followExecutionOnStop = true;
+        debug->applyMessage("{\"state\":\"stopped\",\"path\":" + mainPath +
+                            ",\"line\":3}");
+        EXPECT_FALSE(debug->sourcePinned);
+        EXPECT_EQ(debug->sourcePath, main.string());
+        EXPECT_EQ(debug->cursor[0], 2);
+        const auto previous = debug->source;
+        sm.dispatch(keyCode(control::ControlKey::CTRL_P));
+        ASSERT_NE(debug->filePicker, nullptr);
+        sm.dispatch(27);
+        EXPECT_EQ(debug->filePicker, nullptr);
+        EXPECT_EQ(debug->source, previous);
+        EXPECT_EQ(debug->cursor[0], 2);
+        EXPECT_TRUE(editor.fuzzyFileIndexInitialized);
+    }
     std::filesystem::remove_all(dir);
 }
 #endif
+
+TEST(RealModeTransitionsTest,
+     DebuggerBreakpointListFollowsFilesRowsAndMetadataRefreshes)
+{
+    auto dir = make_temp_dir("uvim_breakpoint_follow_");
+    const auto original = dir / "running.cpp";
+    const auto first = dir / "first.cpp";
+    const auto second = dir / "second.cpp";
+    write_file(original, "int main() {\nreturn 0;\n}\n");
+    std::string code;
+    for(int row = 1; row <= 80; ++row)
+        code += "int first_" + std::to_string(row) + " = 1;\n";
+    write_file(first, code);
+    write_file(second, "one\ntwo\nthree\nFOUR_TARGET\nfive\nsix\nSEVEN_"
+                       "TARGET\neight\nnine\nTEN_TARGET\n");
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.screenRows = 32;
+    editor.screenCols = 160;
+    auto sm = makeMachine(editor, DebuggerMode{"app", false});
+    auto* debug = sm.getState<DebuggerMode>();
+    ASSERT_NE(debug, nullptr);
+    std::string runningPath, firstPath, secondPath, missingPath;
+    json_utils::append_escaped(runningPath, original.string());
+    json_utils::append_escaped(firstPath, first.string());
+    json_utils::append_escaped(secondPath, second.string());
+    json_utils::append_escaped(missingPath, (dir / "missing.cpp").string());
+    debug->applyMessage(
+        "{\"state\":\"stopped\",\"path\":" + runningPath +
+        ",\"line\":2,\"frame\":7,\"variables\":[\"count = "
+        "42\"],\"breakpoints\":["
+        "{\"id\":\"1\",\"locations\":[{\"path\":" +
+        firstPath +
+        ",\"line\":3}]},"
+        "{\"id\":\"2\",\"locations\":[{\"path\":" +
+        firstPath +
+        ",\"line\":60}]},"
+        "{\"id\":\"3\",\"enabled\":false,\"locations\":[{\"path\":" +
+        secondPath +
+        ",\"line\":4}]},"
+        "{\"id\":\"4\",\"pending\":true,\"locations\":[]},"
+        "{\"id\":\"5\",\"locations\":[{\"path\":" +
+        missingPath + ",\"line\":9}]}]}");
+    debug->pane = 2;
+    dispatch_command(sm, "bps");
+    EXPECT_TRUE(debug->breakpointListOpen);
+    EXPECT_TRUE(debug->sourcePinned);
+    EXPECT_EQ(debug->sourcePath,
+              EditorPathUtilities::resolveEditorPath(first.string()).string());
+    EXPECT_EQ(debug->cursor[0], 2);
+    EXPECT_EQ(debug->pane, 0);
+    const auto firstSource = debug->source;
+    sm.dispatch(keyCode(control::ControlKey::CTRL_J));
+    EXPECT_EQ(debug->cursor[0], 59);
+    EXPECT_EQ(debug->source, firstSource);
+    EXPECT_GT(debug->offset[0], 0);
+    testing::internal::CaptureStdout();
+    debug->draw(editor);
+    const auto rendered = testing::internal::GetCapturedStdout();
+    EXPECT_NE(rendered.find("+60 "), std::string::npos);
+    EXPECT_NE(rendered.find("first_60"), std::string::npos);
+    sm.dispatch(keyCode(control::ControlKey::CTRL_J));
+    EXPECT_EQ(debug->sourcePath,
+              EditorPathUtilities::resolveEditorPath(second.string()).string());
+    EXPECT_EQ(debug->cursor[0], 3);
+    EXPECT_EQ(debug->source[3], "FOUR_TARGET");
+    EXPECT_EQ(debug->frameIndex, 7);
+    EXPECT_EQ(debug->executionPath, original.string());
+    EXPECT_EQ(debug->executionLine, 2);
+    EXPECT_EQ(debug->variables, (std::vector<std::string>{"count = 42"}));
+    sm.dispatch(keyCode(control::ControlKey::CTRL_J));
+    EXPECT_FALSE(debug->breakpointSourceError.empty());
+    EXPECT_EQ(debug->source[3], "FOUR_TARGET");
+    sm.dispatch(keyCode(control::ControlKey::CTRL_J));
+    EXPECT_NE(debug->breakpointSourceError.find("Source unavailable"),
+              std::string::npos);
+    EXPECT_EQ(debug->cursor[0], 3);
+    // Deleting a selected breakpoint follows the replacement list selection.
+    debug->applyMessage(
+        "{\"breakpoints\":[{\"id\":\"1\",\"locations\":[{\"path\":" +
+        firstPath + ",\"line\":3}]},{\"id\":\"3\",\"locations\":[{\"path\":" +
+        secondPath + ",\"line\":7}]}]}");
+    EXPECT_EQ(debug->breakpointCursor, 1);
+    EXPECT_EQ(debug->cursor[0], 6);
+    EXPECT_EQ(debug->source[6], "SEVEN_TARGET");
+    EXPECT_TRUE(debug->breakpointSourceError.empty());
+    // Preserve the selected ID through reordering and follow its new row.
+    debug->applyMessage(
+        "{\"breakpoints\":[{\"id\":\"3\",\"locations\":[{\"path\":" +
+        secondPath + ",\"line\":10}]},{\"id\":\"1\",\"locations\":[{\"path\":" +
+        firstPath + ",\"line\":3}]}]}");
+    EXPECT_EQ(debug->breakpointCursor, 0);
+    EXPECT_EQ(debug->cursor[0], 9);
+    sm.dispatch(27);
+    EXPECT_FALSE(debug->breakpointListOpen);
+    EXPECT_TRUE(debug->sourcePinned);
+    EXPECT_EQ(debug->cursor[0], 9);
+    debug->followExecutionOnStop = true;
+    debug->applyMessage("{\"state\":\"stopped\",\"path\":" + runningPath +
+                        ",\"line\":3}");
+    EXPECT_FALSE(debug->sourcePinned);
+    EXPECT_EQ(debug->sourcePath, original.string());
+    EXPECT_EQ(debug->cursor[0], 2);
+    std::filesystem::remove_all(dir);
+}
+
+TEST(RealModeTransitionsTest,
+     DebuggerBreakpointListFollowsLocationsArrivingAfterOpening)
+{
+    auto dir = make_temp_dir("uvim_breakpoint_late_");
+    const auto file = dir / "late.cpp";
+    write_file(file, "one\ntwo\nthree\n");
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    auto sm = makeMachine(editor, DebuggerMode{"app", false});
+    auto* debug = sm.getState<DebuggerMode>();
+    debug->state = "stopped";
+    dispatch_command(sm, "bps");
+    EXPECT_TRUE(debug->breakpointListOpen);
+    EXPECT_TRUE(debug->source.empty());
+    std::string path;
+    json_utils::append_escaped(path, file.string());
+    debug->applyMessage(
+        "{\"breakpoints\":[{\"id\":\"1\",\"locations\":[{\"path\":" + path +
+        ",\"line\":3}]}]}");
+    EXPECT_EQ(debug->sourcePath,
+              EditorPathUtilities::resolveEditorPath(file.string()).string());
+    EXPECT_EQ(debug->cursor[0], 2);
+    sm.dispatch(keyCode(control::ControlKey::CTRL_K));
+    EXPECT_EQ(debug->cursor[0], 2);
+    std::filesystem::remove_all(dir);
+}
 
 TEST(RealModeTransitionsTest,
      DebuggerSourceSelectionRejectsBinaryWithoutChangingSource)
@@ -1152,6 +1286,114 @@ TEST(RealModeTransitionsTest,
     EXPECT_FALSE(debug->output.empty());
     std::filesystem::remove_all(dir);
 }
+
+TEST(RealModeTransitionsTest, DebuggerFrameAndProcessPickersAcceptRegexQueries)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    {
+        auto sm = makeMachine(editor, DebuggerMode{"app", false});
+        auto* debug = sm.getState<DebuggerMode>();
+        debug->applyMessage("{\"state\":\"stopped\"}");
+        sm.dispatch(':');
+        for(char key : std::string("frame -- re:^(main|worker)$"))
+            sm.dispatch(key);
+        debug->applyMessage(
+            "{\"frames\":[{\"id\":\"0\",\"function\":\"main\"},{\"id\":\"1\","
+            "\"function\":\"other\"},{\"id\":\"2\",\"function\":\"worker\"}]}");
+        ASSERT_EQ(debug->frameMatches.size(), 2u);
+        for(int index : debug->frameMatches)
+            EXPECT_NE(debug->stackFrames[index].symbol, "other");
+    }
+    DebuggerProcessPicker picker;
+    picker.loader = []
+    {
+        return DebuggerProcessList{{{12, "cpp", "/tmp/cpp"},
+                                    {34, "python", "/usr/bin/python"},
+                                    {56, "mlang", "/tmp/mlang"}},
+                                   {}};
+    };
+    auto ctx = createModeContext(&editor);
+    EXPECT_TRUE(picker.update(ctx, ":dbgattach -- re:(cpp|mlang)$"));
+    EXPECT_EQ(editor.commandPopupFiltered.size(), 2u);
+    EXPECT_TRUE(picker.update(ctx, ":dbgattach -- re:["));
+    EXPECT_TRUE(editor.commandPopupFiltered.empty());
+    EXPECT_NE(editor.commandPopupEmptyMessage.find("Invalid regex"),
+              std::string::npos);
+    picker.close(ctx);
+}
+
+TEST(RealModeTransitionsTest, DebuggerProcessRegexShorthandFiltersWhileTyping)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    int loads = 0;
+    CommandMode command;
+    command.processPicker.loader = [&]
+    {
+        ++loads;
+        return recordedDebuggerProcesses();
+    };
+    auto sm = makeMachine(editor, std::move(command));
+    for(char key : std::string("dbgattach re:"))
+        sm.dispatch(key);
+    ASSERT_TRUE(editor.commandPopupActive);
+    EXPECT_EQ(editor.commandPopupQuery, "re:");
+    EXPECT_EQ(editor.commandPopupFiltered.size(), 3u);
+    for(char key : std::string("^compiler$"))
+        sm.dispatch(key);
+    ASSERT_EQ(editor.commandPopupFiltered.size(), 1u);
+    EXPECT_EQ(editor.commandPopupFiltered[0], 1);
+    EXPECT_EQ(editor.commandBuffer, ":dbgattach re:^compiler$");
+    EXPECT_EQ(loads, 1);
+    sm.dispatch(keyCode(control::ControlKey::CTRL_J));
+    EXPECT_EQ(editor.commandBuffer, ":dbgattach re:^compiler$");
+    sm.dispatch(keyCode(control::ControlKey::CTRL_U));
+    EXPECT_EQ(editor.commandBuffer, ":dbgattach re:");
+    EXPECT_EQ(editor.commandPopupFiltered.size(), 3u);
+    for(char key : std::string("^[A-Za-z]+$"))
+        sm.dispatch(key);
+    ASSERT_EQ(editor.commandPopupFiltered.size(), 1u);
+    EXPECT_EQ(editor.commandPopupFiltered[0], 1);
+    sm.dispatch(keyCode(control::ControlKey::CTRL_U));
+    for(char key : std::string("^[0-9]{4}$"))
+        sm.dispatch(key);
+    ASSERT_EQ(editor.commandPopupFiltered.size(), 1u);
+    EXPECT_EQ(editor.commandPopupFiltered[0], 0);
+    sm.dispatch(keyCode(control::ControlKey::TAB));
+    EXPECT_FALSE(editor.commandPopupActive);
+    EXPECT_EQ(editor.commandBuffer, ":dbgattach 1234");
+}
+
+TEST(RealModeTransitionsTest,
+     DebuggerProcessRegexShorthandPreservesBackendAndRecoversFromInvalidClass)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    CommandMode command;
+    command.initialInput = "dbgattach --backend gdb re:";
+    command.processPicker.loader = recordedDebuggerProcesses;
+    auto sm = makeMachine(editor, std::move(command));
+    ASSERT_TRUE(editor.commandPopupActive);
+    sm.dispatch('[');
+    EXPECT_TRUE(editor.commandPopupFiltered.empty());
+    EXPECT_NE(editor.commandPopupEmptyMessage.find("Invalid regex"),
+              std::string::npos);
+    for(char key : std::string("A-Za-z0-9]"))
+        sm.dispatch(key);
+    EXPECT_EQ(editor.commandPopupFiltered.size(), 3u);
+    sm.dispatch(keyCode(control::ControlKey::CTRL_U));
+    EXPECT_EQ(editor.commandBuffer, ":dbgattach --backend gdb re:");
+    for(char key : std::string("^debugger-[a-z]+$"))
+        sm.dispatch(key);
+    ASSERT_EQ(editor.commandPopupFiltered.size(), 1u);
+    sm.dispatch(keyCode(control::ControlKey::ENTER));
+    const auto* debug = sm.getState<DebuggerMode>();
+    ASSERT_NE(debug, nullptr);
+    EXPECT_EQ(debug->backend, "gdb");
+    EXPECT_EQ(debug->target, "1234");
+}
+
 #else
 using namespace uvim_test;
 
@@ -1166,4 +1408,5 @@ TEST(RealModeTransitionsTest, DebuggerCommandsAreUnavailableWhenDisabled)
     EXPECT_EQ(modeForState(sm.state()), NORMAL);
     EXPECT_TRUE(editor.getCommandCompletions("dbg").empty());
 }
+
 #endif
