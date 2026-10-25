@@ -810,7 +810,7 @@ void scan_line_for_cpp_function_context(const std::string& line,
         if(c == '{')
         {
             ++state.braceDepth;
-            if(state.pendingFunction)
+            if(state.pendingFunction && !state.inFunction)
             {
                 state.inFunction = true;
                 state.functionBraceDepth = state.braceDepth;
@@ -860,7 +860,9 @@ void scan_line_for_cpp_function_context(const std::string& line,
             size_t j = i;
             while(j < len && text_utils::is_space(line[j]))
                 ++j;
-            if(j < len && line[j] == '(')
+            // Calls and lambdas inside a function do not start a new outer
+            // function scope or replace the depth used to find its closing brace.
+            if(!state.inFunction && j < len && line[j] == '(')
                 state.pendingFunction = true;
             continue;
         }
@@ -3341,15 +3343,8 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
         for(int segment = 0; segment < total; ++segment)
         {
             const auto& part = segments[segment];
-            const std::string_view name =
-                sv.substr(part.start, part.end - part.start);
-            const bool isKnownCppType =
-                isCppLike && segment == total - 1 &&
-                cpp_constants::is_type(name);
-            push_token(isKnownCppType
-                           ? TOKEN_TYPE
-                           : namespace_token_for_segment(segment, total),
-                       part.start, part.end - part.start);
+            push_token(namespace_token_for_segment(segment, total), part.start,
+                       part.end - part.start);
             if(segment < static_cast<int>(separators.size()))
                 push_token(TOKEN_OPERATOR, separators[segment], 2);
         }
@@ -3926,7 +3921,8 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
                                 if(sv[t] == ';' || sv[t] == '=' || sv[t] == ',')
                                     break;
                             }
-                            if(!hasParen)
+                            if(!hasParen && !cpp_constants::is_keyword(
+                                                sv.substr(nameStart, j - nameStart)))
                             {
                                 push_token(TOKEN_MEMBER, nameStart,
                                            j - nameStart);
@@ -4435,6 +4431,167 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
                       extraTypeTokens.end());
     }
 
+    // A declaration can have a qualified/template type and several fields.
+    // Recognize the declarator names separately from their types and
+    // initializers.
+    if(isCppLike && syntaxCppHighlightMembers && !inCppFunctionContext &&
+       !inCppMethodContext && !inCppParamListContext)
+    {
+        int position = 0;
+        const auto space = [&]()
+        {
+            while(position < len && text_utils::is_space(sv[position]))
+                ++position;
+        };
+        const auto identifier = [&]() -> std::string_view
+        {
+            const int start = position;
+            if(position < len &&
+               (text_utils::is_alpha(sv[position]) || sv[position] == '_'))
+            {
+                ++position;
+                while(position < len && (text_utils::is_alpha(sv[position]) ||
+                                         text_utils::is_digit(sv[position]) ||
+                                         sv[position] == '_'))
+                    ++position;
+            }
+            return sv.substr(start, position - start);
+        };
+        const auto qualifier = [](std::string_view word)
+        {
+            return word == "const" || word == "volatile" || word == "static" ||
+                   word == "mutable" || word == "inline" ||
+                   word == "constexpr" || word == "constinit" ||
+                   word == "extern" || word == "thread_local";
+        };
+        space();
+        while(qualifier(identifier()))
+            space();
+        // Find the first non-qualifier type token, preserving keyword/function
+        // lines.
+        int typeStart = position;
+        while(typeStart > 0 && (text_utils::is_alpha(sv[typeStart - 1]) ||
+                                text_utils::is_digit(sv[typeStart - 1]) ||
+                                sv[typeStart - 1] == '_'))
+            --typeStart;
+        const bool declaration = std::any_of(
+            tokens.begin(), tokens.end(),
+            [&](const Token& token)
+            {
+                return token.start == typeStart &&
+                       (token.type == TOKEN_TYPE ||
+                        token.type == TOKEN_NAMESPACE_1 ||
+                        (token.type == TOKEN_KEYWORD &&
+                         sv.substr(token.start, token.length) == "auto"));
+            });
+        if(declaration)
+        {
+            while(position + 1 < len && sv.substr(position, 2) == "::")
+            {
+                position += 2;
+                identifier();
+            }
+            space();
+            if(position < len && sv[position] == '<')
+            {
+                int depth = 0;
+                do
+                {
+                    if(sv[position] == '<')
+                        ++depth;
+                    else if(sv[position] == '>')
+                        --depth;
+                    ++position;
+                } while(position < len && depth > 0);
+            }
+            bool more = true;
+            while(more && position < len)
+            {
+                space();
+                while(position < len &&
+                      (sv[position] == '*' || sv[position] == '&'))
+                {
+                    ++position;
+                    space();
+                }
+                const int nameStart = position;
+                const auto name = identifier();
+                space();
+                if(qualifier(name) ||
+                   (cpp_constants::is_type(name) && position < len &&
+                    (text_utils::is_alpha(sv[position]) ||
+                     sv[position] == '_')))
+                    continue;
+                if(name.empty() || cpp_constants::is_keyword(name) ||
+                   (position < len && sv[position] != '=' &&
+                    sv[position] != ',' && sv[position] != ';' &&
+                    sv[position] != '{' && sv[position] != '[' &&
+                    sv[position] != ':'))
+                    break;
+                tokens.erase(
+                    std::remove_if(tokens.begin(), tokens.end(),
+                                   [&](const Token& token)
+                                   {
+                                       return token.start == nameStart &&
+                                              token.length ==
+                                                  static_cast<int>(name.size());
+                                   }),
+                    tokens.end());
+                push_token(TOKEN_MEMBER, nameStart,
+                           static_cast<int>(name.size()));
+                // Skip initializers, including strings, calls, and braced
+                // values.
+                int parens = 0, brackets = 0, braces = 0, angles = 0;
+                char quote = 0;
+                more = false;
+                for(; position < len; ++position)
+                {
+                    const char ch = sv[position];
+                    if(quote)
+                    {
+                        if(ch == '\\' && position + 1 < len)
+                            ++position;
+                        else if(ch == quote)
+                            quote = 0;
+                        continue;
+                    }
+                    if(ch == '\'' || ch == '"')
+                    {
+                        quote = ch;
+                        continue;
+                    }
+                    if(ch == '/' && position + 1 < len &&
+                       (sv[position + 1] == '/' || sv[position + 1] == '*'))
+                        break;
+                    if(ch == ';' && parens == 0 && brackets == 0 && braces == 0)
+                        break;
+                    if(ch == ',' && parens == 0 && brackets == 0 &&
+                       braces == 0 && angles == 0)
+                    {
+                        ++position;
+                        more = true;
+                        break;
+                    }
+                    if(ch == '(')
+                        ++parens;
+                    else if(ch == ')')
+                        --parens;
+                    else if(ch == '[')
+                        ++brackets;
+                    else if(ch == ']')
+                        --brackets;
+                    else if(ch == '{')
+                        ++braces;
+                    else if(ch == '}')
+                        --braces;
+                    else if(ch == '<')
+                        ++angles;
+                    else if(ch == '>' && angles > 0)
+                        --angles;
+                }
+            }
+        }
+    }
     return tokens;
 }
 
@@ -4858,7 +5015,7 @@ void SyntaxHighlighter::renderLineWithSyntax(std::string& output,
         {
             const auto& semTokens = activeBuffer->lspSemanticTokens[fileRow];
             const bool isCppSemantics = isFileType<FileType::Cpp>();
-            bool inFunctionContext = false;
+            bool inFunctionContext = inCppFunctionContext || inCppMethodContext;
             if(isCppSemantics && fileRow >= 0 &&
                fileRow < (int)activeBuffer->syntaxCache.size())
             {
@@ -4904,7 +5061,7 @@ void SyntaxHighlighter::renderLineWithSyntax(std::string& output,
                     }
                     else
                     {
-                        bool isObjectReference = false;
+                        bool isMemberAccess = false;
                         const std::string& lineRef = line;
                         int tokenStart = token.start;
                         int tokenEnd = token.start + token.length;
@@ -4914,25 +5071,10 @@ void SyntaxHighlighter::renderLineWithSyntax(std::string& output,
                             while(p >= 0 && text_utils::is_space(lineRef[p]))
                                 --p;
                             if(p >= 0 && lineRef[p] == '.')
-                                isObjectReference = true;
+                                isMemberAccess = true;
                             if(p >= 1 && lineRef[p] == '>' &&
                                lineRef[p - 1] == '-')
-                                isObjectReference = true;
-                            if(!isObjectReference)
-                            {
-                                int q = tokenEnd;
-                                while(q < (int)lineRef.size() &&
-                                      text_utils::is_space(lineRef[q]))
-                                    ++q;
-                                if(q < (int)lineRef.size() &&
-                                   (lineRef[q] == '.' ||
-                                    (lineRef[q] == '-' &&
-                                     q + 1 < (int)lineRef.size() &&
-                                     lineRef[q + 1] == '>')))
-                                {
-                                    isObjectReference = true;
-                                }
-                            }
+                                isMemberAccess = true;
                         }
                         if(!inFunctionContext &&
                            (token.isDeclaration || token.isDefinition))
@@ -4941,7 +5083,7 @@ void SyntaxHighlighter::renderLineWithSyntax(std::string& output,
                         }
                         else
                         {
-                            mapped = isObjectReference
+                            mapped = isMemberAccess
                                          ? editor->syntaxCppMemberToken
                                          : editor->syntaxCppLocalToken;
                         }

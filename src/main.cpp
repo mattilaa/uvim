@@ -699,7 +699,7 @@ bg = "#2a283e"
 [theme.syntax]
 normal = "#e0def4"
 keyword = "#c4a7e7"
-type = "#9ccfd8"
+type = "#b7a3db"
 string = "#9ece6a"
 char = "#9ece6a"
 comment = "#6e6a86"
@@ -707,7 +707,7 @@ preprocessor = "#f6c177"
 number = "#eb6f92"
 operator = "#f6c177"
 function = "#6b86c9"
-member = "#89dceb"
+member = "#a6a4b5"
 )";
     return std::string_view{kDefaultConfig, sizeof(kDefaultConfig) - 1};
 }

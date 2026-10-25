@@ -549,7 +549,7 @@ TEST(SyntaxHighlighterTest, HighlightsOptionalAndProjectTypes)
     int summaryPos = (int)line.find("LspDiagnosticSummary");
     ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(optionalPos)));
     ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(summaryPos)));
-    EXPECT_TRUE(hasTokenAt(tokens, optionalPos, 8, TOKEN_TYPE));
+    EXPECT_TRUE(hasTokenAt(tokens, optionalPos, 8, TOKEN_NAMESPACE_4));
     EXPECT_TRUE(hasTokenAt(tokens, summaryPos, 20, TOKEN_TYPE));
 }
 
@@ -1811,4 +1811,272 @@ TEST(SyntaxHighlighterTest, HighlightsPowerShell)
     EXPECT_FALSE(inHere);
     EXPECT_TRUE(hasTokenAt(tokens, 0, 2, TOKEN_STRING));
     EXPECT_TRUE(hasTokenAt(tokens, 5, 8, TOKEN_FUNCTION));
+}
+
+TEST(SyntaxHighlighterTest, CppQualifiedTypesUseTheSameFinalSegmentColor)
+{
+    Editor editor = Editor::createForTests();
+    setupEditorBuffer(editor);
+    *editor.filename = "/tmp/state.h";
+    for(const auto& name :
+        {std::string("std::string"), std::string("std::string_view"),
+         std::string("std::optional<int>"),
+         std::string("std::chrono::steady_clock::time_point")})
+    {
+        const auto line = name + " value;";
+        bool comment = false, toml = false, fence = false;
+        char quote = 0, fenceChar = 0;
+        const auto tokens =
+            editor.tokenizeLine(line, comment, toml, quote, fence, fenceChar);
+        const auto end = name.find('<');
+        const auto type = name.substr(0, end);
+        const int start = static_cast<int>(type.rfind("::") + 2);
+        EXPECT_TRUE(hasTokenAt(tokens, start,
+                               static_cast<int>(type.size()) - start,
+                               TOKEN_NAMESPACE_4))
+            << name;
+        EXPECT_FALSE(hasTokenAt(
+            tokens, start, static_cast<int>(type.size()) - start, TOKEN_TYPE))
+            << name;
+    }
+}
+
+TEST(SyntaxHighlighterTest, CppFieldsAreDistinctFromTypesAndLocalVariables)
+{
+    Editor editor = Editor::createForTests();
+    setupEditorBuffer(editor);
+    *editor.filename = "/tmp/state.h";
+    editor.syntaxCppSemanticTokens = false;
+    editor.currentBuffer->lines = {
+        "struct State {",
+        "    bool active = true;",
+        "    bool docsLoading = false, docsIndicator = false;",
+        "    std::string docsTitle, docsText;",
+        "    std::chrono::steady_clock::time_point docsStarted{};",
+        "    void method() {",
+        "        bool local = false;",
+        "    }",
+        "};"};
+    const auto memberColor = editor.theme.syntax(TOKEN_MEMBER);
+    EXPECT_NE(memberColor, editor.theme.syntax(TOKEN_TYPE));
+    EXPECT_NE(memberColor, editor.theme.syntax(TOKEN_NORMAL));
+    for(const auto& [row, names] :
+        std::vector<std::pair<int, std::vector<std::string>>>{
+            {1, {"active"}},
+            {2, {"docsLoading", "docsIndicator"}},
+            {3, {"docsTitle", "docsText"}},
+            {4, {"docsStarted"}}})
+    {
+        const auto& line = editor.currentBuffer->lines[row];
+        std::string output;
+        editor.renderLineWithSyntax(output, line, 0,
+                                    static_cast<int>(line.size()), row);
+        for(const auto& name : names)
+            EXPECT_NE(output.find(memberColor + name), std::string::npos)
+                << line << " member " << name;
+    }
+    const auto& local = editor.currentBuffer->lines[6];
+    std::string output;
+    editor.renderLineWithSyntax(output, local, 0,
+                                static_cast<int>(local.size()), 6);
+    EXPECT_EQ(output.find(memberColor + "local"), std::string::npos);
+    EXPECT_NE(output.find(editor.theme.syntax(TOKEN_NORMAL) + " local"),
+              std::string::npos);
+}
+
+TEST(SyntaxHighlighterTest, CppFieldDeclaratorsSkipNestedInitializerCommas)
+{
+    Editor editor = Editor::createForTests();
+    setupEditorBuffer(editor);
+    *editor.filename = "/tmp/state.h";
+    for(const auto& line :
+        {std::string("bool enabled = choose(a, b), ready = false;"),
+         std::string("std::pair<int, int> enabled{1, 2}, ready{3, 4};"),
+         std::string(
+             "std::string enabled = \"a,b\", ready; // ignored, fake;")})
+    {
+        bool comment = false, toml = false, fence = false;
+        char quote = 0, fenceChar = 0;
+        const auto tokens =
+            editor.tokenizeLine(line, comment, toml, quote, fence, fenceChar);
+        EXPECT_TRUE(hasTokenAt(tokens, static_cast<int>(line.find("enabled")),
+                               7, TOKEN_MEMBER))
+            << line;
+        EXPECT_TRUE(hasTokenAt(tokens, static_cast<int>(line.find("ready")), 5,
+                               TOKEN_MEMBER))
+            << line;
+        EXPECT_FALSE(hasTokenAt(tokens, static_cast<int>(line.find("fake")), 4,
+                                TOKEN_MEMBER));
+    }
+}
+
+TEST(SyntaxHighlighterTest, CppFunctionAndOperatorDeclarationsAreNotFields)
+{
+    Editor editor = Editor::createForTests();
+    setupEditorBuffer(editor);
+    *editor.filename = "/tmp/state.h";
+    for(const auto& line :
+        {std::string("bool operator==(const State& other) const;"),
+         std::string("std::string name() const;")})
+    {
+        bool comment = false, toml = false, fence = false;
+        char quote = 0, fenceChar = 0;
+        const auto tokens =
+            editor.tokenizeLine(line, comment, toml, quote, fence, fenceChar);
+        EXPECT_FALSE(hasTokenType(tokens, TOKEN_MEMBER)) << line;
+    }
+    for(const auto& line : {std::string("std::string value = make(a, b);"),
+                            std::string("int value = 1;")})
+    {
+        bool comment = false, toml = false, fence = false;
+        char quote = 0, fenceChar = 0;
+        const auto tokens = editor.tokenizeLine(
+            line, comment, toml, quote, fence, fenceChar, false, true, false);
+        EXPECT_FALSE(hasTokenType(tokens, TOKEN_MEMBER)) << line;
+    }
+}
+
+TEST(SyntaxHighlighterTest,
+     SemanticTokensKeepLocalObjectsNormalBeforeMemberCalls)
+{
+    Editor editor = Editor::createForTests();
+    setupEditorBuffer(editor);
+    *editor.filename = "/tmp/locals.cpp";
+    editor.syntaxCppSemanticTokens = true;
+    editor.currentBuffer->lines = {"void splitLines()",
+                                   "{",
+                                   "    std::vector<std::string> lines;",
+                                   "    lines.push_back(line);",
+                                   "    pointer->field.clear();",
+                                   "    object.lines.push_back(line);",
+                                   "}"};
+    editor.currentBuffer->lspSemanticTokens.resize(editor.lines->size());
+    editor.currentBuffer->lspSemanticTokensValid = true;
+    const auto add = [&](int row, std::string_view name,
+                         const std::string& type, bool declaration = false)
+    {
+        const auto& line = editor.currentBuffer->lines[row];
+        editor.currentBuffer->lspSemanticTokens[row].push_back(
+            {static_cast<int>(line.find(name)), static_cast<int>(name.size()),
+             type, declaration, false});
+    };
+    add(2, "lines", "variable", true);
+    add(3, "lines", "variable");
+    add(3, "push_back", "method");
+    add(4, "pointer", "variable");
+    add(4, "field",
+        "variable"); // Older servers can report fields as variables.
+    add(4, "clear", "method");
+    add(5, "object", "variable");
+    add(5, "lines", "field");
+    add(5, "push_back", "method");
+    for(int row = 2; row <= 5; ++row)
+    {
+        const auto& line = editor.currentBuffer->lines[row];
+        std::string output;
+        editor.renderLineWithSyntax(output, line, 0,
+                                    static_cast<int>(line.size()), row);
+        const auto member = editor.theme.syntax(TOKEN_MEMBER);
+        if(row == 2)
+            EXPECT_EQ(output.find(member + "lines"), std::string::npos);
+        if(row == 3)
+        {
+            EXPECT_TRUE(output.starts_with("    lines"));
+            EXPECT_NE(
+                output.find(editor.theme.syntax(TOKEN_FUNCTION) + "push_back"),
+                std::string::npos);
+        }
+        if(row == 4)
+        {
+            EXPECT_TRUE(output.starts_with("    pointer"));
+            EXPECT_NE(output.find(member + "field"), std::string::npos);
+        }
+        if(row == 5)
+        {
+            EXPECT_TRUE(output.starts_with("    object"));
+            EXPECT_NE(output.find(member + "lines"), std::string::npos);
+        }
+    }
+}
+
+TEST(SyntaxHighlighterTest, CppLocalsStayLocalAcrossNestedCallBlocksAndLambdas)
+{
+    const std::vector<std::string> lines{
+        "namespace example",
+        "{",
+        "CompileCommand findCompileCommand(const Request& request,",
+        "                                  const std::function<bool()>& "
+        "cancelled)",
+        "{",
+        "    std::vector<fs::path> candidates;",
+        "    if(!request.compileCommandsDirectory.empty())",
+        "    {",
+        "        fs::path configured(request.compileCommandsDirectory);",
+        "        candidates.push_back(configured.filename());",
+        "    }",
+        "    std::unordered_set<std::string> seenDirectories;",
+        "    auto addAncestors = [&](fs::path directory)",
+        "    {",
+        "        while(!directory.empty() && "
+        "seenDirectories.insert(directory.string()).second)",
+        "        {",
+        "            const auto parent = directory.parent_path();",
+        "            if(parent == directory) break;",
+        "            directory = parent;",
+        "        }",
+        "    };",
+        "    addAncestors(request.directory);",
+        "    std::unordered_set<std::string> seenDatabases;",
+        "    for(const auto& path : candidates)",
+        "    {",
+        "        if(cancelled()) return {};",
+        "    }",
+        "    return {};",
+        "}",
+        "struct After",
+        "{",
+        "    std::string member;",
+        "};",
+        "}"};
+    for(bool semantic : {false, true})
+    {
+        Editor editor = Editor::createForTests();
+        setupEditorBuffer(editor);
+        *editor.filename = "/tmp/nested_scope.cpp";
+        editor.syntaxCppSemanticTokens = semantic;
+        editor.currentBuffer->lines = lines;
+        editor.currentBuffer->lspSemanticTokens.resize(lines.size());
+        editor.currentBuffer->lspSemanticTokensValid = true;
+        for(const auto& [row, name] :
+            std::vector<std::pair<int, std::string>>{{11, "seenDirectories"},
+                                                     {12, "addAncestors"},
+                                                     {16, "parent"},
+                                                     {22, "seenDatabases"}})
+        {
+            const int position = static_cast<int>(lines[row].find(name));
+            editor.currentBuffer->lspSemanticTokens[row].push_back(
+                {position, static_cast<int>(name.size()), "variable", true,
+                 true});
+            std::string output;
+            editor.renderLineWithSyntax(output, lines[row], 0,
+                                        static_cast<int>(lines[row].size()),
+                                        row);
+            ASSERT_GT(editor.currentBuffer->syntaxCache.size(),
+                      static_cast<size_t>(row));
+            EXPECT_TRUE(
+                editor.currentBuffer->syntaxCache[row].inCppFunctionContext)
+                << name;
+            EXPECT_NE(output.find(editor.theme.syntax(TOKEN_NORMAL) + " " + name),
+                      std::string::npos) << name;
+        }
+        const int memberRow = 31;
+        std::string output;
+        editor.renderLineWithSyntax(output, lines[memberRow], 0,
+                                    static_cast<int>(lines[memberRow].size()),
+                                    memberRow);
+        EXPECT_FALSE(
+            editor.currentBuffer->syntaxCache[memberRow].inCppFunctionContext);
+        EXPECT_NE(output.find(editor.theme.syntax(TOKEN_MEMBER) + "member"),
+                  std::string::npos);
+    }
 }
