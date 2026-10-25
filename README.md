@@ -1601,6 +1601,10 @@ In command mode:
 - `:%%s/old/new/g` - stage replacements across project files as modified
   buffers; review them and use `:wa` to save. Add `n` (`gn`) to count first.
 
+Add `c` (`:%s/old/new/gc` or `:%%s/old/new/gc`) to confirm each occurrence:
+`y` replaces, `n` skips, `a` accepts all remaining matches, `l` replaces this
+match and stops, and `q`/Esc stops while keeping earlier approvals.
+
 Substitution supports regex captures (`\1`–`\9`), the whole match (`&`),
 escaped delimiters, and one undo step per changed buffer. See the
 [search-and-replace guide](docs/wiki/Search-and-Replace.md) for ranges and flags.

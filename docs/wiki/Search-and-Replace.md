@@ -42,6 +42,7 @@ Tab completion leave substitution expressions intact while you type.
 | Flag | Effect |
 | --- | --- |
 | `g` | Replace all matches on each line instead of just the first |
+| `c` | Ask before each replacement |
 | `i` | Ignore case |
 | `I` | Use case-sensitive matching; the last `i` or `I` wins |
 | `n` | Count matches without modifying text |
@@ -49,6 +50,32 @@ Tab completion leave substitution expressions intact while you type.
 
 Combine flags, for example `:%s/old/new/gi` or `:%%s/old/new/gin`.
 The status line reports match/replacement counts and affected lines or files.
+
+## Confirming replacements
+
+Add `c` to review each occurrence in a colored popup before replacing it:
+
+```text
+:%s/old/new/gc
+:%%s/old/new/gc
+```
+
+The popup shows the file, line and column, source context, matched text, and
+expanded replacement, including captures. Choose:
+
+| Key | Action |
+| --- | --- |
+| `y` | Replace this occurrence |
+| `n` | Skip this occurrence |
+| `a` | Replace this and all remaining occurrences, across files |
+| `l` | Replace this occurrence and stop |
+| `q`, Esc, Ctrl+C | Stop without replacing this occurrence |
+
+Stopping preserves earlier approvals and leaves remaining text unchanged.
+Each changed buffer still gets one undo step. Rejecting every occurrence
+creates no undo entries and does not open project buffers. Without `g`, only
+the first match per line is considered. Combining `n` with `c` only counts
+matches and does not ask questions. Commands without `c` replace immediately.
 
 ## Project-wide replacement
 

@@ -53,7 +53,8 @@ includes common Normal/Insert/Visual/Command mode bindings.
 - `:%%s/old/new/g` : stage project-wide replacements in modified buffers;
   review and save with `:wa`. Add `n` (`gn`) to count without changing text.
   Regex captures use `\1` through `\9`; `&` inserts the whole match.
-  Each changed buffer gets one undo step.
+  Each changed buffer gets one undo step. Add `c` to confirm each occurrence:
+  `y` replace, `n` skip, `a` all, `l` last, `q`/Esc stop.
 
 - Fuzzy pickers accept `re:pattern` or `/pattern/` for case-insensitive regex
   filtering, including Ctrl-P, buffers, functions, palette, help, Git log,

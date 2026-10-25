@@ -2215,6 +2215,8 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `:%%s/old/new/g` - Project root; stage modified buffers",
             "  Review project changes and use :wa to save them.",
             "  Add n (gn) to count only; e suppresses no-match errors.",
+            "  Add c (gc) to confirm: y yes, n skip, a all, l last.",
+            "  q/Esc stops and keeps earlier approvals; n overrides c.",
             "  Alternate delimiters work: :%s#old/path#new/path#g",
             "  Replacement: & is the match; \\1..\\9 are captures.",
             "  Each changed buffer gets one undo step (u / Ctrl-r).",

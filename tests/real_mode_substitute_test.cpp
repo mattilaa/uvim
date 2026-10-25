@@ -82,7 +82,7 @@ TEST(SubstituteTest, InvalidInputIsAtomicAndDoesNotCreateUndoEntries)
     const auto original = *editor.lines;
     const int undo = editor.currentBuffer->undoIndex;
     for(const std::string command :
-        {"s/foo/bar", "s/[/bar/", "s/foo/bar/c", "3s/foo/bar/", "0s/foo/bar/",
+        {"s/foo/bar", "s/[/bar/", "s/foo/bar/z", "3s/foo/bar/", "0s/foo/bar/",
          "2,1s/foo/bar/", "999999999999999999s/foo/bar/", "s/missing/bar/",
          "s//bar/"})
     {
@@ -261,4 +261,133 @@ TEST(SubstituteTest, ProjectIncludesNewNamedBuffersAndCanDisableGitignore)
     EXPECT_EQ(read_file(root / "ignored.txt"), "foo\n");
     editor.undo();
     EXPECT_EQ(editor.lines->front(), "foo new");
+}
+
+namespace
+{
+void confirmKeys(std::string_view keys)
+{
+    for(auto key = keys.rbegin(); key != keys.rend(); ++key)
+        Terminal::unreadKey(static_cast<unsigned char>(*key));
+}
+} // namespace
+
+TEST(SubstituteTest, ConfirmationApprovesOrSkipsEachMatchAndUndoesAsOneChange)
+{
+    auto editor = Editor::createForTests();
+    contents(editor, {"foo foo foo"});
+    const int before = editor.currentBuffer->undoIndex;
+    confirmKeys("yny");
+    editor.executeCommand("%s/foo/bar/gc");
+    EXPECT_EQ(editor.lines->front(), "bar foo bar");
+    EXPECT_EQ(editor.statusMessage, "2 substitutions on 1 lines");
+    EXPECT_EQ(editor.currentBuffer->undoIndex, before + 1);
+    editor.undo();
+    EXPECT_EQ(editor.lines->front(), "foo foo foo");
+    EXPECT_FALSE(*editor.dirty);
+    EXPECT_EQ(Terminal::bufferedKeyCount(), 0);
+}
+
+TEST(SubstituteTest, DecliningEveryConfirmationLeavesBufferAndUndoUnchanged)
+{
+    auto editor = Editor::createForTests();
+    contents(editor, {"foo foo", "foo"});
+    const int before = editor.currentBuffer->undoIndex;
+    confirmKeys("nnn");
+    editor.executeCommand("%s/foo/bar/gc");
+    EXPECT_EQ(*editor.lines, (std::vector<std::string>{"foo foo", "foo"}));
+    EXPECT_EQ(editor.currentBuffer->undoIndex, before);
+    EXPECT_FALSE(*editor.dirty);
+    EXPECT_EQ(editor.statusMessage, "0 substitutions on 0 lines");
+    EXPECT_EQ(Terminal::bufferedKeyCount(), 0);
+}
+
+TEST(SubstituteTest, ConfirmAllAppliesRemainingMatchesWithoutMoreQuestions)
+{
+    auto editor = Editor::createForTests();
+    contents(editor, {"foo foo", "foo"});
+    confirmKeys("na");
+    editor.executeCommand("%s/foo/bar/gc");
+    EXPECT_EQ(*editor.lines, (std::vector<std::string>{"foo bar", "bar"}));
+    EXPECT_EQ(Terminal::bufferedKeyCount(), 0);
+}
+
+TEST(SubstituteTest, ConfirmationQuitEscapeAndInterruptKeepOnlyApprovedChanges)
+{
+    for(const char stop : {'q', '\x1b', '\x03'})
+    {
+        auto editor = Editor::createForTests();
+        contents(editor, {"foo foo", "foo"});
+        confirmKeys(std::string("y") + stop);
+        editor.executeCommand("%s/foo/bar/gc");
+        EXPECT_EQ(*editor.lines, (std::vector<std::string>{"bar foo", "foo"}));
+        EXPECT_EQ(editor.statusMessage, "1 substitutions on 1 lines; stopped");
+        EXPECT_EQ(Terminal::bufferedKeyCount(), 0);
+    }
+}
+
+TEST(SubstituteTest, ConfirmLastApprovesCurrentMatchAndStops)
+{
+    auto editor = Editor::createForTests();
+    contents(editor, {"foo foo", "foo"});
+    confirmKeys("l");
+    editor.executeCommand("%s/foo/bar/gc");
+    EXPECT_EQ(*editor.lines, (std::vector<std::string>{"bar foo", "foo"}));
+    EXPECT_EQ(editor.statusMessage, "1 substitutions on 1 lines; stopped");
+    EXPECT_EQ(Terminal::bufferedKeyCount(), 0);
+}
+
+TEST(SubstituteTest, ConfirmationWithoutGlobalOnlyConsidersFirstMatchOnEachLine)
+{
+    auto editor = Editor::createForTests();
+    contents(editor, {"foo foo", "foo foo"});
+    confirmKeys("ny");
+    editor.executeCommand("%s/foo/bar/c");
+    EXPECT_EQ(*editor.lines, (std::vector<std::string>{"foo foo", "bar foo"}));
+    EXPECT_EQ(Terminal::bufferedKeyCount(), 0);
+}
+
+TEST(SubstituteTest, CountOnlyWithConfirmNeverPromptsOrConsumesKeys)
+{
+    auto editor = Editor::createForTests();
+    contents(editor, {"foo foo"});
+    confirmKeys("x");
+    editor.executeCommand("%s/foo/bar/gcn");
+    EXPECT_EQ(editor.lines->front(), "foo foo");
+    EXPECT_EQ(editor.statusMessage, "2 matches on 1 lines");
+    EXPECT_EQ(Terminal::readKey(), 'x');
+}
+
+TEST(SubstituteTest, ProjectConfirmationAllSpansFilesAndLeavesDiskUntouched)
+{
+    const auto root = make_temp_dir("uvim_project_confirm_all_");
+    write_file(root / "a.txt", "foo foo\n");
+    write_file(root / "b.txt", "foo\n");
+    auto editor = Editor::createForTests();
+    editor.projectRoot = root.string();
+    confirmKeys("na");
+    editor.executeCommand("%%s/foo/bar/gc");
+    ASSERT_EQ(editor.buffers.size(), 2u);
+    EXPECT_EQ(editor.buffers[0]->lines.front(), "foo bar");
+    EXPECT_EQ(editor.buffers[1]->lines.front(), "bar");
+    EXPECT_EQ(read_file(root / "a.txt"), "foo foo\n");
+    EXPECT_EQ(read_file(root / "b.txt"), "foo\n");
+    EXPECT_EQ(Terminal::bufferedKeyCount(), 0);
+}
+
+TEST(SubstituteTest, ProjectConfirmationQuitDoesNotOpenSkippedFiles)
+{
+    const auto root = make_temp_dir("uvim_project_confirm_quit_");
+    write_file(root / "a.txt", "foo\n");
+    write_file(root / "b.txt", "foo\n");
+    auto editor = Editor::createForTests();
+    editor.projectRoot = root.string();
+    confirmKeys("yq");
+    editor.executeCommand("%%s/foo/bar/gc");
+    ASSERT_EQ(editor.buffers.size(), 1u);
+    EXPECT_EQ(editor.lines->front(), "bar");
+    EXPECT_NE(editor.statusMessage.find("stopped"), std::string::npos);
+    EXPECT_EQ(read_file(root / "a.txt"), "foo\n");
+    EXPECT_EQ(read_file(root / "b.txt"), "foo\n");
+    EXPECT_EQ(Terminal::bufferedKeyCount(), 0);
 }
