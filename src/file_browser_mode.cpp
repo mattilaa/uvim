@@ -2602,63 +2602,6 @@ void FileBrowserMode::draw(Editor& editor) const
     Terminal::flush();
 }
 
-static int fuzzyScore(std::string_view text, std::string_view query)
-{
-    if(const auto score = editor::helper::regexQueryScore(query, text))
-        return *score;
-    const auto pattern = query.starts_with("fz:") ? query.substr(3) : query;
-    if(pattern.empty())
-        return 0;
-
-    auto lower = [](unsigned char ch) -> unsigned char
-    {
-        if(ch >= keyCode(typed::TypedKey::KEY_CAP_A) &&
-           ch <= keyCode(typed::TypedKey::KEY_CAP_Z))
-            return (unsigned char)(ch - keyCode(typed::TypedKey::KEY_CAP_A) +
-                                   keyCode(typed::TypedKey::KEY_A));
-        return ch;
-    };
-
-    int score = 0;
-    int ti = 0;
-    int consecutive = 0;
-    for(int pi = 0; pi < (int)pattern.size(); ++pi)
-    {
-        unsigned char pc = lower((unsigned char)pattern[pi]);
-        bool found = false;
-        while(ti < (int)text.size())
-        {
-            unsigned char tc = (unsigned char)text[ti];
-            unsigned char ltc = lower(tc);
-            if(ltc == pc)
-            {
-                score += 10 + consecutive * 5;
-                if(ti == 0)
-                    score += 8;
-                else
-                {
-                    char prev = (char)text[ti - 1];
-                    if(prev == keyCode(command::CommandKey::KEY_UNDERSCORE) ||
-                       prev == keyCode(command::CommandKey::KEY_MINUS) ||
-                       prev == keyCode(control::ControlKey::SPACE) ||
-                       prev == '\t' ||
-                       prev == keyCode(command::CommandKey::KEY_DOT))
-                        score += 8;
-                }
-                ++consecutive;
-                ++ti;
-                found = true;
-                break;
-            }
-            consecutive = 0;
-            ++ti;
-        }
-        if(!found)
-            return -1;
-    }
-    return score;
-}
-
 void FileBrowserMode::navigateTo(ModeContext& ctx, std::string pathStr)
 {
     std::string oldDir = currentDirectory;
@@ -2996,7 +2939,7 @@ void FileBrowserMode::updateFilter(ModeContext& ctx)
             continue;
         }
 
-        int score = fuzzyScore(entry.name, filterQuery);
+        int score = editor::helper::fuzzyMatchScore(filterQuery, entry.name);
         if(score >= 0)
             scored.emplace_back(i, score);
     }

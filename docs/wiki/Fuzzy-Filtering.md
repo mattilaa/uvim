@@ -1,6 +1,6 @@
 # Fuzzy filtering and regular expressions
 
-Fuzzy pickers accept explicit regular-expression queries in addition to ordinary fuzzy text. This applies to the file and buffer finders, function signatures, command palette, command and history popups, help search, Git log filtering, and debugger process and frame pickers. Existing fuzzy queries keep their ranking and navigation behavior.
+Fuzzy pickers accept explicit regular-expression queries in addition to ordinary fuzzy text. This applies to the file and buffer finders, function signatures, command palette, command and history popups, help search, Git log filtering, and debugger process and frame pickers. Ordered fuzzy matches rank above typo matches; navigation is unchanged.
 
 | Query | Meaning |
 | --- | --- |
@@ -12,6 +12,28 @@ Fuzzy pickers accept explicit regular-expression queries in addition to ordinary
 | `fz:re:example` | Search for the literal fuzzy text `re:example` |
 
 For alternation, type `re:^main\.(cpp|h)$` to match either extension.
+
+## Out-of-order characters
+
+Ordinary fuzzy filtering also finds compact matches when ASCII letters are
+out of order: `shtio` finds `something`, and `fiel` finds `file`. Correctly
+ordered matches rank first. Repeated letters must all exist in the candidate,
+and compact matches rank above widely separated letters. Two-character queries
+only permit an adjacent swap. Matching character highlights stay in display
+order. Regex queries keep their regex meaning and do not use this fallback.
+
+## Shared matching
+
+All fuzzy components use the same matching and scoring implementation, including
+file-browser filters, code and emoji completion, C++ include completion, and
+direct and recursive path completion. Command, settings, help-topic, and Git
+subcommand Tab completion use the same matcher in both editor and view prompts.
+For example, `:help navgi` offers `navigation`, and `:set autobraecs` offers
+`set autobraces`. Help-topic popups also filter as you type and accept argument
+regex queries such as `:help re:^nav.*$`.
+Pickers may still prefer particular fields, prefixes, or command aliases.
+Path and C++ include completion treat path text literally, so a filename beginning
+with `re:` does not enable regex mode.
 
 ## Matching and highlighting
 

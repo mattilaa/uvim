@@ -437,8 +437,7 @@ static int computeCompletionAnchor(const std::string& line, int cursorX)
             break;
 
         std::string name = entry.path().filename().string();
-        if(!filePrefix.empty() &&
-           name.rfind(filePrefix, 0) != 0) // prefix match
+        if(editor::helper::fuzzyMatchScore("fz:" + filePrefix, name) < 0)
             continue;
 
         std::string label = dirPrefix + name;
@@ -460,70 +459,6 @@ static int computeCompletionAnchor(const std::string& line, int cursorX)
             out.push_back(std::move(e));
         }
     }
-}
-
-static inline int fuzzyScore(const std::string& text, const std::string& query)
-{
-    if(const auto score = editor::helper::regexQueryScore(query, text))
-        return *score;
-    const std::string_view pattern =
-        std::string_view(query).substr(query.starts_with("fz:") ? 3 : 0);
-    if(pattern.empty())
-        return 0;
-
-    auto lower = [](unsigned char ch) -> unsigned char
-    {
-        if(ch >= 'A' && ch <= 'Z')
-            return (unsigned char)(ch - 'A' + 'a');
-        return ch;
-    };
-
-    int score = 0;
-    int ti = 0;
-    int consecutive = 0;
-
-    for(int pi = 0; pi < (int)pattern.size(); ++pi)
-    {
-        unsigned char pc = lower((unsigned char)pattern[pi]);
-        bool found = false;
-
-        while(ti < (int)text.size())
-        {
-            unsigned char tc = (unsigned char)text[ti];
-            unsigned char ltc = lower(tc);
-            if(ltc == pc)
-            {
-                // base points + consecutive bonus
-                score += 10;
-                score += consecutive * 5;
-
-                // token-boundary bonus
-                if(ti == 0)
-                    score += 8;
-                else
-                {
-                    char prev = text[ti - 1];
-                    if(prev == '_' || prev == ':' || prev == ' ' ||
-                       prev == '\t' || prev == '-')
-                        score += 8;
-                }
-
-                ++consecutive;
-                ++ti;
-                found = true;
-                break;
-            }
-            else
-            {
-                consecutive = 0;
-                ++ti;
-            }
-        }
-        if(!found)
-            return -1;
-    }
-
-    return score;
 }
 
 void Editor::requestCompletion()
@@ -1250,9 +1185,7 @@ void Editor::rebuildCompletionFilter()
     for(int i = 0; i < (int)completionAll.size(); ++i)
     {
         const auto& e = completionAll[i];
-        // Use the completion-popup fuzzy matcher (simple subsequence).
-        // Qualify explicitly instead of shared file-list scoring.
-        int s = ::fuzzyScore(e.label, completionQuery);
+        int s = editor::helper::fuzzyMatchScore(completionQuery, e.label);
         if(s >= 0)
             scored.push_back({i, s});
     }
@@ -1425,7 +1358,7 @@ void Editor::rebuildEmojiFilter()
     for(int i = 0; i < (int)emojiEntries.size(); ++i)
     {
         const auto& e = emojiEntries[i];
-        int s = ::fuzzyScore(e.name, emojiQuery);
+        int s = editor::helper::fuzzyMatchScore(emojiQuery, e.name);
         if(s >= 0)
             scored.push_back({i, s});
     }
