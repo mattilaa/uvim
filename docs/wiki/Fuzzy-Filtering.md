@@ -25,9 +25,14 @@ order. Regex queries keep their regex meaning and do not use this fallback.
 ## Shared matching
 
 All fuzzy components use the same matching and scoring implementation, including
-file-browser filters, code and emoji completion, and recursive path completion.
+file-browser filters, code and emoji completion, C++ include completion, and
+direct and recursive path completion. Command, settings, help-topic, and Git
+subcommand Tab completion use the same matcher in both editor and view prompts.
+For example, `:help navgi` offers `navigation`, and `:set autobraecs` offers
+`set autobraces`. Help-topic popups also filter as you type and accept argument
+regex queries such as `:help re:^nav.*$`.
 Pickers may still prefer particular fields, prefixes, or command aliases.
-Recursive path completion treats path text literally, so a filename beginning
+Path and C++ include completion treat path text literally, so a filename beginning
 with `re:` does not enable regex mode.
 
 ## Matching and highlighting

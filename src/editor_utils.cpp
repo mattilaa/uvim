@@ -2059,6 +2059,28 @@ int fuzzyMatchScore(std::string_view query, std::string_view haystack,
     return 10000 + std::max(0, score);
 }
 
+std::vector<std::string>
+fuzzyCompletions(const std::vector<std::string>& candidates,
+                 std::string_view query)
+{
+    std::vector<std::pair<int, size_t>> scored;
+    scored.reserve(candidates.size());
+    for(size_t i = 0; i < candidates.size(); ++i)
+    {
+        const int score = fuzzyMatchScore(query, candidates[i]);
+        if(score >= 0)
+            scored.emplace_back(score, i);
+    }
+    std::stable_sort(scored.begin(), scored.end(),
+                     [](const auto& a, const auto& b)
+                     { return a.first > b.first; });
+    std::vector<std::string> matches;
+    matches.reserve(scored.size());
+    for(const auto& [score, index] : scored)
+        matches.push_back(candidates[index]);
+    return matches;
+}
+
 int fuzzyScoreWithPositions(const std::string& query,
                             const std::string& haystack,
                             std::vector<int>& matchPositions)
@@ -2124,7 +2146,7 @@ std::vector<std::string> getPathCompletions(std::string_view partial)
         if(name[0] == '.' && (prefix.empty() || prefix[0] != '.'))
             continue;
 
-        if(prefix.empty() || name.substr(0, prefix.length()) == prefix)
+        if(fuzzyMatchScore("fz:" + prefix, name) >= 0)
         {
             std::string fullPath;
             if(text_utils::is_found(lastSlash))
@@ -2153,7 +2175,22 @@ std::vector<std::string> getPathCompletions(std::string_view partial)
         }
     }
 
-    std::sort(completions.begin(), completions.end());
+    std::sort(completions.begin(), completions.end(),
+              [&](const std::string& a, const std::string& b)
+              {
+                  const auto score = [&](const std::string& path)
+                  {
+                      std::string_view name = path;
+                      if(name.ends_with('/'))
+                          name.remove_suffix(1);
+                      const auto slash = name.find_last_of('/');
+                      if(slash != std::string_view::npos)
+                          name.remove_prefix(slash + 1);
+                      return fuzzyMatchScore("fz:" + prefix, name);
+                  };
+                  const int left = score(a), right = score(b);
+                  return left != right ? left > right : a < b;
+              });
 
     return completions;
 }

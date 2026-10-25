@@ -358,6 +358,11 @@ std::optional<int> regexQueryScore(std::string_view query,
 int fuzzyMatchScore(std::string_view query, std::string_view candidate,
                     std::vector<int>* positions = nullptr);
 
+/// Filter and rank completion candidates using the shared fuzzy/regex matcher.
+/// Ties and empty queries preserve the input order.
+std::vector<std::string> fuzzyCompletions(
+    const std::vector<std::string>& candidates, std::string_view query);
+
 /// @brief Scores fuzzy match quality between text and pattern.
 /// @param text Candidate text.
 /// @param pattern Pattern to match.

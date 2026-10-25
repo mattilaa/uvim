@@ -437,8 +437,7 @@ static int computeCompletionAnchor(const std::string& line, int cursorX)
             break;
 
         std::string name = entry.path().filename().string();
-        if(!filePrefix.empty() &&
-           name.rfind(filePrefix, 0) != 0) // prefix match
+        if(editor::helper::fuzzyMatchScore("fz:" + filePrefix, name) < 0)
             continue;
 
         std::string label = dirPrefix + name;

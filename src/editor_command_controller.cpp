@@ -272,6 +272,9 @@ void Editor::updateCommandPopupImpl(std::string_view query)
             topicPrefix = commandPopupQuery.substr(cmd.size() + 1);
         }
         auto topics = getHelpCompletions(topicPrefix);
+        commandPopupEmptyMessage = editor::helper::regexQueryError(topicPrefix);
+        if(commandPopupEmptyMessage.empty())
+            commandPopupEmptyMessage = "No matches";
         commandPopupAll.clear();
         if(topicPrefix.empty())
             commandPopupAll.push_back(cmd);
@@ -293,12 +296,9 @@ void Editor::updateCommandPopupImpl(std::string_view query)
 
     if(isHelpQuery)
     {
-        std::string prefix = commandPopupQuery;
+        // Topics have already been ranked against the argument query.
         for(int i = 0; i < (int)commandPopupAll.size(); ++i)
-        {
-            if(commandPopupAll[i].rfind(prefix, 0) == 0)
-                commandPopupFiltered.push_back(i);
-        }
+            commandPopupFiltered.push_back(i);
         needsFullRedraw = true;
         return;
     }
@@ -681,16 +681,7 @@ Editor::getCommandCompletionsImpl(std::string_view prefix, Mode mode)
         activeList = &fileBrowserCommands;
     }
 
-    std::vector<std::string> matches;
-    for(const auto& cmd : *activeList)
-    {
-        if(prefix.size() <= cmd.size() &&
-           std::string_view(cmd).substr(0, prefix.size()) == prefix)
-        {
-            matches.push_back(cmd);
-        }
-    }
-    return matches;
+    return editor::helper::fuzzyCompletions(*activeList, prefix);
 }
 
 std::vector<std::string> Editor::getHelpCompletionsImpl(std::string_view prefix)
@@ -710,16 +701,7 @@ std::vector<std::string> Editor::getHelpCompletionsImpl(std::string_view prefix)
 #endif
     };
 
-    std::vector<std::string> matches;
-    for(const auto& topic : topics)
-    {
-        if(prefix.size() <= topic.size() &&
-           std::string_view(topic).substr(0, prefix.size()) == prefix)
-        {
-            matches.push_back(topic);
-        }
-    }
-    return matches;
+    return editor::helper::fuzzyCompletions(topics, prefix);
 }
 
 std::vector<std::string> Editor::getSetCompletionsImpl(std::string_view prefix)
@@ -928,16 +910,7 @@ std::vector<std::string> Editor::getSetCompletionsImpl(std::string_view prefix)
         "set utf8=",
     };
 
-    std::vector<std::string> matches;
-    for(const auto& opt : options)
-    {
-        if(prefix.size() <= opt.size() &&
-           std::string_view(opt).substr(0, prefix.size()) == prefix)
-        {
-            matches.push_back(opt);
-        }
-    }
-    return matches;
+    return editor::helper::fuzzyCompletions(options, prefix);
 }
 
 std::vector<std::string> Editor::getPathCompletionsImpl(std::string_view path)

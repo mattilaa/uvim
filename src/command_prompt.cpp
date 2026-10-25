@@ -95,23 +95,12 @@ bool CommandPrompt::handle(
                     }
                     else if(cmd == "git")
                     {
-                        if(pathPart.empty() ||
-                           std::string_view("stage").rfind(pathPart, 0) == 0)
-                            completions.push_back("stage");
-                        if(pathPart.empty() ||
-                           std::string_view("log").rfind(pathPart, 0) == 0)
-                            completions.push_back("log");
-                        if(pathPart.empty() ||
-                           std::string_view("prettylog").rfind(pathPart, 0) ==
-                               0)
-                            completions.push_back("prettylog");
-                        if(pathPart.empty() ||
-                           std::string_view("stash").rfind(pathPart, 0) == 0)
-                            completions.push_back("stash");
-                        if(pathPart.empty() ||
-                           std::string_view("stash pop").rfind(pathPart, 0) ==
-                               0)
-                            completions.push_back("stash pop");
+                        std::vector<std::string> subcommands;
+                        for(const auto& command : ctx.getCommandCompletions(""))
+                            if(command.starts_with("git "))
+                                subcommands.push_back(command.substr(4));
+                        completions = editor::helper::fuzzyCompletions(
+                            subcommands, pathPart);
                     }
                 }
                 else

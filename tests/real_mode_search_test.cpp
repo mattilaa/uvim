@@ -1181,3 +1181,104 @@ TEST(FuzzyTypoTest, AssemblyMatchesAsslbyWhileTypingAndHighlightsBothEsses)
     EXPECT_EQ(sm.getState<FuzzyFindMode>()->matches[0].matchPositions,
               (std::vector<int>{0, 1, 2, 5, 6, 7}));
 }
+
+TEST(FuzzyTypoTest, CompletionListsUseSharedRankingAndPreserveEmptyQueryOrder)
+{
+    const std::vector<std::string> candidates = {"something", "shtio", "nothing"};
+    EXPECT_EQ(editor::helper::fuzzyCompletions(candidates, "shtio"),
+              (std::vector<std::string>{"shtio", "something"}));
+    EXPECT_EQ(editor::helper::fuzzyCompletions(candidates, ""), candidates);
+    EXPECT_EQ(editor::helper::fuzzyCompletions(candidates, "re:^some"),
+              (std::vector<std::string>{"something"}));
+    EXPECT_TRUE(editor::helper::fuzzyCompletions(candidates, "re:[").empty());
+}
+
+TEST(FuzzyTypoTest, CommandSettingsAndHelpTabCandidatesUseSharedMatcher)
+{
+    Editor editor = Editor::createForTests();
+    const auto commands = editor.getCommandCompletions("edti");
+    EXPECT_NE(std::find(commands.begin(), commands.end(), "edit "),
+              commands.end());
+    const auto settings = editor.getSetCompletions("set autobraecs");
+    EXPECT_NE(std::find(settings.begin(), settings.end(), "set autobraces"),
+              settings.end());
+    const auto help = editor.getHelpCompletions("navgi");
+    EXPECT_NE(std::find(help.begin(), help.end(), "navigation"), help.end());
+    EXPECT_EQ(editor.getHelpCompletions("re:^nav.*$"),
+              (std::vector<std::string>{"navigation"}));
+}
+
+TEST(FuzzyTypoTest, HelpPopupKeepsFuzzyTopicsAndSupportsArgumentRegex)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    auto sm = makeMachine(editor, NormalMode{});
+    typeText(sm, ":help navgi");
+    ASSERT_TRUE(editor.commandPopupSelection().has_value());
+    EXPECT_EQ(*editor.commandPopupSelection(), "help navigation");
+    sm.dispatch(keyCode(control::ControlKey::TAB));
+    EXPECT_EQ(editor.commandBuffer, ":help navigation");
+    sm.dispatch(keyCode(control::ControlKey::ESC));
+
+    typeText(sm, ":help re:^nav.*$");
+    ASSERT_EQ(editor.commandPopupFiltered.size(), 1u);
+    EXPECT_EQ(*editor.commandPopupSelection(), "help navigation");
+    sm.dispatch(keyCode(control::ControlKey::ESC));
+    typeText(sm, ":help re:[");
+    EXPECT_TRUE(editor.commandPopupFiltered.empty());
+    EXPECT_NE(editor.commandPopupEmptyMessage.find("Invalid regex"),
+              std::string::npos);
+}
+
+TEST(FuzzyTypoTest, WelcomeHelpPromptUsesSharedMatcherAndTabSelection)
+{
+    Editor editor = Editor::createForTests();
+    auto sm = makeMachine(editor, WelcomeMode{});
+    typeText(sm, ":help navgi");
+    ASSERT_TRUE(editor.commandPopupSelection().has_value());
+    EXPECT_EQ(*editor.commandPopupSelection(), "help navigation");
+    sm.dispatch(keyCode(control::ControlKey::TAB));
+    ASSERT_NE(editor.commandPrompt, nullptr);
+    EXPECT_EQ(editor.commandPrompt->getInput(), "help navigation");
+}
+
+TEST(FuzzyTypoTest, DirectPathCompletionUsesSharedMatcherAndLiteralPaths)
+{
+    const auto root = make_temp_dir("uvim_direct_fuzzy_paths_");
+    write_file(root / "assembly.h", "");
+    write_file(root / "asslby.h", "");
+    write_file(root / "unrelated.h", "");
+    const auto matches =
+        editor::helper::getPathCompletions(root.string() + "/asslby");
+    EXPECT_EQ(matches,
+              (std::vector<std::string>{(root / "asslby.h").string(),
+                                        (root / "assembly.h").string()}));
+#ifndef _WIN32
+    write_file(root / "re:assembly.h", "");
+    const auto literal =
+        editor::helper::getPathCompletions(root.string() + "/re:asslby");
+    EXPECT_EQ(literal,
+              (std::vector<std::string>{(root / "re:assembly.h").string()}));
+#endif
+}
+
+#ifdef UVIM_ENABLE_GIT_TOOLS
+TEST(FuzzyTypoTest, GitSubcommandTabFallbackUsesSharedMatcherInBothPrompts)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    auto sm = makeMachine(editor, NormalMode{});
+    typeText(sm, ":git pttyrlog");
+    editor.cancelCommandPopup();
+    sm.dispatch(keyCode(control::ControlKey::TAB));
+    EXPECT_EQ(editor.commandBuffer, ":git prettylog");
+    sm.dispatch(keyCode(control::ControlKey::ESC));
+
+    auto welcome = makeMachine(editor, WelcomeMode{});
+    typeText(welcome, ":git pttyrlog");
+    editor.cancelCommandPopup();
+    welcome.dispatch(keyCode(control::ControlKey::TAB));
+    ASSERT_NE(editor.commandPrompt, nullptr);
+    EXPECT_EQ(editor.commandPrompt->getInput(), "git prettylog");
+}
+#endif
