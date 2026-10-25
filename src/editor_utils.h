@@ -352,6 +352,12 @@ std::optional<int> regexQueryScore(std::string_view query,
                                    std::string_view text,
                                    std::vector<int>* positions = nullptr);
 
+/// Shared fuzzy/regex matcher. Ordered matches rank above compact matches
+/// with out-of-order ASCII characters. Optional highlights are sorted byte
+/// offsets. Returns -1 for no match, 0 for an empty query.
+int fuzzyMatchScore(std::string_view query, std::string_view candidate,
+                    std::vector<int>* positions = nullptr);
+
 /// @brief Scores fuzzy match quality between text and pattern.
 /// @param text Candidate text.
 /// @param pattern Pattern to match.

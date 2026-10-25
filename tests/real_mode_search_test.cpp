@@ -1049,3 +1049,135 @@ TEST(FuzzyTypoTest, FileFinderRanksOrderedNamesAboveReorderedMatches)
     EXPECT_EQ(state->matches[1].matchPositions,
               (std::vector<int>{0, 1, 4, 5, 6}));
 }
+
+TEST(FuzzyTypoTest, SharedScoringApisAgreeWithAndWithoutHighlights)
+{
+    for(const std::string query : {"", "shtio", "smt", "fz:shtio", "re:some.*",
+                                   "/shtio/", "re:[", "missing", "bkk"})
+    {
+        SCOPED_TRACE(query);
+        std::vector<int> positions{999}, legacyPositions{999};
+        const int score =
+            editor::helper::fuzzyMatchScore(query, "something", &positions);
+        EXPECT_EQ(editor::helper::fuzzyMatchScore(query, "something"), score);
+        EXPECT_EQ(editor::helper::fuzzyScore("something", query), score);
+        EXPECT_EQ(editor::helper::fuzzyScoreWithPositions(query, "something",
+                                                          legacyPositions),
+                  score);
+        EXPECT_EQ(positions, legacyPositions);
+        if(score <= 0)
+            EXPECT_TRUE(positions.empty());
+    }
+}
+
+TEST(FuzzyTypoTest, CompletionUsesSharedMatcherAndKeepsOrderedMatchesFirst)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"shtio"};
+    *editor.cursorX = 5;
+    *editor.cursorY = 0;
+    CompletionEntry typo, exact, unrelated;
+    typo.label = "something";
+    exact.label = "shtio";
+    unrelated.label = "unrelated";
+    editor.completionAll = {typo, exact, unrelated};
+    editor.completionActive = true;
+    editor.completionAnchorX = 0;
+    editor.completionAnchorY = 0;
+    editor.rebuildCompletionFilter();
+    EXPECT_TRUE(editor.completionActive);
+    EXPECT_EQ(editor.completionFiltered, (std::vector<int>{1, 0}));
+}
+
+TEST(FuzzyTypoTest, EmojiCompletionUsesSharedMatcher)
+{
+    Editor editor = Editor::createForTests();
+    editor.emojiEntries = {{"", "", "something", ""},
+                           {"", "", "shtio", ""},
+                           {"", "", "unrelated", ""}};
+    editor.emojiQuery = "shtio";
+    editor.rebuildEmojiFilter();
+    EXPECT_EQ(editor.emojiFiltered, (std::vector<int>{1, 0}));
+    editor.emojiQuery = "re:shtio";
+    editor.rebuildEmojiFilter();
+    EXPECT_EQ(editor.emojiFiltered, (std::vector<int>{1}));
+}
+
+TEST(FuzzyTypoTest, FileBrowserUsesSharedMatcher)
+{
+    const auto root = make_temp_dir("uvim_shared_fuzzy_browser_");
+    write_file(root / "something.cpp", "");
+    write_file(root / "shtio.cpp", "");
+    write_file(root / "unrelated.cpp", "");
+    Editor editor = Editor::createForTests();
+    editor.fileBrowserFuzzy = true;
+    auto sm = makeMachine(editor, FileBrowserMode{root.string()});
+    typeText(sm, ":filter shtio");
+    sm.dispatch(keyCode(control::ControlKey::ENTER));
+    const auto* browser = sm.getState<FileBrowserMode>();
+    ASSERT_NE(browser, nullptr);
+    std::vector<std::string> names;
+    for(int index : browser->filterMatches)
+        if(browser->fileList[index].name != "..")
+            names.push_back(browser->fileList[index].name);
+    EXPECT_EQ(names, (std::vector<std::string>{"shtio.cpp", "something.cpp"}));
+}
+
+TEST(FuzzyTypoTest, RecursivePathCompletionUsesLiteralSharedFuzzyMatching)
+{
+    const auto root = make_temp_dir("uvim_shared_fuzzy_path_");
+    write_file(root / "something.cpp", "");
+    write_file(root / "shtio.cpp", "");
+#ifndef _WIN32
+    write_file(root / "re:something.cpp", "");
+#endif
+    const auto matches = editor::helper::getRecursivePathCompletions(
+        root.string() + "/shtio", false);
+    ASSERT_FALSE(matches.empty());
+    EXPECT_EQ(matches.front(), (root / "shtio.cpp").string());
+    EXPECT_NE(std::find(matches.begin(), matches.end(),
+                        (root / "something.cpp").string()),
+              matches.end());
+#ifndef _WIN32
+    const auto literal = editor::helper::getRecursivePathCompletions(
+        root.string() + "/re:shtio", false);
+    EXPECT_NE(std::find(literal.begin(), literal.end(),
+                        (root / "re:something.cpp").string()),
+              literal.end());
+    EXPECT_EQ(std::find(literal.begin(), literal.end(),
+                        (root / "something.cpp").string()),
+              literal.end());
+#endif
+}
+
+TEST(FuzzyTypoTest, AssemblyMatchesAsslbyWhileTypingAndHighlightsBothEsses)
+{
+    std::vector<int> positions;
+    const int score = editor::helper::fuzzyMatchScore("asslby", "assembly",
+                                                      &positions);
+    ASSERT_GT(score, 0);
+    EXPECT_EQ(positions, (std::vector<int>{0, 1, 2, 5, 6, 7}));
+    EXPECT_GT(editor::helper::fuzzyMatchScore("asslby", "asslby"), score);
+    EXPECT_LT(editor::helper::fuzzyMatchScore("asslby", "ably"), 0);
+    EXPECT_LT(editor::helper::fuzzyMatchScore("re:asslby", "assembly"), 0);
+
+    Editor editor = Editor::createForTests();
+    FuzzyFindMode finder;
+    finder.projectFiles = {{"assembly.cpp", "assembly.cpp", false},
+                           {"unrelated.cpp", "unrelated.cpp", false}};
+    finder.projectFilesInitialized = true;
+    auto sm = makeMachine(editor, std::move(finder));
+    for(char ch : std::string("asslby"))
+    {
+        sm.dispatch(ch);
+        const auto* state = sm.getState<FuzzyFindMode>();
+        ASSERT_NE(state, nullptr);
+        EXPECT_TRUE(std::any_of(state->matches.begin(), state->matches.end(),
+                                 [](const FuzzyMatch& match)
+                                 { return match.file.name == "assembly.cpp"; }))
+            << state->query;
+    }
+    EXPECT_EQ(sm.getState<FuzzyFindMode>()->matches[0].matchPositions,
+              (std::vector<int>{0, 1, 2, 5, 6, 7}));
+}

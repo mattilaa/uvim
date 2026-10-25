@@ -22,6 +22,14 @@ and compact matches rank above widely separated letters. Two-character queries
 only permit an adjacent swap. Matching character highlights stay in display
 order. Regex queries keep their regex meaning and do not use this fallback.
 
+## Shared matching
+
+All fuzzy components use the same matching and scoring implementation, including
+file-browser filters, code and emoji completion, and recursive path completion.
+Pickers may still prefer particular fields, prefixes, or command aliases.
+Recursive path completion treats path text literally, so a filename beginning
+with `re:` does not enable regex mode.
+
 ## Matching and highlighting
 
 Regex filters use case-insensitive ECMAScript syntax: anchors, alternation, groups, character classes, and quantifiers. They search within each candidate; add `^` and `$` to anchor the match. The first matched span supplies character highlights in views that highlight matched characters. Zero-width expressions such as `re:^` match without highlighting any characters.

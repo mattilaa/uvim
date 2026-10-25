@@ -1897,72 +1897,16 @@ std::optional<int> regexQueryScore(std::string_view query,
 
 int fuzzyScore(const std::string& text, const std::string& query)
 {
-    if(const auto score = regexQueryScore(query, text))
-        return *score;
-    const std::string_view pattern =
-        std::string_view(query).substr(query.starts_with("fz:") ? 3 : 0);
-    if(pattern.empty())
-        return 0;
-
-    auto lower = [](unsigned char ch) -> unsigned char
-    {
-        if(ch >= 'A' && ch <= 'Z')
-            return (unsigned char)(ch - 'A' + 'a');
-        return ch;
-    };
-
-    int score = 0;
-    int ti = 0;
-    int consecutive = 0;
-
-    for(int pi = 0; pi < (int)pattern.size(); ++pi)
-    {
-        unsigned char pc = lower((unsigned char)pattern[pi]);
-        bool found = false;
-
-        while(ti < (int)text.size())
-        {
-            unsigned char tc = (unsigned char)text[ti];
-            unsigned char ltc = lower(tc);
-            if(ltc == pc)
-            {
-                score += 10;
-                score += consecutive * 5;
-
-                if(ti == 0)
-                    score += 8;
-                else
-                {
-                    char prev = text[ti - 1];
-                    if(prev == '_' || prev == ':' || prev == ' ' ||
-                       prev == '\t' || prev == '-')
-                        score += 8;
-                }
-
-                ++consecutive;
-                ++ti;
-                found = true;
-                break;
-            }
-            else
-            {
-                consecutive = 0;
-                ++ti;
-            }
-        }
-        if(!found)
-            return -1;
-    }
-
-    return score;
+    return fuzzyMatchScore(query, text);
 }
 
 namespace
 {
 int outOfOrderFuzzyScore(std::string_view query, std::string_view text,
-                         std::vector<int>& positions)
+                         std::vector<int>* positions)
 {
-    positions.clear();
+    if(positions)
+        positions->clear();
     if(query.size() < 2 || query.size() > text.size())
         return -1;
     const auto lower = [](unsigned char ch) -> unsigned char
@@ -2022,12 +1966,12 @@ int outOfOrderFuzzyScore(std::string_view query, std::string_view text,
     }
     if(bestScore < 0)
         return -1;
-    for(size_t i = bestStart; i < bestEnd; ++i)
+    for(size_t i = bestStart; positions && i < bestEnd; ++i)
     {
         const auto ch = lower(static_cast<unsigned char>(text[i]));
         if(required[ch])
         {
-            positions.push_back(static_cast<int>(i));
+            positions->push_back(static_cast<int>(i));
             --required[ch];
         }
     }
@@ -2035,12 +1979,12 @@ int outOfOrderFuzzyScore(std::string_view query, std::string_view text,
 }
 } // namespace
 
-int fuzzyScoreWithPositions(const std::string& query,
-                            const std::string& haystack,
-                            std::vector<int>& matchPositions)
+int fuzzyMatchScore(std::string_view query, std::string_view haystack,
+                    std::vector<int>* matchPositions)
 {
-    matchPositions.clear();
-    if(const auto score = regexQueryScore(query, haystack, &matchPositions))
+    if(matchPositions)
+        matchPositions->clear();
+    if(const auto score = regexQueryScore(query, haystack, matchPositions))
         return *score;
     const std::string_view needle =
         std::string_view(query).substr(query.starts_with("fz:") ? 3 : 0);
@@ -2068,7 +2012,8 @@ int fuzzyScoreWithPositions(const std::string& query,
 
         if(needleChar == haystackChar)
         {
-            matchPositions.push_back(static_cast<int>(i));
+            if(matchPositions)
+                matchPositions->push_back(static_cast<int>(i));
 
             score += 100;
 
@@ -2085,8 +2030,8 @@ int fuzzyScoreWithPositions(const std::string& query,
                 }
             }
 
-            if(i > 0 && std::islower(haystack[i - 1]) &&
-               std::isupper(haystack[i]))
+            if(i > 0 && std::islower(static_cast<unsigned char>(haystack[i - 1])) &&
+               std::isupper(static_cast<unsigned char>(haystack[i])))
             {
                 score += camelBonus;
             }
@@ -2112,6 +2057,13 @@ int fuzzyScoreWithPositions(const std::string& query,
     score -= static_cast<int>(haystack.length());
     // Keep ordered subsequences above the typo fallback, even on long paths.
     return 10000 + std::max(0, score);
+}
+
+int fuzzyScoreWithPositions(const std::string& query,
+                            const std::string& haystack,
+                            std::vector<int>& matchPositions)
+{
+    return fuzzyMatchScore(query, haystack, &matchPositions);
 }
 
 std::vector<std::string> getPathCompletions(std::string_view partial)
@@ -2206,22 +2158,11 @@ std::vector<std::string> getPathCompletions(std::string_view partial)
     return completions;
 }
 
-static bool completionSubsequenceMatch(std::string_view text,
-                                       std::string_view pattern)
+static bool completionFuzzyMatch(std::string_view text,
+                                 std::string_view pattern)
 {
-    if(pattern.empty())
-        return true;
-    size_t i = 0;
-    for(char ch : text)
-    {
-        if(ch == pattern[i])
-        {
-            ++i;
-            if(i >= pattern.size())
-                return true;
-        }
-    }
-    return false;
+    // Paths are literal fuzzy queries, even if a component starts with re:.
+    return fuzzyMatchScore("fz:" + std::string(pattern), text) >= 0;
 }
 
 static void collectRecursiveCompletion(const std::string& dir,
@@ -2262,12 +2203,12 @@ static void collectRecursiveCompletion(const std::string& dir,
         else if(text_utils::contains(prefix, '/'))
         {
             match = text_utils::contains(rel, prefix) ||
-                    completionSubsequenceMatch(rel, prefix);
+                    completionFuzzyMatch(rel, prefix);
         }
         else
         {
             match = text_utils::contains(name, prefix) ||
-                    completionSubsequenceMatch(name, prefix);
+                    completionFuzzyMatch(name, prefix);
         }
 
         if(match)
@@ -2423,13 +2364,7 @@ std::vector<std::string> getRecursivePathCompletions(std::string_view partial,
         bool hasSlash = text_utils::contains(prefix, '/');
         std::string_view hay = hasSlash ? candidate : name;
 
-        if(hay.rfind(prefix, 0) == 0)
-            return 1000 - (int)candidate.size();
-        if(text_utils::contains(hay, prefix))
-            return 600 - (int)candidate.size();
-        if(completionSubsequenceMatch(hay, prefix))
-            return 300 - (int)candidate.size();
-        return 0;
+        return fuzzyMatchScore("fz:" + prefix, hay);
     };
 
     std::sort(completions.begin(), completions.end(),
