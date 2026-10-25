@@ -111,10 +111,10 @@ menus—they leave the corresponding implementation out of the binary.
   references and diagnostics in uVim.
 - Added dependency tests for C# installation with Homebrew, apt, dnf and
   pacman, plus regressions for navigation, slow LSP startup and pipe ordering.
-- New pushes to `main` cancel its previous CI run; other branches keep their
-  own queues and cannot cancel a running main pipeline. Branch push runs
-  rebase their temporary checkout onto current `main` by default, controlled
-  by the `CI_REBASE_BRANCHES` Actions variable. All jobs use one prepared
+- New pushes cancel the previous CI run for the same branch. Pull-request
+  updates cancel previous runs for that PR; different refs stay independent.
+  Branch push runs rebase their temporary checkout onto current `main` by
+  default, controlled by the `CI_REBASE_BRANCHES` Actions variable. All jobs use one prepared
   source snapshot; remote branches are not rewritten.
 
 ### v0.3.2 (2026-10-19)
@@ -269,12 +269,12 @@ preparation, build jobs run in parallel, followed by the test stage:
  artifacts windows-x64  (Release)  → uvim-windows-x64.zip
 ```
 
-- New pushes to `main` automatically cancel its previous CI run and start
-  testing the latest commit. Other branches queue runs: while one runs,
-  further pushes wait as a single run of the newest commit.
-- Cancellation and queueing are scoped to the same branch. Pushing to `dev`
-  leaves a running `main` pipeline running, and pushing to `main` leaves
-  pipelines on other branches running.
+- New pushes to any branch automatically cancel its previous CI run and start
+  testing the latest commit. Pull-request updates also replace previous CI runs
+  for the same PR.
+- Cancellation is scoped to the workflow and Git ref. Pushing to `dev` leaves
+  a running `main` pipeline running, and pushing to `main` leaves pipelines on
+  other branches running.
 - Branch push runs rebase their temporary checkout onto the latest `main`
   when the run starts, including queued runs and full workflow reruns. This
   defaults to enabled; set the repository Actions variable `CI_REBASE_BRANCHES`

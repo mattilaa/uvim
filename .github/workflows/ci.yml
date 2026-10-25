@@ -6,13 +6,11 @@ on:
   pull_request:
     branches: ["**"]
 
-# New pushes to main cancel its previous run so CI tests the latest commit.
-# Other branches queue one run at a time; later pushes replace the waiting run.
-# Keep github.ref in the group: a push to dev must never cancel a main run,
-# and a push to main must never cancel a run on another branch.
+# New pushes cancel the previous CI run for the same branch or pull request.
+# Scope cancellation by workflow and ref so branches and PRs stay independent.
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+  cancel-in-progress: true
 
 # A bare `cmake --build --parallel` means unlimited `make -j` with the
 # Makefile generator (macOS) and exhausts the runner's memory; use a fixed
