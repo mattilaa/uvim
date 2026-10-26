@@ -8,6 +8,8 @@ AccessModifierOffset: -4
 # Forces elements to unpack individually into separate rows when wrapping
 BinPackArguments: false
 BinPackParameters: false
+# Clang-format otherwise repacks braced lists with more than 20 items.
+BinPackLongBracedList: false
 AllowAllArgumentsOnNextLine: false
 AllowAllParametersOfDeclarationOnNextLine: false
 AlignAfterOpenBracket: AlwaysBreak
