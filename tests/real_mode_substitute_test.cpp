@@ -5,6 +5,23 @@ using namespace uvim_test;
 
 namespace
 {
+std::string nativeFileText(std::string text)
+{
+#ifdef _WIN32
+    std::string result;
+    result.reserve(text.size());
+    for(char ch : text)
+    {
+        if(ch == '\n')
+            result += '\r';
+        result += ch;
+    }
+    return result;
+#else
+    return text;
+#endif
+}
+
 void contents(Editor& editor, std::vector<std::string> lines)
 {
     editor.createNewBuffer();
@@ -167,13 +184,16 @@ TEST(SubstituteTest,
               std::string::npos);
     for(const auto& buffer : editor.buffers)
         EXPECT_TRUE(buffer->dirty);
-    EXPECT_EQ(read_file(root / "first.txt"), "foo foo\n");
-    EXPECT_EQ(read_file(root / "nested" / "second.cpp"), "foo\n");
+    EXPECT_EQ(read_file(root / "first.txt"), nativeFileText("foo foo\n"));
+    EXPECT_EQ(read_file(root / "nested" / "second.cpp"),
+              nativeFileText("foo\n"));
     editor.executeCommand("wa");
-    EXPECT_EQ(read_file(root / "first.txt"), "bar bar\n");
-    EXPECT_EQ(read_file(root / "nested" / "second.cpp"), "bar\n");
-    EXPECT_EQ(read_file(root / "ignored" / "skip.txt"), "foo\n");
-    EXPECT_EQ(read_file(root / ".hidden.txt"), "foo\n");
+    EXPECT_EQ(read_file(root / "first.txt"), nativeFileText("bar bar\n"));
+    EXPECT_EQ(read_file(root / "nested" / "second.cpp"),
+              nativeFileText("bar\n"));
+    EXPECT_EQ(read_file(root / "ignored" / "skip.txt"),
+              nativeFileText("foo\n"));
+    EXPECT_EQ(read_file(root / ".hidden.txt"), nativeFileText("foo\n"));
 }
 
 TEST(SubstituteTest,
@@ -192,7 +212,7 @@ TEST(SubstituteTest,
     editor.executeCommand("%%s/foo/bar/g");
     EXPECT_EQ(editor.currentBufferIndex, original);
     EXPECT_EQ(editor.lines->front(), "bar unsaved") << editor.statusMessage;
-    EXPECT_EQ(read_file(first), "disk\n");
+    EXPECT_EQ(read_file(first), nativeFileText("disk\n"));
     editor.undo();
     EXPECT_EQ(editor.lines->front(), "foo unsaved");
     EXPECT_TRUE(*editor.dirty);
@@ -209,7 +229,7 @@ TEST(SubstituteTest, ProjectCountOnlyDoesNotOpenOrModifyBuffers)
     EXPECT_TRUE(editor.buffers.empty());
     EXPECT_NE(editor.statusMessage.find("2 matches in 1 project files"),
               std::string::npos);
-    EXPECT_EQ(read_file(root / "file.txt"), "foo FOO\n");
+    EXPECT_EQ(read_file(root / "file.txt"), nativeFileText("foo FOO\n"));
 }
 
 TEST(SubstituteTest, ProjectNeverFollowsSymlinksOutsideRootEvenForOpenBuffers)
@@ -230,7 +250,7 @@ TEST(SubstituteTest, ProjectNeverFollowsSymlinksOutsideRootEvenForOpenBuffers)
     EXPECT_EQ(editor.currentBufferIndex, original);
     EXPECT_EQ(editor.lines->front(), "foo");
     EXPECT_FALSE(*editor.dirty);
-    EXPECT_EQ(read_file(outside / "outside.txt"), "foo\n");
+    EXPECT_EQ(read_file(outside / "outside.txt"), nativeFileText("foo\n"));
 }
 
 TEST(SubstituteTest, RecognitionDoesNotInterceptExistingCommands)
@@ -258,7 +278,7 @@ TEST(SubstituteTest, ProjectIncludesNewNamedBuffersAndCanDisableGitignore)
     EXPECT_EQ(editor.lines->front(), "bar new");
     ASSERT_EQ(editor.buffers.size(), 2u);
     EXPECT_FALSE(std::filesystem::exists(root / "new.txt"));
-    EXPECT_EQ(read_file(root / "ignored.txt"), "foo\n");
+    EXPECT_EQ(read_file(root / "ignored.txt"), nativeFileText("foo\n"));
     editor.undo();
     EXPECT_EQ(editor.lines->front(), "foo new");
 }
@@ -370,8 +390,8 @@ TEST(SubstituteTest, ProjectConfirmationAllSpansFilesAndLeavesDiskUntouched)
     ASSERT_EQ(editor.buffers.size(), 2u);
     EXPECT_EQ(editor.buffers[0]->lines.front(), "foo bar");
     EXPECT_EQ(editor.buffers[1]->lines.front(), "bar");
-    EXPECT_EQ(read_file(root / "a.txt"), "foo foo\n");
-    EXPECT_EQ(read_file(root / "b.txt"), "foo\n");
+    EXPECT_EQ(read_file(root / "a.txt"), nativeFileText("foo foo\n"));
+    EXPECT_EQ(read_file(root / "b.txt"), nativeFileText("foo\n"));
     EXPECT_EQ(Terminal::bufferedKeyCount(), 0);
 }
 
@@ -387,8 +407,8 @@ TEST(SubstituteTest, ProjectConfirmationQuitDoesNotOpenSkippedFiles)
     ASSERT_EQ(editor.buffers.size(), 1u);
     EXPECT_EQ(editor.lines->front(), "bar");
     EXPECT_NE(editor.statusMessage.find("stopped"), std::string::npos);
-    EXPECT_EQ(read_file(root / "a.txt"), "foo\n");
-    EXPECT_EQ(read_file(root / "b.txt"), "foo\n");
+    EXPECT_EQ(read_file(root / "a.txt"), nativeFileText("foo\n"));
+    EXPECT_EQ(read_file(root / "b.txt"), nativeFileText("foo\n"));
     EXPECT_EQ(Terminal::bufferedKeyCount(), 0);
 }
 
@@ -493,8 +513,8 @@ TEST(SubstituteTest, ProjectBatchPickerOnlyOpensSelectedChangedFiles)
     EXPECT_EQ(editor.lines->front(), "bar");
     EXPECT_EQ(editor.currentBuffer->filename,
               std::filesystem::canonical(root / "b.txt").string());
-    EXPECT_EQ(read_file(root / "a.txt"), "foo foo\n");
-    EXPECT_EQ(read_file(root / "b.txt"), "foo\n");
+    EXPECT_EQ(read_file(root / "a.txt"), nativeFileText("foo foo\n"));
+    EXPECT_EQ(read_file(root / "b.txt"), nativeFileText("foo\n"));
     EXPECT_NE(editor.statusMessage.find("1 substitutions in 1 project files"),
               std::string::npos);
     editor.undo();
@@ -514,7 +534,7 @@ TEST(SubstituteTest, ProjectBatchPickerCancelledOrEmptyNeverOpensBuffers)
         confirmKeys(keys);
         editor.executeCommand("%%s/foo/bar/gp");
         EXPECT_TRUE(editor.buffers.empty());
-        EXPECT_EQ(read_file(root / "a.txt"), "foo\n");
+        EXPECT_EQ(read_file(root / "a.txt"), nativeFileText("foo\n"));
         EXPECT_EQ(Terminal::bufferedKeyCount(), 0);
     }
 }
