@@ -41,10 +41,10 @@ std::vector<std::string> fileBrowserSecondaryHelpTokens(size_t selectedCount,
                                                         bool moveMode)
 {
     std::vector<std::string> tokens = {
-        "[Space: select]", "[d: delete]",
-        "[y: yank]",       "[m: move]",
-        "[p: paste]",      "[u: undo]",
-        "[^R: redo]",      "[:/regex ^N: select matches]"};
+        "[Space: select]", "[n: new file]", "[D: new dir]",
+        "[d: delete]",     "[y: yank]",     "[m: move]",
+        "[p: paste]",      "[u: undo]",     "[^R: redo]",
+        "[:/regex ^N: select matches]"};
     if(selectedCount > 0)
         tokens.push_back("(" + std::to_string(selectedCount) + " selected)");
     if(copyCount > 0)

@@ -887,3 +887,62 @@ TEST(RealModeTransitionsTest, FileBrowserFilterCommandAcceptsRegexAndClearsWithE
     dispatch_command(sm, "filter");
     EXPECT_FALSE(browser->filterActive);
 }
+
+TEST(RealModeTransitionsTest, FileBrowserCreatesNestedDirectoryFromPrompt)
+{
+    const auto root = make_temp_dir("uvim_browser_create_dir_");
+    Editor editor = Editor::createForTests();
+    auto sm = makeMachine(editor, FileBrowserMode{root.string()});
+
+    sm.dispatch(keyCode(typed::TypedKey::KEY_CAP_D));
+    auto* browser = sm.getState<FileBrowserMode>();
+    ASSERT_NE(browser, nullptr);
+    ASSERT_TRUE(browser->commandPrompt->isActive());
+    EXPECT_EQ(browser->commandPrompt->getInput(), "mkdir ");
+    for(char ch : std::string("path1/path2/path3"))
+        sm.dispatch(ch);
+    sm.dispatch(keyCode(control::ControlKey::ENTER));
+
+    EXPECT_TRUE(std::filesystem::is_directory(root / "path1/path2/path3"));
+    EXPECT_EQ(browser->currentDirectory, (root / "path1/path2").string());
+    ASSERT_LT(browser->browserCursor, static_cast<int>(browser->fileList.size()));
+    EXPECT_EQ(browser->fileList[browser->browserCursor].name, "path3");
+}
+
+TEST(RealModeTransitionsTest, FileBrowserConfirmsMissingParentsForNewFile)
+{
+    const auto root = make_temp_dir("uvim_browser_create_file_");
+    Editor editor = Editor::createForTests();
+    auto sm = makeMachine(editor, FileBrowserMode{root.string()});
+
+    auto enterNewFile = [&](std::string_view name)
+    {
+        sm.dispatch(keyCode(typed::TypedKey::KEY_N));
+        auto* browser = sm.getState<FileBrowserMode>();
+        EXPECT_TRUE(browser->commandPrompt->isActive());
+        EXPECT_EQ(browser->commandPrompt->getInput(), "new ");
+        for(char ch : name)
+            sm.dispatch(ch);
+        sm.dispatch(keyCode(control::ControlKey::ENTER));
+    };
+
+    enterNewFile("path1/path2/file.txt");
+    auto* browser = sm.getState<FileBrowserMode>();
+    ASSERT_NE(browser, nullptr);
+    EXPECT_TRUE(browser->confirmingDirCreate);
+    EXPECT_FALSE(std::filesystem::exists(root / "path1"));
+    sm.dispatch('n');
+    EXPECT_FALSE(browser->confirmingDirCreate);
+    EXPECT_FALSE(std::filesystem::exists(root / "path1"));
+
+    enterNewFile("path1/path2/file.txt");
+    ASSERT_TRUE(browser->confirmingDirCreate);
+    sm.dispatch('y');
+    EXPECT_FALSE(browser->confirmingDirCreate);
+    EXPECT_TRUE(std::filesystem::is_regular_file(root / "path1/path2/file.txt"));
+    EXPECT_EQ(browser->currentDirectory, (root / "path1/path2").string());
+
+    enterNewFile("sibling.txt");
+    EXPECT_FALSE(browser->confirmingDirCreate);
+    EXPECT_TRUE(std::filesystem::is_regular_file(root / "path1/path2/sibling.txt"));
+}

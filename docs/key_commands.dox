@@ -236,6 +236,11 @@ includes common Normal/Insert/Visual/Command mode bindings.
 - `:` : command mode in browser
 - `q` : close active browser pane; the final pane exits to editor/welcome
 - `Q` : exit browser and save the current browser pane layout
+- `n` : prompt for a new file name. Enter a nested path such as
+  `path1/path2/file.txt`; if a parent is missing, confirm with `y` before
+  it and the file are created. `n` or Esc cancels.
+- `Shift-D` : prompt for a new directory name. Nested paths such as
+  `path1/path2/path3` create every missing directory.
 
 \section keys_cli Startup flags
 - `--no-git-index` : disable git-backed indexing for fuzzy find and grep
