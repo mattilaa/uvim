@@ -96,7 +96,8 @@ std::vector<Entry> builtinActions()
     a.push_back(keys("Previous buffer", "Ctrl-H",
                      {ctrl(control::ControlKey::CTRL_H)},
                      {"bp", "bprev", "bprevious"}));
-    a.push_back(ex("Close buffer", {"bd", "bdelete"}));
+    a.push_back(keys("Close buffer", "Space b d", {kSpace, 'b', 'd'},
+                     {"bd", "bdelete"}));
     a.push_back(ex("New empty buffer", {"enew"}));
     a.push_back(ex("Save file", {"w"}));
     a.push_back(ex("Save all files", {"wa", "wall"}));
@@ -140,11 +141,11 @@ std::vector<Entry> builtinActions()
     // Windows.
     a.push_back(ex("Split vertically", {"vs"}));
     a.push_back(ex("Split horizontally", {"hs"}));
-    a.push_back(ex("Close split pane", {"close", "clo"}));
+    a.push_back(ex("Close split pane", {"sc"}));
     a.push_back(ex("New tab", {"tabnew"}));
     // Git.
 #ifdef UVIM_ENABLE_GIT_TOOLS
-    a.push_back(ex("Show unsaved changes", {"sc", "showchanges"}));
+    a.push_back(ex("Show unsaved changes", {"showchanges"}));
     a.push_back(ex("Git: stage changes", {"git stage"}));
     a.push_back(ex("Git: commit", {"git commit"}));
     a.push_back(ex("Git: log", {"git log"}));

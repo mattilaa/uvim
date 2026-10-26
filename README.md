@@ -69,7 +69,7 @@ menus—they leave the corresponding implementation out of the binary.
   server cannot keep a clipboard helper waiting for its input pipe to close.
 - **Word-backward navigation** — Normal-mode `b` moves immediately, including
   repeated presses and counts such as `2b`, and no longer consumes the next
-  key. Close buffers with `:bd` / `:bdelete`; bare `bd` is no longer a buffer
+  key. Close buffers with `Space-b d` or `:bd` / `:bdelete`; bare `bd` is no longer a buffer
   shortcut.
 - `j` / `k` and up/down arrows preserve the wanted column in UTF-8 mode,
   without drifting left on ASCII lines. Short lines clamp to a complete
@@ -174,7 +174,7 @@ menus—they leave the corresponding implementation out of the binary.
   progress bars in the status line; keys typed meanwhile are queued instead
   of freezing the UI. `:tasks` lists, reorders and cancels jobs; LSP servers
   show their own progress. `uvim .` starts without blocking.
-- **`:sc` / `:showchanges`** — the unsaved edits of the buffer as a colored
+- **`:showchanges`** — the unsaved edits of the buffer as a colored
   diff, with `n`/`N` hunk navigation (wrapping around), `d` to drop a hunk
   and `u` to undo.
 - **Edit commits from `:git log`** — open a commit, drop hunks from it,
@@ -1478,7 +1478,7 @@ cursor movement and selection.
 
 ## Tab bar / buffer management
 
-- Close a buffer with `:bd` / `:bdelete` (`:bd!` forces it). In Normal mode,
+- Close a buffer with `Space-b d` or `:bd` / `:bdelete` (`:bd!` forces it). In Normal mode,
   `b` immediately moves to the previous word; `2b` moves back two words, and
   the next key runs normally. There is no bare `bd` buffer-close shortcut.
 - Each tab shows the buffer index (e.g. `1:foo.cpp`). Toggle with
@@ -1495,7 +1495,7 @@ cursor movement and selection.
 - `Ctrl-h` / `Ctrl-l` - previous / next buffer (unchanged).
 - `Ctrl-w` - browse open buffers for the active pane. Press `Enter` to open
   the selected buffer only in that pane.
-- `Space-w c` - close the active split pane (`:close` and `:clo` are equivalent).
+- `Space-w c` or `:sc` - close the active split pane.
 
 ## Ctrl+Shift keys and Alt alternatives
 

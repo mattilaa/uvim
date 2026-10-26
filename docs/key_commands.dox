@@ -12,7 +12,7 @@ includes common Normal/Insert/Visual/Command mode bindings.
   to complete UTF-8 characters on shorter lines.
 - `w b e` : next word / previous word / end of word
 - `b` moves immediately; counts such as `2b` repeat the motion. The following
-  key is processed normally. Use `:bd` to close a buffer.
+  key is processed normally. Use `Space-b d` or `:bd` to close a buffer.
 - `0 ^ $` : start of line / first non-blank / end of line
 - `gg` / `G` / `<n>G` : top / bottom / go to line n
 - `Ctrl-f` / `Ctrl-b` : page down / page up
@@ -102,6 +102,7 @@ includes common Normal/Insert/Visual/Command mode bindings.
 - `gl` / `glf` : git log (repo / current file); `Ctrl-v` range selects
 
 \subsection keys_normal_leader Leader (Space)
+- `Space-b d` : close the active buffer (refuses unsaved changes)
 - `Space-e` : diagnostic popup on an LSP diagnostic row
 - `Space-d` : go to definition
 - `Space-g a` : show assembly instruction docs in a scrollable popup
@@ -117,6 +118,7 @@ includes common Normal/Insert/Visual/Command mode bindings.
 \subsection keys_normal_splits Splits
 - `:hs` : horizontal split
 - `:vs` : vertical split
+- `:sc` : close the active split pane
 - in file browser, `:hs` : horizontal browser split
 - in file browser, `:vs` : vertical browser split
 - `Space-w c` : close the active editor pane

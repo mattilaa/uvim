@@ -137,7 +137,7 @@ std::string_view commandDocumentation(std::string_view cmd)
         return "Split file browser horizontally";
     if(cmd == "ve")
         return "Split file browser vertically";
-    if(cmd == "close" || cmd == "clo")
+    if(cmd == "sc")
         return "Close active split pane";
     if(cmd == "only")
         return "Close other splits";
@@ -163,7 +163,7 @@ std::string_view commandDocumentation(std::string_view cmd)
         return "Clear search highlights";
     if(cmd == "lspinfo")
         return "Show LSP status and clients";
-    if(cmd == "showchanges" || cmd == "sc")
+    if(cmd == "showchanges")
         return "Show unsaved changes of the current buffer as a diff";
     if(cmd == "toolinfo")
         return "Show external tool status";

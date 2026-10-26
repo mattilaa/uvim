@@ -39,7 +39,7 @@ bool SplitCommand::execute(Editor& editor, const CommandRequest& request) const
         editor.enableSplit(false);
         return true;
     }
-    if(request.text == "close" || request.text == "clo")
+    if(request.text == "sc")
     {
         if(editor.splitActive)
             editor.closeSplit();

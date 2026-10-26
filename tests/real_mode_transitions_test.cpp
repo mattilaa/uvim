@@ -67,8 +67,11 @@ TEST(RealModeTransitionsTest, CommandPopupIncludesRegisteredExCommands)
         contains_command(editor.getCommandCompletions("git a"), "git add"));
     EXPECT_TRUE(contains_command(editor.getCommandCompletions("vs"), "vs"));
     EXPECT_TRUE(contains_command(editor.getCommandCompletions("hs"), "hs"));
-    EXPECT_TRUE(
+    EXPECT_TRUE(contains_command(editor.getCommandCompletions("sc"), "sc"));
+    EXPECT_FALSE(
         contains_command(editor.getCommandCompletions("clo"), "close"));
+    EXPECT_TRUE(contains_command(editor.getCommandCompletions("showchanges"),
+                                 "showchanges"));
     EXPECT_TRUE(contains_command(editor.getCommandCompletions("se"), "se"));
     EXPECT_TRUE(contains_command(editor.getCommandCompletions("ve"), "ve"));
     EXPECT_FALSE(
@@ -952,7 +955,7 @@ TEST(RealModeTransitionsTest, HelpCommandReferenceMatchesCurrentCommands)
     EXPECT_TRUE(contains_help_text(commands->lines, ":edit!%"));
     EXPECT_TRUE(contains_help_text(commands->lines, ":qw!"));
     EXPECT_TRUE(contains_help_text(commands->lines, ":se"));
-    EXPECT_TRUE(contains_help_text(commands->lines, ":clo"));
+    EXPECT_TRUE(contains_help_text(commands->lines, ":sc"));
     EXPECT_TRUE(contains_help_text(commands->lines, ":format"));
     EXPECT_TRUE(contains_help_text(commands->lines, ":lspinfo"));
     EXPECT_TRUE(contains_help_text(commands->lines, ":toolinfo"));
@@ -1430,6 +1433,30 @@ TEST(RealModeTransitionsTest, ColonBdClosesCurrentBuffer)
     EXPECT_STREQ(sm.currentStateName(), "NORMAL");
 }
 
+TEST(RealModeTransitionsTest, LeaderBdClosesCurrentBuffer)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.createNewBuffer();
+    auto sm = makeMachine(editor, NormalMode{});
+
+    sm.dispatch(keyCode(control::ControlKey::SPACE));
+    sm.dispatch(keyCode(typed::TypedKey::KEY_B));
+    EXPECT_EQ(editor.commandBuffer, " b");
+    sm.dispatch(keyCode(typed::TypedKey::KEY_D));
+
+    EXPECT_EQ(editor.buffers.size(), 1u);
+    EXPECT_EQ(editor.currentBufferIndex, 0);
+    EXPECT_TRUE(editor.commandBuffer.empty());
+    EXPECT_STREQ(sm.currentStateName(), "NORMAL");
+
+    sm.dispatch(keyCode(control::ControlKey::SPACE));
+    sm.dispatch(keyCode(typed::TypedKey::KEY_B));
+    sm.dispatch(keyCode(typed::TypedKey::KEY_D));
+    EXPECT_TRUE(editor.buffers.empty());
+    EXPECT_EQ(editor.currentMode, WELCOME);
+}
+
 TEST(RealModeTransitionsTest, BMovesBackwardImmediatelyAndDoesNotSwallowNextKey)
 {
     Editor editor = Editor::createForTests();
@@ -1682,7 +1709,7 @@ TEST(RealModeTransitionsTest, LeaderWcClosesSelectedPane)
     EXPECT_STREQ(sm.currentStateName(), "NORMAL");
 }
 
-TEST(RealModeTransitionsTest, CloseCommandClosesSelectedPane)
+TEST(RealModeTransitionsTest, ScCommandClosesSelectedPane)
 {
     Editor editor = Editor::createForTests();
     editor.createNewBuffer();
@@ -1690,7 +1717,7 @@ TEST(RealModeTransitionsTest, CloseCommandClosesSelectedPane)
     ASSERT_TRUE(editor.splitActive);
     auto sm = makeMachine(editor, NormalMode{});
 
-    dispatch_command(sm, "close");
+    dispatch_command(sm, "sc");
 
     EXPECT_FALSE(editor.splitActive);
     EXPECT_STREQ(sm.currentStateName(), "NORMAL");

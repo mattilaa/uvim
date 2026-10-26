@@ -595,7 +595,7 @@ Editor::getCommandCompletionsImpl(std::string_view prefix, Mode mode)
         "edit!%",  "enew",    "bn",       "bnext",   "bp",
         "bprev",   "bprevious", "bd",     "bd!",     "bdelete",
         "b ",      "buffer ", "ls",       "buffers", "vs",
-        "hs",      "close",   "clo",
+        "hs",      "sc",
 #ifdef UVIM_ENABLE_BROWSER_TOOLS
         "se", "ve", "functions",
 #endif
@@ -647,7 +647,7 @@ Editor::getCommandCompletionsImpl(std::string_view prefix, Mode mode)
         "git log",
         "git prettylog",
         "git diff",
-        "showchanges", "sc",
+        "showchanges",
         "git commit",
         "git fixup",
         "git stash",
@@ -675,7 +675,7 @@ Editor::getCommandCompletionsImpl(std::string_view prefix, Mode mode)
         }
 
         const std::vector<std::string> notApplicable = {
-            "wq", "x", "se", "ve", "close", "clo"};
+            "wq", "x", "se", "ve", "sc"};
         fileBrowserCommands.erase(
             std::remove_if(
                 fileBrowserCommands.begin(), fileBrowserCommands.end(),

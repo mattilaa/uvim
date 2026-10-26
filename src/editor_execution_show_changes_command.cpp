@@ -7,7 +7,7 @@ namespace command::execution
 bool ShowChangesCommand::execute(Editor& editor,
                                  const CommandRequest& request) const
 {
-    if(request.trimmed != "sc" && request.trimmed != "showchanges")
+    if(request.trimmed != "showchanges")
         return false;
     editor.openUnsavedChangesMode();
     return true;

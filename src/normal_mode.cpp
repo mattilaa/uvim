@@ -133,6 +133,19 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
         return result;
     }
 
+    if(ctx.commandBuffer == " b")
+    {
+        ctx.commandBuffer.clear();
+        ctx.repeatCount = 0;
+        if(c == keyCode(typed::TypedKey::KEY_D))
+            ed->closeCurrentBuffer();
+        else
+            ctx.setStatusMessage(c == keyCode(control::ControlKey::ESC)
+                                     ? ""
+                                     : "Unknown leader-b command");
+        return std::nullopt;
+    }
+
     if(structuralBuffer != ed->currentBuffer)
         structuralTarget.reset();
     if(structuralPrefix)
@@ -1325,6 +1338,12 @@ std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
         ctx.repeatCount = 0;
         return std::nullopt;
     }
+
+    case keyCode(typed::TypedKey::KEY_B):
+        ctx.commandBuffer = " b";
+        ctx.setStatusMessage("Leader-b");
+        ctx.repeatCount = 0;
+        return std::nullopt;
 
     case keyCode(typed::TypedKey::KEY_X):
     {
