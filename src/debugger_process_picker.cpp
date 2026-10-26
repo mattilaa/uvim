@@ -63,8 +63,10 @@ std::optional<PickerInput> pickerInput(std::string_view input)
     // Explicit regex queries open the picker without the -- marker. In
     // particular, re: is already a valid empty regex while the user types.
     if(editor::helper::isRegexQuery(input))
-        return PickerInput{prefix, std::string(input),
-                           input.starts_with("re:")};
+        return PickerInput{
+            prefix,
+            std::string(input),
+            input.starts_with("re:")};
     // --query works immediately after opening; --backend remains an option.
     if(!input.starts_with("--") || input == "--backend")
         return {};
@@ -94,12 +96,15 @@ std::vector<DebuggerProcess> parseDebuggerProcesses(std::string_view listing)
            path.empty() || !seen.insert(pid).second)
             continue;
         std::string executable = display(std::string(path));
-        result.push_back({pid,
-                          std::filesystem::path(executable).filename().string(),
-                          executable});
+        result.push_back(
+            {pid,
+             std::filesystem::path(executable).filename().string(),
+             executable});
     }
-    std::sort(result.begin(), result.end(),
-              [](const auto& a, const auto& b) { return a.pid < b.pid; });
+    std::sort(
+        result.begin(),
+        result.end(),
+        [](const auto& a, const auto& b) { return a.pid < b.pid; });
     return result;
 }
 
@@ -114,21 +119,26 @@ DebuggerProcessList listDebuggerProcesses()
     const auto listing = pipe.readAllBlocking(8192, {});
     const int status = pipe.closeBlocking({});
     if(status != 0)
-        return {{},
-                "Cannot list processes: " +
-                    display(std::string(trim(listing.substr(0, 200))))};
+        return {
+            {},
+            "Cannot list processes: " +
+                display(std::string(trim(listing.substr(0, 200))))};
     auto entries = parseDebuggerProcesses(listing);
     const int self = static_cast<int>(getpid());
-    entries.erase(std::remove_if(entries.begin(), entries.end(),
-                                 [self](const auto& process)
-                                 { return process.pid == self; }),
-                  entries.end());
+    entries.erase(
+        std::remove_if(
+            entries.begin(),
+            entries.end(),
+            [self](const auto& process) { return process.pid == self; }),
+        entries.end());
     return {std::move(entries), {}};
 #endif
 }
 
-bool DebuggerProcessPicker::update(ModeContext& ctx, std::string_view input,
-                                   bool refresh)
+bool DebuggerProcessPicker::update(
+    ModeContext& ctx,
+    std::string_view input,
+    bool refresh)
 {
     const auto parsed = pickerInput(input);
     if(!parsed)
@@ -164,19 +174,26 @@ bool DebuggerProcessPicker::update(ModeContext& ctx, std::string_view input,
         editor.commandPopupAll.push_back(label);
         int score = query.empty() ? 0
                                   : editor::helper::fuzzyScoreWithPositions(
-                                        query, label, positions);
+                                        query,
+                                        label,
+                                        positions);
         if(editor::helper::isRegexQuery(query))
             for(const auto& field : {pid, process.name, process.executable})
-                score = std::max(score, editor::helper::fuzzyScoreWithPositions(
-                                            query, field, positions));
+                score = std::max(
+                    score,
+                    editor::helper::fuzzyScoreWithPositions(
+                        query,
+                        field,
+                        positions));
         if(query == pid)
             score += 100000;
         if(score >= 0)
             ranked.emplace_back(i, score);
     }
-    std::stable_sort(ranked.begin(), ranked.end(),
-                     [](const auto& a, const auto& b)
-                     { return a.second > b.second; });
+    std::stable_sort(
+        ranked.begin(),
+        ranked.end(),
+        [](const auto& a, const auto& b) { return a.second > b.second; });
     for(const auto& [index, score] : ranked)
     {
         (void)score;
@@ -190,15 +207,16 @@ bool DebuggerProcessPicker::update(ModeContext& ctx, std::string_view input,
     if(const auto error = editor::helper::regexQueryError(query);
        !error.empty())
         editor.commandPopupEmptyMessage = error;
-    ctx.setStatusMessage("Processes: type name/PID or re:regex | Ctrl-J/K: "
-                         "select | Enter: attach | Tab: "
-                         "insert PID | Ctrl-R: refresh | Esc: close");
+    ctx.setStatusMessage(
+        "Processes: type name/PID or re:regex | Ctrl-J/K: "
+        "select | Enter: attach | Tab: "
+        "insert PID | Ctrl-R: refresh | Esc: close");
     ctx.requestFullRedraw();
     return true;
 }
 
-std::optional<std::string>
-DebuggerProcessPicker::selection(ModeContext& ctx) const
+std::optional<std::string> DebuggerProcessPicker::selection(
+    ModeContext& ctx) const
 {
     const auto& editor = *ctx.editor;
     if(editor.commandPopupCursor < 0 ||
@@ -220,17 +238,20 @@ void DebuggerProcessPicker::close(ModeContext& ctx)
     ctx.requestFullRedraw();
 }
 
-DebuggerProcessPicker::Action
-DebuggerProcessPicker::handle(ModeContext& ctx, int key, std::string& input)
+DebuggerProcessPicker::Action DebuggerProcessPicker::handle(
+    ModeContext& ctx,
+    int key,
+    std::string& input)
 {
     if(!active)
         return Action::Unhandled;
     if(key == keyCode(control::ControlKey::CTRL_J) ||
        key == keyCode(navigation::NavigationKey::ARROW_DOWN))
         ctx.moveCommandPopupCursor(1);
-    else if(key == keyCode(control::ControlKey::CTRL_K) ||
-            key == keyCode(navigation::NavigationKey::ARROW_UP) ||
-            key == keyCode(control::ControlKey::SHIFT_TAB))
+    else if(
+        key == keyCode(control::ControlKey::CTRL_K) ||
+        key == keyCode(navigation::NavigationKey::ARROW_UP) ||
+        key == keyCode(control::ControlKey::SHIFT_TAB))
         ctx.moveCommandPopupCursor(-1);
     else if(key == keyCode(control::ControlKey::CTRL_R))
         update(ctx, input, true);
@@ -246,8 +267,9 @@ DebuggerProcessPicker::handle(ModeContext& ctx, int key, std::string& input)
                 " ";
         close(ctx);
     }
-    else if(key == keyCode(control::ControlKey::ENTER) ||
-            key == keyCode(control::ControlKey::TAB))
+    else if(
+        key == keyCode(control::ControlKey::ENTER) ||
+        key == keyCode(control::ControlKey::TAB))
     {
         if(auto selected = selection(ctx))
         {

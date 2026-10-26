@@ -85,8 +85,10 @@ ModeState exitState(ModeContext& ctx)
     return ctx.hasBuffer() ? ModeState{NormalMode{}} : ModeState{WelcomeMode{}};
 }
 
-void insertSelectedAnsiTool(ModeContext& ctx, const AnsiToolEntry& entry,
-                            bool& insertedDuringSession)
+void insertSelectedAnsiTool(
+    ModeContext& ctx,
+    const AnsiToolEntry& entry,
+    bool& insertedDuringSession)
 {
     if(!ctx.editor || !ctx.editor->hasBuffer())
         return;
@@ -108,16 +110,22 @@ void insertSelectedAnsiTool(ModeContext& ctx, const AnsiToolEntry& entry,
         if((byte & 0xC0) == 0x80)
             insertAt = text_utils::prevUtf8CharStart(line, insertAt);
     }
-    line.insert((std::size_t)insertAt, entry.literal.data(),
-                entry.literal.size());
+    line.insert(
+        (std::size_t)insertAt,
+        entry.literal.data(),
+        entry.literal.size());
     *editor.cursorX = insertAt + (int)entry.literal.size();
     *editor.dirty = true;
     editor.needsFullRedraw = true;
     ctx.setStatusMessage("inserted ANSI tool escape");
 }
 
-void appendEntry(std::string& out, const Theme& theme,
-                 const AnsiToolEntry& entry, bool selected, int width)
+void appendEntry(
+    std::string& out,
+    const Theme& theme,
+    const AnsiToolEntry& entry,
+    bool selected,
+    int width)
 {
     constexpr int codeWidth = 22;
     out += selected ? theme.selection() : theme.baseFg();
@@ -159,19 +167,26 @@ void AnsiToolsMode::clampToVisible(int visibleRows)
     rowOffset = std::clamp(rowOffset, 0, maxOffset);
 }
 
-std::optional<ModeState> AnsiToolsMode::handle(ModeContext& ctx,
-                                               const ModeKeyEvent& event)
+std::optional<ModeState> AnsiToolsMode::handle(
+    ModeContext& ctx,
+    const ModeKeyEvent& event)
 {
     const int c = keyCode(event.key);
     const int width = popupWidth(ctx.screenCols());
-    const int visibleRows =
-        widgets::visibleRowsForCursorPopup(ctx, width,
-                                           popupHeight(ctx.screenRows()), 4);
+    const int visibleRows = widgets::visibleRowsForCursorPopup(
+        ctx,
+        width,
+        popupHeight(ctx.screenRows()),
+        4);
 
     if(widgets::moveEditorCursorForPopup(ctx, c))
     {
-        clampToVisible(widgets::visibleRowsForCursorPopup(
-            ctx, width, popupHeight(ctx.screenRows()), 4));
+        clampToVisible(
+            widgets::visibleRowsForCursorPopup(
+                ctx,
+                width,
+                popupHeight(ctx.screenRows()),
+                4));
         requestBackdropRedraw(ctx);
         return std::nullopt;
     }
@@ -204,8 +219,10 @@ std::optional<ModeState> AnsiToolsMode::handle(ModeContext& ctx,
 
     if(c == keyCode(typed::TypedKey::KEY_A))
     {
-        insertSelectedAnsiTool(ctx, kAnsiTools[(std::size_t)cursor],
-                               insertedDuringSession);
+        insertSelectedAnsiTool(
+            ctx,
+            kAnsiTools[(std::size_t)cursor],
+            insertedDuringSession);
         requestBackdropRedraw(ctx);
         return std::nullopt;
     }
@@ -213,8 +230,10 @@ std::optional<ModeState> AnsiToolsMode::handle(ModeContext& ctx,
     if(c == keyCode(control::ControlKey::ENTER) ||
        c == keyCode(control::ControlKey::CTRL_M))
     {
-        insertSelectedAnsiTool(ctx, kAnsiTools[(std::size_t)cursor],
-                               insertedDuringSession);
+        insertSelectedAnsiTool(
+            ctx,
+            kAnsiTools[(std::size_t)cursor],
+            insertedDuringSession);
         ctx.requestFullRedraw();
         return exitState(ctx);
     }
@@ -228,8 +247,10 @@ void AnsiToolsMode::draw(Editor& editor)
 
     const int width = popupWidth(editor.screenCols);
     const widgets::PopupPlacement placement =
-        widgets::placePopupNearEditorCursor(editor, width,
-                                            popupHeight(editor.screenRows));
+        widgets::placePopupNearEditorCursor(
+            editor,
+            width,
+            popupHeight(editor.screenRows));
     const int height = placement.height;
     const int top = placement.top;
     const int left = placement.left;
@@ -250,8 +271,10 @@ void AnsiToolsMode::draw(Editor& editor)
     moveTo(top, left);
     output += editor.theme.uiDim();
     text_utils::appendU8(output, ascii::BOX_ROUNDED_TOP_LEFT);
-    text_utils::appendUtf8Repeat(output, ascii::BOX_LIGHT_HORIZONTAL,
-                                 innerWidth);
+    text_utils::appendUtf8Repeat(
+        output,
+        ascii::BOX_LIGHT_HORIZONTAL,
+        innerWidth);
     text_utils::appendU8(output, ascii::BOX_ROUNDED_TOP_RIGHT);
 
     moveTo(top + 1, left);
@@ -271,8 +294,12 @@ void AnsiToolsMode::draw(Editor& editor)
         const int index = firstRow + r;
         if(index < toolCount())
         {
-            appendEntry(output, editor.theme, kAnsiTools[(std::size_t)index],
-                        index == cursor, innerWidth);
+            appendEntry(
+                output,
+                editor.theme,
+                kAnsiTools[(std::size_t)index],
+                index == cursor,
+                innerWidth);
         }
         else
         {
@@ -287,17 +314,23 @@ void AnsiToolsMode::draw(Editor& editor)
     output += editor.theme.uiDim();
     text_utils::appendU8(output, ascii::BOX_LIGHT_VERTICAL);
     char footer[112];
-    std::snprintf(footer, sizeof(footer),
-                  " j/k select  C-h/j/k/l cursor  a insert  Enter insert+close  q/Esc cancel  %d/%zu",
-                  cursor + 1, kAnsiTools.size());
+    std::snprintf(
+        footer,
+        sizeof(footer),
+        " j/k select  C-h/j/k/l cursor  a insert  Enter insert+close  q/Esc "
+        "cancel  %d/%zu",
+        cursor + 1,
+        kAnsiTools.size());
     appendPadded(output, footer, innerWidth);
     output += editor.theme.uiDim();
     text_utils::appendU8(output, ascii::BOX_LIGHT_VERTICAL);
 
     moveTo(top + height - 1, left);
     text_utils::appendU8(output, ascii::BOX_ROUNDED_BOTTOM_LEFT);
-    text_utils::appendUtf8Repeat(output, ascii::BOX_LIGHT_HORIZONTAL,
-                                 innerWidth);
+    text_utils::appendUtf8Repeat(
+        output,
+        ascii::BOX_LIGHT_HORIZONTAL,
+        innerWidth);
     text_utils::appendU8(output, ascii::BOX_ROUNDED_BOTTOM_RIGHT);
     output += editor.theme.reset();
     output += Terminal::cursorPos(cursorRow, cursorCol);

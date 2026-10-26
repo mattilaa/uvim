@@ -128,9 +128,10 @@ fs::path EditorPathUtilities::resolveEditorPath(const fs::path& input)
     return base / path;
 }
 
-bool EditorPathUtilities::setWorkingDirectory(const fs::path& input,
-                                              std::string& displayPath,
-                                              std::string& errorMessage)
+bool EditorPathUtilities::setWorkingDirectory(
+    const fs::path& input,
+    std::string& displayPath,
+    std::string& errorMessage)
 {
     fs::path resolved = resolveEditorPath(input);
 

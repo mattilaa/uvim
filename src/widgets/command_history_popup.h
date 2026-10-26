@@ -16,6 +16,7 @@ struct CommandHistoryPopupView
     int cursor = 0;
 };
 
-void drawCommandHistoryPopup(std::string& output,
-                             const CommandHistoryPopupView& view);
+void drawCommandHistoryPopup(
+    std::string& output,
+    const CommandHistoryPopupView& view);
 } // namespace widgets

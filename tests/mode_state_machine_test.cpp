@@ -48,10 +48,17 @@ struct FileBrowserMode;
 struct BufferBrowserMode;
 struct GrepSearchMode;
 
-using TestModeState = std::variant<NormalMode, InsertMode, VisualMode,
-                                   CommandMode, OperatorPendingMode,
-                                   WelcomeMode, FuzzyFindMode, FileBrowserMode,
-                                   BufferBrowserMode, GrepSearchMode>;
+using TestModeState = std::variant<
+    NormalMode,
+    InsertMode,
+    VisualMode,
+    CommandMode,
+    OperatorPendingMode,
+    WelcomeMode,
+    FuzzyFindMode,
+    FileBrowserMode,
+    BufferBrowserMode,
+    GrepSearchMode>;
 
 // State definitions
 struct NormalMode
@@ -60,13 +67,15 @@ struct NormalMode
     {
         return "NORMAL";
     }
+
     void on_enter(TestModeContext& ctx)
     {
         ctx.statusMessage = "-- NORMAL --";
     }
+
     void on_exit(TestModeContext&) {}
-    std::optional<TestModeState> handle(TestModeContext& ctx,
-                                        const int& event);
+
+    std::optional<TestModeState> handle(TestModeContext& ctx, const int& event);
 };
 
 struct WelcomeMode
@@ -75,13 +84,15 @@ struct WelcomeMode
     {
         return "WELCOME";
     }
+
     void on_enter(TestModeContext& ctx)
     {
         ctx.statusMessage = "-- WELCOME --";
     }
+
     void on_exit(TestModeContext&) {}
-    std::optional<TestModeState> handle(TestModeContext& ctx,
-                                        const int& event);
+
+    std::optional<TestModeState> handle(TestModeContext& ctx, const int& event);
 };
 
 struct InsertMode
@@ -90,13 +101,15 @@ struct InsertMode
     {
         return "INSERT";
     }
+
     void on_enter(TestModeContext& ctx)
     {
         ctx.statusMessage = "-- INSERT --";
     }
+
     void on_exit(TestModeContext&) {}
-    std::optional<TestModeState> handle(TestModeContext& ctx,
-                                        const int& event);
+
+    std::optional<TestModeState> handle(TestModeContext& ctx, const int& event);
 };
 
 struct VisualMode
@@ -105,13 +118,15 @@ struct VisualMode
     {
         return "VISUAL";
     }
+
     void on_enter(TestModeContext& ctx)
     {
         ctx.statusMessage = "-- VISUAL --";
     }
+
     void on_exit(TestModeContext&) {}
-    std::optional<TestModeState> handle(TestModeContext& ctx,
-                                        const int& event);
+
+    std::optional<TestModeState> handle(TestModeContext& ctx, const int& event);
 };
 
 struct CommandMode
@@ -120,15 +135,18 @@ struct CommandMode
     {
         return "COMMAND";
     }
+
     std::string input;
+
     void on_enter(TestModeContext& ctx)
     {
         ctx.statusMessage = ":";
         input.clear();
     }
+
     void on_exit(TestModeContext&) {}
-    std::optional<TestModeState> handle(TestModeContext& ctx,
-                                        const int& event);
+
+    std::optional<TestModeState> handle(TestModeContext& ctx, const int& event);
 };
 
 struct OperatorPendingMode
@@ -137,6 +155,7 @@ struct OperatorPendingMode
     {
         return "OP_PENDING";
     }
+
     char op = 0;
     int count = 1;
 
@@ -146,9 +165,10 @@ struct OperatorPendingMode
     {
         ctx.statusMessage = std::string(1, op);
     }
+
     void on_exit(TestModeContext&) {}
-    std::optional<TestModeState> handle(TestModeContext& ctx,
-                                        const int& event);
+
+    std::optional<TestModeState> handle(TestModeContext& ctx, const int& event);
 };
 
 struct FuzzyFindMode
@@ -157,13 +177,15 @@ struct FuzzyFindMode
     {
         return "FUZZY";
     }
+
     void on_enter(TestModeContext& ctx)
     {
         ctx.statusMessage = "-- FUZZY --";
     }
+
     void on_exit(TestModeContext&) {}
-    std::optional<TestModeState> handle(TestModeContext& ctx,
-                                        const int& event);
+
+    std::optional<TestModeState> handle(TestModeContext& ctx, const int& event);
 };
 
 struct FileBrowserMode
@@ -172,13 +194,15 @@ struct FileBrowserMode
     {
         return "FILE_BROWSER";
     }
+
     void on_enter(TestModeContext& ctx)
     {
         ctx.statusMessage = "-- FILE_BROWSER --";
     }
+
     void on_exit(TestModeContext&) {}
-    std::optional<TestModeState> handle(TestModeContext& ctx,
-                                        const int& event);
+
+    std::optional<TestModeState> handle(TestModeContext& ctx, const int& event);
 };
 
 struct BufferBrowserMode
@@ -187,13 +211,15 @@ struct BufferBrowserMode
     {
         return "BUFFERS";
     }
+
     void on_enter(TestModeContext& ctx)
     {
         ctx.statusMessage = "-- BUFFERS --";
     }
+
     void on_exit(TestModeContext&) {}
-    std::optional<TestModeState> handle(TestModeContext& ctx,
-                                        const int& event);
+
+    std::optional<TestModeState> handle(TestModeContext& ctx, const int& event);
 };
 
 struct GrepSearchMode
@@ -202,30 +228,36 @@ struct GrepSearchMode
     {
         return "GREP";
     }
+
     void on_enter(TestModeContext& ctx)
     {
         ctx.statusMessage = "-- GREP --";
     }
+
     void on_exit(TestModeContext&) {}
-    std::optional<TestModeState> handle(TestModeContext& ctx,
-                                        const int& event);
+
+    std::optional<TestModeState> handle(TestModeContext& ctx, const int& event);
 };
 
 // Handle implementations
-inline std::optional<TestModeState> NormalMode::handle(TestModeContext& ctx,
-                                                       const int& event)
+inline std::optional<TestModeState> NormalMode::handle(
+    TestModeContext& ctx,
+    const int& event)
 {
     int c = keyCode(event);
 
     // Accumulate repeat count
-    if(c >= keyCode(typed::TypedKey::KEY_1) && c <= keyCode(typed::TypedKey::KEY_9) && ctx.repeatCount == 0)
+    if(c >= keyCode(typed::TypedKey::KEY_1) &&
+       c <= keyCode(typed::TypedKey::KEY_9) && ctx.repeatCount == 0)
     {
         ctx.repeatCount = c - keyCode(typed::TypedKey::KEY_0);
         return std::nullopt;
     }
-    if(c >= keyCode(typed::TypedKey::KEY_0) && c <= keyCode(typed::TypedKey::KEY_9) && ctx.repeatCount > 0)
+    if(c >= keyCode(typed::TypedKey::KEY_0) &&
+       c <= keyCode(typed::TypedKey::KEY_9) && ctx.repeatCount > 0)
     {
-        ctx.repeatCount = ctx.repeatCount * 10 + (c - keyCode(typed::TypedKey::KEY_0));
+        ctx.repeatCount =
+            ctx.repeatCount * 10 + (c - keyCode(typed::TypedKey::KEY_0));
         return std::nullopt;
     }
 
@@ -251,16 +283,18 @@ inline std::optional<TestModeState> NormalMode::handle(TestModeContext& ctx,
     }
 }
 
-inline std::optional<TestModeState> InsertMode::handle(TestModeContext&,
-                                                       const int& event)
+inline std::optional<TestModeState> InsertMode::handle(
+    TestModeContext&,
+    const int& event)
 {
     if(keyCode(event) == 27) // ESC
         return NormalMode{};
     return std::nullopt;
 }
 
-inline std::optional<TestModeState> WelcomeMode::handle(TestModeContext& ctx,
-                                                        const int& event)
+inline std::optional<TestModeState> WelcomeMode::handle(
+    TestModeContext& ctx,
+    const int& event)
 {
     if(ctx.commandBuffer == " ")
     {
@@ -279,16 +313,18 @@ inline std::optional<TestModeState> WelcomeMode::handle(TestModeContext& ctx,
     return std::nullopt;
 }
 
-inline std::optional<TestModeState> VisualMode::handle(TestModeContext&,
-                                                       const int& event)
+inline std::optional<TestModeState> VisualMode::handle(
+    TestModeContext&,
+    const int& event)
 {
     if(keyCode(event) == 27) // ESC
         return NormalMode{};
     return std::nullopt;
 }
 
-inline std::optional<TestModeState> CommandMode::handle(TestModeContext& ctx,
-                                                        const int& event)
+inline std::optional<TestModeState> CommandMode::handle(
+    TestModeContext& ctx,
+    const int& event)
 {
     if(keyCode(event) == 27) // ESC
         return NormalMode{};
@@ -305,8 +341,9 @@ inline std::optional<TestModeState> CommandMode::handle(TestModeContext& ctx,
     return std::nullopt;
 }
 
-inline std::optional<TestModeState>
-OperatorPendingMode::handle(TestModeContext& ctx, const int& event)
+inline std::optional<TestModeState> OperatorPendingMode::handle(
+    TestModeContext& ctx,
+    const int& event)
 {
     int c = keyCode(event);
 
@@ -322,7 +359,11 @@ OperatorPendingMode::handle(TestModeContext& ctx, const int& event)
     }
 
     // Motion
-    if(c == keyCode(typed::TypedKey::KEY_W) || c == keyCode(typed::TypedKey::KEY_B) || c == keyCode(typed::TypedKey::KEY_E) || c == keyCode(command::CommandKey::KEY_DOLLAR) || c == keyCode(typed::TypedKey::KEY_0))
+    if(c == keyCode(typed::TypedKey::KEY_W) ||
+       c == keyCode(typed::TypedKey::KEY_B) ||
+       c == keyCode(typed::TypedKey::KEY_E) ||
+       c == keyCode(command::CommandKey::KEY_DOLLAR) ||
+       c == keyCode(typed::TypedKey::KEY_0))
     {
         ctx.statusMessage = std::string(1, op) +
                             std::string(1, static_cast<char>(c)) + " executed";
@@ -332,8 +373,9 @@ OperatorPendingMode::handle(TestModeContext& ctx, const int& event)
     return std::nullopt;
 }
 
-inline std::optional<TestModeState>
-FuzzyFindMode::handle(TestModeContext& ctx, const int& event)
+inline std::optional<TestModeState> FuzzyFindMode::handle(
+    TestModeContext& ctx,
+    const int& event)
 {
     (void)ctx;
     int c = keyCode(event);
@@ -350,16 +392,19 @@ FuzzyFindMode::handle(TestModeContext& ctx, const int& event)
     return std::nullopt;
 }
 
-inline std::optional<TestModeState>
-FileBrowserMode::handle(TestModeContext&, const int& event)
+inline std::optional<TestModeState> FileBrowserMode::handle(
+    TestModeContext&,
+    const int& event)
 {
-    if(keyCode(event) == keyCode(typed::TypedKey::KEY_Q) || keyCode(event) == 27) // q or ESC
+    if(keyCode(event) == keyCode(typed::TypedKey::KEY_Q) ||
+       keyCode(event) == 27) // q or ESC
         return WelcomeMode{};
     return std::nullopt;
 }
 
-inline std::optional<TestModeState>
-BufferBrowserMode::handle(TestModeContext& ctx, const int& event)
+inline std::optional<TestModeState> BufferBrowserMode::handle(
+    TestModeContext& ctx,
+    const int& event)
 {
     (void)ctx;
     if(keyCode(event) == 27) // ESC
@@ -369,8 +414,9 @@ BufferBrowserMode::handle(TestModeContext& ctx, const int& event)
     return std::nullopt;
 }
 
-inline std::optional<TestModeState>
-GrepSearchMode::handle(TestModeContext& ctx, const int& event)
+inline std::optional<TestModeState> GrepSearchMode::handle(
+    TestModeContext& ctx,
+    const int& event)
 {
     (void)ctx;
     if(keyCode(event) == 27) // ESC
@@ -394,8 +440,9 @@ public:
 
     template <typename InitialState>
     TestModeStateMachine(TestModeContext ctx, InitialState&& initial)
-        : TestModeStateMachineBase(std::move(ctx),
-                                   std::forward<InitialState>(initial))
+        : TestModeStateMachineBase(
+              std::move(ctx),
+              std::forward<InitialState>(initial))
     {
     }
 
@@ -445,8 +492,9 @@ protected:
 TEST_F(ModeStateMachineTest, InheritsFromStateMachine)
 {
     static_assert(
-        std::is_base_of_v<mode_test::TestModeStateMachineBase,
-                          mode_test::TestModeStateMachine>,
+        std::is_base_of_v<
+            mode_test::TestModeStateMachineBase,
+            mode_test::TestModeStateMachine>,
         "TestModeStateMachine must inherit from TestModeStateMachineBase");
 
     mode_test::TestModeStateMachineBase* basePtr = sm.get();
@@ -464,7 +512,9 @@ TEST_F(ModeStateMachineTest, BaseClassMethodsWork)
 
 TEST_F(ModeStateMachineTest, DispatchKeyEventDirectly)
 {
-    sm->dispatch(static_cast<int>(static_cast<unsigned char>(keyCode(typed::TypedKey::KEY_I))));
+    sm->dispatch(
+        static_cast<int>(
+            static_cast<unsigned char>(keyCode(typed::TypedKey::KEY_I))));
     EXPECT_TRUE(sm->isIn<mode_test::InsertMode>());
 }
 
@@ -704,7 +754,7 @@ TEST_F(ModeStateMachineTest, RepeatCountResetAfterCommand)
 {
     pressKey(keyCode(typed::TypedKey::KEY_5));
     pressKey(keyCode(typed::TypedKey::KEY_I)); // 5i - insert mode (count reset)
-    pressKey(27);  // back to normal
+    pressKey(27);                              // back to normal
 
     EXPECT_EQ(sm->context().repeatCount, 0);
 }

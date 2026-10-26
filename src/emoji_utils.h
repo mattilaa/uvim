@@ -35,8 +35,9 @@ constexpr int emojiGlyphWidth(const char* s)
                         ((unsigned char)s[i + 2] & 0x3F);
             len = 3;
         }
-        else if((c & 0xF8) == 0xF0 && s[i + 1] != '\0' && s[i + 2] != '\0' &&
-                s[i + 3] != '\0')
+        else if(
+            (c & 0xF8) == 0xF0 && s[i + 1] != '\0' && s[i + 2] != '\0' &&
+            s[i + 3] != '\0')
         {
             codepoint = ((c & 0x07) << 18) |
                         (((unsigned char)s[i + 1] & 0x3F) << 12) |

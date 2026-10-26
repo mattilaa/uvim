@@ -29,13 +29,17 @@ using editor::helper::trim_view;
 
 #ifdef UVIM_ENABLE_CLANGD_LSP
 bool EditorDefinitionController::goToGenericLspDefinition(
-    LspClient* client, const char* languageId, std::string_view label)
+    LspClient* client,
+    const char* languageId,
+    std::string_view label)
 {
     if(!client)
         return false;
     client->didChange(editor.currentBuffer->filename, bufferText(), languageId);
-    auto loc = client->definition(editor.currentBuffer->filename,
-                                  *editor.cursorY, *editor.cursorX);
+    auto loc = client->definition(
+        editor.currentBuffer->filename,
+        *editor.cursorY,
+        *editor.cursorX);
     if(!loc)
         return false;
     return jumpToLocation(loc->path, loc->line, loc->character, label);
@@ -44,8 +48,10 @@ bool EditorDefinitionController::goToGenericLspDefinition(
 
 namespace
 {
-bool cursorInAttributeValue(std::string_view line, int cursorX,
-                            std::string_view attr)
+bool cursorInAttributeValue(
+    std::string_view line,
+    int cursorX,
+    std::string_view attr)
 {
     std::string_view trimmed = trim_view(line);
     size_t pos = trimmed.find(attr);
@@ -67,8 +73,9 @@ bool cursorInAttributeValue(std::string_view line, int cursorX,
 }
 } // namespace
 
-bool EditorDefinitionController::goToWebDefinition(FileType fileType,
-                                                   const std::string& symbol)
+bool EditorDefinitionController::goToWebDefinition(
+    FileType fileType,
+    const std::string& symbol)
 {
     const std::string gdArrow = ascii::utf8(ascii::RIGHT_ARROW_PADDED);
 
@@ -139,22 +146,33 @@ bool EditorDefinitionController::goToWebDefinition(FileType fileType,
                         std::string_view base =
                             lineView.substr(baseStart, baseEnd - baseStart + 1);
                         std::string typeName = find_ts_type_for_identifier(
-                            *editor.lines, base, *editor.cursorY);
+                            *editor.lines,
+                            base,
+                            *editor.cursorY);
                         if(typeName.empty())
                             typeName = infer_ts_type_from_array_method_line(
-                                lineView, base, *editor.lines, *editor.cursorY);
+                                lineView,
+                                base,
+                                *editor.lines,
+                                *editor.cursorY);
                         if(!typeName.empty())
                         {
                             int typeY = -1;
                             int typeX = 0;
-                            if(find_ts_type_definition(*editor.lines, typeName,
-                                                       typeY, typeX))
+                            if(find_ts_type_definition(
+                                   *editor.lines,
+                                   typeName,
+                                   typeY,
+                                   typeX))
                             {
                                 int memberY = -1;
                                 int memberX = 0;
-                                if(find_ts_member_in_type(*editor.lines, typeY,
-                                                          member, memberY,
-                                                          memberX))
+                                if(find_ts_member_in_type(
+                                       *editor.lines,
+                                       typeY,
+                                       member,
+                                       memberY,
+                                       memberX))
                                 {
                                     editor.pushJumpLocation();
                                     *editor.cursorY = memberY;
@@ -192,12 +210,18 @@ bool EditorDefinitionController::goToWebDefinition(FileType fileType,
                                     int defY = -1;
                                     int defX = 0;
                                     if(find_ts_type_definition(
-                                           fileLines, typeName, defY, defX))
+                                           fileLines,
+                                           typeName,
+                                           defY,
+                                           defX))
                                     {
                                         int memberY = -1;
                                         int memberX = 0;
                                         if(find_ts_member_in_type(
-                                               fileLines, defY, member, memberY,
+                                               fileLines,
+                                               defY,
+                                               member,
+                                               memberY,
                                                memberX))
                                         {
                                             editor.pushJumpLocation();
@@ -234,7 +258,8 @@ bool EditorDefinitionController::goToWebDefinition(FileType fileType,
                    x <= static_cast<int>(end))
                 {
                     std::string resolved = resolve_js_ts_module(
-                        editor.currentBuffer->filename, module);
+                        editor.currentBuffer->filename,
+                        module);
                     if(!resolved.empty())
                     {
                         editor.pushJumpLocation();
@@ -251,15 +276,18 @@ bool EditorDefinitionController::goToWebDefinition(FileType fileType,
 
         int defY = -1;
         int defX = 0;
-        if(find_js_ts_def_in_file(editor.currentBuffer->filename, symbol, defY,
-                                  defX))
+        if(find_js_ts_def_in_file(
+               editor.currentBuffer->filename,
+               symbol,
+               defY,
+               defX))
         {
             *editor.cursorY = defY;
             *editor.cursorX = defX;
             applyViewport();
-            editor.setStatusMessage(std::string("gd (js/ts)") + gdArrow +
-                                    *editor.filename + ":" +
-                                    std::to_string(defY + 1));
+            editor.setStatusMessage(
+                std::string("gd (js/ts)") + gdArrow + *editor.filename + ":" +
+                std::to_string(defY + 1));
             return true;
         }
 
@@ -269,13 +297,17 @@ bool EditorDefinitionController::goToWebDefinition(FileType fileType,
         if(it != imports.end())
         {
             std::string resolved = resolve_js_ts_module(
-                editor.currentBuffer->filename, it->second);
+                editor.currentBuffer->filename,
+                it->second);
             if(!resolved.empty())
             {
                 int defFileY = -1;
                 int defFileX = 0;
-                bool found = find_js_ts_def_in_file(resolved, symbol, defFileY,
-                                                    defFileX);
+                bool found = find_js_ts_def_in_file(
+                    resolved,
+                    symbol,
+                    defFileY,
+                    defFileX);
                 editor.pushJumpLocation();
                 editor.openFile(resolved);
                 if(found)
@@ -283,15 +315,15 @@ bool EditorDefinitionController::goToWebDefinition(FileType fileType,
                     *editor.cursorY = defFileY;
                     *editor.cursorX = defFileX;
                     applyViewport();
-                    editor.setStatusMessage(std::string("gd (js/ts)") +
-                                            gdArrow + resolved + ":" +
-                                            std::to_string(defFileY + 1));
+                    editor.setStatusMessage(
+                        std::string("gd (js/ts)") + gdArrow + resolved + ":" +
+                        std::to_string(defFileY + 1));
                 }
                 else
                 {
                     applyViewport();
-                    editor.setStatusMessage(std::string("gd (js/ts import)") +
-                                            gdArrow + resolved);
+                    editor.setStatusMessage(
+                        std::string("gd (js/ts import)") + gdArrow + resolved);
                 }
                 return true;
             }
@@ -309,14 +341,15 @@ bool EditorDefinitionController::goToWebDefinition(FileType fileType,
                htmlPathStr.front() != '/')
                 htmlPathStr = "./" + htmlPathStr;
             std::string resolved = resolve_js_ts_module_path(
-                editor.currentBuffer->filename, htmlPathStr);
+                editor.currentBuffer->filename,
+                htmlPathStr);
             if(!resolved.empty())
             {
                 editor.pushJumpLocation();
                 editor.openFile(resolved);
                 applyViewport();
-                editor.setStatusMessage(std::string("gd (html link)") +
-                                        gdArrow + resolved);
+                editor.setStatusMessage(
+                    std::string("gd (html link)") + gdArrow + resolved);
                 return true;
             }
         }
@@ -332,7 +365,8 @@ bool EditorDefinitionController::goToWebDefinition(FileType fileType,
             for(const auto& sheet : sheets)
             {
                 std::string resolved = resolve_js_ts_module_path(
-                    editor.currentBuffer->filename, sheet);
+                    editor.currentBuffer->filename,
+                    sheet);
                 if(resolved.empty())
                     continue;
                 std::string selector = inId ? "#" + symbol : "." + symbol;
@@ -345,9 +379,9 @@ bool EditorDefinitionController::goToWebDefinition(FileType fileType,
                     *editor.cursorY = defY;
                     *editor.cursorX = defX;
                     applyViewport();
-                    editor.setStatusMessage(std::string("gd (html css)") +
-                                            gdArrow + resolved + ":" +
-                                            std::to_string(defY + 1));
+                    editor.setStatusMessage(
+                        std::string("gd (html css)") + gdArrow + resolved +
+                        ":" + std::to_string(defY + 1));
                     return true;
                 }
             }
@@ -365,14 +399,15 @@ bool EditorDefinitionController::goToWebDefinition(FileType fileType,
                cssPathStr.front() != '/')
                 cssPathStr = "./" + cssPathStr;
             std::string resolved = resolve_js_ts_module_path(
-                editor.currentBuffer->filename, cssPathStr);
+                editor.currentBuffer->filename,
+                cssPathStr);
             if(!resolved.empty())
             {
                 editor.pushJumpLocation();
                 editor.openFile(resolved);
                 applyViewport();
-                editor.setStatusMessage(std::string("gd (css import)") +
-                                        gdArrow + resolved);
+                editor.setStatusMessage(
+                    std::string("gd (css import)") + gdArrow + resolved);
                 return true;
             }
         }

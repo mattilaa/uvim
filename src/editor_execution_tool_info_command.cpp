@@ -7,8 +7,8 @@ namespace command::execution
 {
 using namespace detail;
 
-bool ToolInfoCommand::execute(Editor& editor,
-                              const CommandRequest& request) const
+bool ToolInfoCommand::execute(Editor& editor, const CommandRequest& request)
+    const
 {
     if(request.text != "toolinfo")
         return false;

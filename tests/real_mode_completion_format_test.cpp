@@ -48,8 +48,9 @@ TEST(RealModeTransitionsTest, CompletionAutoParensOmitsSemicolonInsideCall)
     EXPECT_EQ(*editor.cursorX, 13);
 }
 
-TEST(RealModeTransitionsTest,
-     CompletionAutoParensOmitsSemicolonInsideIfCondition)
+TEST(
+    RealModeTransitionsTest,
+    CompletionAutoParensOmitsSemicolonInsideIfCondition)
 {
     Editor editor = Editor::createForTests();
     editor.createNewBuffer();
@@ -167,21 +168,26 @@ TEST(RealModeTransitionsTest, ClangFormatUndoRestoresSavedBuffer)
 #ifdef _WIN32
     if(std::system("clang-format --version >NUL 2>&1") != 0)
 #else
-    if(std::system("/opt/homebrew/bin/clang-format --version >/dev/null 2>&1 "
-                   "|| clang-format --version >/dev/null 2>&1") != 0)
+    if(std::system(
+           "/opt/homebrew/bin/clang-format --version >/dev/null 2>&1 "
+           "|| clang-format --version >/dev/null 2>&1") != 0)
 #endif
         GTEST_SKIP() << "clang-format is not available";
 
     auto root = make_temp_dir("uvim_clang_format_undo_");
     auto file = root / "format_me.cpp";
-    write_file(root / ".clang-format", "BasedOnStyle: LLVM\n"
-                                       "BreakBeforeBraces: Allman\n"
-                                       "IndentWidth: 4\n");
-    write_file(file, "int main(){\n"
-                     "if(true){\n"
-                     "return 1;\n"
-                     "}\n"
-                     "}\n");
+    write_file(
+        root / ".clang-format",
+        "BasedOnStyle: LLVM\n"
+        "BreakBeforeBraces: Allman\n"
+        "IndentWidth: 4\n");
+    write_file(
+        file,
+        "int main(){\n"
+        "if(true){\n"
+        "return 1;\n"
+        "}\n"
+        "}\n");
 
     Editor editor = Editor::createForTests();
     editor.openFile(file.string(), false);

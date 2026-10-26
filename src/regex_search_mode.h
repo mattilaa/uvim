@@ -43,8 +43,9 @@ struct RegexSearchMode
     void on_enter(ModeContext& ctx);
     void on_exit(ModeContext& ctx);
 
-    std::optional<ModeState> handle(ModeContext& ctx,
-                                    const ModeKeyEvent& event);
+    std::optional<ModeState> handle(
+        ModeContext& ctx,
+        const ModeKeyEvent& event);
 
     void draw(Editor& editor) const;
     void refreshFileIndex(Editor& editor);
@@ -57,8 +58,11 @@ private:
     void searchInFile(const std::string& filepath, const std::regex& pattern);
     bool isTextFile(const std::string& filepath) const;
     bool isBinaryFile(const std::string& filepath) const;
-    void addLineMatches(const std::string& filepath, int lineNumber,
-                        const std::string& line, const std::regex& pattern);
+    void addLineMatches(
+        const std::string& filepath,
+        int lineNumber,
+        const std::string& line,
+        const std::regex& pattern);
     void moveDown(Editor& editor);
     void moveUp(Editor& editor);
     void halfPageDown(Editor& editor);

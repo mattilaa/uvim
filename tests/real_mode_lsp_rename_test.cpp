@@ -73,8 +73,9 @@ TEST(RealModeTransitionsTest, UndoRestoresAllFilesTouchedByRename)
 
     editor.undo();
 
-    EXPECT_EQ(editor.currentBuffer->lines,
-              std::vector<std::string>({"int value = 1;"}));
+    EXPECT_EQ(
+        editor.currentBuffer->lines,
+        std::vector<std::string>({"int value = 1;"}));
     EXPECT_FALSE(editor.currentBuffer->dirty);
     EXPECT_EQ(read_file(other), "int value = 2;");
     EXPECT_FALSE(editor.renameUndoAvailable);

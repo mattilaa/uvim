@@ -126,8 +126,9 @@ TEST(RealModeTransitionsTest, IncrementalForwardSearchRecomputesAfterEdit)
     EXPECT_EQ(editor.currentMatchIndex, 0);
 }
 
-TEST(RealModeTransitionsTest,
-     IncrementalSearchClearsStaleHighlightsOnEmptyQuery)
+TEST(
+    RealModeTransitionsTest,
+    IncrementalSearchClearsStaleHighlightsOnEmptyQuery)
 {
     Editor editor = Editor::createForTests();
     editor.createNewBuffer();
@@ -362,8 +363,9 @@ TEST(RealModeTransitionsTest, ControllerCtrlAOpensGrepEvenWithStaleModeState)
     editor.createNewBuffer();
     editor.currentBuffer->lines = {"abc"};
     *editor.cursorX = 3;
-    editor.setModeStateMachineForTests(std::make_unique<ModeStateMachine>(
-        createModeContext(&editor), InsertMode{}));
+    editor.setModeStateMachineForTests(
+        std::make_unique<
+            ModeStateMachine>(createModeContext(&editor), InsertMode{}));
     editor.currentMode = NORMAL;
     EditorModeController controller(editor);
 
@@ -382,14 +384,16 @@ TEST(RealModeTransitionsTest, ControllerCtrlAOpensGrepEvenWithStaleModeState)
     EXPECT_EQ(editor.currentBuffer->lines[0], "abc");
 }
 
-TEST(RealModeTransitionsTest,
-     ControllerCtrlAReopensGrepWhenCurrentModeIsStaleGrep)
+TEST(
+    RealModeTransitionsTest,
+    ControllerCtrlAReopensGrepWhenCurrentModeIsStaleGrep)
 {
     Editor editor = Editor::createForTests();
     editor.createNewBuffer();
     editor.currentBuffer->lines = {"abc"};
-    editor.setModeStateMachineForTests(std::make_unique<ModeStateMachine>(
-        createModeContext(&editor), NormalMode{}));
+    editor.setModeStateMachineForTests(
+        std::make_unique<
+            ModeStateMachine>(createModeContext(&editor), NormalMode{}));
     editor.currentMode = GREP_SEARCH;
     EditorModeController controller(editor);
 
@@ -472,8 +476,9 @@ TEST(RealModeTransitionsTest, FuzzyFindLineSuffixJumpsToLine)
 
     sm.dispatch(keyCode(control::ControlKey::ENTER));
     EXPECT_STREQ(sm.currentStateName(), "NORMAL");
-    EXPECT_TRUE(text_utils::is_found(
-        editor.currentBuffer->filename.find("target_file.txt")));
+    EXPECT_TRUE(
+        text_utils::is_found(
+            editor.currentBuffer->filename.find("target_file.txt")));
     EXPECT_EQ(*editor.cursorY, 6);
     EXPECT_TRUE(editor.statusMessage.empty());
 }
@@ -582,17 +587,20 @@ TEST(RealModeTransitionsTest, PreviewHighlightUsesPreviewedFileType)
     editor.currentBuffer->filename = "notes.txt"; // current buffer: plain text
     editor.currentBuffer->lines = {"plain"};
 
-    const std::vector<std::string> lines = {"int value = 1; /* starts",
-                                            "   still a comment */",
-                                            "return \"text\";"};
+    const std::vector<std::string> lines =
+        {"int value = 1; /* starts",
+         "   still a comment */",
+         "return \"text\";"};
     PreviewHighlight cache;
     editor.highlightPreviewLines(cache, "preview.cpp", lines, lines.size());
     ASSERT_EQ(cache.tokens.size(), lines.size());
 
     auto hasType = [](const std::vector<Token>& tokens, TokenType type)
     {
-        return std::any_of(tokens.begin(), tokens.end(),
-                           [&](const Token& t) { return t.type == type; });
+        return std::any_of(
+            tokens.begin(),
+            tokens.end(),
+            [&](const Token& t) { return t.type == type; });
     };
     EXPECT_TRUE(hasType(cache.tokens[0], TOKEN_TYPE)) << "int";
     EXPECT_TRUE(hasType(cache.tokens[0], TOKEN_NUMBER));
@@ -623,9 +631,9 @@ TEST(RealModeTransitionsTest, PreviewHighlightWorksWithoutAnOpenBuffer)
     PreviewHighlight cache;
     editor.highlightPreviewLines(cache, "runme", script, script.size());
     ASSERT_EQ(cache.tokens.size(), script.size());
-    EXPECT_NE(cache.fileTypeMask &
-                  (1ull << static_cast<unsigned>(FileType::Shell)),
-              0u)
+    EXPECT_NE(
+        cache.fileTypeMask & (1ull << static_cast<unsigned>(FileType::Shell)),
+        0u)
         << "shebang of the previewed file decides the type";
 
     PreviewHighlight cpp;
@@ -641,9 +649,9 @@ TEST(RealModeTransitionsTest, PreviewShebangIgnoresCurrentBuffer)
 
     PreviewHighlight cache;
     editor.highlightPreviewLines(cache, "notes", {"plain words"}, 1);
-    EXPECT_EQ(cache.fileTypeMask &
-                  (1ull << static_cast<unsigned>(FileType::Shell)),
-              0u)
+    EXPECT_EQ(
+        cache.fileTypeMask & (1ull << static_cast<unsigned>(FileType::Shell)),
+        0u)
         << "the current buffer's shebang must not leak into the preview";
 }
 
@@ -799,8 +807,9 @@ TEST(RealModeTransitionsTest, GrepSearchIndexesMultipleFilesConsistently)
     constexpr int fileCount = 24;
     for(int i = 0; i < fileCount; ++i)
     {
-        write_file(root / ("file_" + std::to_string(i) + ".txt"),
-                   "parallel needle " + std::to_string(i) + "\n");
+        write_file(
+            root / ("file_" + std::to_string(i) + ".txt"),
+            "parallel needle " + std::to_string(i) + "\n");
     }
     ScopedCurrentPath cwd(root);
 
@@ -822,29 +831,38 @@ TEST(RealModeTransitionsTest, GrepSearchIndexesMultipleFilesConsistently)
 }
 #endif
 
-TEST(RegexFuzzyQueryTest,
-     SupportsRegexAlternationClassesAnchorsAndHighlightPositions)
+TEST(
+    RegexFuzzyQueryTest,
+    SupportsRegexAlternationClassesAnchorsAndHighlightPositions)
 {
     using namespace editor::helper;
     std::vector<int> positions;
-    EXPECT_GT(fuzzyScoreWithPositions("re:^(main|test)\\.(cpp|c)$", "MAIN.cpp",
-                                      positions),
-              0);
+    EXPECT_GT(
+        fuzzyScoreWithPositions(
+            "re:^(main|test)\\.(cpp|c)$",
+            "MAIN.cpp",
+            positions),
+        0);
     EXPECT_EQ(positions, (std::vector<int>{0, 1, 2, 3, 4, 5, 6, 7}));
-    EXPECT_LT(fuzzyScoreWithPositions("re:^main", "not_main.cpp", positions),
-              0);
+    EXPECT_LT(
+        fuzzyScoreWithPositions("re:^main", "not_main.cpp", positions),
+        0);
     EXPECT_TRUE(positions.empty());
-    EXPECT_GT(fuzzyScoreWithPositions("/foo[0-9]+/", "prefix foo42 suffix",
-                                      positions),
-              0);
+    EXPECT_GT(
+        fuzzyScoreWithPositions(
+            "/foo[0-9]+/",
+            "prefix foo42 suffix",
+            positions),
+        0);
     EXPECT_EQ(positions, (std::vector<int>{7, 8, 9, 10, 11}));
     EXPECT_GT(fuzzyScore("abc", "re:^\\D+$"), 0);
     EXPECT_LT(fuzzyScore("123", "re:^\\D+$"), 0);
     EXPECT_GT(fuzzyScore("foo/bar", "/foo\\/bar/"), 0);
 }
 
-TEST(RegexFuzzyQueryTest,
-     HandlesInvalidEmptyAndZeroWidthQueriesWithoutStalePositions)
+TEST(
+    RegexFuzzyQueryTest,
+    HandlesInvalidEmptyAndZeroWidthQueriesWithoutStalePositions)
 {
     using namespace editor::helper;
     std::vector<int> positions{99};
@@ -908,12 +926,14 @@ TEST(RealModeTransitionsTest, FuzzyFindRegexFiltersNamesAndRetainsLineJump)
     EXPECT_EQ(finder->matches[0].matchPositions.size(), 8u);
     sm.dispatch(keyCode(control::ControlKey::ENTER));
     EXPECT_EQ(*editor.cursorY, 6);
-    EXPECT_EQ(std::filesystem::canonical(editor.currentBuffer->filename),
-              std::filesystem::canonical(root / "main.cpp"));
+    EXPECT_EQ(
+        std::filesystem::canonical(editor.currentBuffer->filename),
+        std::filesystem::canonical(root / "main.cpp"));
 }
 
-TEST(RealModeTransitionsTest,
-     BufferBrowserRegexMatchesFilenamesAndRecoversFromInvalidPattern)
+TEST(
+    RealModeTransitionsTest,
+    BufferBrowserRegexMatchesFilenamesAndRecoversFromInvalidPattern)
 {
     Editor editor = Editor::createForTests();
     editor.createNewBuffer();
@@ -938,7 +958,9 @@ TEST(RegexFuzzyQueryTest, GitLogFilteringUsesRegexAcrossCommitText)
 {
     Editor editor = Editor::createForTests();
     GitLogMode log;
-    log.entries = {{"abc123", "Fix debugger stepping"}, {"def456", "Update documentation"}};
+    log.entries =
+        {{"abc123", "Fix debugger stepping"},
+         {"def456", "Update documentation"}};
     log.query = "re:Fix.*stepp(ing)?";
     log.rebuildFilter(editor);
     ASSERT_EQ(log.filtered.size(), 1u);
@@ -981,63 +1003,88 @@ TEST(FuzzyTypoTest, FindsSomethingWithOutOfOrderCharactersAndSortedHighlights)
 {
     std::vector<int> positions;
     const int typo = editor::helper::fuzzyScoreWithPositions(
-        "shtio", "something", positions);
+        "shtio",
+        "something",
+        positions);
     EXPECT_GT(typo, 0);
     EXPECT_EQ(positions, (std::vector<int>{0, 1, 4, 5, 6}));
     EXPECT_GT(
         editor::helper::fuzzyScoreWithPositions("shtio", "shtio", positions),
         typo);
     EXPECT_GT(
-        editor::helper::fuzzyScoreWithPositions("fiel", "file", positions), 0);
+        editor::helper::fuzzyScoreWithPositions("fiel", "file", positions),
+        0);
     EXPECT_EQ(positions, (std::vector<int>{0, 1, 2, 3}));
 }
 
-TEST(FuzzyTypoTest,
-     PreservesRepeatedLettersAndRejectsScatteredOrMissingCharacters)
+TEST(
+    FuzzyTypoTest,
+    PreservesRepeatedLettersAndRejectsScatteredOrMissingCharacters)
 {
     std::vector<int> positions;
     EXPECT_GT(
-        editor::helper::fuzzyScoreWithPositions("bkoo", "book", positions), 0);
+        editor::helper::fuzzyScoreWithPositions("bkoo", "book", positions),
+        0);
     EXPECT_EQ(positions, (std::vector<int>{0, 1, 2, 3}));
-    EXPECT_LT(editor::helper::fuzzyScoreWithPositions("bkk", "book", positions),
-              0);
-    EXPECT_TRUE(positions.empty());
-    EXPECT_GT(editor::helper::fuzzyScoreWithPositions("ab", "ba", positions),
-              0);
     EXPECT_LT(
-        editor::helper::fuzzyScoreWithPositions("ab", "b____a", positions), 0);
-    EXPECT_LT(editor::helper::fuzzyScoreWithPositions(
-                  "shtio", "s________o________mething", positions),
-              0);
-    EXPECT_LT(editor::helper::fuzzyScoreWithPositions("shtiox", "something",
-                                                      positions),
-              0);
+        editor::helper::fuzzyScoreWithPositions("bkk", "book", positions),
+        0);
+    EXPECT_TRUE(positions.empty());
+    EXPECT_GT(
+        editor::helper::fuzzyScoreWithPositions("ab", "ba", positions),
+        0);
+    EXPECT_LT(
+        editor::helper::fuzzyScoreWithPositions("ab", "b____a", positions),
+        0);
+    EXPECT_LT(
+        editor::helper::fuzzyScoreWithPositions(
+            "shtio",
+            "s________o________mething",
+            positions),
+        0);
+    EXPECT_LT(
+        editor::helper::fuzzyScoreWithPositions(
+            "shtiox",
+            "something",
+            positions),
+        0);
 }
 
 TEST(FuzzyTypoTest, LeavesRegexExactAndKeepsUtf8ByteOffsetsIntact)
 {
     std::vector<int> positions;
-    EXPECT_LT(editor::helper::fuzzyScoreWithPositions("re:shtio", "something",
-                                                      positions),
-              0);
-    EXPECT_LT(editor::helper::fuzzyScoreWithPositions("/shtio/", "something",
-                                                      positions),
-              0);
-    EXPECT_GT(editor::helper::fuzzyScoreWithPositions("fz:shtio", "é something",
-                                                      positions),
-              0);
+    EXPECT_LT(
+        editor::helper::fuzzyScoreWithPositions(
+            "re:shtio",
+            "something",
+            positions),
+        0);
+    EXPECT_LT(
+        editor::helper::fuzzyScoreWithPositions(
+            "/shtio/",
+            "something",
+            positions),
+        0);
+    EXPECT_GT(
+        editor::helper::fuzzyScoreWithPositions(
+            "fz:shtio",
+            "é something",
+            positions),
+        0);
     EXPECT_EQ(positions, (std::vector<int>{3, 4, 7, 8, 9}));
-    EXPECT_LT(editor::helper::fuzzyScoreWithPositions("éa", "aé", positions),
-              0);
+    EXPECT_LT(
+        editor::helper::fuzzyScoreWithPositions("éa", "aé", positions),
+        0);
 }
 
 TEST(FuzzyTypoTest, FileFinderRanksOrderedNamesAboveReorderedMatches)
 {
     Editor editor = Editor::createForTests();
     FuzzyFindMode finder;
-    finder.projectFiles = {{"something.cpp", "something.cpp", false},
-                           {"shtio.cpp", "shtio.cpp", false},
-                           {"unrelated.cpp", "unrelated.cpp", false}};
+    finder.projectFiles =
+        {{"something.cpp", "something.cpp", false},
+         {"shtio.cpp", "shtio.cpp", false},
+         {"unrelated.cpp", "unrelated.cpp", false}};
     finder.projectFilesInitialized = true;
     auto sm = makeMachine(editor, std::move(finder));
     typeText(sm, "shtio");
@@ -1046,14 +1093,23 @@ TEST(FuzzyTypoTest, FileFinderRanksOrderedNamesAboveReorderedMatches)
     ASSERT_EQ(state->matches.size(), 2u);
     EXPECT_EQ(state->matches[0].file.name, "shtio.cpp");
     EXPECT_EQ(state->matches[1].file.name, "something.cpp");
-    EXPECT_EQ(state->matches[1].matchPositions,
-              (std::vector<int>{0, 1, 4, 5, 6}));
+    EXPECT_EQ(
+        state->matches[1].matchPositions,
+        (std::vector<int>{0, 1, 4, 5, 6}));
 }
 
 TEST(FuzzyTypoTest, SharedScoringApisAgreeWithAndWithoutHighlights)
 {
-    for(const std::string query : {"", "shtio", "smt", "fz:shtio", "re:some.*",
-                                   "/shtio/", "re:[", "missing", "bkk"})
+    for(const std::string query :
+        {"",
+         "shtio",
+         "smt",
+         "fz:shtio",
+         "re:some.*",
+         "/shtio/",
+         "re:[",
+         "missing",
+         "bkk"})
     {
         SCOPED_TRACE(query);
         std::vector<int> positions{999}, legacyPositions{999};
@@ -1061,9 +1117,12 @@ TEST(FuzzyTypoTest, SharedScoringApisAgreeWithAndWithoutHighlights)
             editor::helper::fuzzyMatchScore(query, "something", &positions);
         EXPECT_EQ(editor::helper::fuzzyMatchScore(query, "something"), score);
         EXPECT_EQ(editor::helper::fuzzyScore("something", query), score);
-        EXPECT_EQ(editor::helper::fuzzyScoreWithPositions(query, "something",
-                                                          legacyPositions),
-                  score);
+        EXPECT_EQ(
+            editor::helper::fuzzyScoreWithPositions(
+                query,
+                "something",
+                legacyPositions),
+            score);
         EXPECT_EQ(positions, legacyPositions);
         if(score <= 0)
             EXPECT_TRUE(positions.empty());
@@ -1093,9 +1152,10 @@ TEST(FuzzyTypoTest, CompletionUsesSharedMatcherAndKeepsOrderedMatchesFirst)
 TEST(FuzzyTypoTest, EmojiCompletionUsesSharedMatcher)
 {
     Editor editor = Editor::createForTests();
-    editor.emojiEntries = {{"", "", "something", ""},
-                           {"", "", "shtio", ""},
-                           {"", "", "unrelated", ""}};
+    editor.emojiEntries =
+        {{"", "", "something", ""},
+         {"", "", "shtio", ""},
+         {"", "", "unrelated", ""}};
     editor.emojiQuery = "shtio";
     editor.rebuildEmojiFilter();
     EXPECT_EQ(editor.emojiFiltered, (std::vector<int>{1, 0}));
@@ -1133,29 +1193,40 @@ TEST(FuzzyTypoTest, RecursivePathCompletionUsesLiteralSharedFuzzyMatching)
     write_file(root / "re:something.cpp", "");
 #endif
     const auto matches = editor::helper::getRecursivePathCompletions(
-        root.string() + "/shtio", false);
+        root.string() + "/shtio",
+        false);
     ASSERT_FALSE(matches.empty());
     EXPECT_EQ(matches.front(), (root / "shtio.cpp").string());
-    EXPECT_NE(std::find(matches.begin(), matches.end(),
-                        (root / "something.cpp").string()),
-              matches.end());
+    EXPECT_NE(
+        std::find(
+            matches.begin(),
+            matches.end(),
+            (root / "something.cpp").string()),
+        matches.end());
 #ifndef _WIN32
     const auto literal = editor::helper::getRecursivePathCompletions(
-        root.string() + "/re:shtio", false);
-    EXPECT_NE(std::find(literal.begin(), literal.end(),
-                        (root / "re:something.cpp").string()),
-              literal.end());
-    EXPECT_EQ(std::find(literal.begin(), literal.end(),
-                        (root / "something.cpp").string()),
-              literal.end());
+        root.string() + "/re:shtio",
+        false);
+    EXPECT_NE(
+        std::find(
+            literal.begin(),
+            literal.end(),
+            (root / "re:something.cpp").string()),
+        literal.end());
+    EXPECT_EQ(
+        std::find(
+            literal.begin(),
+            literal.end(),
+            (root / "something.cpp").string()),
+        literal.end());
 #endif
 }
 
 TEST(FuzzyTypoTest, AssemblyMatchesAsslbyWhileTypingAndHighlightsBothEsses)
 {
     std::vector<int> positions;
-    const int score = editor::helper::fuzzyMatchScore("asslby", "assembly",
-                                                      &positions);
+    const int score =
+        editor::helper::fuzzyMatchScore("asslby", "assembly", &positions);
     ASSERT_GT(score, 0);
     EXPECT_EQ(positions, (std::vector<int>{0, 1, 2, 5, 6, 7}));
     EXPECT_GT(editor::helper::fuzzyMatchScore("asslby", "asslby"), score);
@@ -1164,8 +1235,9 @@ TEST(FuzzyTypoTest, AssemblyMatchesAsslbyWhileTypingAndHighlightsBothEsses)
 
     Editor editor = Editor::createForTests();
     FuzzyFindMode finder;
-    finder.projectFiles = {{"assembly.cpp", "assembly.cpp", false},
-                           {"unrelated.cpp", "unrelated.cpp", false}};
+    finder.projectFiles =
+        {{"assembly.cpp", "assembly.cpp", false},
+         {"unrelated.cpp", "unrelated.cpp", false}};
     finder.projectFilesInitialized = true;
     auto sm = makeMachine(editor, std::move(finder));
     for(char ch : std::string("asslby"))
@@ -1173,23 +1245,30 @@ TEST(FuzzyTypoTest, AssemblyMatchesAsslbyWhileTypingAndHighlightsBothEsses)
         sm.dispatch(ch);
         const auto* state = sm.getState<FuzzyFindMode>();
         ASSERT_NE(state, nullptr);
-        EXPECT_TRUE(std::any_of(state->matches.begin(), state->matches.end(),
-                                 [](const FuzzyMatch& match)
-                                 { return match.file.name == "assembly.cpp"; }))
+        EXPECT_TRUE(
+            std::any_of(
+                state->matches.begin(),
+                state->matches.end(),
+                [](const FuzzyMatch& match)
+                { return match.file.name == "assembly.cpp"; }))
             << state->query;
     }
-    EXPECT_EQ(sm.getState<FuzzyFindMode>()->matches[0].matchPositions,
-              (std::vector<int>{0, 1, 2, 5, 6, 7}));
+    EXPECT_EQ(
+        sm.getState<FuzzyFindMode>()->matches[0].matchPositions,
+        (std::vector<int>{0, 1, 2, 5, 6, 7}));
 }
 
 TEST(FuzzyTypoTest, CompletionListsUseSharedRankingAndPreserveEmptyQueryOrder)
 {
-    const std::vector<std::string> candidates = {"something", "shtio", "nothing"};
-    EXPECT_EQ(editor::helper::fuzzyCompletions(candidates, "shtio"),
-              (std::vector<std::string>{"shtio", "something"}));
+    const std::vector<std::string> candidates =
+        {"something", "shtio", "nothing"};
+    EXPECT_EQ(
+        editor::helper::fuzzyCompletions(candidates, "shtio"),
+        (std::vector<std::string>{"shtio", "something"}));
     EXPECT_EQ(editor::helper::fuzzyCompletions(candidates, ""), candidates);
-    EXPECT_EQ(editor::helper::fuzzyCompletions(candidates, "re:^some"),
-              (std::vector<std::string>{"something"}));
+    EXPECT_EQ(
+        editor::helper::fuzzyCompletions(candidates, "re:^some"),
+        (std::vector<std::string>{"something"}));
     EXPECT_TRUE(editor::helper::fuzzyCompletions(candidates, "re:[").empty());
 }
 
@@ -1197,15 +1276,18 @@ TEST(FuzzyTypoTest, CommandSettingsAndHelpTabCandidatesUseSharedMatcher)
 {
     Editor editor = Editor::createForTests();
     const auto commands = editor.getCommandCompletions("edti");
-    EXPECT_NE(std::find(commands.begin(), commands.end(), "edit "),
-              commands.end());
+    EXPECT_NE(
+        std::find(commands.begin(), commands.end(), "edit "),
+        commands.end());
     const auto settings = editor.getSetCompletions("set autobraecs");
-    EXPECT_NE(std::find(settings.begin(), settings.end(), "set autobraces"),
-              settings.end());
+    EXPECT_NE(
+        std::find(settings.begin(), settings.end(), "set autobraces"),
+        settings.end());
     const auto help = editor.getHelpCompletions("navgi");
     EXPECT_NE(std::find(help.begin(), help.end(), "navigation"), help.end());
-    EXPECT_EQ(editor.getHelpCompletions("re:^nav.*$"),
-              (std::vector<std::string>{"navigation"}));
+    EXPECT_EQ(
+        editor.getHelpCompletions("re:^nav.*$"),
+        (std::vector<std::string>{"navigation"}));
 }
 
 TEST(FuzzyTypoTest, HelpPopupKeepsFuzzyTopicsAndSupportsArgumentRegex)
@@ -1226,8 +1308,9 @@ TEST(FuzzyTypoTest, HelpPopupKeepsFuzzyTopicsAndSupportsArgumentRegex)
     sm.dispatch(keyCode(control::ControlKey::ESC));
     typeText(sm, ":help re:[");
     EXPECT_TRUE(editor.commandPopupFiltered.empty());
-    EXPECT_NE(editor.commandPopupEmptyMessage.find("Invalid regex"),
-              std::string::npos);
+    EXPECT_NE(
+        editor.commandPopupEmptyMessage.find("Invalid regex"),
+        std::string::npos);
 }
 
 TEST(FuzzyTypoTest, WelcomeHelpPromptUsesSharedMatcherAndTabSelection)
@@ -1250,15 +1333,18 @@ TEST(FuzzyTypoTest, DirectPathCompletionUsesSharedMatcherAndLiteralPaths)
     write_file(root / "unrelated.h", "");
     const auto matches =
         editor::helper::getPathCompletions(root.string() + "/asslby");
-    EXPECT_EQ(matches,
-              (std::vector<std::string>{(root / "asslby.h").string(),
-                                        (root / "assembly.h").string()}));
+    EXPECT_EQ(
+        matches,
+        (std::vector<std::string>{
+            (root / "asslby.h").string(),
+            (root / "assembly.h").string()}));
 #ifndef _WIN32
     write_file(root / "re:assembly.h", "");
     const auto literal =
         editor::helper::getPathCompletions(root.string() + "/re:asslby");
-    EXPECT_EQ(literal,
-              (std::vector<std::string>{(root / "re:assembly.h").string()}));
+    EXPECT_EQ(
+        literal,
+        (std::vector<std::string>{(root / "re:assembly.h").string()}));
 #endif
 }
 

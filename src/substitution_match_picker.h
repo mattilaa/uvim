@@ -11,8 +11,9 @@ namespace command::execution
 {
 std::string substitutionSeparator(const Editor& editor);
 std::string substitutionPreviewText(std::string_view text, int width);
-std::string substitutionDisplayPath(const Editor& editor,
-                                    std::string_view path);
+std::string substitutionDisplayPath(
+    const Editor& editor,
+    std::string_view path);
 
 // Collect occurrences against snapshots, let the user select them, then replay
 // the same traversal to accept only the selected occurrences.
@@ -21,8 +22,13 @@ class SubstitutionMatchPicker
 public:
     explicit SubstitutionMatchPicker(Editor& editor) : editor(editor) {}
 
-    bool consider(std::string_view path, int row, size_t column, size_t length,
-                  const std::string& source, const std::string& replacement);
+    bool consider(
+        std::string_view path,
+        int row,
+        size_t column,
+        size_t length,
+        const std::string& source,
+        const std::string& replacement);
     bool choose();
 
     size_t size() const

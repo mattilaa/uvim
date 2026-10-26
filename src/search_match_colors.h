@@ -11,7 +11,9 @@ public:
     static std::string selectedRowBackground();
     static std::string markedRowBackground();
     static double relevanceStrength(double coverage, double secondaryQuality);
-    static std::string matchBackground(double strength, int contrast,
-                                       bool marked);
+    static std::string matchBackground(
+        double strength,
+        int contrast,
+        bool marked);
 };
 } // namespace editor

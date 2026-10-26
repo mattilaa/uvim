@@ -32,158 +32,295 @@ struct DocEntry
 
 constexpr std::array x86Docs = {
     DocEntry{"adc", "Add with carry.", "https://www.felixcloutier.com/x86/adc"},
-    DocEntry{"add", "Add source operand to destination operand.",
-             "https://www.felixcloutier.com/x86/add"},
-    DocEntry{"and", "Bitwise AND.",
-             "https://www.felixcloutier.com/x86/and"},
-    DocEntry{"call", "Call procedure.",
-             "https://www.felixcloutier.com/x86/call"},
-    DocEntry{"cmp", "Compare operands.",
-             "https://www.felixcloutier.com/x86/cmp"},
-    DocEntry{"dec", "Decrement by one.",
-             "https://www.felixcloutier.com/x86/dec"},
-    DocEntry{"div", "Unsigned divide.",
-             "https://www.felixcloutier.com/x86/div"},
-    DocEntry{"idiv", "Signed divide.",
-             "https://www.felixcloutier.com/x86/idiv"},
-    DocEntry{"imul", "Signed multiply.",
-             "https://www.felixcloutier.com/x86/imul"},
-    DocEntry{"inc", "Increment by one.",
-             "https://www.felixcloutier.com/x86/inc"},
-    DocEntry{"jcc", "Conditional jump.",
-             "https://www.felixcloutier.com/x86/jcc"},
-    DocEntry{"jmp", "Unconditional jump.",
-             "https://www.felixcloutier.com/x86/jmp"},
-    DocEntry{"lea", "Load effective address.",
-             "https://www.felixcloutier.com/x86/lea"},
-    DocEntry{"leave", "High-level procedure exit.",
-             "https://www.felixcloutier.com/x86/leave"},
-    DocEntry{"mov", "Move data.",
-             "https://www.felixcloutier.com/x86/mov"},
-    DocEntry{"movsx", "Move with sign-extension.",
-             "https://www.felixcloutier.com/x86/movsx:movsxd"},
-    DocEntry{"movsxd", "Move with sign-extension.",
-             "https://www.felixcloutier.com/x86/movsx:movsxd"},
-    DocEntry{"movzx", "Move with zero-extension.",
-             "https://www.felixcloutier.com/x86/movzx"},
-    DocEntry{"mul", "Unsigned multiply.",
-             "https://www.felixcloutier.com/x86/mul"},
-    DocEntry{"neg", "Two's complement negation.",
-             "https://www.felixcloutier.com/x86/neg"},
-    DocEntry{"nop", "No operation.",
-             "https://www.felixcloutier.com/x86/nop"},
-    DocEntry{"not", "One's complement negation.",
-             "https://www.felixcloutier.com/x86/not"},
+    DocEntry{
+        "add",
+        "Add source operand to destination operand.",
+        "https://www.felixcloutier.com/x86/add"},
+    DocEntry{"and", "Bitwise AND.", "https://www.felixcloutier.com/x86/and"},
+    DocEntry{
+        "call",
+        "Call procedure.",
+        "https://www.felixcloutier.com/x86/call"},
+    DocEntry{
+        "cmp",
+        "Compare operands.",
+        "https://www.felixcloutier.com/x86/cmp"},
+    DocEntry{
+        "dec",
+        "Decrement by one.",
+        "https://www.felixcloutier.com/x86/dec"},
+    DocEntry{
+        "div",
+        "Unsigned divide.",
+        "https://www.felixcloutier.com/x86/div"},
+    DocEntry{
+        "idiv",
+        "Signed divide.",
+        "https://www.felixcloutier.com/x86/idiv"},
+    DocEntry{
+        "imul",
+        "Signed multiply.",
+        "https://www.felixcloutier.com/x86/imul"},
+    DocEntry{
+        "inc",
+        "Increment by one.",
+        "https://www.felixcloutier.com/x86/inc"},
+    DocEntry{
+        "jcc",
+        "Conditional jump.",
+        "https://www.felixcloutier.com/x86/jcc"},
+    DocEntry{
+        "jmp",
+        "Unconditional jump.",
+        "https://www.felixcloutier.com/x86/jmp"},
+    DocEntry{
+        "lea",
+        "Load effective address.",
+        "https://www.felixcloutier.com/x86/lea"},
+    DocEntry{
+        "leave",
+        "High-level procedure exit.",
+        "https://www.felixcloutier.com/x86/leave"},
+    DocEntry{"mov", "Move data.", "https://www.felixcloutier.com/x86/mov"},
+    DocEntry{
+        "movsx",
+        "Move with sign-extension.",
+        "https://www.felixcloutier.com/x86/movsx:movsxd"},
+    DocEntry{
+        "movsxd",
+        "Move with sign-extension.",
+        "https://www.felixcloutier.com/x86/movsx:movsxd"},
+    DocEntry{
+        "movzx",
+        "Move with zero-extension.",
+        "https://www.felixcloutier.com/x86/movzx"},
+    DocEntry{
+        "mul",
+        "Unsigned multiply.",
+        "https://www.felixcloutier.com/x86/mul"},
+    DocEntry{
+        "neg",
+        "Two's complement negation.",
+        "https://www.felixcloutier.com/x86/neg"},
+    DocEntry{"nop", "No operation.", "https://www.felixcloutier.com/x86/nop"},
+    DocEntry{
+        "not",
+        "One's complement negation.",
+        "https://www.felixcloutier.com/x86/not"},
     DocEntry{"or", "Bitwise OR.", "https://www.felixcloutier.com/x86/or"},
-    DocEntry{"pop", "Pop value from stack.",
-             "https://www.felixcloutier.com/x86/pop"},
-    DocEntry{"push", "Push value onto stack.",
-             "https://www.felixcloutier.com/x86/push"},
-    DocEntry{"ret", "Return from procedure.",
-             "https://www.felixcloutier.com/x86/ret"},
-    DocEntry{"sal", "Shift arithmetic left.",
-             "https://www.felixcloutier.com/x86/sal:sar:shl:shr"},
-    DocEntry{"sar", "Shift arithmetic right.",
-             "https://www.felixcloutier.com/x86/sal:sar:shl:shr"},
-    DocEntry{"setcc", "Set byte on condition.",
-             "https://www.felixcloutier.com/x86/setcc"},
-    DocEntry{"shl", "Shift logical left.",
-             "https://www.felixcloutier.com/x86/sal:sar:shl:shr"},
-    DocEntry{"shr", "Shift logical right.",
-             "https://www.felixcloutier.com/x86/sal:sar:shl:shr"},
-    DocEntry{"sub", "Subtract.",
-             "https://www.felixcloutier.com/x86/sub"},
-    DocEntry{"test", "Logical compare.",
-             "https://www.felixcloutier.com/x86/test"},
-    DocEntry{"xor", "Bitwise exclusive OR.",
-             "https://www.felixcloutier.com/x86/xor"},
+    DocEntry{
+        "pop",
+        "Pop value from stack.",
+        "https://www.felixcloutier.com/x86/pop"},
+    DocEntry{
+        "push",
+        "Push value onto stack.",
+        "https://www.felixcloutier.com/x86/push"},
+    DocEntry{
+        "ret",
+        "Return from procedure.",
+        "https://www.felixcloutier.com/x86/ret"},
+    DocEntry{
+        "sal",
+        "Shift arithmetic left.",
+        "https://www.felixcloutier.com/x86/sal:sar:shl:shr"},
+    DocEntry{
+        "sar",
+        "Shift arithmetic right.",
+        "https://www.felixcloutier.com/x86/sal:sar:shl:shr"},
+    DocEntry{
+        "setcc",
+        "Set byte on condition.",
+        "https://www.felixcloutier.com/x86/setcc"},
+    DocEntry{
+        "shl",
+        "Shift logical left.",
+        "https://www.felixcloutier.com/x86/sal:sar:shl:shr"},
+    DocEntry{
+        "shr",
+        "Shift logical right.",
+        "https://www.felixcloutier.com/x86/sal:sar:shl:shr"},
+    DocEntry{"sub", "Subtract.", "https://www.felixcloutier.com/x86/sub"},
+    DocEntry{
+        "test",
+        "Logical compare.",
+        "https://www.felixcloutier.com/x86/test"},
+    DocEntry{
+        "xor",
+        "Bitwise exclusive OR.",
+        "https://www.felixcloutier.com/x86/xor"},
 };
 
 constexpr std::array aarch64Docs = {
-    DocEntry{"adc", "Add with carry.",
-             "https://www.scs.stanford.edu/~zyedidia/arm64/adc.html"},
-    DocEntry{"add", "Add.",
-             "https://www.scs.stanford.edu/~zyedidia/arm64/add_addsub_imm.html"},
-    DocEntry{"adr", "Form PC-relative address.",
-             "https://www.scs.stanford.edu/~zyedidia/arm64/adr.html"},
-    DocEntry{"adrp", "Form page-relative address.",
-             "https://www.scs.stanford.edu/~zyedidia/arm64/adrp.html"},
-    DocEntry{"and", "Bitwise AND.",
-             "https://www.scs.stanford.edu/~zyedidia/arm64/and_log_imm.html"},
-    DocEntry{"asr", "Arithmetic shift right.",
-             "https://www.scs.stanford.edu/~zyedidia/arm64/asr_asrv.html"},
-    DocEntry{"b", "Branch.",
-             "https://www.scs.stanford.edu/~zyedidia/arm64/b_uncond.html"},
-    DocEntry{"bl", "Branch with link.",
-             "https://www.scs.stanford.edu/~zyedidia/arm64/bl.html"},
-    DocEntry{"br", "Branch to register.",
-             "https://www.scs.stanford.edu/~zyedidia/arm64/br.html"},
-    DocEntry{"cbnz", "Compare and branch if nonzero.",
-             "https://www.scs.stanford.edu/~zyedidia/arm64/cbnz.html"},
-    DocEntry{"cbz", "Compare and branch if zero.",
-             "https://www.scs.stanford.edu/~zyedidia/arm64/cbz.html"},
-    DocEntry{"cmp", "Compare.",
-             "https://www.scs.stanford.edu/~zyedidia/arm64/cmp_subs_addsub_imm.html"},
-    DocEntry{"csel", "Conditional select.",
-             "https://www.scs.stanford.edu/~zyedidia/arm64/csel.html"},
-    DocEntry{"cset", "Conditional set.",
-             "https://www.scs.stanford.edu/~zyedidia/arm64/cset_csinc.html"},
-    DocEntry{"eor", "Bitwise exclusive OR.",
-             "https://www.scs.stanford.edu/~zyedidia/arm64/eor_log_imm.html"},
-    DocEntry{"fadd", "Floating-point add.",
-             "https://www.scs.stanford.edu/~zyedidia/arm64/fadd_float.html"},
-    DocEntry{"fcmp", "Floating-point compare.",
-             "https://www.scs.stanford.edu/~zyedidia/arm64/fcmp_float.html"},
-    DocEntry{"fdiv", "Floating-point divide.",
-             "https://www.scs.stanford.edu/~zyedidia/arm64/fdiv_float.html"},
-    DocEntry{"fmov", "Floating-point move.",
-             "https://www.scs.stanford.edu/~zyedidia/arm64/fmov_float.html"},
-    DocEntry{"fmul", "Floating-point multiply.",
-             "https://www.scs.stanford.edu/~zyedidia/arm64/fmul_float.html"},
-    DocEntry{"fsub", "Floating-point subtract.",
-             "https://www.scs.stanford.edu/~zyedidia/arm64/fsub_float.html"},
-    DocEntry{"ldr", "Load register.",
-             "https://www.scs.stanford.edu/~zyedidia/arm64/ldr_imm_gen.html"},
-    DocEntry{"ldp", "Load pair of registers.",
-             "https://www.scs.stanford.edu/~zyedidia/arm64/ldp_gen.html"},
-    DocEntry{"lsl", "Logical shift left.",
-             "https://www.scs.stanford.edu/~zyedidia/arm64/lsl_lslv.html"},
-    DocEntry{"lsr", "Logical shift right.",
-             "https://www.scs.stanford.edu/~zyedidia/arm64/lsr_lsrv.html"},
-    DocEntry{"madd", "Multiply-add.",
-             "https://www.scs.stanford.edu/~zyedidia/arm64/madd.html"},
-    DocEntry{"mov", "Move.",
-             "https://www.scs.stanford.edu/~zyedidia/arm64/mov_orr_log_imm.html"},
-    DocEntry{"movk", "Move wide with keep.",
-             "https://www.scs.stanford.edu/~zyedidia/arm64/movk.html"},
-    DocEntry{"movn", "Move wide with NOT.",
-             "https://www.scs.stanford.edu/~zyedidia/arm64/movn.html"},
-    DocEntry{"movz", "Move wide with zero.",
-             "https://www.scs.stanford.edu/~zyedidia/arm64/movz.html"},
-    DocEntry{"mul", "Multiply.",
-             "https://www.scs.stanford.edu/~zyedidia/arm64/mul_madd.html"},
-    DocEntry{"orr", "Bitwise OR.",
-             "https://www.scs.stanford.edu/~zyedidia/arm64/orr_log_imm.html"},
-    DocEntry{"ret", "Return from subroutine.",
-             "https://www.scs.stanford.edu/~zyedidia/arm64/ret.html"},
-    DocEntry{"sbc", "Subtract with carry.",
-             "https://www.scs.stanford.edu/~zyedidia/arm64/sbc.html"},
-    DocEntry{"sdiv", "Signed divide.",
-             "https://www.scs.stanford.edu/~zyedidia/arm64/sdiv.html"},
-    DocEntry{"stp", "Store pair of registers.",
-             "https://www.scs.stanford.edu/~zyedidia/arm64/stp_gen.html"},
-    DocEntry{"str", "Store register.",
-             "https://www.scs.stanford.edu/~zyedidia/arm64/str_imm_gen.html"},
-    DocEntry{"sub", "Subtract.",
-             "https://www.scs.stanford.edu/~zyedidia/arm64/sub_addsub_imm.html"},
-    DocEntry{"svc", "Supervisor call.",
-             "https://www.scs.stanford.edu/~zyedidia/arm64/svc.html"},
-    DocEntry{"tbnz", "Test bit and branch if nonzero.",
-             "https://www.scs.stanford.edu/~zyedidia/arm64/tbnz.html"},
-    DocEntry{"tbz", "Test bit and branch if zero.",
-             "https://www.scs.stanford.edu/~zyedidia/arm64/tbz.html"},
-    DocEntry{"udiv", "Unsigned divide.",
-             "https://www.scs.stanford.edu/~zyedidia/arm64/udiv.html"},
+    DocEntry{
+        "adc",
+        "Add with carry.",
+        "https://www.scs.stanford.edu/~zyedidia/arm64/adc.html"},
+    DocEntry{
+        "add",
+        "Add.",
+        "https://www.scs.stanford.edu/~zyedidia/arm64/add_addsub_imm.html"},
+    DocEntry{
+        "adr",
+        "Form PC-relative address.",
+        "https://www.scs.stanford.edu/~zyedidia/arm64/adr.html"},
+    DocEntry{
+        "adrp",
+        "Form page-relative address.",
+        "https://www.scs.stanford.edu/~zyedidia/arm64/adrp.html"},
+    DocEntry{
+        "and",
+        "Bitwise AND.",
+        "https://www.scs.stanford.edu/~zyedidia/arm64/and_log_imm.html"},
+    DocEntry{
+        "asr",
+        "Arithmetic shift right.",
+        "https://www.scs.stanford.edu/~zyedidia/arm64/asr_asrv.html"},
+    DocEntry{
+        "b",
+        "Branch.",
+        "https://www.scs.stanford.edu/~zyedidia/arm64/b_uncond.html"},
+    DocEntry{
+        "bl",
+        "Branch with link.",
+        "https://www.scs.stanford.edu/~zyedidia/arm64/bl.html"},
+    DocEntry{
+        "br",
+        "Branch to register.",
+        "https://www.scs.stanford.edu/~zyedidia/arm64/br.html"},
+    DocEntry{
+        "cbnz",
+        "Compare and branch if nonzero.",
+        "https://www.scs.stanford.edu/~zyedidia/arm64/cbnz.html"},
+    DocEntry{
+        "cbz",
+        "Compare and branch if zero.",
+        "https://www.scs.stanford.edu/~zyedidia/arm64/cbz.html"},
+    DocEntry{
+        "cmp",
+        "Compare.",
+        "https://www.scs.stanford.edu/~zyedidia/arm64/"
+        "cmp_subs_addsub_imm.html"},
+    DocEntry{
+        "csel",
+        "Conditional select.",
+        "https://www.scs.stanford.edu/~zyedidia/arm64/csel.html"},
+    DocEntry{
+        "cset",
+        "Conditional set.",
+        "https://www.scs.stanford.edu/~zyedidia/arm64/cset_csinc.html"},
+    DocEntry{
+        "eor",
+        "Bitwise exclusive OR.",
+        "https://www.scs.stanford.edu/~zyedidia/arm64/eor_log_imm.html"},
+    DocEntry{
+        "fadd",
+        "Floating-point add.",
+        "https://www.scs.stanford.edu/~zyedidia/arm64/fadd_float.html"},
+    DocEntry{
+        "fcmp",
+        "Floating-point compare.",
+        "https://www.scs.stanford.edu/~zyedidia/arm64/fcmp_float.html"},
+    DocEntry{
+        "fdiv",
+        "Floating-point divide.",
+        "https://www.scs.stanford.edu/~zyedidia/arm64/fdiv_float.html"},
+    DocEntry{
+        "fmov",
+        "Floating-point move.",
+        "https://www.scs.stanford.edu/~zyedidia/arm64/fmov_float.html"},
+    DocEntry{
+        "fmul",
+        "Floating-point multiply.",
+        "https://www.scs.stanford.edu/~zyedidia/arm64/fmul_float.html"},
+    DocEntry{
+        "fsub",
+        "Floating-point subtract.",
+        "https://www.scs.stanford.edu/~zyedidia/arm64/fsub_float.html"},
+    DocEntry{
+        "ldr",
+        "Load register.",
+        "https://www.scs.stanford.edu/~zyedidia/arm64/ldr_imm_gen.html"},
+    DocEntry{
+        "ldp",
+        "Load pair of registers.",
+        "https://www.scs.stanford.edu/~zyedidia/arm64/ldp_gen.html"},
+    DocEntry{
+        "lsl",
+        "Logical shift left.",
+        "https://www.scs.stanford.edu/~zyedidia/arm64/lsl_lslv.html"},
+    DocEntry{
+        "lsr",
+        "Logical shift right.",
+        "https://www.scs.stanford.edu/~zyedidia/arm64/lsr_lsrv.html"},
+    DocEntry{
+        "madd",
+        "Multiply-add.",
+        "https://www.scs.stanford.edu/~zyedidia/arm64/madd.html"},
+    DocEntry{
+        "mov",
+        "Move.",
+        "https://www.scs.stanford.edu/~zyedidia/arm64/mov_orr_log_imm.html"},
+    DocEntry{
+        "movk",
+        "Move wide with keep.",
+        "https://www.scs.stanford.edu/~zyedidia/arm64/movk.html"},
+    DocEntry{
+        "movn",
+        "Move wide with NOT.",
+        "https://www.scs.stanford.edu/~zyedidia/arm64/movn.html"},
+    DocEntry{
+        "movz",
+        "Move wide with zero.",
+        "https://www.scs.stanford.edu/~zyedidia/arm64/movz.html"},
+    DocEntry{
+        "mul",
+        "Multiply.",
+        "https://www.scs.stanford.edu/~zyedidia/arm64/mul_madd.html"},
+    DocEntry{
+        "orr",
+        "Bitwise OR.",
+        "https://www.scs.stanford.edu/~zyedidia/arm64/orr_log_imm.html"},
+    DocEntry{
+        "ret",
+        "Return from subroutine.",
+        "https://www.scs.stanford.edu/~zyedidia/arm64/ret.html"},
+    DocEntry{
+        "sbc",
+        "Subtract with carry.",
+        "https://www.scs.stanford.edu/~zyedidia/arm64/sbc.html"},
+    DocEntry{
+        "sdiv",
+        "Signed divide.",
+        "https://www.scs.stanford.edu/~zyedidia/arm64/sdiv.html"},
+    DocEntry{
+        "stp",
+        "Store pair of registers.",
+        "https://www.scs.stanford.edu/~zyedidia/arm64/stp_gen.html"},
+    DocEntry{
+        "str",
+        "Store register.",
+        "https://www.scs.stanford.edu/~zyedidia/arm64/str_imm_gen.html"},
+    DocEntry{
+        "sub",
+        "Subtract.",
+        "https://www.scs.stanford.edu/~zyedidia/arm64/sub_addsub_imm.html"},
+    DocEntry{
+        "svc",
+        "Supervisor call.",
+        "https://www.scs.stanford.edu/~zyedidia/arm64/svc.html"},
+    DocEntry{
+        "tbnz",
+        "Test bit and branch if nonzero.",
+        "https://www.scs.stanford.edu/~zyedidia/arm64/tbnz.html"},
+    DocEntry{
+        "tbz",
+        "Test bit and branch if zero.",
+        "https://www.scs.stanford.edu/~zyedidia/arm64/tbz.html"},
+    DocEntry{
+        "udiv",
+        "Unsigned divide.",
+        "https://www.scs.stanford.edu/~zyedidia/arm64/udiv.html"},
 };
 
 std::string lower(std::string_view value)
@@ -197,16 +334,18 @@ std::string lower(std::string_view value)
 
 bool contains(const auto& docs, std::string_view mnemonic)
 {
-    return std::any_of(docs.begin(), docs.end(),
-                       [&](const DocEntry& doc)
-                       { return doc.mnemonic == mnemonic; });
+    return std::any_of(
+        docs.begin(),
+        docs.end(),
+        [&](const DocEntry& doc) { return doc.mnemonic == mnemonic; });
 }
 
 std::optional<DocEntry> lookup(const auto& docs, std::string_view mnemonic)
 {
-    auto it = std::find_if(docs.begin(), docs.end(),
-                           [&](const DocEntry& doc)
-                           { return doc.mnemonic == mnemonic; });
+    auto it = std::find_if(
+        docs.begin(),
+        docs.end(),
+        [&](const DocEntry& doc) { return doc.mnemonic == mnemonic; });
     if(it == docs.end())
         return std::nullopt;
     return *it;
@@ -279,10 +418,9 @@ std::optional<std::string> instructionMnemonic(std::string_view line)
         while(pos < line.size() && text_utils::is_space(line[pos]))
             ++pos;
         size_t start = pos;
-        while(pos < line.size() &&
-              (text_utils::is_alpha(line[pos]) ||
-               text_utils::is_digit(line[pos]) || line[pos] == '_' ||
-               line[pos] == '.'))
+        while(pos < line.size() && (text_utils::is_alpha(line[pos]) ||
+                                    text_utils::is_digit(line[pos]) ||
+                                    line[pos] == '_' || line[pos] == '.'))
         {
             ++pos;
         }
@@ -393,8 +531,10 @@ std::string embeddedDetails(std::string_view arch, std::string_view mnemonic)
                    "destination for flags only. The operands are not modified; "
                    "conditional jumps normally consume the resulting flags.";
         if(mnemonic == "test")
-            return "Computes a bitwise AND for flags only. The operands are not "
-                   "modified. Commonly used to test whether a register is zero.";
+            return "Computes a bitwise AND for flags only. The operands are "
+                   "not "
+                   "modified. Commonly used to test whether a register is "
+                   "zero.";
         if(mnemonic == "xor")
             return "Bitwise exclusive OR. `xorl %eax, %eax` is a common "
                    "zeroing idiom because writing a 32-bit register "
@@ -403,14 +543,16 @@ std::string embeddedDetails(std::string_view arch, std::string_view mnemonic)
             return "Bitwise AND of source and destination, storing the result "
                    "in the destination and updating flags.";
         if(mnemonic == "or")
-            return "Bitwise OR of source and destination, storing the result in "
+            return "Bitwise OR of source and destination, storing the result "
+                   "in "
                    "the destination and updating flags.";
         if(mnemonic == "call")
             return "Pushes the return address and branches to the target "
                    "procedure. The target may be direct or indirect through a "
                    "register or memory operand.";
         if(mnemonic == "ret")
-            return "Returns from a procedure by popping the return address from "
+            return "Returns from a procedure by popping the return address "
+                   "from "
                    "the stack and branching to it.";
         if(mnemonic == "push")
             return "Decrements the stack pointer and stores the operand on the "
@@ -462,7 +604,8 @@ std::string embeddedDetails(std::string_view arch, std::string_view mnemonic)
             return "Adds operands and writes the result to the destination "
                    "register. Immediate and shifted-register forms are common.";
         if(mnemonic == "sub")
-            return "Subtracts operands and writes the result to the destination "
+            return "Subtracts operands and writes the result to the "
+                   "destination "
                    "register. `subs` additionally updates condition flags.";
         if(mnemonic == "cmp")
             return "Comparison alias that subtracts for flags without keeping "
@@ -538,8 +681,9 @@ fs::path fetchedDocsPath(std::string_view arch, std::string_view mnemonic)
            (std::string(mnemonic) + ".md");
 }
 
-fs::path fallbackFetchedDocsPath(std::string_view arch,
-                                 std::string_view mnemonic)
+fs::path fallbackFetchedDocsPath(
+    std::string_view arch,
+    std::string_view mnemonic)
 {
     return cacheRoot() / "fetched" / "source" / std::string(arch) /
            (std::string(mnemonic) + ".md");
@@ -552,8 +696,9 @@ std::string compilerExplorerArch(std::string_view arch)
     return std::string(arch);
 }
 
-std::string compilerExplorerApiUrl(std::string_view arch,
-                                   std::string_view mnemonic)
+std::string compilerExplorerApiUrl(
+    std::string_view arch,
+    std::string_view mnemonic)
 {
     return "https://godbolt.org/api/asm/" + compilerExplorerArch(arch) + "/" +
            std::string(mnemonic);
@@ -585,8 +730,8 @@ std::string htmlToText(std::string_view html)
     bool inStyle = false;
     std::string tag;
 
-    auto starts_case_insensitive = [](std::string_view value,
-                                      std::string_view prefix)
+    auto starts_case_insensitive =
+        [](std::string_view value, std::string_view prefix)
     {
         if(value.size() < prefix.size())
             return false;
@@ -614,16 +759,17 @@ std::string htmlToText(std::string_view html)
                     inStyle = true;
                 else if(starts_case_insensitive(lowerTag, "/style"))
                     inStyle = false;
-                else if(!inScript && !inStyle &&
-                        (starts_case_insensitive(lowerTag, "br") ||
-                         starts_case_insensitive(lowerTag, "p") ||
-                         starts_case_insensitive(lowerTag, "/p") ||
-                         starts_case_insensitive(lowerTag, "div") ||
-                         starts_case_insensitive(lowerTag, "/div") ||
-                         starts_case_insensitive(lowerTag, "h") ||
-                         starts_case_insensitive(lowerTag, "/h") ||
-                         starts_case_insensitive(lowerTag, "li") ||
-                         starts_case_insensitive(lowerTag, "/tr")))
+                else if(
+                    !inScript && !inStyle &&
+                    (starts_case_insensitive(lowerTag, "br") ||
+                     starts_case_insensitive(lowerTag, "p") ||
+                     starts_case_insensitive(lowerTag, "/p") ||
+                     starts_case_insensitive(lowerTag, "div") ||
+                     starts_case_insensitive(lowerTag, "/div") ||
+                     starts_case_insensitive(lowerTag, "h") ||
+                     starts_case_insensitive(lowerTag, "/h") ||
+                     starts_case_insensitive(lowerTag, "li") ||
+                     starts_case_insensitive(lowerTag, "/tr")))
                 {
                     if(!text.empty() && text.back() != '\n')
                         text.push_back('\n');
@@ -693,8 +839,7 @@ std::string htmlToText(std::string_view html)
         compact.push_back(ch);
         lineHasText = true;
     }
-    while(!compact.empty() &&
-          (compact.back() == '\n' || compact.back() == ' '))
+    while(!compact.empty() && (compact.back() == '\n' || compact.back() == ' '))
         compact.pop_back();
     return compact;
 }
@@ -764,10 +909,9 @@ std::string wrapDocumentationText(std::string_view text, int width = 96)
     while(start <= text.size())
     {
         size_t end = text.find('\n', start);
-        std::string_view line =
-            end == std::string_view::npos
-                ? text.substr(start)
-                : text.substr(start, end - start);
+        std::string_view line = end == std::string_view::npos
+                                    ? text.substr(start)
+                                    : text.substr(start, end - start);
         if(!out.empty())
             out.push_back('\n');
         out += wrapDocumentationLine(line, width);
@@ -780,8 +924,14 @@ std::string wrapDocumentationText(std::string_view text, int width = 96)
 
 std::optional<std::string> fetchJsonUrl(std::string_view url)
 {
-    ProcessPipe pipe({"curl", "-LfsS", "--max-time", "8", "-H",
-                      "Accept: application/json", std::string(url)});
+    ProcessPipe pipe(
+        {"curl",
+         "-LfsS",
+         "--max-time",
+         "8",
+         "-H",
+         "Accept: application/json",
+         std::string(url)});
     if(!pipe)
         return std::nullopt;
     std::string output = pipe.readAll();
@@ -797,8 +947,8 @@ struct CompilerExplorerDoc
     std::string sourceUrl;
 };
 
-std::optional<CompilerExplorerDoc>
-parseCompilerExplorerDoc(std::string_view json)
+std::optional<CompilerExplorerDoc> parseCompilerExplorerDoc(
+    std::string_view json)
 {
     json_utils::Document doc;
     if(!json_utils::parse(doc, json) || !doc.IsObject())
@@ -817,8 +967,9 @@ parseCompilerExplorerDoc(std::string_view json)
     return CompilerExplorerDoc{std::move(text), std::move(sourceUrl)};
 }
 
-std::optional<CompilerExplorerDoc>
-fetchCompilerExplorerDoc(std::string_view arch, const DocEntry& doc)
+std::optional<CompilerExplorerDoc> fetchCompilerExplorerDoc(
+    std::string_view arch,
+    const DocEntry& doc)
 {
     std::optional<std::string> response =
         fetchJsonUrl(compilerExplorerApiUrl(arch, doc.mnemonic));
@@ -827,8 +978,9 @@ fetchCompilerExplorerDoc(std::string_view arch, const DocEntry& doc)
     return parseCompilerExplorerDoc(*response);
 }
 
-std::optional<fs::path>
-ensureFetchedDoc(std::string_view arch, const DocEntry& doc)
+std::optional<fs::path> ensureFetchedDoc(
+    std::string_view arch,
+    const DocEntry& doc)
 {
     fs::path path = fetchedDocsPath(arch, doc.mnemonic);
     std::error_code ec;
@@ -883,8 +1035,10 @@ ensureFetchedDoc(std::string_view arch, const DocEntry& doc)
     return path;
 }
 
-int ensureDocs(std::string_view arch, const auto& docs,
-               std::string_view mnemonic)
+int ensureDocs(
+    std::string_view arch,
+    const auto& docs,
+    std::string_view mnemonic)
 {
     fs::path path = docsPath(arch);
     std::error_code ec;
@@ -892,8 +1046,9 @@ int ensureDocs(std::string_view arch, const auto& docs,
     if(!needsWrite)
     {
         std::ifstream existing(path);
-        std::string contents((std::istreambuf_iterator<char>(existing)),
-                             std::istreambuf_iterator<char>());
+        std::string contents(
+            (std::istreambuf_iterator<char>(existing)),
+            std::istreambuf_iterator<char>());
         needsWrite = text_utils::is_not_found(contents.find("Documentation:"));
     }
     if(needsWrite)
@@ -954,8 +1109,10 @@ bool fetchOriginalDocs()
     if(fetchOriginalDocsEnabled.load())
         return true;
     if(const char* env = std::getenv("UVIM_ASM_DOCS_FETCH"))
-        return std::string_view(env) == "1" || std::string_view(env) == "true" ||
-               std::string_view(env) == "TRUE" || std::string_view(env) == "yes";
+        return std::string_view(env) == "1" ||
+               std::string_view(env) == "true" ||
+               std::string_view(env) == "TRUE" ||
+               std::string_view(env) == "yes";
     return false;
 }
 
@@ -976,9 +1133,9 @@ std::optional<Documentation> embedded(std::string_view line)
     if(!details.empty())
         text += "Documentation: " + details + "\n\n";
     text += "Reference: " + std::string(doc.reference) + "\n";
-    return Documentation{std::string(doc.mnemonic) + " (" + instruction->arch +
-                             ")",
-                         std::move(text)};
+    return Documentation{
+        std::string(doc.mnemonic) + " (" + instruction->arch + ")",
+        std::move(text)};
 #endif
 }
 
@@ -1004,8 +1161,11 @@ std::optional<Location> find(std::string_view line, int, bool fetchOriginal)
     {
         if(std::optional<fs::path> fetched = ensureFetchedDoc(arch, doc))
         {
-            return Location{fetched->string(), 0, std::string(mnemonic),
-                            std::string(arch)};
+            return Location{
+                fetched->string(),
+                0,
+                std::string(mnemonic),
+                std::string(arch)};
         }
     }
 
@@ -1015,8 +1175,11 @@ std::optional<Location> find(std::string_view line, int, bool fetchOriginal)
     if(lineNo < 0)
         return std::nullopt;
 
-    return Location{docsPath(arch).string(), lineNo, std::string(mnemonic),
-                    std::string(arch)};
+    return Location{
+        docsPath(arch).string(),
+        lineNo,
+        std::string(mnemonic),
+        std::string(arch)};
 #endif
 }
 } // namespace asm_documentation

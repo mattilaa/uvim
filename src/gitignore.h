@@ -43,8 +43,9 @@ public:
     }
 
     // Load from multiple directories (walking up to find .gitignore files)
-    void loadRecursive(const fs::path& directory,
-                       const fs::path& stopAt = fs::path())
+    void loadRecursive(
+        const fs::path& directory,
+        const fs::path& stopAt = fs::path())
     {
         patterns.clear();
 
@@ -297,8 +298,9 @@ private:
 
         try
         {
-            return std::regex(regex,
-                              std::regex::ECMAScript | std::regex::icase);
+            return std::regex(
+                regex,
+                std::regex::ECMAScript | std::regex::icase);
         }
         catch(const std::regex_error&)
         {
@@ -307,8 +309,10 @@ private:
         }
     }
 
-    bool matchPattern(const Pattern& pattern, const std::string& fullPath,
-                      const std::string& filename) const
+    bool matchPattern(
+        const Pattern& pattern,
+        const std::string& fullPath,
+        const std::string& filename) const
     {
         // For non-anchored patterns, also try matching just the filename
         if(!pattern.anchored)

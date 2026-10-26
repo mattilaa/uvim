@@ -83,8 +83,9 @@ void Scanner::scan(std::string_view line, size_t row)
     }
 }
 
-std::optional<std::string> Scanner::indentation(std::string_view remainder,
-                                                int width) const
+std::optional<std::string> Scanner::indentation(
+    std::string_view remainder,
+    int width) const
 {
     if(stack.empty() || quote || blockComment || !stack.back().collection)
         return std::nullopt;
@@ -169,10 +170,10 @@ void Editor::reindentCollection()
                 if(replacement != line)
                 {
                     if(y == row)
-                        *cursorX =
-                            static_cast<int>(indent->size()) +
-                            std::max(0,
-                                     *cursorX - static_cast<int>(oldLeading));
+                        *cursorX = static_cast<int>(indent->size()) +
+                                   std::max(
+                                       0,
+                                       *cursorX - static_cast<int>(oldLeading));
                     line = replacement;
                     changed = true;
                 }
@@ -182,8 +183,10 @@ void Editor::reindentCollection()
     }
     if(changed)
     {
-        *cursorX = std::clamp(*cursorX, 0,
-                              static_cast<int>((*lines)[*cursorY].size()));
+        *cursorX = std::clamp(
+            *cursorX,
+            0,
+            static_cast<int>((*lines)[*cursorY].size()));
         *dirty = true;
         currentBuffer->invalidateSyntaxCache();
         currentBuffer->lspSyncNeeded = true;
@@ -191,6 +194,6 @@ void Editor::reindentCollection()
         saveState();
         needsFullRedraw = true;
     }
-    setStatusMessage(changed ? "Collection indented"
-                             : "Collection indentation unchanged");
+    setStatusMessage(
+        changed ? "Collection indented" : "Collection indentation unchanged");
 }

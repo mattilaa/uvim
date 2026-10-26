@@ -31,8 +31,7 @@ bool hasFileWithExtension(const fs::path& dir, const char* extension)
     for(fs::directory_iterator it(dir, ec), end; !ec && it != end;
         it.increment(ec))
     {
-        if(it->path().extension() == extension &&
-           it->is_regular_file(ec))
+        if(it->path().extension() == extension && it->is_regular_file(ec))
             return true;
     }
     return false;
@@ -61,9 +60,9 @@ std::string resolveServer(const std::string& configured)
     const char* exe = "";
 #endif
     if(home && *home)
-        candidates.push_back(
-            (fs::path(home) / ".dotnet" / "tools" / (std::string("csharp-ls") + exe))
-                .string());
+        candidates.push_back((fs::path(home) / ".dotnet" / "tools" /
+                              (std::string("csharp-ls") + exe))
+                                 .string());
     candidates.push_back("OmniSharp");
     candidates.push_back("omnisharp");
     for(const std::string& candidate : candidates)
@@ -76,8 +75,9 @@ std::string resolveServer(const std::string& configured)
     return {};
 }
 
-std::vector<std::string> serverArgs(const std::string& server,
-                                    std::vector<std::string> extra)
+std::vector<std::string> serverArgs(
+    const std::string& server,
+    std::vector<std::string> extra)
 {
     std::vector<std::string> args;
     if(isOmniSharp(server) &&

@@ -60,18 +60,25 @@ struct CommandOutputMode
 
     CommandOutputMode() = default;
 
-    CommandOutputMode(std::string cmd, std::string dir = {},
-                      int browseCursor = 0, int browseOffset = 0,
-                      std::string prevFile = {})
+    CommandOutputMode(
+        std::string cmd,
+        std::string dir = {},
+        int browseCursor = 0,
+        int browseOffset = 0,
+        std::string prevFile = {})
         : command(std::move(cmd)), returnDirectory(std::move(dir)),
           returnBrowseCursor(browseCursor), returnBrowseOffset(browseOffset),
           previousFile(std::move(prevFile))
     {
     }
 
-    CommandOutputMode(std::string cmd, std::vector<std::string> outputLines,
-                      std::string dir = {}, int browseCursor = 0,
-                      int browseOffset = 0, std::string prevFile = {})
+    CommandOutputMode(
+        std::string cmd,
+        std::vector<std::string> outputLines,
+        std::string dir = {},
+        int browseCursor = 0,
+        int browseOffset = 0,
+        std::string prevFile = {})
         : command(std::move(cmd)), lines(std::move(outputLines)),
           returnDirectory(std::move(dir)), returnBrowseCursor(browseCursor),
           returnBrowseOffset(browseOffset), previousFile(std::move(prevFile))
@@ -81,8 +88,9 @@ struct CommandOutputMode
     void on_enter(ModeContext& ctx);
     void on_exit(ModeContext& ctx);
 
-    std::optional<ModeState> handle(ModeContext& ctx,
-                                    const ModeKeyEvent& event);
+    std::optional<ModeState> handle(
+        ModeContext& ctx,
+        const ModeKeyEvent& event);
 
     void draw(Editor& editor) const;
 

@@ -1,9 +1,9 @@
 #include "editor.h"
-#include <gtest/gtest.h>
-#include <filesystem>
-#include <fstream>
 #include <chrono>
 #include <cstdlib>
+#include <filesystem>
+#include <fstream>
+#include <gtest/gtest.h>
 
 namespace
 {
@@ -11,8 +11,7 @@ std::filesystem::path make_temp_dir(const std::string& prefix)
 {
     auto now = std::chrono::steady_clock::now().time_since_epoch().count();
     std::filesystem::path base =
-        std::filesystem::temp_directory_path() /
-        (prefix + std::to_string(now));
+        std::filesystem::temp_directory_path() / (prefix + std::to_string(now));
     std::filesystem::create_directories(base);
     return base;
 }
@@ -36,8 +35,8 @@ TEST(JsTsResolutionTest, InfersTypeFromArrayMethodParam)
         "return users.find((user) => user.id === id);",
     };
 
-    std::string typeName = Editor::testInferTsTypeFromArrayMethodLine(
-        lines[5], "user", lines, 5);
+    std::string typeName =
+        Editor::testInferTsTypeFromArrayMethodLine(lines[5], "user", lines, 5);
     EXPECT_EQ(typeName, "User");
 
     int typeY = -1;
@@ -46,17 +45,23 @@ TEST(JsTsResolutionTest, InfersTypeFromArrayMethodParam)
 
     int memberY = -1;
     int memberX = 0;
-    EXPECT_TRUE(Editor::testFindTsMemberInType(lines, typeY, "id", memberY,
-                                               memberX));
-    EXPECT_TRUE(Editor::testFindTsMemberInType(lines, typeY, "title", memberY,
-                                               memberX));
+    EXPECT_TRUE(
+        Editor::testFindTsMemberInType(lines, typeY, "id", memberY, memberX));
+    EXPECT_TRUE(
+        Editor::testFindTsMemberInType(
+            lines,
+            typeY,
+            "title",
+            memberY,
+            memberX));
 }
 
 TEST(JsTsResolutionTest, ResolvesTsconfigPaths)
 {
     auto root = make_temp_dir("uvim_tsconfig_");
-    write_file(root / "tsconfig.json",
-               R"json({
+    write_file(
+        root / "tsconfig.json",
+        R"json({
   "compilerOptions": {
     "baseUrl": "src",
     "paths": {
@@ -65,35 +70,42 @@ TEST(JsTsResolutionTest, ResolvesTsconfigPaths)
   }
 })json");
 
-    write_file(root / "src/models/user.ts", "export type User = { id: number };\n");
+    write_file(
+        root / "src/models/user.ts",
+        "export type User = { id: number };\n");
     write_file(root / "app.ts", "import { User } from \"@models/user\";\n");
 
     std::string resolved = Editor::testResolveJsTsModule(
-        (root / "app.ts").string(), "@models/user");
-    EXPECT_EQ(std::filesystem::path(resolved).lexically_normal().string(),
-              (root / "src/models/user.ts").lexically_normal().string());
+        (root / "app.ts").string(),
+        "@models/user");
+    EXPECT_EQ(
+        std::filesystem::path(resolved).lexically_normal().string(),
+        (root / "src/models/user.ts").lexically_normal().string());
 }
 
 TEST(JsTsResolutionTest, ResolvesNodeModule)
 {
     auto root = make_temp_dir("uvim_node_modules_");
     write_file(root / "app.ts", "import { x } from \"pkg\";\n");
-    write_file(root / "node_modules/pkg/package.json",
-               R"json({ "types": "index.d.ts" })json");
-    write_file(root / "node_modules/pkg/index.d.ts", "export const x: number;\n");
+    write_file(
+        root / "node_modules/pkg/package.json",
+        R"json({ "types": "index.d.ts" })json");
+    write_file(
+        root / "node_modules/pkg/index.d.ts",
+        "export const x: number;\n");
 
-    std::string resolved = Editor::testResolveJsTsModule(
-        (root / "app.ts").string(), "pkg");
-    EXPECT_EQ(std::filesystem::path(resolved).lexically_normal().string(),
-              (root / "node_modules/pkg/index.d.ts")
-                  .lexically_normal()
-                  .string());
+    std::string resolved =
+        Editor::testResolveJsTsModule((root / "app.ts").string(), "pkg");
+    EXPECT_EQ(
+        std::filesystem::path(resolved).lexically_normal().string(),
+        (root / "node_modules/pkg/index.d.ts").lexically_normal().string());
 
     write_file(root / "node_modules/pkg/sub.ts", "export const y: number;\n");
-    std::string subResolved = Editor::testResolveJsTsModule(
-        (root / "app.ts").string(), "pkg/sub");
-    EXPECT_EQ(std::filesystem::path(subResolved).lexically_normal().string(),
-              (root / "node_modules/pkg/sub.ts").lexically_normal().string());
+    std::string subResolved =
+        Editor::testResolveJsTsModule((root / "app.ts").string(), "pkg/sub");
+    EXPECT_EQ(
+        std::filesystem::path(subResolved).lexically_normal().string(),
+        (root / "node_modules/pkg/sub.ts").lexically_normal().string());
 }
 
 TEST(JsTsResolutionTest, ResolvesMlangStdModulePath)
@@ -108,9 +120,9 @@ TEST(JsTsResolutionTest, ResolvesMlangStdModulePath)
     setenv("MLANG_STDLIB_PATH", root.string().c_str(), 1);
 #endif
     std::string resolved =
-        Editor::testResolveMlangModule((root / "main.mla").string(),
-                                       "std::fs");
+        Editor::testResolveMlangModule((root / "main.mla").string(), "std::fs");
 
-    EXPECT_EQ(std::filesystem::path(resolved).lexically_normal().string(),
-              (root / "std/fs.mla").lexically_normal().string());
+    EXPECT_EQ(
+        std::filesystem::path(resolved).lexically_normal().string(),
+        (root / "std/fs.mla").lexically_normal().string());
 }

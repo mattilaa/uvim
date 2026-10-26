@@ -44,12 +44,12 @@
 #endif
 #include "insert_mode.h"
 #ifdef UVIM_ENABLE_AUXILIARY_VIEWS
+#include "command_palette_mode.h"
 #include "loc_mode.h"
 #include "lsp_info_mode.h"
 #include "mlang_format_errors_mode.h"
-#include "tool_info_mode.h"
 #include "task_list_mode.h"
-#include "command_palette_mode.h"
+#include "tool_info_mode.h"
 #endif
 #include "mode_commands.h"
 #include "mode_state.h"
@@ -84,8 +84,9 @@ public:
 
     template <typename InitialState>
     ModeStateMachine(ModeContext ctx, InitialState&& initial)
-        : ModeStateMachineBase(std::move(ctx),
-                               std::forward<InitialState>(initial))
+        : ModeStateMachineBase(
+              std::move(ctx),
+              std::forward<InitialState>(initial))
     {
     }
 

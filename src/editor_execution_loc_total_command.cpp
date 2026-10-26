@@ -28,8 +28,8 @@ using editor::helper::parse_int;
 using editor::helper::trim_view;
 using namespace detail;
 
-bool LocTotalCommand::execute(Editor& editor,
-                              const CommandRequest& request) const
+bool LocTotalCommand::execute(Editor& editor, const CommandRequest& request)
+    const
 {
     std::string path;
     if(!parse(request.text, path))
@@ -55,6 +55,7 @@ bool LocTotalCommand::execute(Editor& editor,
         int totalLoc = 0;
         int files = 0;
     };
+
     auto count = std::make_shared<Count>();
     const std::string root = targetPath.string();
     const bool isDirectory = std::filesystem::is_directory(targetPath, ec);
@@ -62,7 +63,8 @@ bool LocTotalCommand::execute(Editor& editor,
     Editor* ed = &editor;
 
     editor.submitTask(
-        "loctotal " + path, "loc",
+        "loctotal " + path,
+        "loc",
         [count, root, isDirectory, respectGitignore](TaskQueue::Context& ctx)
         {
             std::vector<std::string> files;
@@ -72,8 +74,12 @@ bool LocTotalCommand::execute(Editor& editor,
                 GitIgnore gitignore;
                 if(respectGitignore)
                     gitignore.loadRecursive(root);
-                collectLocFiles(root, 0, gitignore, files,
-                                [&ctx] { return ctx.cancelled(); });
+                collectLocFiles(
+                    root,
+                    0,
+                    gitignore,
+                    files,
+                    [&ctx] { return ctx.cancelled(); });
                 ctx.detail({});
             }
             else

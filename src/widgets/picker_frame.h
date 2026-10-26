@@ -50,14 +50,16 @@ PickerLayout computePickerLayout(const PickerLayoutOptions& options);
 class PickerCanvas
 {
 public:
-    PickerCanvas(std::string& out, const PickerLayout& layout,
-                 const Theme& theme, bool unicode);
+    PickerCanvas(
+        std::string& out,
+        const PickerLayout& layout,
+        const Theme& theme,
+        bool unicode);
 
     // Border with `title` in the top edge and `footer` in the bottom edge.
     // The first `headerRows` rows span the full width; in a floating box a
     // separator follows them and the list/preview panes start below it.
-    void frame(std::string_view title, std::string_view footer,
-               int headerRows);
+    void frame(std::string_view title, std::string_view footer, int headerRows);
     // Full-width header row `row` (0-based).
     void beginHeaderRow(int row);
     void endHeaderRow(int usedWidth);
@@ -67,6 +69,7 @@ public:
     void beginRow(int row);
     // Pads the row to the pane width with the active colours, then resets.
     void endRow(int usedWidth);
+
     // One preview line: dim line number gutter, text clipped to the pane.
     // `spans` (byte ranges of `text`, ascending, non-overlapping) colour
     // parts of the line, e.g. syntax tokens.
@@ -76,8 +79,13 @@ public:
         int length = 0;
         std::string color;
     };
-    void previewRow(int row, int lineNumber, std::string_view text,
-                    bool current, const std::vector<Span>& spans = {});
+
+    void previewRow(
+        int row,
+        int lineNumber,
+        std::string_view text,
+        bool current,
+        const std::vector<Span>& spans = {});
     void previewMessage(int row, std::string_view text);
     // Compose a preview row with multiple foreground colours.
     void beginPreviewRow(int row);
@@ -102,6 +110,7 @@ private:
 
 // Lines of `path` for a preview pane, tabs expanded and control characters
 // dropped. Binary or unreadable files yield a single explanatory line.
-std::vector<std::string> loadPreviewLines(const std::string& path,
-                                          size_t maxLines = 20000);
+std::vector<std::string> loadPreviewLines(
+    const std::string& path,
+    size_t maxLines = 20000);
 } // namespace widgets

@@ -11,9 +11,10 @@ class WindowCommandPendingMachine;
 
 struct WindowCommandAfterW
 {
-    std::optional<ModeState> handle(WindowCommandPendingMachine& machine,
-                                    ModeContext& ctx,
-                                    const ModeKeyEvent& event);
+    std::optional<ModeState> handle(
+        WindowCommandPendingMachine& machine,
+        ModeContext& ctx,
+        const ModeKeyEvent& event);
 };
 
 class WindowCommandPendingMachine
@@ -21,8 +22,9 @@ class WindowCommandPendingMachine
 public:
     explicit WindowCommandPendingMachine(int count);
 
-    std::optional<ModeState> handle(ModeContext& ctx,
-                                    const ModeKeyEvent& event);
+    std::optional<ModeState> handle(
+        ModeContext& ctx,
+        const ModeKeyEvent& event);
 
     bool done() const;
     int count() const;

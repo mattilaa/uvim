@@ -50,8 +50,9 @@ void NormalMode::on_exit(ModeContext& /* ctx */)
     windowCommandPending.reset();
 }
 
-std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
-                                            const ModeKeyEvent& event)
+std::optional<ModeState> NormalMode::handle(
+    ModeContext& ctx,
+    const ModeKeyEvent& event)
 {
     const int key = event.key;
     Editor* ed = ctx.editor;
@@ -67,8 +68,10 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
     {
         const auto popupLineCount = [&]()
         {
-            return 1 + (int)std::count(ed->symbolPopupText.begin(),
-                                       ed->symbolPopupText.end(), '\n');
+            return 1 + (int)std::count(
+                           ed->symbolPopupText.begin(),
+                           ed->symbolPopupText.end(),
+                           '\n');
         };
 
         if(c == keyCode(typed::TypedKey::KEY_J))
@@ -140,9 +143,10 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
         if(c == keyCode(typed::TypedKey::KEY_D))
             ed->closeCurrentBuffer();
         else
-            ctx.setStatusMessage(c == keyCode(control::ControlKey::ESC)
-                                     ? ""
-                                     : "Unknown leader-b command");
+            ctx.setStatusMessage(
+                c == keyCode(control::ControlKey::ESC)
+                    ? ""
+                    : "Unknown leader-b command");
         return std::nullopt;
     }
 
@@ -156,17 +160,24 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
         ctx.repeatCount = 0;
         if(c == 'f' || c == 's')
         {
-            structuralTarget = c == 'f' ? structural_navigation::Target::Function
-                                         : structural_navigation::Target::Local;
+            structuralTarget = c == 'f'
+                                   ? structural_navigation::Target::Function
+                                   : structural_navigation::Target::Local;
             structuralBuffer = ed->currentBuffer;
-            structural_navigation::navigate(*ed, *structuralTarget, forward, structuralCount);
+            structural_navigation::navigate(
+                *ed,
+                *structuralTarget,
+                forward,
+                structuralCount);
         }
         else
         {
             if(c == keyCode(control::ControlKey::ESC))
                 structuralTarget.reset();
-            ctx.setStatusMessage(c == keyCode(control::ControlKey::ESC)
-                                     ? "" : "Use ]f/[f for functions or ]s/[s for locals/calls");
+            ctx.setStatusMessage(
+                c == keyCode(control::ControlKey::ESC)
+                    ? ""
+                    : "Use ]f/[f for functions or ]s/[s for locals/calls");
         }
         return std::nullopt;
     }
@@ -200,14 +211,15 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
         {
             if(!ed->diagnosticPopupFixes.empty())
             {
-                ed->diagnosticPopupFixIndex =
-                    std::min(ed->diagnosticPopupFixIndex + 1,
-                             (int)ed->diagnosticPopupFixes.size() - 1);
+                ed->diagnosticPopupFixIndex = std::min(
+                    ed->diagnosticPopupFixIndex + 1,
+                    (int)ed->diagnosticPopupFixes.size() - 1);
                 int window = std::min(6, (int)ed->diagnosticPopupFixes.size());
                 if(ed->diagnosticPopupFixIndex < ed->diagnosticPopupFixScroll)
                     ed->diagnosticPopupFixScroll = ed->diagnosticPopupFixIndex;
-                else if(ed->diagnosticPopupFixIndex >=
-                        ed->diagnosticPopupFixScroll + window)
+                else if(
+                    ed->diagnosticPopupFixIndex >=
+                    ed->diagnosticPopupFixScroll + window)
                     ed->diagnosticPopupFixScroll =
                         ed->diagnosticPopupFixIndex - window + 1;
                 ed->needsFullRedraw = true;
@@ -225,8 +237,9 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
                 int window = std::min(6, (int)ed->diagnosticPopupFixes.size());
                 if(ed->diagnosticPopupFixIndex < ed->diagnosticPopupFixScroll)
                     ed->diagnosticPopupFixScroll = ed->diagnosticPopupFixIndex;
-                else if(ed->diagnosticPopupFixIndex >=
-                        ed->diagnosticPopupFixScroll + window)
+                else if(
+                    ed->diagnosticPopupFixIndex >=
+                    ed->diagnosticPopupFixScroll + window)
                     ed->diagnosticPopupFixScroll =
                         ed->diagnosticPopupFixIndex - window + 1;
                 ed->needsFullRedraw = true;
@@ -408,7 +421,8 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
         return std::nullopt;
     }
 
-#if defined(UVIM_ENABLE_MODERN_KEYBINDINGS) && defined(UVIM_ENABLE_MULTI_PANE_SPLITS)
+#if defined(UVIM_ENABLE_MODERN_KEYBINDINGS) &&                                 \
+    defined(UVIM_ENABLE_MULTI_PANE_SPLITS)
     if(ed->splitActive)
     {
         if(c == keyCode(control::ControlKey::SHIFT_CTRL_H))
@@ -917,7 +931,11 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
     {
         if(structuralTarget)
         {
-            structural_navigation::navigate(*ed, *structuralTarget, true, count);
+            structural_navigation::navigate(
+                *ed,
+                *structuralTarget,
+                true,
+                count);
             ctx.repeatCount = 0;
             return std::nullopt;
         }
@@ -930,7 +948,11 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
     {
         if(structuralTarget)
         {
-            structural_navigation::navigate(*ed, *structuralTarget, false, count);
+            structural_navigation::navigate(
+                *ed,
+                *structuralTarget,
+                false,
+                count);
             ctx.repeatCount = 0;
             return std::nullopt;
         }
@@ -1223,9 +1245,9 @@ std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
 {
     Editor* ed = ctx.editor;
 #ifdef UVIM_ENABLE_BROWSER_TOOLS
-    auto openFileBrowser =
-        [&](bool focusCurrentFile,
-            bool acceptSecondLeaderX = false) -> std::optional<ModeState>
+    auto openFileBrowser = [&](bool focusCurrentFile,
+                               bool acceptSecondLeaderX =
+                                   false) -> std::optional<ModeState>
     {
         std::string dir = ".";
         if(ed->filename && !ed->filename->empty())
@@ -1239,8 +1261,11 @@ std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
         {
             prev = *ed->filename;
         }
-        return FileBrowserMode{dir, prev, focusCurrentFile,
-                               acceptSecondLeaderX};
+        return FileBrowserMode{
+            dir,
+            prev,
+            focusCurrentFile,
+            acceptSecondLeaderX};
     };
 #endif
 

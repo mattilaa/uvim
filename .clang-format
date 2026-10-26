@@ -4,13 +4,28 @@ IndentWidth: 4
 ColumnLimit: 80
 AccessModifierOffset: -4
 
-# --- One list item per row
-AlignAfterOpenBracket: AlwaysBreak
+# --- STRICT ONE-ARGUMENT-PER-LINE WHEN OVER LIMIT ---
+# Forces elements to unpack individually into separate rows when wrapping
 BinPackArguments: false
 BinPackParameters: false
+AllowAllArgumentsOnNextLine: false
 AllowAllParametersOfDeclarationOnNextLine: false
-Cpp11BracedListStyle: false
-# -----------------------------------
+AlignAfterOpenBracket: AlwaysBreak
+
+# Removes spaces inside curly braces (e.g. DocEntry{"adc", ...})
+Cpp11BracedListStyle: true
+SpacesInContainerLiterals: false
+SpaceBeforeCpp11BracedList: false
+
+# Forces a heavy penalty to prevent splitting types/namespaces at '::' (e.g., std::string)
+PenaltyBreakScopeResolution: 10000
+
+# Heavy penalties to force the function return type and names to stay intact
+PenaltyReturnTypeOnItsOwnLine: 5000
+PenaltyBreakBeforeFirstCallParameter: 500
+
+AlwaysBreakAfterReturnType: None
+# --------------------------------------------------------
 
 AlignConsecutiveAssignments: false
 AlignConsecutiveDeclarations: false
@@ -23,7 +38,6 @@ AllowShortFunctionsOnASingleLine: Empty
 AllowShortIfStatementsOnASingleLine: false
 AllowShortLoopsOnASingleLine: false
 AlwaysBreakAfterDefinitionReturnType: None
-AlwaysBreakAfterReturnType: None
 AlwaysBreakBeforeMultilineStrings: false
 AlwaysBreakTemplateDeclarations: Yes
 
@@ -94,13 +108,11 @@ ObjCSpaceAfterProperty: false
 ObjCSpaceBeforeProtocolList: true
 
 PenaltyBreakAssignment: 2
-PenaltyBreakBeforeFirstCallParameter: 19
 PenaltyBreakComment: 300
 PenaltyBreakFirstLessLess: 120
 PenaltyBreakString: 1000
 PenaltyBreakTemplateDeclaration: 10
 PenaltyExcessCharacter: 1000000
-PenaltyReturnTypeOnItsOwnLine: 60
 
 RequiresExpressionIndentation: OuterScope
 PointerAlignment: Left
@@ -111,7 +123,6 @@ SortUsingDeclarations: true
 SpaceAfterCStyleCast: false
 SpaceAfterTemplateKeyword: true
 SpaceBeforeAssignmentOperators: true
-SpaceBeforeCpp11BracedList: false
 SpaceBeforeCtorInitializerColon: true
 SpaceBeforeInheritanceColon: true
 SpaceBeforeParens: Custom
@@ -121,7 +132,6 @@ SpaceBeforeRangeBasedForLoopColon: true
 SpaceInEmptyParentheses: false
 SpacesBeforeTrailingComments: 1
 SpacesInAngles: false
-SpacesInContainerLiterals: true
 SpacesInCStyleCastParentheses: false
 SpacesInParentheses: false
 SpacesInSquareBrackets: false

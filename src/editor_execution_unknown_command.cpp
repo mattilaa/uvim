@@ -27,8 +27,8 @@ using editor::helper::parse_int;
 using editor::helper::trim_view;
 using namespace detail;
 
-bool UnknownCommand::execute(Editor& editor,
-                             const CommandRequest& request) const
+bool UnknownCommand::execute(Editor& editor, const CommandRequest& request)
+    const
 {
     editor.setStatusMessage("Not an editor command: " + request.text);
     return true;

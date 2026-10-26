@@ -3,8 +3,8 @@
 
 namespace command::execution
 {
-bool DebuggerCommand::execute(Editor& editor,
-                              const CommandRequest& request) const
+bool DebuggerCommand::execute(Editor& editor, const CommandRequest& request)
+    const
 {
     const auto text = request.trimmed;
     const bool attach = text == "dbgattach" || text.rfind("dbgattach ", 0) == 0;
@@ -13,7 +13,8 @@ bool DebuggerCommand::execute(Editor& editor,
         return false;
     const size_t prefix = attach ? 9 : 6;
     detail::requestMode(
-        editor, DEBUGGER,
+        editor,
+        DEBUGGER,
         std::string(attach ? "a " : "r ") +
             (text.size() > prefix ? std::string(text.substr(prefix + 1)) : ""));
     return true;

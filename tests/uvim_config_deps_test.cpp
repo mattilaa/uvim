@@ -15,11 +15,14 @@ Finder fakeFinder(std::set<std::string> present)
     { return present.count(program) > 0; };
 }
 
-const Dependency* byName(const std::vector<Dependency>& deps,
-                         const std::string& name)
+const Dependency* byName(
+    const std::vector<Dependency>& deps,
+    const std::string& name)
 {
-    auto it = std::find_if(deps.begin(), deps.end(),
-                           [&](const Dependency& d) { return d.name == name; });
+    auto it = std::find_if(
+        deps.begin(),
+        deps.end(),
+        [&](const Dependency& d) { return d.name == name; });
     return it == deps.end() ? nullptr : &*it;
 }
 
@@ -35,9 +38,9 @@ int indexOf(const std::vector<Dependency>& deps, const std::string& name)
 TEST(UvimConfigDepsTest, OnlyEnabledFeaturesNeedTools)
 {
     Features none;
-    EXPECT_TRUE(required(none, Platform::Linux, PackageManager::Apt,
-                         fakeFinder({}))
-                    .empty());
+    EXPECT_TRUE(
+        required(none, Platform::Linux, PackageManager::Apt, fakeFinder({}))
+            .empty());
 
     Features f;
     f.csharpLsp = true;
@@ -51,29 +54,40 @@ TEST(UvimConfigDepsTest, OnlyEnabledFeaturesNeedTools)
     EXPECT_EQ(byName(deps, "Node.js (npm)"), nullptr);
     // The prerequisite comes before what it installs.
     EXPECT_LT(indexOf(deps, ".NET SDK (dotnet)"), indexOf(deps, "csharp-ls"));
-    EXPECT_EQ(byName(deps, "csharp-ls")->install,
-              "dotnet tool install --global csharp-ls");
+    EXPECT_EQ(
+        byName(deps, "csharp-ls")->install,
+        "dotnet tool install --global csharp-ls");
 }
 
 TEST(UvimConfigDepsTest, CSharpInstallationOnPosix)
 {
     Features f;
     f.csharpLsp = true;
+
     struct Case
     {
         Platform platform;
         PackageManager manager;
         const char* sdkCommand;
     };
-    for(const auto& test : {
-            Case{Platform::MacOS, PackageManager::Brew,
-                 "brew install --cask dotnet-sdk"},
-            Case{Platform::Linux, PackageManager::Apt,
-                 "apt-get install -y dotnet-sdk-10.0"},
-            Case{Platform::Linux, PackageManager::Dnf,
-                 "dnf install -y dotnet-sdk-10.0"},
-            Case{Platform::Linux, PackageManager::Pacman,
-                 "pacman -S --needed --noconfirm dotnet-sdk"}})
+
+    for(const auto& test :
+        {Case{
+             Platform::MacOS,
+             PackageManager::Brew,
+             "brew install --cask dotnet-sdk"},
+         Case{
+             Platform::Linux,
+             PackageManager::Apt,
+             "apt-get install -y dotnet-sdk-10.0"},
+         Case{
+             Platform::Linux,
+             PackageManager::Dnf,
+             "dnf install -y dotnet-sdk-10.0"},
+         Case{
+             Platform::Linux,
+             PackageManager::Pacman,
+             "pacman -S --needed --noconfirm dotnet-sdk"}})
     {
         const auto deps =
             required(f, test.platform, test.manager, fakeFinder({}));
@@ -81,13 +95,11 @@ TEST(UvimConfigDepsTest, CSharpInstallationOnPosix)
         EXPECT_EQ(deps[0].name, ".NET SDK (dotnet)");
         EXPECT_NE(deps[0].install.find(test.sdkCommand), std::string::npos);
         EXPECT_EQ(deps[1].name, "csharp-ls");
-        EXPECT_EQ(deps[1].install,
-                  "dotnet tool install --global csharp-ls");
+        EXPECT_EQ(deps[1].install, "dotnet tool install --global csharp-ls");
         const auto absent = missing(deps, fakeFinder({"dotnet"}));
         ASSERT_EQ(absent.size(), 1u);
         EXPECT_EQ(absent[0].name, "csharp-ls");
-        EXPECT_TRUE(missing(deps, fakeFinder({"dotnet", "csharp-ls"}))
-                        .empty());
+        EXPECT_TRUE(missing(deps, fakeFinder({"dotnet", "csharp-ls"})).empty());
     }
 }
 
@@ -103,21 +115,27 @@ TEST(UvimConfigDepsTest, InstallCommandsFollowThePackageManager)
             ->install;
     };
     EXPECT_EQ(install(PackageManager::Brew, "clangd"), "brew install llvm");
-    EXPECT_NE(install(PackageManager::Apt, "clangd").find("apt-get install -y clangd"),
-              std::string::npos);
-    EXPECT_NE(install(PackageManager::Dnf, "clangd").find("clang-tools-extra"),
-              std::string::npos);
-    EXPECT_EQ(install(PackageManager::Winget, "ripgrep"),
-              "winget install --id BurntSushi.ripgrep.MSVC -e");
+    EXPECT_NE(
+        install(PackageManager::Apt, "clangd")
+            .find("apt-get install -y clangd"),
+        std::string::npos);
+    EXPECT_NE(
+        install(PackageManager::Dnf, "clangd").find("clang-tools-extra"),
+        std::string::npos);
+    EXPECT_EQ(
+        install(PackageManager::Winget, "ripgrep"),
+        "winget install --id BurntSushi.ripgrep.MSVC -e");
     EXPECT_EQ(install(PackageManager::None, "ripgrep"), "");
-    EXPECT_EQ(install(PackageManager::Apt, "typescript-language-server"),
-              "npm install -g typescript-language-server typescript");
-    EXPECT_LT(indexOf(required(f, Platform::Linux, PackageManager::Apt,
-                               fakeFinder({})),
-                      "Node.js (npm)"),
-              indexOf(required(f, Platform::Linux, PackageManager::Apt,
-                               fakeFinder({})),
-                      "typescript-language-server"));
+    EXPECT_EQ(
+        install(PackageManager::Apt, "typescript-language-server"),
+        "npm install -g typescript-language-server typescript");
+    EXPECT_LT(
+        indexOf(
+            required(f, Platform::Linux, PackageManager::Apt, fakeFinder({})),
+            "Node.js (npm)"),
+        indexOf(
+            required(f, Platform::Linux, PackageManager::Apt, fakeFinder({})),
+            "typescript-language-server"));
 }
 
 TEST(UvimConfigDepsTest, MissingAndPythonInstaller)
@@ -128,26 +146,29 @@ TEST(UvimConfigDepsTest, MissingAndPythonInstaller)
     f.formatters = true;
     // pylsp satisfies the Python LSP as well as pyright.
     const auto finder = fakeFinder({"npm", "pylsp", "pipx", "clang-format"});
-    const auto deps =
-        required(f, Platform::Linux, PackageManager::Apt, finder);
+    const auto deps = required(f, Platform::Linux, PackageManager::Apt, finder);
     const auto absent = missing(deps, finder);
     EXPECT_EQ(byName(absent, "pyright"), nullptr);
     EXPECT_EQ(byName(absent, "clang-format"), nullptr);
     ASSERT_NE(byName(absent, "robotframework-lsp"), nullptr);
-    EXPECT_EQ(byName(absent, "robotframework-lsp")->install,
-              "pipx install robotframework-lsp");
+    EXPECT_EQ(
+        byName(absent, "robotframework-lsp")->install,
+        "pipx install robotframework-lsp");
     ASSERT_NE(byName(absent, "ruff"), nullptr);
     EXPECT_TRUE(byName(absent, "ruff")->optional);
 }
 
 TEST(UvimConfigDepsTest, PackageManagerDetection)
 {
-    EXPECT_EQ(detectPackageManager(Platform::MacOS, fakeFinder({"brew"})),
-              PackageManager::Brew);
-    EXPECT_EQ(detectPackageManager(Platform::Linux, fakeFinder({"dnf"})),
-              PackageManager::Dnf);
-    EXPECT_EQ(detectPackageManager(Platform::Windows, fakeFinder({})),
-              PackageManager::None);
+    EXPECT_EQ(
+        detectPackageManager(Platform::MacOS, fakeFinder({"brew"})),
+        PackageManager::Brew);
+    EXPECT_EQ(
+        detectPackageManager(Platform::Linux, fakeFinder({"dnf"})),
+        PackageManager::Dnf);
+    EXPECT_EQ(
+        detectPackageManager(Platform::Windows, fakeFinder({})),
+        PackageManager::None);
 }
 
 TEST(UvimConfigDepsTest, RequiresSupportedDotnetSdk)
@@ -161,5 +182,6 @@ TEST(UvimConfigDepsTest, RequiresSupportedDotnetSdk)
     EXPECT_TRUE(hasSupportedDotnetSdk(
         "8.0.401 [/usr/share/dotnet/sdk]\n"
         "10.0.100 [/usr/share/dotnet/sdk]\n"));
-    EXPECT_TRUE(hasSupportedDotnetSdk("11.0.100 [/usr/local/share/dotnet/sdk]\n"));
+    EXPECT_TRUE(
+        hasSupportedDotnetSdk("11.0.100 [/usr/local/share/dotnet/sdk]\n"));
 }

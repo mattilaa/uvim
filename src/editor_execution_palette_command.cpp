@@ -7,7 +7,8 @@ namespace command::execution
 {
 using namespace detail;
 
-bool PaletteCommand::execute(Editor& editor, const CommandRequest& request) const
+bool PaletteCommand::execute(Editor& editor, const CommandRequest& request)
+    const
 {
     if(request.text != "palette")
         return false;

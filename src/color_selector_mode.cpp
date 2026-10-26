@@ -22,10 +22,10 @@ namespace editor::statemachine
 {
 namespace
 {
-constexpr std::array<std::string_view, 6> kNames = {"FG R", "FG G", "FG B",
-                                                    "BG R", "BG G", "BG B"};
-constexpr std::array<std::u8string_view, 8> kPartialBlocks = {
-    u8"", u8"▏", u8"▎", u8"▍", u8"▌", u8"▋", u8"▊", u8"▉"};
+constexpr std::array<std::string_view, 6> kNames =
+    {"FG R", "FG G", "FG B", "BG R", "BG G", "BG B"};
+constexpr std::array<std::u8string_view, 8> kPartialBlocks =
+    {u8"", u8"▏", u8"▎", u8"▍", u8"▌", u8"▋", u8"▊", u8"▉"};
 constexpr std::u8string_view kFullBlock = u8"█";
 constexpr std::u8string_view kEmptyBlock = u8"░";
 constexpr std::string_view kAnsiLiteralPrefix = "\\x1b[";
@@ -157,9 +157,10 @@ std::optional<ParsedSequence> parseSequenceAt(std::string_view line, int start)
     {
         prefixSize = kAnsiLiteralPrefix.size();
     }
-    else if((std::size_t)start + kAnsiEscapePrefix.size() <= line.size() &&
-            line.substr((std::size_t)start, kAnsiEscapePrefix.size()) ==
-                kAnsiEscapePrefix)
+    else if(
+        (std::size_t)start + kAnsiEscapePrefix.size() <= line.size() &&
+        line.substr((std::size_t)start, kAnsiEscapePrefix.size()) ==
+            kAnsiEscapePrefix)
     {
         prefixSize = kAnsiEscapePrefix.size();
     }
@@ -189,9 +190,9 @@ std::vector<ParsedSequence> parseSequences(std::string_view line)
     {
         const std::size_t literal = line.find(kAnsiLiteralPrefix, pos);
         const std::size_t escape = line.find(kAnsiEscapePrefix, pos);
-        const std::size_t found =
-            std::min(literal == std::string_view::npos ? line.size() : literal,
-                     escape == std::string_view::npos ? line.size() : escape);
+        const std::size_t found = std::min(
+            literal == std::string_view::npos ? line.size() : literal,
+            escape == std::string_view::npos ? line.size() : escape);
         if(found == line.size())
             break;
         std::optional<ParsedSequence> sequence =
@@ -244,7 +245,8 @@ void applyParams(ColorSelectorMode& mode, const std::vector<int>& params)
         if((param == 38 || param == 48) && i + 4 < params.size() &&
            params[i + 1] == 2)
         {
-            Rgb rgb{std::clamp(params[i + 2], 0, 255),
+            Rgb
+                rgb{std::clamp(params[i + 2], 0, 255),
                     std::clamp(params[i + 3], 0, 255),
                     std::clamp(params[i + 4], 0, 255)};
             if(param == 38)
@@ -263,7 +265,8 @@ void applyParams(ColorSelectorMode& mode, const std::vector<int>& params)
 }
 
 std::optional<AnsiLiteralSpan> spanAtOrBeforeCursor(
-    const std::vector<ParsedSequence>& sequences, int cursorX)
+    const std::vector<ParsedSequence>& sequences,
+    int cursorX)
 {
     std::optional<AnsiLiteralSpan> previous;
     std::optional<AnsiLiteralSpan> nextSpan;
@@ -333,8 +336,10 @@ std::string escapeCode(const ColorSelectorMode& mode)
     return code;
 }
 
-bool applyVisualColorRange(Editor& editor, VisualColorRange range,
-                           const std::string& code)
+bool applyVisualColorRange(
+    Editor& editor,
+    VisualColorRange range,
+    const std::string& code)
 {
     if(!editor.lines || editor.lines->empty())
         return false;
@@ -405,8 +410,12 @@ void appendPadded(std::string& out, std::string_view text, int width)
         out.append(width - used, ' ');
 }
 
-void appendSlider(std::string& out, const Theme& theme,
-                  const ColorSelectorMode& mode, int index, int width)
+void appendSlider(
+    std::string& out,
+    const Theme& theme,
+    const ColorSelectorMode& mode,
+    int index,
+    int width)
 {
     const bool selected = index == mode.active;
     const int value = componentValue(mode, index);
@@ -456,9 +465,12 @@ void appendSlider(std::string& out, const Theme& theme,
     out += theme.reset();
 }
 
-void appendPreview(std::string& out, const Theme& theme,
-                   const ColorSelectorMode& mode, std::string_view code,
-                   int innerWidth)
+void appendPreview(
+    std::string& out,
+    const Theme& theme,
+    const ColorSelectorMode& mode,
+    std::string_view code,
+    int innerWidth)
 {
     constexpr std::string_view prefix = " preview: ";
     constexpr std::string_view sampleText = "Example Text";
@@ -482,8 +494,9 @@ void appendPreview(std::string& out, const Theme& theme,
 }
 } // namespace
 
-ColorSelectorMode ColorSelectorMode::fromAnsiColor(color::AnsiColor ansi,
-                                                   bool useBackground)
+ColorSelectorMode ColorSelectorMode::fromAnsiColor(
+    color::AnsiColor ansi,
+    bool useBackground)
 {
     ColorSelectorMode mode{useBackground};
     const std::string_view literal = color::literal(ansi);
@@ -493,8 +506,9 @@ ColorSelectorMode ColorSelectorMode::fromAnsiColor(color::AnsiColor ansi,
     return mode;
 }
 
-ColorSelectorMode ColorSelectorMode::forVisualRange(VisualColorRange range,
-                                                    bool useBackground)
+ColorSelectorMode ColorSelectorMode::forVisualRange(
+    VisualColorRange range,
+    bool useBackground)
 {
     ColorSelectorMode mode{useBackground};
     mode.visualTarget = range;
@@ -513,9 +527,9 @@ std::optional<ColorSelectorMode> ColorSelectorMode::fromAnsiLiteralAtCursor(
     const int row = *editor.cursorY;
     const std::string& line = (*editor.lines)[row];
     const std::vector<ParsedSequence> sequences = parseSequences(line);
-    std::optional<AnsiLiteralSpan> span =
-        spanAtOrBeforeCursor(sequences,
-                             std::clamp(*editor.cursorX, 0, (int)line.size()));
+    std::optional<AnsiLiteralSpan> span = spanAtOrBeforeCursor(
+        sequences,
+        std::clamp(*editor.cursorX, 0, (int)line.size()));
     if(!span)
         return std::nullopt;
 
@@ -541,8 +555,7 @@ ColorSelectorMode::fromAnsiLiteralAtCursorAndRemove(Editor& editor)
 {
     std::optional<ColorSelectorMode> mode = fromAnsiLiteralAtCursor(editor);
     if(!mode || !editor.lines || !editor.cursorX || !editor.cursorY ||
-       mode->replaceRow < 0 ||
-       mode->replaceRow >= (int)editor.lines->size())
+       mode->replaceRow < 0 || mode->replaceRow >= (int)editor.lines->size())
     {
         return std::nullopt;
     }
@@ -586,8 +599,9 @@ void ColorSelectorMode::on_exit(ModeContext& ctx)
     ctx.requestFullRedraw();
 }
 
-std::optional<ModeState> ColorSelectorMode::handle(ModeContext& ctx,
-                                                   const ModeKeyEvent& event)
+std::optional<ModeState> ColorSelectorMode::handle(
+    ModeContext& ctx,
+    const ModeKeyEvent& event)
 {
     const int c = keyCode(event.key);
 
@@ -676,12 +690,14 @@ std::optional<ModeState> ColorSelectorMode::handle(ModeContext& ctx,
                 }
                 visualTarget.reset();
             }
-            else if(replacing && ctx.editor->lines && ctx.editor->cursorX &&
-               ctx.editor->cursorY && replaceRow >= 0 &&
-               replaceRow < (int)ctx.editor->lines->size())
+            else if(
+                replacing && ctx.editor->lines && ctx.editor->cursorX &&
+                ctx.editor->cursorY && replaceRow >= 0 &&
+                replaceRow < (int)ctx.editor->lines->size())
             {
                 std::string& line = (*ctx.editor->lines)[replaceRow];
-                const int start = std::clamp(replaceStartX, 0, (int)line.size());
+                const int start =
+                    std::clamp(replaceStartX, 0, (int)line.size());
                 const int length =
                     std::clamp(replaceLength, 0, (int)line.size() - start);
                 line.erase((std::size_t)start, (std::size_t)length);
@@ -729,8 +745,10 @@ void ColorSelectorMode::draw(Editor& editor)
     moveTo(top, left);
     output += editor.theme.uiDim();
     text_utils::appendU8(output, ascii::BOX_ROUNDED_TOP_LEFT);
-    text_utils::appendUtf8Repeat(output, ascii::BOX_LIGHT_HORIZONTAL,
-                                 innerWidth);
+    text_utils::appendUtf8Repeat(
+        output,
+        ascii::BOX_LIGHT_HORIZONTAL,
+        innerWidth);
     text_utils::appendU8(output, ascii::BOX_ROUNDED_TOP_RIGHT);
 
     moveTo(top + 1, left);
@@ -776,8 +794,9 @@ void ColorSelectorMode::draw(Editor& editor)
     text_utils::appendU8(output, ascii::BOX_LIGHT_VERTICAL);
     output += editor.theme.uiDim();
     const std::string footer =
-        std::string(" j/k select  h/l +/-1  H/L +/-10  ^B bold  ^I italic  "
-                    "Enter ") +
+        std::string(
+            " j/k select  h/l +/-1  H/L +/-10  ^B bold  ^I italic  "
+            "Enter ") +
         (replacing ? "replace" : "insert") + "  q/Esc cancel";
     appendPadded(output, footer, innerWidth);
     output += editor.theme.uiDim();
@@ -785,8 +804,10 @@ void ColorSelectorMode::draw(Editor& editor)
 
     moveTo(top + height - 1, left);
     text_utils::appendU8(output, ascii::BOX_ROUNDED_BOTTOM_LEFT);
-    text_utils::appendUtf8Repeat(output, ascii::BOX_LIGHT_HORIZONTAL,
-                                 innerWidth);
+    text_utils::appendUtf8Repeat(
+        output,
+        ascii::BOX_LIGHT_HORIZONTAL,
+        innerWidth);
     text_utils::appendU8(output, ascii::BOX_ROUNDED_BOTTOM_RIGHT);
     output += editor.theme.reset();
 

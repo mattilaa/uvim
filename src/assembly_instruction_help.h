@@ -20,8 +20,14 @@ struct State
 
 // The caller invalidates docsGeneration and cancels its old task before
 // loading.
-TaskQueue::TaskId load(Editor& editor, const std::shared_ptr<State>& state,
-                       const std::string& instruction);
-void draw(std::string& out, Editor& editor, const State& state, int& offset,
-          std::string_view controls = "i: close | Ctrl-J/K: scroll");
+TaskQueue::TaskId load(
+    Editor& editor,
+    const std::shared_ptr<State>& state,
+    const std::string& instruction);
+void draw(
+    std::string& out,
+    Editor& editor,
+    const State& state,
+    int& offset,
+    std::string_view controls = "i: close | Ctrl-J/K: scroll");
 } // namespace assembly_instruction_help

@@ -25,8 +25,9 @@ void ReferencesMode::on_exit(ModeContext&)
     Terminal::setCursorBlock();
 }
 
-std::optional<ModeState> ReferencesMode::handle(ModeContext& ctx,
-                                                const ModeKeyEvent& event)
+std::optional<ModeState> ReferencesMode::handle(
+    ModeContext& ctx,
+    const ModeKeyEvent& event)
 {
     const int key = event.key;
     Editor* ed = ctx.editor;
@@ -70,9 +71,10 @@ std::optional<ModeState> ReferencesMode::handle(ModeContext& ctx,
     {
         ed->referencesDown();
     }
-    else if(c == keyCode(typed::TypedKey::KEY_K) ||
-            c == keyCode(control::ControlKey::CTRL_P) ||
-            c == keyCode(navigation::NavigationKey::ARROW_UP))
+    else if(
+        c == keyCode(typed::TypedKey::KEY_K) ||
+        c == keyCode(control::ControlKey::CTRL_P) ||
+        c == keyCode(navigation::NavigationKey::ARROW_UP))
     {
         ed->referencesUp();
     }
@@ -103,8 +105,9 @@ std::optional<ModeState> ReferencesMode::handle(ModeContext& ctx,
     // Preview Toggle
     // ========================================================================
 
-    else if(c == keyCode(control::ControlKey::TAB) ||
-            c == keyCode(typed::TypedKey::KEY_P))
+    else if(
+        c == keyCode(control::ControlKey::TAB) ||
+        c == keyCode(typed::TypedKey::KEY_P))
     {
         ed->toggleReferencesPreview();
     }

@@ -3,11 +3,11 @@
 // and the `:tasks` view.
 
 #include "editor.h"
+#include "key_enums.h"
 #include "mode_state_machine.h"
 #include "process_pipe.h"
 #include "terminal.h"
 #include "text_utils.h"
-#include "key_enums.h"
 #include "widgets/progress_bar.h"
 
 #ifdef UVIM_ENABLE_CLANGD_LSP
@@ -49,31 +49,40 @@ std::string padToWidth(std::string text, int width)
 }
 } // namespace
 
-TaskQueue::Submitted Editor::submitTask(std::string label, std::string channel,
-                                        TaskQueue::Work work,
-                                        TaskQueue::Done done,
-                                        TaskQueue::Done onAbort)
+TaskQueue::Submitted Editor::submitTask(
+    std::string label,
+    std::string channel,
+    TaskQueue::Work work,
+    TaskQueue::Done done,
+    TaskQueue::Done onAbort)
 {
     std::string shownLabel = label;
     auto submitted = tasks.submit(
-        TaskQueue::Job{std::move(label), std::move(channel), std::move(work),
-                       std::move(done), std::move(onAbort)});
+        TaskQueue::Job{
+            std::move(label),
+            std::move(channel),
+            std::move(work),
+            std::move(done),
+            std::move(onAbort)});
     if(!submitted.queuedBehind.empty())
     {
         // An older job owns the channel; this one cannot override it.
-        setStatusMessage("'" + shownLabel + "' queued: waits for '" +
-                         submitted.queuedBehind + "' to finish (:tasks)");
+        setStatusMessage(
+            "'" + shownLabel + "' queued: waits for '" +
+            submitted.queuedBehind + "' to finish (:tasks)");
         needsFullRedraw = true;
     }
     return submitted;
 }
 
-bool Editor::runTask(std::string label, std::string channel,
-                     TaskQueue::Work work)
+bool Editor::runTask(
+    std::string label,
+    std::string channel,
+    TaskQueue::Work work)
 {
     const std::string shownLabel = label;
-    auto submitted = submitTask(std::move(label), std::move(channel),
-                                std::move(work));
+    auto submitted =
+        submitTask(std::move(label), std::move(channel), std::move(work));
     return waitTask(submitted.id, shownLabel);
 }
 
@@ -104,12 +113,16 @@ void Editor::enableInteractiveTasks()
 {
     tasksInteractive_ = true;
     ProcessPipe::setForegroundRunner(
-        [this](const std::string& label, const std::string& channel,
-               const ProcessPipe::BlockingWait& wait)
+        [this](
+            const std::string& label,
+            const std::string& channel,
+            const ProcessPipe::BlockingWait& wait)
         {
-            return runTask(label, channel,
-                           [&wait](TaskQueue::Context& ctx)
-                           { wait([&ctx] { return ctx.cancelled(); }); });
+            return runTask(
+                label,
+                channel,
+                [&wait](TaskQueue::Context& ctx)
+                { wait([&ctx] { return ctx.cancelled(); }); });
         });
 }
 
@@ -134,8 +147,10 @@ void Editor::pumpTasks()
     }
 }
 
-void Editor::addStartupStep(std::string label, std::function<void()> step,
-                            bool runLast)
+void Editor::addStartupStep(
+    std::string label,
+    std::function<void()> step,
+    bool runLast)
 {
     auto& queue = runLast ? lateStartupSteps_ : startupSteps_;
     queue.push_back(StartupStep{std::move(label), std::move(step)});
@@ -180,7 +195,8 @@ void Editor::serviceTasks()
 #endif
 #ifdef UVIM_ENABLE_DEBUGGER
     if(modeStateMachine)
-        if(auto* debugger = modeStateMachine->getState<editor::statemachine::DebuggerMode>())
+        if(auto* debugger =
+               modeStateMachine->getState<editor::statemachine::DebuggerMode>())
             debugger->processIdle(*this);
 #endif
     runNextStartupStep();
@@ -246,9 +262,14 @@ widgets::PickerLayout Editor::pickerLayout(bool previewWanted) const
 
 void Editor::drawPickerBackground(const widgets::PickerLayout& layout)
 {
-    const PickerBackground wanted{true,          screenRows,     screenCols,
-                                  layout.boxTop, layout.boxLeft, layout.boxRows,
-                                  layout.boxCols};
+    const PickerBackground wanted{
+        true,
+        screenRows,
+        screenCols,
+        layout.boxTop,
+        layout.boxLeft,
+        layout.boxRows,
+        layout.boxCols};
     const PickerBackground& have = pickerBackground_;
     // Geometry changes (resize, picker.width) must repaint what the old box
     // covered, even when the screen was adopted.
@@ -263,8 +284,9 @@ void Editor::drawPickerBackground(const widgets::PickerLayout& layout)
     else if(currentBuffer && lines)
         drawFullScreen();
     else
-        Terminal::write(std::string(Terminal::ESC_CURSOR_HOME) +
-                        Terminal::ESC_CLEAR_SCREEN);
+        Terminal::write(
+            std::string(Terminal::ESC_CURSOR_HOME) +
+            Terminal::ESC_CLEAR_SCREEN);
     pickerBackground_ = wanted;
 }
 
@@ -279,14 +301,15 @@ std::vector<std::pair<std::string, LspClient*>> Editor::activeLspClients() const
 {
     std::vector<std::pair<std::string, LspClient*>> out;
 #ifdef UVIM_ENABLE_CLANGD_LSP
-    auto add = [&](const std::unique_ptr<LspClient>& client,
-                   const char* fallback)
+    auto add =
+        [&](const std::unique_ptr<LspClient>& client, const char* fallback)
     {
         if(!client || !client->running())
             return;
         std::string name = client->serverName();
-        out.emplace_back(name.empty() ? fallback : std::move(name),
-                         client.get());
+        out.emplace_back(
+            name.empty() ? fallback : std::move(name),
+            client.get());
     };
     add(lspClient, "clangd");
     add(pythonLspClient, "python");
@@ -387,9 +410,9 @@ std::string Editor::taskStatusText()
                 continue;
             if(lspWorkStarted_ == Clock::time_point{})
                 lspWorkStarted_ = now;
-            label = server + ": " +
-                    (work->title.empty() ? std::string("working")
-                                         : work->title);
+            label =
+                server + ": " +
+                (work->title.empty() ? std::string("working") : work->title);
             detail = work->message;
             if(work->percent >= 0)
             {
@@ -434,8 +457,9 @@ void Editor::beginTaskStatusFrame()
         return;
     // The overlay sits on rows that self-drawn views may never repaint.
     const int width = taskStatusWidth();
-    std::string out = Terminal::cursorPos(screenRows + 1,
-                                          std::max(1, screenCols - width + 1));
+    std::string out = Terminal::cursorPos(
+        screenRows + 1,
+        std::max(1, screenCols - width + 1));
     out += theme.reset();
     out.append(width, ' ');
     Terminal::write(out);
@@ -482,12 +506,14 @@ void Editor::paintTaskStatus()
         taskStatusOverlay_ = true;
     }
 
-    std::string out = "\x1b" "7"; // save cursor (DEC)
+    std::string out = "\x1b"
+                      "7"; // save cursor (DEC)
     out += Terminal::cursorPos(row, col);
     out += theme.statusBar();
     out += text;
     out += theme.reset();
-    out += "\x1b" "8"; // restore cursor
+    out += "\x1b"
+           "8"; // restore cursor
     Terminal::write(out);
     Terminal::flush();
 }
@@ -496,21 +522,23 @@ void Editor::drawTaskList()
 {
 #ifdef UVIM_ENABLE_AUXILIARY_VIEWS
     using editor::statemachine::TaskListMode;
-    TaskListMode* mode = modeStateMachine
-                             ? modeStateMachine->getState<TaskListMode>()
-                             : nullptr;
+    TaskListMode* mode =
+        modeStateMachine ? modeStateMachine->getState<TaskListMode>() : nullptr;
     const auto rows = tasks.snapshot();
     const auto now = Clock::now();
     const auto status = tasks.status();
     if(mode)
     {
-        auto it = std::find_if(rows.begin(), rows.end(),
-                               [&](const TaskQueue::TaskInfo& row)
-                               { return row.id == mode->selected; });
+        auto it = std::find_if(
+            rows.begin(),
+            rows.end(),
+            [&](const TaskQueue::TaskInfo& row)
+            { return row.id == mode->selected; });
         if(it != rows.end())
             mode->cursor = static_cast<int>(it - rows.begin());
-        mode->cursor =
-            rows.empty() ? 0 : std::clamp(mode->cursor, 0, (int)rows.size() - 1);
+        mode->cursor = rows.empty()
+                           ? 0
+                           : std::clamp(mode->cursor, 0, (int)rows.size() - 1);
         mode->selected = rows.empty() ? 0 : rows[mode->cursor].id;
     }
     const int cursor = mode ? mode->cursor : 0;
@@ -534,8 +562,7 @@ void Editor::drawTaskList()
     if(status && status->batchTotal > 0)
         header += "  (" + std::to_string(status->position) + "/" +
                   std::to_string(status->batchTotal) + ")";
-    header += "  " + std::to_string(status ? status->running : 0) +
-              " running";
+    header += "  " + std::to_string(status ? status->running : 0) + " running";
     output += padToWidth(header, screenCols);
     output += theme.reset();
 
@@ -555,9 +582,10 @@ void Editor::drawTaskList()
         return padToWidth(std::move(text), width);
     };
 
-    line(" " + column("#", 4) + column("STATE", 12) + column("TASK", labelWidth) +
-             column("CHANNEL", 10) + "PROGRESS",
-         theme.uiDim());
+    line(
+        " " + column("#", 4) + column("STATE", 12) +
+            column("TASK", labelWidth) + column("CHANNEL", 10) + "PROGRESS",
+        theme.uiDim());
 
     const int listRows = std::max(0, screenRows - 2);
     const int first =
@@ -602,8 +630,9 @@ void Editor::drawTaskList()
             progress = widgets::formatProgressMeter(meter);
             if(row.total > 0)
                 progress += " " +
-                            std::to_string(std::clamp(row.done, 0LL, row.total) *
-                                           100 / row.total) +
+                            std::to_string(
+                                std::clamp(row.done, 0LL, row.total) * 100 /
+                                row.total) +
                             "%  " + std::to_string(row.done) + "/" +
                             std::to_string(row.total);
             else if(row.done > 0)
@@ -645,9 +674,10 @@ void Editor::drawTaskList()
         std::string progress = widgets::formatProgressMeter(meter);
         if(work->percent >= 0)
             progress += " " + std::to_string(work->percent) + "%";
-        line(" " + column("lsp", 4) + theme.uiAccent() + column("server", 12) +
-             theme.reset() + column(label, labelWidth) + column(server, 10) +
-             progress);
+        line(
+            " " + column("lsp", 4) + theme.uiAccent() + column("server", 12) +
+            theme.reset() + column(label, labelWidth) + column(server, 10) +
+            progress);
         ++drawn;
 #else
         (void)server;
@@ -657,8 +687,9 @@ void Editor::drawTaskList()
 
     if(rows.empty() && drawn == 0)
     {
-        line("  No background tasks. Heavy operations (grep, git, format,",
-             theme.uiDim());
+        line(
+            "  No background tasks. Heavy operations (grep, git, format,",
+            theme.uiDim());
         line("  compile, indexing) appear here while they run.", theme.uiDim());
         drawn += 2;
     }
@@ -667,9 +698,10 @@ void Editor::drawTaskList()
 
     output += Terminal::NEWLINE_CLEAR;
     output += theme.statusBar();
-    output += padToWidth(" <j/k> select  <K/J> move waiting task  <x/dd> "
-                         "cancel  <q/Esc> close",
-                         screenCols);
+    output += padToWidth(
+        " <j/k> select  <K/J> move waiting task  <x/dd> "
+        "cancel  <q/Esc> close",
+        screenCols);
     output += theme.reset();
     output += Terminal::NEWLINE_CLEAR;
     if(!statusMessage.empty())

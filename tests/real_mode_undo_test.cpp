@@ -19,8 +19,9 @@ TEST(RealModeTransitionsTest, UndoToOldestChangeKeepsFirstEditedLine)
     editor.saveState();
 
     editor.undo();
-    EXPECT_EQ(editor.currentBuffer->lines,
-              (std::vector<std::string>{"one", "two", "three", "four"}));
+    EXPECT_EQ(
+        editor.currentBuffer->lines,
+        (std::vector<std::string>{"one", "two", "three", "four"}));
     EXPECT_EQ(*editor.cursorY, 2);
     EXPECT_EQ(*editor.cursorX, 1);
 }
@@ -120,8 +121,9 @@ TEST(RealModeTransitionsTest, CloseReconcilesStaleDirtyFlag)
     editor.closeCurrentBuffer();
 
     EXPECT_FALSE(editor.hasBuffer());
-    EXPECT_NE(editor.statusMessage,
-              "No write since last change (add ! to override)");
+    EXPECT_NE(
+        editor.statusMessage,
+        "No write since last change (add ! to override)");
 }
 
 TEST(RealModeTransitionsTest, RecordingSavedContentClearsDirtyFlag)

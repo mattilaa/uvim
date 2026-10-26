@@ -77,8 +77,9 @@ std::optional<int> parseIndentWidthLine(const std::string& line)
     return std::nullopt;
 }
 
-std::optional<std::string> parseScalarValueLine(const std::string& line,
-                                                std::string_view key)
+std::optional<std::string> parseScalarValueLine(
+    const std::string& line,
+    std::string_view key)
 {
     size_t start = 0;
     while(start < line.size() && (line[start] == ' ' || line[start] == '\t'))
@@ -177,8 +178,11 @@ void EditorIndentController::commentBlock(int startY, int endY)
     editor.commentBlockImpl(startY, endY);
 }
 
-void EditorIndentController::commentBlockRange(int startY, int startX, int endY,
-                                               int endX)
+void EditorIndentController::commentBlockRange(
+    int startY,
+    int startX,
+    int endY,
+    int endX)
 {
     editor.commentBlockRangeImpl(startY, startX, endY, endX);
 }
@@ -196,9 +200,11 @@ bool EditorIndentController::insertTodoBlockComment(int row)
 std::string Editor::toLowerCaseImpl(const std::string& str)
 {
     std::string result = str;
-    std::transform(result.begin(), result.end(), result.begin(),
-                   [](unsigned char c)
-                   { return static_cast<char>(std::tolower(c)); });
+    std::transform(
+        result.begin(),
+        result.end(),
+        result.begin(),
+        [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
     return result;
 }
 
@@ -266,12 +272,13 @@ void Editor::autoIndentLineImpl(int line)
             {
                 baseIndent += 4;
             }
-            else if(lastChar == ':' &&
-                    (text_utils::contains(prevLine, "public") ||
-                     text_utils::contains(prevLine, "private") ||
-                     text_utils::contains(prevLine, "protected") ||
-                     text_utils::contains(prevLine, "case") ||
-                     text_utils::contains(prevLine, "default")))
+            else if(
+                lastChar == ':' &&
+                (text_utils::contains(prevLine, "public") ||
+                 text_utils::contains(prevLine, "private") ||
+                 text_utils::contains(prevLine, "protected") ||
+                 text_utils::contains(prevLine, "case") ||
+                 text_utils::contains(prevLine, "default")))
             {
                 baseIndent += 4;
             }
@@ -284,15 +291,16 @@ void Editor::autoIndentLineImpl(int line)
         {
             baseIndent = std::max(0, baseIndent - 4);
         }
-        else if(currentLine.find("public:") == 0 ||
-                currentLine.find("private:") == 0 ||
-                currentLine.find("protected:") == 0)
+        else if(
+            currentLine.find("public:") == 0 ||
+            currentLine.find("private:") == 0 ||
+            currentLine.find("protected:") == 0)
         {
             if(line > 0 && baseIndent >= 4)
                 baseIndent -= 4;
         }
-        else if(currentLine.find("case ") == 0 ||
-                currentLine.find("default:") == 0)
+        else if(
+            currentLine.find("case ") == 0 || currentLine.find("default:") == 0)
         {
             if(baseIndent >= 4)
                 baseIndent -= 4;

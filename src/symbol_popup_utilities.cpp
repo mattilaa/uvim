@@ -11,7 +11,9 @@ using editor::helper::trim_ascii_ws;
 using editor::helper::trim_view;
 
 std::string SymbolPopupUtilities::collectSignatureLine(
-    const std::vector<std::string>& lines, int startY, int maxLines)
+    const std::vector<std::string>& lines,
+    int startY,
+    int maxLines)
 {
     if(startY < 0 || startY >= (int)lines.size())
         return "";
@@ -36,8 +38,8 @@ std::string SymbolPopupUtilities::collectSignatureLine(
     return out;
 }
 
-std::string
-SymbolPopupUtilities::extractInitializerTypeCandidate(std::string_view rhs)
+std::string SymbolPopupUtilities::extractInitializerTypeCandidate(
+    std::string_view rhs)
 {
     rhs = trim_view(rhs);
     if(rhs.empty())
@@ -83,7 +85,9 @@ bool SymbolPopupUtilities::isControlStatement(std::string_view line)
 }
 
 bool SymbolPopupUtilities::findDeclarationInLines(
-    const std::vector<std::string>& lines, const std::string& symbol, int& outY,
+    const std::vector<std::string>& lines,
+    const std::string& symbol,
+    int& outY,
     int& outX)
 {
     if(symbol.empty())
@@ -141,8 +145,9 @@ bool SymbolPopupUtilities::findDeclarationInLines(
     return false;
 }
 
-bool SymbolPopupUtilities::loadFileLines(const std::string& path,
-                                         std::vector<std::string>& out)
+bool SymbolPopupUtilities::loadFileLines(
+    const std::string& path,
+    std::vector<std::string>& out)
 {
     std::ifstream in(path);
     if(!in.is_open())
@@ -171,8 +176,9 @@ std::string SymbolPopupUtilities::lastQualifier(std::string_view text)
     return s;
 }
 
-std::string SymbolPopupUtilities::extractTypeBeforeName(const std::string& line,
-                                                        const std::string& name)
+std::string SymbolPopupUtilities::extractTypeBeforeName(
+    const std::string& line,
+    const std::string& name)
 {
     if(name.empty())
         return "";
@@ -220,9 +226,16 @@ std::string SymbolPopupUtilities::extractTypeBeforeName(const std::string& line,
         }
     };
 
-    std::string qualifiers[] = {"const",    "volatile",  "mutable",
-                                "static",   "constexpr", "inline",
-                                "typename", "class",     "struct"};
+    std::string qualifiers[] =
+        {"const",
+         "volatile",
+         "mutable",
+         "static",
+         "constexpr",
+         "inline",
+         "typename",
+         "class",
+         "struct"};
 
     while(i >= 0)
     {

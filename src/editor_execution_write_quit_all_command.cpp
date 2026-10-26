@@ -27,8 +27,8 @@ using editor::helper::parse_int;
 using editor::helper::trim_view;
 using namespace detail;
 
-bool WriteQuitAllCommand::execute(Editor& editor,
-                                  const CommandRequest& request) const
+bool WriteQuitAllCommand::execute(Editor& editor, const CommandRequest& request)
+    const
 {
     if(request.text == "qw!" || request.text == "wqall!" ||
        request.text == "wqa!")

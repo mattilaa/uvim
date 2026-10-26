@@ -27,8 +27,8 @@ using editor::helper::parse_int;
 using editor::helper::trim_view;
 using namespace detail;
 
-bool WriteAllCommand::execute(Editor& editor,
-                              const CommandRequest& request) const
+bool WriteAllCommand::execute(Editor& editor, const CommandRequest& request)
+    const
 {
     if(request.text != "wall" && request.text != "wa" && request.text != "wa!")
         return false;

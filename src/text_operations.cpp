@@ -65,9 +65,9 @@ void Editor::deleteRange(int startY, int startX, int endY, int endX)
     if(currentBuffer && currentBuffer->blameValid && startY != endY &&
        startY < (int)currentBuffer->blameEntries.size())
     {
-        int removeCount =
-            std::min((endY - startY + 1),
-                     (int)currentBuffer->blameEntries.size() - startY);
+        int removeCount = std::min(
+            (endY - startY + 1),
+            (int)currentBuffer->blameEntries.size() - startY);
         currentBuffer->blameEntries.erase(
             currentBuffer->blameEntries.begin() + startY,
             currentBuffer->blameEntries.begin() + startY + removeCount);
@@ -192,8 +192,9 @@ void Editor::insertNewline()
                             ++nameEnd;
                         if(nameEnd > nameStart)
                         {
-                            std::string openTag = currentLine.substr(
-                                nameStart, nameEnd - nameStart);
+                            std::string openTag =
+                                currentLine
+                                    .substr(nameStart, nameEnd - nameStart);
                             size_t closeStart =
                                 currentLine.find("</", (size_t)cx);
                             if(text_utils::is_found(closeStart))
@@ -212,7 +213,8 @@ void Editor::insertNewline()
                                     {
                                         bool onlySpace = true;
                                         for(size_t k = (size_t)cx;
-                                            k < closeStart; ++k)
+                                            k < closeStart;
+                                            ++k)
                                         {
                                             char ch = currentLine[k];
                                             if(ch != ' ' && ch != '\t')
@@ -235,12 +237,12 @@ void Editor::insertNewline()
                                             std::string after =
                                                 currentLine.substr(closeStart);
                                             (*lines)[*cursorY] = before;
-                                            lines->insert(lines->begin() +
-                                                              *cursorY + 1,
-                                                          innerIndent);
-                                            lines->insert(lines->begin() +
-                                                              *cursorY + 2,
-                                                          indentStr + after);
+                                            lines->insert(
+                                                lines->begin() + *cursorY + 1,
+                                                innerIndent);
+                                            lines->insert(
+                                                lines->begin() + *cursorY + 2,
+                                                indentStr + after);
                                             (*cursorY)++;
                                             *cursorX = static_cast<int>(
                                                 innerIndent.length());
@@ -357,8 +359,9 @@ void Editor::insertNewline()
         for(int y = 0; y < *cursorY; ++y)
             scan.scan((*lines)[y], static_cast<size_t>(y));
         // currentLine has already been shortened to the text before the cursor.
-        scan.scan(currentLine.substr(0, *cursorX),
-                  static_cast<size_t>(*cursorY));
+        scan.scan(
+            currentLine.substr(0, *cursorX),
+            static_cast<size_t>(*cursorY));
         const auto continuation =
             scan.indentation(remainder, collectionIndentWidth());
         if(continuation)
@@ -652,7 +655,8 @@ void Editor::setSystemClipboard(const std::string& text)
     LOG_DEBUG(
         LOG,
         "setSystemClipboard called, text.length()={}, useSystemClipboard={}",
-        text.length(), useSystemClipboard);
+        text.length(),
+        useSystemClipboard);
 
     if(text.empty())
     {
@@ -801,7 +805,8 @@ void Editor::pasteAfter()
         if(utf8Mode)
         {
             int lastStart = text_utils::prevUtf8CharStart(
-                yankBuffer, (int)yankBuffer.size());
+                yankBuffer,
+                (int)yankBuffer.size());
             *cursorX = insertPos + lastStart;
         }
         else
@@ -896,7 +901,8 @@ void Editor::deleteVisualBlock()
     getVisualBlockBounds(startY, startX, endY, endX);
 
     for(int row = startY;
-        row <= endY && static_cast<size_t>(row) < lines->size(); row++)
+        row <= endY && static_cast<size_t>(row) < lines->size();
+        row++)
     {
         std::string& line = (*lines)[row];
         if(static_cast<size_t>(startX) < line.length())
@@ -926,7 +932,8 @@ void Editor::yankVisualBlock()
     yankBuffer.clear();
 
     for(int row = startY;
-        row <= endY && static_cast<size_t>(row) < lines->size(); row++)
+        row <= endY && static_cast<size_t>(row) < lines->size();
+        row++)
     {
         const std::string& line = (*lines)[row];
         if(static_cast<size_t>(startX) < line.length())
@@ -956,7 +963,8 @@ void Editor::changeVisualBlock()
     getVisualBlockBounds(startY, startX, endY, endX);
 
     for(int row = startY;
-        row <= endY && static_cast<size_t>(row) < lines->size(); row++)
+        row <= endY && static_cast<size_t>(row) < lines->size();
+        row++)
     {
         std::string& line = (*lines)[row];
         if(static_cast<size_t>(startX) < line.length())
@@ -982,7 +990,8 @@ void Editor::applyVisualBlockInsert()
     int insertX = currentBuffer->visualBlockStartX;
 
     for(int row = startY;
-        row <= endY && static_cast<size_t>(row) < lines->size(); row++)
+        row <= endY && static_cast<size_t>(row) < lines->size();
+        row++)
     {
         if(row == *cursorY)
             continue;
@@ -998,8 +1007,9 @@ void Editor::applyVisualBlockInsert()
     *dirty = true;
     saveState();
     needsFullRedraw = true;
-    setStatusMessage("Block insert applied to " +
-                     std::to_string(endY - startY + 1) + " lines");
+    setStatusMessage(
+        "Block insert applied to " + std::to_string(endY - startY + 1) +
+        " lines");
 }
 
 void Editor::deleteSelection()

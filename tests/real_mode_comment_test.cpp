@@ -41,8 +41,8 @@ TEST(RealModeTransitionsTest, LeaderCiUndoRestoresCursorRow)
 {
     Editor editor = Editor::createForTests();
     editor.createNewBuffer();
-    editor.currentBuffer->lines = {"int first = 1;", "int second = 2;",
-                                   "int third = 3;"};
+    editor.currentBuffer
+        ->lines = {"int first = 1;", "int second = 2;", "int third = 3;"};
     set_buffer_filename(editor, "main.cpp");
     *editor.cursorY = 2;
     *editor.cursorX = 4;
@@ -118,8 +118,8 @@ TEST(RealModeTransitionsTest, LeaderCiiUndoRestoresCursorRow)
 {
     Editor editor = Editor::createForTests();
     editor.createNewBuffer();
-    editor.currentBuffer->lines = {"int first = 1;", "int second = 2;",
-                                   "    int third = 3;"};
+    editor.currentBuffer
+        ->lines = {"int first = 1;", "int second = 2;", "    int third = 3;"};
     set_buffer_filename(editor, "main.cpp");
     *editor.cursorY = 2;
     *editor.cursorX = 4;
@@ -247,8 +247,8 @@ TEST(RealModeTransitionsTest, LeaderCiitUndoRestoresCursorRow)
 {
     Editor editor = Editor::createForTests();
     editor.createNewBuffer();
-    editor.currentBuffer->lines = {"int first = 1;", "int second = 2;",
-                                   "    int third = 3;"};
+    editor.currentBuffer
+        ->lines = {"int first = 1;", "int second = 2;", "    int third = 3;"};
     set_buffer_filename(editor, "main.cpp");
     *editor.cursorY = 2;
     *editor.cursorX = 4;

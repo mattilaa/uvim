@@ -1,5 +1,5 @@
-#include "editor.h"
 #include "mode_state_machine.h"
+#include "editor.h"
 #include "terminal.h"
 #include "text_utils.h"
 
@@ -77,6 +77,7 @@ struct ModeStateToMode
     {
         return BUFFER_BROWSER;
     }
+
     Mode operator()(const FunctionBrowserMode&) const
     {
         return FUNCTION_BROWSER;
@@ -120,6 +121,7 @@ struct ModeStateToMode
     {
         return TASK_LIST;
     }
+
     Mode operator()(const CommandPaletteMode&) const
     {
         return COMMAND_PALETTE;
@@ -174,7 +176,10 @@ struct ModeStateToMode
 #endif
 
 #ifdef UVIM_ENABLE_DEBUGGER
-    Mode operator()(const DebuggerMode&) const { return DEBUGGER; }
+    Mode operator()(const DebuggerMode&) const
+    {
+        return DEBUGGER;
+    }
 #endif
 #ifdef UVIM_ENABLE_AUXILIARY_VIEWS
     Mode operator()(const CommandOutputMode&) const
@@ -245,10 +250,11 @@ ParsedCommand parseCommandLine(std::string_view commandLine)
     return result;
 }
 
-std::optional<ModeState>
-dispatchCommandLine(ModeContext& ctx, std::string_view commandLine,
-                    const ModeCommandCallback& modeHandler,
-                    const CommandFallback& fallbackHandler)
+std::optional<ModeState> dispatchCommandLine(
+    ModeContext& ctx,
+    std::string_view commandLine,
+    const ModeCommandCallback& modeHandler,
+    const CommandFallback& fallbackHandler)
 {
     ParsedCommand command = parseCommandLine(commandLine);
     if(command.cmd.empty())
@@ -270,10 +276,11 @@ dispatchCommandLine(ModeContext& ctx, std::string_view commandLine,
     return std::nullopt;
 }
 
-std::optional<ModeState> dispatchEditorCommand(ModeContext& ctx,
-                                               std::string_view commandLine,
-                                               std::string_view previousFile,
-                                               bool returnToNormalIfBuffer)
+std::optional<ModeState> dispatchEditorCommand(
+    ModeContext& ctx,
+    std::string_view commandLine,
+    std::string_view previousFile,
+    bool returnToNormalIfBuffer)
 {
     ctx.executeCommand(commandLine);
 

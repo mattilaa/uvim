@@ -50,8 +50,9 @@ int rowAtEndOf(std::string_view output, int fallback)
             continue;
         // Walk back over "row;col" digits to the CSI introducer.
         size_t j = i;
-        while(j > 0 && (std::isdigit(static_cast<unsigned char>(output[j - 1])) ||
-                        output[j - 1] == ';'))
+        while(j > 0 &&
+              (std::isdigit(static_cast<unsigned char>(output[j - 1])) ||
+               output[j - 1] == ';'))
             --j;
         if(j < 2 || output[j - 1] != '[' || output[j - 2] != '\x1b')
             continue;
@@ -73,8 +74,9 @@ int rowAtEndOf(std::string_view output, int fallback)
 }
 } // namespace
 
-void Editor::appendViewStatusBar(std::string& output,
-                                 widgets::ViewStatusBarView view)
+void Editor::appendViewStatusBar(
+    std::string& output,
+    widgets::ViewStatusBarView view)
 {
     std::string progress = taskStatusText();
     int progressColumn = 0;
@@ -96,8 +98,11 @@ void Editor::appendViewStatusBar(std::string& output,
         output.append(statusMessage, 0, std::max(0, screenCols));
 }
 
-void Editor::appendStatusLine(std::string& output, std::string left,
-                              const std::string& right, int row)
+void Editor::appendStatusLine(
+    std::string& output,
+    std::string left,
+    const std::string& right,
+    int row)
 {
     if(row < 0)
         row = rowAtEndOf(output, screenRows + 1);
@@ -154,8 +159,9 @@ void Editor::appendStatusLine(std::string& output, std::string left,
         const int reserve = taskStatusWidth() + 1;
         const bool room = reserve > 1 && padding >= reserve &&
                           screenCols - rightWidth - reserve >= 16;
-        noteTaskStatusSlot(row, room ? screenCols - rightWidth - reserve + 1
-                                     : -1);
+        noteTaskStatusSlot(
+            row,
+            room ? screenCols - rightWidth - reserve + 1 : -1);
     }
     if(rightWidth <= screenCols)
         output += right;

@@ -93,9 +93,14 @@ public:
     {
     public:
         RedrawFlag() = default;
+
         explicit RedrawFlag(Editor* editor) : editor(editor) {}
 
-        void bind(Editor* nextEditor) { editor = nextEditor; }
+        void bind(Editor* nextEditor)
+        {
+            editor = nextEditor;
+        }
+
         RedrawFlag& operator=(bool value);
         operator bool() const;
 
@@ -106,8 +111,10 @@ public:
     // Mode enum is now in mode.h
     // JumpLocation struct is now in jump_location.h
 
-    Editor(bool skipInitialBuffer = false, const std::string& configPath = "",
-           const std::string& themePath = "");
+    Editor(
+        bool skipInitialBuffer = false,
+        const std::string& configPath = "",
+        const std::string& themePath = "");
     ~Editor();
 #ifdef UVIM_TESTING
     static Editor createForTests(int rows = 24, int cols = 80);
@@ -116,47 +123,52 @@ public:
     // Optional clangd LSP integration (compiled in when UVIM_ENABLE_CLANGD_LSP
     // is set). Enable at runtime via: uvim --clangd [--ccdir <build_dir>]
     // [files...]
-    void enableClangdLsp(bool enable,
-                         const std::string& compileCommandsDir = "",
-                         const std::string& clangdPath = "clangd",
-                         const std::string& queryDriverAllowList = "");
+    void enableClangdLsp(
+        bool enable,
+        const std::string& compileCommandsDir = "",
+        const std::string& clangdPath = "clangd",
+        const std::string& queryDriverAllowList = "");
     bool isClangdLspEnabled() const;
-    void enableRobotLsp(bool enable,
-                        const std::string& robotLspPath = "robotframework-lsp",
-                        const std::vector<std::string>& robotLspArgs = {});
+    void enableRobotLsp(
+        bool enable,
+        const std::string& robotLspPath = "robotframework-lsp",
+        const std::vector<std::string>& robotLspArgs = {});
     bool isRobotLspEnabled() const;
-    void enablePythonLsp(bool enable,
-                         const std::string& pythonLspPath = "pylsp",
-                         const std::vector<std::string>& pythonLspArgs = {});
+    void enablePythonLsp(
+        bool enable,
+        const std::string& pythonLspPath = "pylsp",
+        const std::vector<std::string>& pythonLspArgs = {});
     bool isPythonLspEnabled() const;
-    void enableMlangLsp(bool enable,
-                        const std::string& mlangLspPath = "mlangd-mla",
-                        const std::vector<std::string>& mlangLspArgs = {});
+    void enableMlangLsp(
+        bool enable,
+        const std::string& mlangLspPath = "mlangd-mla",
+        const std::vector<std::string>& mlangLspArgs = {});
     bool isMlangLspEnabled() const;
     void enableHtmlLsp(
         bool enable,
         const std::string& htmlLspPath = "vscode-html-language-server",
         const std::vector<std::string>& htmlLspArgs = {});
     bool isHtmlLspEnabled() const;
-    void
-    enableCssLsp(bool enable,
-                 const std::string& cssLspPath = "vscode-css-language-server",
-                 const std::vector<std::string>& cssLspArgs = {});
+    void enableCssLsp(
+        bool enable,
+        const std::string& cssLspPath = "vscode-css-language-server",
+        const std::vector<std::string>& cssLspArgs = {});
     bool isCssLspEnabled() const;
     void enableJsonLsp(
         bool enable,
         const std::string& jsonLspPath = "vscode-json-language-server",
         const std::vector<std::string>& jsonLspArgs = {});
     bool isJsonLspEnabled() const;
-    void
-    enableTsLsp(bool enable,
-                const std::string& tsLspPath = "typescript-language-server",
-                const std::vector<std::string>& tsLspArgs = {});
+    void enableTsLsp(
+        bool enable,
+        const std::string& tsLspPath = "typescript-language-server",
+        const std::vector<std::string>& tsLspArgs = {});
     bool isTsLspEnabled() const;
     // C#: csharp-ls (default) or OmniSharp ("-lsp" is added for it).
-    void enableCSharpLsp(bool enable,
-                         const std::string& csharpLspPath = "csharp-ls",
-                         const std::vector<std::string>& csharpLspArgs = {});
+    void enableCSharpLsp(
+        bool enable,
+        const std::string& csharpLspPath = "csharp-ls",
+        const std::vector<std::string>& csharpLspArgs = {});
     bool isCSharpLspEnabled() const;
     // Sends a changed C# buffer to the server (diagnostics follow edits).
     void syncCSharpLspIfNeeded(bool force);
@@ -175,6 +187,7 @@ public:
     // Buffer management
     std::vector<std::unique_ptr<Buffer>> buffers;
     std::unordered_map<std::string, int> bufferIndexByFilename;
+
     struct ColdOpenCacheEntry
     {
         std::vector<std::string> lines;
@@ -182,6 +195,7 @@ public:
         uintmax_t size = 0;
         std::chrono::steady_clock::time_point lastTouched{};
     };
+
     std::unordered_map<std::string, ColdOpenCacheEntry> coldOpenCache;
     size_t coldOpenCacheMaxEntries = 32;
     int currentBufferIndex = -1;
@@ -228,11 +242,13 @@ public:
         std::vector<std::string> lines;
         std::vector<std::string> lowerLines;
     };
+
     struct RgCacheLineRef
     {
         int fileIndex = 0;
         int lineIndex = 0;
     };
+
     bool rgCacheEnabled = true;
     int rgUpdateMs = 300;
     bool rgCacheLoaded = false;
@@ -244,6 +260,7 @@ public:
     // Set when background indexing installed a fresh cache; the grep view
     // re-runs its query against it.
     bool rgCacheJustLoaded = false;
+
     // Finished background grep search, adopted by the grep view whose
     // activeSearch matches (results for superseded queries are dropped).
     struct GrepBackgroundResult
@@ -252,6 +269,7 @@ public:
         bool completed = false;
         std::vector<GrepMatch> matches;
     };
+
     std::optional<GrepBackgroundResult> grepBackgroundResult;
     // Stops background indexing and makes its result void.
     void cancelRgCacheIndexing();
@@ -268,6 +286,7 @@ public:
     bool useGitFileIndex = true;
     bool gitignoreLockedOff = false;
     bool gitFileIndexLockedOff = false;
+
     // References browser (LSP find references)
     struct ReferenceEntry
     {
@@ -444,10 +463,10 @@ public:
         std::string message;
     };
 
-    std::unordered_map<int, LspDiagnosticSummary>
-    getClangdDiagnosticsByLine() const;
-    std::optional<LspDiagnosticSummary>
-    getClangdDiagnosticForLine(int line) const;
+    std::unordered_map<int, LspDiagnosticSummary> getClangdDiagnosticsByLine()
+        const;
+    std::optional<LspDiagnosticSummary> getClangdDiagnosticForLine(
+        int line) const;
     void drawDiagnosticPopup(std::string& output) const;
     void drawSymbolPopup(std::string& output) const;
     void openDiagnosticPopupForCursor();
@@ -456,10 +475,12 @@ public:
     void openSizePopupForCursor();
     void openAsmDocumentationPopupForCursor();
     void closeSymbolPopup();
-    void syncClangdDiagnosticsIfNeeded(bool force,
-                                       bool updateDiagnosticPopup = true);
-    void syncMlangSemanticTokensIfNeeded(bool force,
-                                         bool updateDiagnosticPopup = true);
+    void syncClangdDiagnosticsIfNeeded(
+        bool force,
+        bool updateDiagnosticPopup = true);
+    void syncMlangSemanticTokensIfNeeded(
+        bool force,
+        bool updateDiagnosticPopup = true);
 
     bool diagnosticPopupActive = false;
     int diagnosticPopupLine = -1;
@@ -571,8 +592,9 @@ public:
     void openUnsavedChangesMode();
     // Reloads a git log's entries (commit hashes change after a rewrite).
     void reloadGitLog(editor::statemachine::GitLogMode& log);
-    std::vector<std::string> unsavedChangesDiff(std::string& title,
-                                                std::string& message);
+    std::vector<std::string> unsavedChangesDiff(
+        std::string& title,
+        std::string& message);
     void openGitCommitMode();
     void openGitFixupMode();
     void addCurrentBuffer();
@@ -769,22 +791,35 @@ public:
     void ensureBufferForMode(Mode mode);
     void saveBufferState();
     void restoreBufferState();
-    bool searchDefinitionInBuffer(Buffer* buf, const std::string& symbol,
-                                  int& outY, int& outX);
+    bool searchDefinitionInBuffer(
+        Buffer* buf,
+        const std::string& symbol,
+        int& outY,
+        int& outX);
 
     // Operator-pending / text-object support
     void enterOperatorPending(char op);
-    bool getTextObjectRange(char objChar, bool around, int& outStartY,
-                            int& outStartX, int& outEndY, int& outEndX);
-    void applyOperatorToRange(char op, int startY, int startX, int endY,
-                              int endX);
+    bool getTextObjectRange(
+        char objChar,
+        bool around,
+        int& outStartY,
+        int& outStartX,
+        int& outEndY,
+        int& outEndX);
+    void applyOperatorToRange(
+        char op,
+        int startY,
+        int startX,
+        int endY,
+        int endX);
     void deleteRange(int startY, int startX, int endY, int endX);
     void yankRange(int startY, int startX, int endY, int endX);
 
     // File browser functions
-    void openFileBrowser(std::string_view path = ".",
-                         bool focusCurrentFile = false,
-                         bool acceptSecondLeaderX = false);
+    void openFileBrowser(
+        std::string_view path = ".",
+        bool focusCurrentFile = false,
+        bool acceptSecondLeaderX = false);
     std::string getFilePermissions(const std::string& path);
     std::string getRelativePath(const std::string& path);
     void createNewFile();
@@ -853,9 +888,11 @@ public:
     void jumpToRequestedLine(int line);
     // Extends `cache` with syntax tokens for `lines` of `path` (a file shown
     // in a picker preview, not the current buffer) up to line `upTo`.
-    void highlightPreviewLines(PreviewHighlight& cache, const std::string& path,
-                               const std::vector<std::string>& lines,
-                               size_t upTo);
+    void highlightPreviewLines(
+        PreviewHighlight& cache,
+        const std::string& path,
+        const std::vector<std::string>& lines,
+        size_t upTo);
     void pushJumpLocation();
     void jumpForward();
     void jumpBack();
@@ -1057,10 +1094,12 @@ public:
     // does not change while a picker is open, so it is painted once per
     // box geometry; later frames only repaint the box (no flicker).
     void drawPickerBackground(const widgets::PickerLayout& layout);
+
     void invalidatePickerBackground()
     {
         pickerBackground_ = {};
     }
+
     // The current screen already shows the code (e.g. opening a picker from
     // normal mode): the next background paint is skipped.
     void adoptScreenAsPickerBackground()
@@ -1068,11 +1107,13 @@ public:
         pickerBackground_ = {};
         pickerBackgroundAdopted_ = true;
     }
+
     // The next full redraw repaints in place instead of clearing first.
     void skipNextScreenClear()
     {
         skipNextScreenClear_ = true;
     }
+
     bool takeScreenClear()
     {
         const bool skip = skipNextScreenClear_;
@@ -1080,15 +1121,16 @@ public:
         return !skip;
     }
 
-    TaskQueue::Submitted submitTask(std::string label, std::string channel,
-                                    TaskQueue::Work work,
-                                    TaskQueue::Done done = {},
-                                    TaskQueue::Done onAbort = {});
+    TaskQueue::Submitted submitTask(
+        std::string label,
+        std::string channel,
+        TaskQueue::Work work,
+        TaskQueue::Done done = {},
+        TaskQueue::Done onAbort = {});
     // Foreground variant for results the caller needs right away: waits for
     // the job while animating the status bar and queueing keystrokes, which
     // replay once it returns. Ctrl-C cancels. False when cancelled/failed.
-    bool runTask(std::string label, std::string channel,
-                 TaskQueue::Work work);
+    bool runTask(std::string label, std::string channel, TaskQueue::Work work);
     // Waits for an already submitted job like runTask does (progress,
     // queued keys, Ctrl-C). False when it was cancelled or failed.
     bool waitTask(TaskQueue::TaskId id, const std::string& label);
@@ -1096,8 +1138,10 @@ public:
     // held until the first frame is on screen, then run one per main-loop
     // tick with "(i/n) label" progress, so startup never shows a blank
     // terminal. `runLast` steps go after all regular ones.
-    void addStartupStep(std::string label, std::function<void()> step,
-                        bool runLast = false);
+    void addStartupStep(
+        std::string label,
+        std::function<void()> step,
+        bool runLast = false);
     // Main loop: applies finished jobs, reports errors, animates progress.
     void serviceTasks();
     // Status bar text for the current job (or LSP work), padded to
@@ -1108,23 +1152,29 @@ public:
     void noteTaskStatusSlot(int row, int col);
     // Bottom status + message rows for views that draw their own screen;
     // hosts the task progress exactly like the editor status bar.
-    void appendViewStatusBar(std::string& output,
-                             widgets::ViewStatusBarView view);
+    void appendViewStatusBar(
+        std::string& output,
+        widgets::ViewStatusBarView view);
     // Status line for views with their own layout ("left ... right"):
     // writes theme colours, fits `left`, puts task progress before `right`
     // and records its slot. `row` is the screen row the line is drawn on.
-    void appendStatusLine(std::string& output, std::string left,
-                          const std::string& right, int row = -1);
+    void appendStatusLine(
+        std::string& output,
+        std::string left,
+        const std::string& right,
+        int row = -1);
     void beginTaskStatusFrame();
     void finishTaskStatusFrame();
     void attachLspWaitHook(LspClient& client);
     // Called by run(): routes blocking process I/O on the UI thread through
     // runTask and lets waits pump the terminal. Off in tests/batch use.
     void enableInteractiveTasks();
+
     void markFirstFrameDrawn()
     {
         firstFrameDrawn_ = true;
     }
+
     // All LSP clients that currently run, for progress display.
     std::vector<std::pair<std::string, LspClient*>> activeLspClients() const;
     bool noteDoubleEscStatusClear();
@@ -1197,8 +1247,9 @@ public:
     void drawCommandPopup(std::string& output) const;
     void drawCommandHistoryPopup(std::string& output) const;
     std::vector<std::string> getCommandCompletions(std::string_view prefix);
-    std::vector<std::string> getCommandCompletions(std::string_view prefix,
-                                                   Mode mode);
+    std::vector<std::string> getCommandCompletions(
+        std::string_view prefix,
+        Mode mode);
     std::vector<std::string> getHelpCompletions(std::string_view prefix);
     std::vector<std::string> getPathCompletions(std::string_view path);
     std::vector<std::string> getPathCompletionsRecursive(std::string_view path);
@@ -1223,16 +1274,23 @@ public:
     bool formatBuffer();
     void pythonLintBuffer();
 
-    std::vector<Token> tokenizeLine(const std::string& line,
-                                    bool& inBlockComment, bool& inTomlMultiline,
-                                    char& tomlQuote, bool& inMarkupFence,
-                                    char& markupFenceChar,
-                                    bool inCppMethodContext = false,
-                                    bool inCppFunctionContext = false,
-                                    bool inCppParamListContext = false) const;
+    std::vector<Token> tokenizeLine(
+        const std::string& line,
+        bool& inBlockComment,
+        bool& inTomlMultiline,
+        char& tomlQuote,
+        bool& inMarkupFence,
+        char& markupFenceChar,
+        bool inCppMethodContext = false,
+        bool inCppFunctionContext = false,
+        bool inCppParamListContext = false) const;
     std::string getColorCode(TokenType type) const;
-    void renderLineWithSyntax(std::string& output, const std::string& line,
-                              int start, int len, int fileRow);
+    void renderLineWithSyntax(
+        std::string& output,
+        const std::string& line,
+        int start,
+        int len,
+        int fileRow);
     void ensureMlangTokensLoaded() const;
     std::optional<TokenType> lookupMlangTokenType(std::string_view word) const;
 
@@ -1274,11 +1332,13 @@ private:
         bool valid = false;
         bool hidden = false;
     };
+
     TaskStatusSlot taskStatusSlot_;
     bool taskStatusShown_ = false;
     bool taskStatusOverlay_ = false;
     TaskQueue::TaskId foregroundTask_ = 0;
     bool tasksInteractive_ = false;
+
     // Geometry the picker background was last painted for (valid=false
     // forces a repaint).
     struct PickerBackground
@@ -1291,6 +1351,7 @@ private:
         int boxRows = 0;
         int boxCols = 0;
     } pickerBackground_;
+
     bool pickerBackgroundAdopted_ = false;
     // While set, isFileType() answers for this mask instead of the current
     // buffer (used to tokenize preview files).
@@ -1298,11 +1359,13 @@ private:
     std::string lastLineJumpMessage_;
     bool skipNextScreenClear_ = false;
     void runNextStartupStep();
+
     struct StartupStep
     {
         std::string label;
         std::function<void()> run;
     };
+
     std::deque<StartupStep> startupSteps_;
     std::deque<StartupStep> lateStartupSteps_;
     int startupStepsTotal_ = 0;
@@ -1341,33 +1404,51 @@ private:
     Editor(TestTag tag, int rows, int cols);
 #endif
     bool formatBufferForSave();
-    void enableClangdLspImpl(bool enable, const std::string& compileCommandsDir,
-                             const std::string& clangdPath,
-                             const std::string& queryDriverAllowList);
+    void enableClangdLspImpl(
+        bool enable,
+        const std::string& compileCommandsDir,
+        const std::string& clangdPath,
+        const std::string& queryDriverAllowList);
     bool isClangdLspEnabledImpl() const;
-    void enableRobotLspImpl(bool enable, const std::string& robotLspPath,
-                            const std::vector<std::string>& robotLspArgs);
+    void enableRobotLspImpl(
+        bool enable,
+        const std::string& robotLspPath,
+        const std::vector<std::string>& robotLspArgs);
     bool isRobotLspEnabledImpl() const;
-    void enablePythonLspImpl(bool enable, const std::string& pythonLspPath,
-                             const std::vector<std::string>& pythonLspArgs);
+    void enablePythonLspImpl(
+        bool enable,
+        const std::string& pythonLspPath,
+        const std::vector<std::string>& pythonLspArgs);
     bool isPythonLspEnabledImpl() const;
-    void enableMlangLspImpl(bool enable, const std::string& mlangLspPath,
-                            const std::vector<std::string>& mlangLspArgs);
+    void enableMlangLspImpl(
+        bool enable,
+        const std::string& mlangLspPath,
+        const std::vector<std::string>& mlangLspArgs);
     bool isMlangLspEnabledImpl() const;
-    void enableHtmlLspImpl(bool enable, const std::string& htmlLspPath,
-                           const std::vector<std::string>& htmlLspArgs);
+    void enableHtmlLspImpl(
+        bool enable,
+        const std::string& htmlLspPath,
+        const std::vector<std::string>& htmlLspArgs);
     bool isHtmlLspEnabledImpl() const;
-    void enableCssLspImpl(bool enable, const std::string& cssLspPath,
-                          const std::vector<std::string>& cssLspArgs);
+    void enableCssLspImpl(
+        bool enable,
+        const std::string& cssLspPath,
+        const std::vector<std::string>& cssLspArgs);
     bool isCssLspEnabledImpl() const;
-    void enableJsonLspImpl(bool enable, const std::string& jsonLspPath,
-                           const std::vector<std::string>& jsonLspArgs);
+    void enableJsonLspImpl(
+        bool enable,
+        const std::string& jsonLspPath,
+        const std::vector<std::string>& jsonLspArgs);
     bool isJsonLspEnabledImpl() const;
-    void enableTsLspImpl(bool enable, const std::string& tsLspPath,
-                         const std::vector<std::string>& tsLspArgs);
+    void enableTsLspImpl(
+        bool enable,
+        const std::string& tsLspPath,
+        const std::vector<std::string>& tsLspArgs);
     bool isTsLspEnabledImpl() const;
-    void enableCSharpLspImpl(bool enable, const std::string& csharpLspPath,
-                             const std::vector<std::string>& csharpLspArgs);
+    void enableCSharpLspImpl(
+        bool enable,
+        const std::string& csharpLspPath,
+        const std::vector<std::string>& csharpLspArgs);
     bool isCSharpLspEnabledImpl() const;
     bool handleSetCommandImpl(std::string_view cmd);
     void createNewBufferImpl();
@@ -1403,13 +1484,14 @@ private:
     void drawCommandPopupImpl(std::string& output) const;
     void drawCommandHistoryPopupImpl(std::string& output) const;
     std::vector<std::string> getCommandCompletionsImpl(std::string_view prefix);
-    std::vector<std::string> getCommandCompletionsImpl(std::string_view prefix,
-                                                       Mode mode);
+    std::vector<std::string> getCommandCompletionsImpl(
+        std::string_view prefix,
+        Mode mode);
     std::vector<std::string> getHelpCompletionsImpl(std::string_view prefix);
     std::vector<std::string> getSetCompletionsImpl(std::string_view prefix);
     std::vector<std::string> getPathCompletionsImpl(std::string_view path);
-    std::vector<std::string>
-    getPathCompletionsRecursiveImpl(std::string_view path);
+    std::vector<std::string> getPathCompletionsRecursiveImpl(
+        std::string_view path);
     std::vector<std::string> getLocPathCompletionsImpl(std::string_view path);
     void insertTabImpl();
     void toggleCaseImpl();
@@ -1440,10 +1522,19 @@ private:
     void dedentCurrentLineImpl();
     void handleLinewiseOperatorImpl(char op, int count);
     void enterOperatorPendingImpl(char op);
-    bool getTextObjectRangeImpl(char objChar, bool around, int& outStartY,
-                                int& outStartX, int& outEndY, int& outEndX);
-    void applyOperatorToRangeImpl(char op, int startY, int startX, int endY,
-                                  int endX);
+    bool getTextObjectRangeImpl(
+        char objChar,
+        bool around,
+        int& outStartY,
+        int& outStartX,
+        int& outEndY,
+        int& outEndX);
+    void applyOperatorToRangeImpl(
+        char op,
+        int startY,
+        int startX,
+        int endY,
+        int endX);
     std::string toLowerCaseImpl(const std::string& str);
     int getLineIndentImpl(int line);
     void indentLineImpl(int line, int spaces);
@@ -1465,8 +1556,11 @@ private:
     bool isInSelectionImpl(int row, int col);
     bool isInVisualBlockImpl(int row, int col);
     void getSelectionBoundsImpl(int& startY, int& startX, int& endY, int& endX);
-    void getVisualBlockBoundsImpl(int& startY, int& startX, int& endY,
-                                  int& endX);
+    void getVisualBlockBoundsImpl(
+        int& startY,
+        int& startX,
+        int& endY,
+        int& endX);
     void setVisualRangeImpl();
     void swapVisualEndsImpl();
     void swapVisualBlockCornerImpl();
@@ -1505,22 +1599,32 @@ public:
     std::function<bool()> formatOnSaveTestHook;
     void setModeStateMachineForTests(
         std::unique_ptr<editor::statemachine::ModeStateMachine> sm);
-    static std::string
-    testInferTsTypeForIdentifier(const std::vector<std::string>& lines,
-                                 std::string_view ident, int startY);
+    static std::string testInferTsTypeForIdentifier(
+        const std::vector<std::string>& lines,
+        std::string_view ident,
+        int startY);
     static std::string testInferTsTypeFromArrayMethodLine(
-        std::string_view line, std::string_view param,
-        const std::vector<std::string>& lines, int lineNo);
-    static bool testFindTsTypeDefinition(const std::vector<std::string>& lines,
-                                         std::string_view typeName, int& outY,
-                                         int& outX);
-    static bool testFindTsMemberInType(const std::vector<std::string>& lines,
-                                       int typeStartY, std::string_view member,
-                                       int& outY, int& outX);
-    static std::string testResolveJsTsModule(const std::string& fromFile,
-                                             std::string_view module);
-    static std::string testResolveMlangModule(const std::string& fromFile,
-                                              std::string_view modulePath);
+        std::string_view line,
+        std::string_view param,
+        const std::vector<std::string>& lines,
+        int lineNo);
+    static bool testFindTsTypeDefinition(
+        const std::vector<std::string>& lines,
+        std::string_view typeName,
+        int& outY,
+        int& outX);
+    static bool testFindTsMemberInType(
+        const std::vector<std::string>& lines,
+        int typeStartY,
+        std::string_view member,
+        int& outY,
+        int& outX);
+    static std::string testResolveJsTsModule(
+        const std::string& fromFile,
+        std::string_view module);
+    static std::string testResolveMlangModule(
+        const std::string& fromFile,
+        std::string_view modulePath);
     static int testCountLocForFile(const std::string& filepath);
 
 private:

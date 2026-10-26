@@ -39,8 +39,9 @@ static inline std::time_t to_time_t(fs::file_time_type ft)
     return system_clock::to_time_t(sctp);
 }
 
-static inline fs::file_status status_with_policy(const fs::path& p,
-                                                 std::error_code& ec)
+static inline fs::file_status status_with_policy(
+    const fs::path& p,
+    std::error_code& ec)
 {
     if(kLinkPolicy == LinkPolicy::Follow)
         return fs::status(p, ec);     // follows symlinks

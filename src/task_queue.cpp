@@ -184,9 +184,11 @@ void TaskQueue::reapThreads()
         std::lock_guard<std::mutex> lk(mutex_);
         for(const auto& threadId : finishedThreads_)
         {
-            auto it = std::find_if(threads_.begin(), threads_.end(),
-                                   [&](const std::thread& thread)
-                                   { return thread.get_id() == threadId; });
+            auto it = std::find_if(
+                threads_.begin(),
+                threads_.end(),
+                [&](const std::thread& thread)
+                { return thread.get_id() == threadId; });
             if(it == threads_.end())
                 continue;
             finished.push_back(std::move(*it));
@@ -224,15 +226,14 @@ int TaskQueue::pollCompletions()
         Done done;
         {
             std::lock_guard<std::mutex> lk(mutex_);
-            if(entries_.empty() ||
-               entries_.front()->state != State::Finished)
+            if(entries_.empty() || entries_.front()->state != State::Finished)
                 break;
 
             Entry& entry = *entries_.front();
             const bool cancelled = entry.cancelRequested.load();
             if(entry.failed && !entry.waited && !cancelled)
-                errors_.push_back(entry.job.label + ": " +
-                                  describeError(entry.error));
+                errors_.push_back(
+                    entry.job.label + ": " + describeError(entry.error));
             if(!entry.waited)
             {
                 done = (entry.failed || cancelled)
@@ -255,9 +256,10 @@ int TaskQueue::pollCompletions()
     return retired;
 }
 
-TaskQueue::WaitResult TaskQueue::wait(TaskId id,
-                                     const std::function<void()>& pump,
-                                     std::string* error)
+TaskQueue::WaitResult TaskQueue::wait(
+    TaskId id,
+    const std::function<void()>& pump,
+    std::string* error)
 {
     std::unique_lock<std::mutex> lk(mutex_);
     Entry* entry = findLocked(id);
@@ -266,13 +268,14 @@ TaskQueue::WaitResult TaskQueue::wait(TaskId id,
     entry->waited = true;
     while(true)
     {
-        const bool finished =
-            finishedCv_.wait_for(lk, std::chrono::milliseconds(20),
-                                 [&]
-                                 {
-                                     const Entry* e = findLocked(id);
-                                     return !e || e->state == State::Finished;
-                                 });
+        const bool finished = finishedCv_.wait_for(
+            lk,
+            std::chrono::milliseconds(20),
+            [&]
+            {
+                const Entry* e = findLocked(id);
+                return !e || e->state == State::Finished;
+            });
         if(finished)
             break;
         lk.unlock();
@@ -340,8 +343,10 @@ bool TaskQueue::cancel(TaskId id)
 
 bool TaskQueue::moveLocked(TaskId id, int direction)
 {
-    auto it = std::find_if(entries_.begin(), entries_.end(),
-                           [id](const auto& entry) { return entry->id == id; });
+    auto it = std::find_if(
+        entries_.begin(),
+        entries_.end(),
+        [id](const auto& entry) { return entry->id == id; });
     if(it == entries_.end() || (*it)->state != State::Waiting)
         return false;
 
@@ -394,12 +399,14 @@ bool TaskQueue::idle() const
 bool TaskQueue::channelBusy(const std::string& channel) const
 {
     std::lock_guard<std::mutex> lk(mutex_);
-    return std::any_of(entries_.begin(), entries_.end(),
-                       [&](const auto& entry)
-                       {
-                           return entry->state != State::Finished &&
-                                  entry->job.channel == channel;
-                       });
+    return std::any_of(
+        entries_.begin(),
+        entries_.end(),
+        [&](const auto& entry)
+        {
+            return entry->state != State::Finished &&
+                   entry->job.channel == channel;
+        });
 }
 
 std::optional<TaskQueue::Status> TaskQueue::status() const
@@ -440,8 +447,7 @@ std::optional<TaskQueue::Status> TaskQueue::status() const
     status.total = shown->total;
     status.started = shown->started;
     status.batchTotal = batchTotal_;
-    status.position =
-        std::min(batchTotal_, batchRetired_ + finishedInList + 1);
+    status.position = std::min(batchTotal_, batchRetired_ + finishedInList + 1);
     status.running = running_;
     status.waiting = waiting;
     return status;

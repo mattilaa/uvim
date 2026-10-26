@@ -259,8 +259,9 @@ int find_word_pos(std::string_view line, std::string_view word)
     while(text_utils::is_found(pos))
     {
         bool leftOk = (pos == 0 || !std::isalnum((unsigned char)line[pos - 1]));
-        bool rightOk = (pos + word.size() >= line.size() ||
-                        !std::isalnum((unsigned char)line[pos + word.size()]));
+        bool rightOk =
+            (pos + word.size() >= line.size() ||
+             !std::isalnum((unsigned char)line[pos + word.size()]));
         if(leftOk && rightOk)
             return (int)pos;
         pos = line.find(word, pos + word.size());
@@ -284,7 +285,14 @@ bool js_ts_decl_line(std::string_view line, std::string_view symbol, int& outX)
         trimmed = trim_view(trimmed.substr(6));
 
     static constexpr std::string_view kDecls[] = {
-        "function", "class", "interface", "type", "enum", "const", "let", "var",
+        "function",
+        "class",
+        "interface",
+        "type",
+        "enum",
+        "const",
+        "let",
+        "var",
     };
     for(auto kw : kDecls)
     {
@@ -329,8 +337,11 @@ bool js_ts_decl_line(std::string_view line, std::string_view symbol, int& outX)
     return false;
 }
 
-bool find_js_ts_def_in_file(const std::string& path, std::string_view symbol,
-                            int& outY, int& outX)
+bool find_js_ts_def_in_file(
+    const std::string& path,
+    std::string_view symbol,
+    int& outY,
+    int& outX)
 {
     std::ifstream file(path);
     if(!file.is_open())
@@ -352,8 +363,9 @@ bool find_js_ts_def_in_file(const std::string& path, std::string_view symbol,
     return false;
 }
 
-bool load_json_file(const std::filesystem::path& path,
-                    json_utils::Document& doc)
+bool load_json_file(
+    const std::filesystem::path& path,
+    json_utils::Document& doc)
 {
     std::ifstream input(path);
     if(!input.is_open())
@@ -361,8 +373,9 @@ bool load_json_file(const std::filesystem::path& path,
     return json_utils::parse(doc, input);
 }
 
-bool load_tsconfig_paths(const std::filesystem::path& startDir,
-                         TsConfigPaths& out)
+bool load_tsconfig_paths(
+    const std::filesystem::path& startDir,
+    TsConfigPaths& out)
 {
     std::error_code ec;
     std::filesystem::path dir = startDir;
@@ -391,24 +404,28 @@ bool load_tsconfig_paths(const std::filesystem::path& startDir,
                     if(paths && paths->IsObject())
                     {
                         for(auto it = paths->MemberBegin();
-                            it != paths->MemberEnd(); ++it)
+                            it != paths->MemberEnd();
+                            ++it)
                         {
                             if(!it->name.IsString() || !it->value.IsArray())
                                 continue;
-                            std::string key(it->name.GetString(),
-                                            it->name.GetStringLength());
+                            std::string
+                                key(it->name.GetString(),
+                                    it->name.GetStringLength());
                             std::vector<std::string> vals;
                             for(const auto& v : it->value.GetArray())
                             {
                                 if(v.IsString())
                                 {
-                                    vals.emplace_back(v.GetString(),
-                                                      v.GetStringLength());
+                                    vals.emplace_back(
+                                        v.GetString(),
+                                        v.GetStringLength());
                                 }
                             }
                             if(!key.empty() && !vals.empty())
-                                out.paths.emplace_back(std::move(key),
-                                                       std::move(vals));
+                                out.paths.emplace_back(
+                                    std::move(key),
+                                    std::move(vals));
                         }
                     }
                 }
@@ -438,24 +455,28 @@ bool load_tsconfig_paths(const std::filesystem::path& startDir,
                     if(paths && paths->IsObject())
                     {
                         for(auto it = paths->MemberBegin();
-                            it != paths->MemberEnd(); ++it)
+                            it != paths->MemberEnd();
+                            ++it)
                         {
                             if(!it->name.IsString() || !it->value.IsArray())
                                 continue;
-                            std::string key(it->name.GetString(),
-                                            it->name.GetStringLength());
+                            std::string
+                                key(it->name.GetString(),
+                                    it->name.GetStringLength());
                             std::vector<std::string> vals;
                             for(const auto& v : it->value.GetArray())
                             {
                                 if(v.IsString())
                                 {
-                                    vals.emplace_back(v.GetString(),
-                                                      v.GetStringLength());
+                                    vals.emplace_back(
+                                        v.GetString(),
+                                        v.GetStringLength());
                                 }
                             }
                             if(!key.empty() && !vals.empty())
-                                out.paths.emplace_back(std::move(key),
-                                                       std::move(vals));
+                                out.paths.emplace_back(
+                                    std::move(key),
+                                    std::move(vals));
                         }
                     }
                 }
@@ -470,8 +491,9 @@ bool load_tsconfig_paths(const std::filesystem::path& startDir,
     return false;
 }
 
-std::vector<std::string> expand_tsconfig_paths(const TsConfigPaths& cfg,
-                                               std::string_view module)
+std::vector<std::string> expand_tsconfig_paths(
+    const TsConfigPaths& cfg,
+    std::string_view module)
 {
     std::vector<std::string> out;
     for(const auto& entry : cfg.paths)
@@ -488,14 +510,15 @@ std::vector<std::string> expand_tsconfig_paths(const TsConfigPaths& cfg,
             continue;
         }
         std::string_view prefix(pattern.data(), star);
-        std::string_view suffix(pattern.data() + star + 1,
-                                pattern.size() - star - 1);
+        std::string_view
+            suffix(pattern.data() + star + 1, pattern.size() - star - 1);
         if(module.size() < prefix.size() + suffix.size())
             continue;
         if(!module.starts_with(prefix) || !module.ends_with(suffix))
             continue;
         std::string_view captured = module.substr(
-            prefix.size(), module.size() - prefix.size() - suffix.size());
+            prefix.size(),
+            module.size() - prefix.size() - suffix.size());
         for(const auto& target : entry.second)
         {
             size_t tgtStar = target.find('*');
@@ -514,8 +537,9 @@ std::vector<std::string> expand_tsconfig_paths(const TsConfigPaths& cfg,
     return out;
 }
 
-bool extract_js_ts_module_specifier(std::string_view line,
-                                    std::string_view& outSpec)
+bool extract_js_ts_module_specifier(
+    std::string_view line,
+    std::string_view& outSpec)
 {
     std::string_view trimmed = trim_view(line);
     if(!(trimmed.starts_with("import ") || trimmed.starts_with("export ")))
@@ -555,9 +579,10 @@ bool extract_js_ts_module_specifier(std::string_view line,
     return true;
 }
 
-static void
-parse_js_ts_named_imports(std::string_view list, const std::string& module,
-                          std::unordered_map<std::string, std::string>& out)
+static void parse_js_ts_named_imports(
+    std::string_view list,
+    const std::string& module,
+    std::unordered_map<std::string, std::string>& out)
 {
     list = trim_view(list);
     if(list.starts_with("type "))
@@ -614,8 +639,10 @@ void collect_js_ts_imports(
                 size_t end = head.find('}');
                 if(text_utils::is_found(end))
                 {
-                    parse_js_ts_named_imports(head.substr(1, end - 1),
-                                              moduleStr, symbolToModule);
+                    parse_js_ts_named_imports(
+                        head.substr(1, end - 1),
+                        moduleStr,
+                        symbolToModule);
                 }
             }
             else if(head.starts_with("*"))
@@ -642,9 +669,10 @@ void collect_js_ts_imports(
                         size_t end = rest.find('}');
                         if(text_utils::is_found(end))
                         {
-                            parse_js_ts_named_imports(rest.substr(1, end - 1),
-                                                      moduleStr,
-                                                      symbolToModule);
+                            parse_js_ts_named_imports(
+                                rest.substr(1, end - 1),
+                                moduleStr,
+                                symbolToModule);
                         }
                     }
                     else if(rest.starts_with("*"))
@@ -655,8 +683,8 @@ void collect_js_ts_imports(
                             std::string_view name =
                                 trim_view(rest.substr(asPos + 4));
                             if(!name.empty())
-                                symbolToModule.emplace(std::string(name),
-                                                       moduleStr);
+                                symbolToModule
+                                    .emplace(std::string(name), moduleStr);
                         }
                     }
                 }
@@ -675,16 +703,19 @@ void collect_js_ts_imports(
                 size_t end = head.find('}');
                 if(text_utils::is_found(end))
                 {
-                    parse_js_ts_named_imports(head.substr(1, end - 1),
-                                              moduleStr, symbolToModule);
+                    parse_js_ts_named_imports(
+                        head.substr(1, end - 1),
+                        moduleStr,
+                        symbolToModule);
                 }
             }
         }
     }
 }
 
-std::string resolve_js_ts_from_dir(const std::filesystem::path& baseDir,
-                                   std::string_view module)
+std::string resolve_js_ts_from_dir(
+    const std::filesystem::path& baseDir,
+    std::string_view module)
 {
     std::string spec(module);
     if(!spec.empty() && spec.front() != '.' && spec.front() != '/')
@@ -693,8 +724,9 @@ std::string resolve_js_ts_from_dir(const std::filesystem::path& baseDir,
     return resolve_js_ts_module_path(dummy.string(), spec);
 }
 
-std::string resolve_node_module(const std::string& fromFile,
-                                std::string_view module)
+std::string resolve_node_module(
+    const std::string& fromFile,
+    std::string_view module)
 {
     std::string moduleStr(module);
     if(moduleStr.empty())
@@ -802,8 +834,9 @@ std::string resolve_node_module(const std::string& fromFile,
     return {};
 }
 
-std::string resolve_js_ts_module(const std::string& fromFile,
-                                 std::string_view module)
+std::string resolve_js_ts_module(
+    const std::string& fromFile,
+    std::string_view module)
 {
     if(module.empty())
         return {};
@@ -841,8 +874,9 @@ std::string resolve_js_ts_module(const std::string& fromFile,
     return resolve_node_module(fromFile, module);
 }
 
-std::string resolve_js_ts_module_path(const std::string& fromFile,
-                                      std::string_view module)
+std::string resolve_js_ts_module_path(
+    const std::string& fromFile,
+    std::string_view module)
 {
     if(module.empty())
         return {};
@@ -867,7 +901,14 @@ std::string resolve_js_ts_module_path(const std::string& fromFile,
         return found;
 
     static constexpr std::string_view kExts[] = {
-        ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".d.ts", ".json",
+        ".ts",
+        ".tsx",
+        ".js",
+        ".jsx",
+        ".mjs",
+        ".cjs",
+        ".d.ts",
+        ".json",
     };
 
     if(!candidate.has_extension())
@@ -941,8 +982,10 @@ std::string parse_ts_type_name(std::string_view text)
     return std::string(head);
 }
 
-std::string find_ts_type_for_identifier(const std::vector<std::string>& lines,
-                                        std::string_view ident, int startY)
+std::string find_ts_type_for_identifier(
+    const std::vector<std::string>& lines,
+    std::string_view ident,
+    int startY)
 {
     for(int y = startY; y >= 0; --y)
     {
@@ -980,11 +1023,18 @@ std::string find_ts_type_for_identifier(const std::vector<std::string>& lines,
 }
 
 std::string infer_ts_type_from_array_method_line(
-    std::string_view line, std::string_view param,
-    const std::vector<std::string>& lines, int lineNo)
+    std::string_view line,
+    std::string_view param,
+    const std::vector<std::string>& lines,
+    int lineNo)
 {
     static constexpr std::string_view kMethods[] = {
-        "find", "map", "filter", "some", "every", "reduce",
+        "find",
+        "map",
+        "filter",
+        "some",
+        "every",
+        "reduce",
     };
 
     for(auto method : kMethods)
@@ -1048,8 +1098,11 @@ std::string infer_ts_type_from_array_method_line(
     return {};
 }
 
-bool find_ts_type_definition(const std::vector<std::string>& lines,
-                             std::string_view typeName, int& outY, int& outX)
+bool find_ts_type_definition(
+    const std::vector<std::string>& lines,
+    std::string_view typeName,
+    int& outY,
+    int& outX)
 {
     static constexpr std::string_view kDecls[] = {"type", "interface", "class"};
     for(size_t y = 0; y < lines.size(); ++y)
@@ -1091,9 +1144,12 @@ bool find_ts_type_definition(const std::vector<std::string>& lines,
     return false;
 }
 
-bool find_ts_member_in_type(const std::vector<std::string>& lines,
-                            int typeStartY, std::string_view member, int& outY,
-                            int& outX)
+bool find_ts_member_in_type(
+    const std::vector<std::string>& lines,
+    int typeStartY,
+    std::string_view member,
+    int& outY,
+    int& outX)
 {
     int depth = 0;
     bool sawOpen = false;
@@ -1147,8 +1203,10 @@ bool find_ts_member_in_type(const std::vector<std::string>& lines,
     return false;
 }
 
-bool html_path_under_cursor(std::string_view line, int cursorX,
-                            std::string_view& outPath)
+bool html_path_under_cursor(
+    std::string_view line,
+    int cursorX,
+    std::string_view& outPath)
 {
     std::string_view trimmed = trim_view(line);
     if(trimmed.empty() || trimmed[0] != '<')
@@ -1186,8 +1244,8 @@ bool html_path_under_cursor(std::string_view line, int cursorX,
     return false;
 }
 
-std::vector<std::string>
-extract_html_stylesheets(const std::vector<std::string>& lines)
+std::vector<std::string> extract_html_stylesheets(
+    const std::vector<std::string>& lines)
 {
     std::vector<std::string> out;
     for(const auto& line : lines)
@@ -1217,8 +1275,11 @@ extract_html_stylesheets(const std::vector<std::string>& lines)
     return out;
 }
 
-bool find_css_selector_in_file(const std::string& path,
-                               std::string_view selector, int& outY, int& outX)
+bool find_css_selector_in_file(
+    const std::string& path,
+    std::string_view selector,
+    int& outY,
+    int& outX)
 {
     std::ifstream file(path);
     if(!file.is_open())
@@ -1240,8 +1301,10 @@ bool find_css_selector_in_file(const std::string& path,
     return false;
 }
 
-bool css_import_path_under_cursor(std::string_view line, int cursorX,
-                                  std::string_view& outPath)
+bool css_import_path_under_cursor(
+    std::string_view line,
+    int cursorX,
+    std::string_view& outPath)
 {
     std::string_view trimmed = trim_view(line);
     if(!trimmed.starts_with("@import"))
@@ -1263,8 +1326,11 @@ bool css_import_path_under_cursor(std::string_view line, int cursorX,
     return false;
 }
 
-bool find_robot_keyword_in_file(const std::string& path,
-                                std::string_view keyword, int& outY, int& outX)
+bool find_robot_keyword_in_file(
+    const std::string& path,
+    std::string_view keyword,
+    int& outY,
+    int& outX)
 {
     std::ifstream file(path);
     if(!file.is_open())
@@ -1297,8 +1363,11 @@ bool find_robot_keyword_in_file(const std::string& path,
     return false;
 }
 
-bool find_python_def_in_file(const std::string& path, std::string_view symbol,
-                             int& outY, int& outX)
+bool find_python_def_in_file(
+    const std::string& path,
+    std::string_view symbol,
+    int& outY,
+    int& outX)
 {
     std::ifstream file(path);
     if(!file.is_open())
@@ -1369,12 +1438,12 @@ bool locIsTextFile(const std::string& filepath)
     if(text_utils::is_found(dotPos))
     {
         ext = filepath.substr(dotPos);
-        bool isPythonExt =
-            constants::is_filetype<constants::no_pattern,
-                                   constants::python_suffixes>(filepath);
-        bool isMlaExt =
-            constants::is_filetype<constants::no_pattern,
-                                   constants::mla_suffixes>(filepath);
+        bool isPythonExt = constants::is_filetype<
+            constants::no_pattern,
+            constants::python_suffixes>(filepath);
+        bool isMlaExt = constants::is_filetype<
+            constants::no_pattern,
+            constants::mla_suffixes>(filepath);
 
         if(ext == ".txt" || ext == ".cpp" || ext == ".c" || ext == ".h" ||
            ext == ".hpp" || isPythonExt || ext == ".js" || ext == ".ts" ||
@@ -1448,14 +1517,18 @@ LocCommentRules locCommentRulesForPath(std::string_view path)
     bool isGo =
         constants::is_filetype<constants::no_pattern, constants::go_suffixes>(
             path);
-    bool isJs = constants::is_filetype<constants::no_pattern,
-                                       constants::javascript_suffixes>(path);
-    bool isTs = constants::is_filetype<constants::no_pattern,
-                                       constants::typescript_suffixes>(path);
-    bool isCs = constants::is_filetype<constants::no_pattern,
-                                       constants::csharp_suffixes>(path);
+    bool isJs = constants::is_filetype<
+        constants::no_pattern,
+        constants::javascript_suffixes>(path);
+    bool isTs = constants::is_filetype<
+        constants::no_pattern,
+        constants::typescript_suffixes>(path);
+    bool isCs = constants::is_filetype<
+        constants::no_pattern,
+        constants::csharp_suffixes>(path);
     bool isPowerShell = constants::is_filetype<
-        constants::no_pattern, constants::powershell_suffixes>(path);
+        constants::no_pattern,
+        constants::powershell_suffixes>(path);
     bool isCss =
         constants::is_filetype<constants::no_pattern, constants::css_suffixes>(
             path);
@@ -1465,25 +1538,30 @@ LocCommentRules locCommentRulesForPath(std::string_view path)
     bool isXml =
         constants::is_filetype<constants::no_pattern, constants::xml_suffixes>(
             path);
-    bool isPython = constants::is_filetype<constants::no_pattern,
-                                           constants::python_suffixes>(path);
-    bool isRobot = constants::is_filetype<constants::no_pattern,
-                                          constants::robot_suffixes>(path);
+    bool isPython = constants::is_filetype<
+        constants::no_pattern,
+        constants::python_suffixes>(path);
+    bool isRobot = constants::is_filetype<
+        constants::no_pattern,
+        constants::robot_suffixes>(path);
     bool isYaml =
         constants::is_filetype<constants::no_pattern, constants::yaml_suffixes>(
             path);
     bool isToml =
         constants::is_filetype<constants::no_pattern, constants::toml_suffixes>(
             path);
-    bool isCMake = constants::is_filetype<constants::cmake_prefixes,
-                                          constants::cmake_suffixes>(path);
-    bool isShell = constants::is_filetype<constants::no_pattern,
-                                          constants::shell_suffixes>(path);
-    bool isMarkup =
-        constants::is_filetype<constants::no_pattern,
-                               constants::markup_text_suffixes>(path);
-    bool isIni = (extLower == ".ini" || extLower == ".conf" ||
-                  extLower == ".config" || extLower == ".cfg");
+    bool isCMake = constants::is_filetype<
+        constants::cmake_prefixes,
+        constants::cmake_suffixes>(path);
+    bool isShell = constants::is_filetype<
+        constants::no_pattern,
+        constants::shell_suffixes>(path);
+    bool isMarkup = constants::is_filetype<
+        constants::no_pattern,
+        constants::markup_text_suffixes>(path);
+    bool isIni =
+        (extLower == ".ini" || extLower == ".conf" || extLower == ".config" ||
+         extLower == ".cfg");
 
     if(isCpp || isMla || isRust || isGo || isJs || isTs || isCs)
     {
@@ -1583,8 +1661,9 @@ int locCountInFile(const std::string& filepath, const LocCommentRules& rules)
                 break;
             }
 
-            if(rules.hasBlock && view.compare(pos, rules.blockStart.size(),
-                                              rules.blockStart) == 0)
+            if(rules.hasBlock &&
+               view.compare(pos, rules.blockStart.size(), rules.blockStart) ==
+                   0)
             {
                 size_t end =
                     view.find(rules.blockEnd, pos + rules.blockStart.size());
@@ -1609,8 +1688,9 @@ int locCountInFile(const std::string& filepath, const LocCommentRules& rules)
     return count;
 }
 
-int locCountInLines(const std::vector<std::string>& lines,
-                    const LocCommentRules& rules)
+int locCountInLines(
+    const std::vector<std::string>& lines,
+    const LocCommentRules& rules)
 {
     int count = 0;
     bool inBlock = false;
@@ -1654,8 +1734,9 @@ int locCountInLines(const std::vector<std::string>& lines,
                 break;
             }
 
-            if(rules.hasBlock && view.compare(pos, rules.blockStart.size(),
-                                              rules.blockStart) == 0)
+            if(rules.hasBlock &&
+               view.compare(pos, rules.blockStart.size(), rules.blockStart) ==
+                   0)
             {
                 size_t end =
                     view.find(rules.blockEnd, pos + rules.blockStart.size());
@@ -1680,9 +1761,12 @@ int locCountInLines(const std::vector<std::string>& lines,
     return count;
 }
 
-void collectLocFiles(const std::string& dir, int depth,
-                     const GitIgnore& gitignore, std::vector<std::string>& out,
-                     const std::function<bool()>& cancelled)
+void collectLocFiles(
+    const std::string& dir,
+    int depth,
+    const GitIgnore& gitignore,
+    std::vector<std::string>& out,
+    const std::function<bool()>& cancelled)
 {
     if(depth > 10 || (cancelled && cancelled()))
         return;
@@ -1715,10 +1799,12 @@ void collectLocFiles(const std::string& dir, int depth,
     }
 }
 
-void collectProjectFileEntries(const std::string& dir, int depth,
-                               const GitIgnore& gitignore,
-                               std::vector<FileEntry>& out,
-                               const std::function<bool()>& cancelled)
+void collectProjectFileEntries(
+    const std::string& dir,
+    int depth,
+    const GitIgnore& gitignore,
+    std::vector<FileEntry>& out,
+    const std::function<bool()>& cancelled)
 {
     if(depth > 10 || (cancelled && cancelled()))
         return;
@@ -1784,8 +1870,12 @@ void collectProjectFileEntries(const std::string& dir, int depth,
         out.push_back(fileEntry);
 
         if(isDir)
-            collectProjectFileEntries(fullPath, depth + 1, gitignore, out,
-                                      cancelled);
+            collectProjectFileEntries(
+                fullPath,
+                depth + 1,
+                gitignore,
+                out,
+                cancelled);
     }
 }
 
@@ -1837,9 +1927,10 @@ RegexQueryCache& compiledRegexQuery(std::string_view pattern)
         cache.error.clear();
         try
         {
-            cache.expression.emplace(cache.pattern, std::regex::ECMAScript |
-                                                        std::regex::icase |
-                                                        std::regex::optimize);
+            cache.expression.emplace(
+                cache.pattern,
+                std::regex::ECMAScript | std::regex::icase |
+                    std::regex::optimize);
         }
         catch(const std::regex_error& error)
         {
@@ -1861,9 +1952,10 @@ std::string regexQueryError(std::string_view query)
     return pattern ? compiledRegexQuery(*pattern).error : std::string{};
 }
 
-std::optional<int> regexQueryScore(std::string_view query,
-                                   std::string_view text,
-                                   std::vector<int>* positions)
+std::optional<int> regexQueryScore(
+    std::string_view query,
+    std::string_view text,
+    std::vector<int>* positions)
 {
     const auto pattern = regexQueryPattern(query);
     if(!pattern)
@@ -1876,8 +1968,11 @@ std::optional<int> regexQueryScore(std::string_view query,
     std::match_results<std::string_view::const_iterator> match;
     try
     {
-        if(!std::regex_search(text.begin(), text.end(), match,
-                              *cache.expression))
+        if(!std::regex_search(
+               text.begin(),
+               text.end(),
+               match,
+               *cache.expression))
             return -1;
     }
     catch(const std::regex_error& error)
@@ -1902,8 +1997,10 @@ int fuzzyScore(const std::string& text, const std::string& query)
 
 namespace
 {
-int outOfOrderFuzzyScore(std::string_view query, std::string_view text,
-                         std::vector<int>* positions)
+int outOfOrderFuzzyScore(
+    std::string_view query,
+    std::string_view text,
+    std::vector<int>* positions)
 {
     if(positions)
         positions->clear();
@@ -1947,12 +2044,13 @@ int outOfOrderFuzzyScore(std::string_view query, std::string_view text,
                 left == 0 || text[left - 1] == '/' || text[left - 1] == '\\' ||
                 text[left - 1] == '_' || text[left - 1] == '-' ||
                 text[left - 1] == '.' || text[left - 1] == ' ';
-            const int score =
-                std::max(1, 800 + (boundary ? 100 : 0) -
-                                static_cast<int>(std::min<size_t>(
-                                    width - query.size(), 50)) *
-                                    12 -
-                                static_cast<int>(std::min<size_t>(left, 200)));
+            const int score = std::max(
+                1,
+                800 + (boundary ? 100 : 0) -
+                    static_cast<int>(
+                        std::min<size_t>(width - query.size(), 50)) *
+                        12 -
+                    static_cast<int>(std::min<size_t>(left, 200)));
             if(score > bestScore)
             {
                 bestScore = score;
@@ -1979,8 +2077,10 @@ int outOfOrderFuzzyScore(std::string_view query, std::string_view text,
 }
 } // namespace
 
-int fuzzyMatchScore(std::string_view query, std::string_view haystack,
-                    std::vector<int>* matchPositions)
+int fuzzyMatchScore(
+    std::string_view query,
+    std::string_view haystack,
+    std::vector<int>* matchPositions)
 {
     if(matchPositions)
         matchPositions->clear();
@@ -2030,7 +2130,8 @@ int fuzzyMatchScore(std::string_view query, std::string_view haystack,
                 }
             }
 
-            if(i > 0 && std::islower(static_cast<unsigned char>(haystack[i - 1])) &&
+            if(i > 0 &&
+               std::islower(static_cast<unsigned char>(haystack[i - 1])) &&
                std::isupper(static_cast<unsigned char>(haystack[i])))
             {
                 score += camelBonus;
@@ -2059,9 +2160,9 @@ int fuzzyMatchScore(std::string_view query, std::string_view haystack,
     return 10000 + std::max(0, score);
 }
 
-std::vector<std::string>
-fuzzyCompletions(const std::vector<std::string>& candidates,
-                 std::string_view query)
+std::vector<std::string> fuzzyCompletions(
+    const std::vector<std::string>& candidates,
+    std::string_view query)
 {
     std::vector<std::pair<int, size_t>> scored;
     scored.reserve(candidates.size());
@@ -2071,9 +2172,10 @@ fuzzyCompletions(const std::vector<std::string>& candidates,
         if(score >= 0)
             scored.emplace_back(score, i);
     }
-    std::stable_sort(scored.begin(), scored.end(),
-                     [](const auto& a, const auto& b)
-                     { return a.first > b.first; });
+    std::stable_sort(
+        scored.begin(),
+        scored.end(),
+        [](const auto& a, const auto& b) { return a.first > b.first; });
     std::vector<std::string> matches;
     matches.reserve(scored.size());
     for(const auto& [score, index] : scored)
@@ -2081,9 +2183,10 @@ fuzzyCompletions(const std::vector<std::string>& candidates,
     return matches;
 }
 
-int fuzzyScoreWithPositions(const std::string& query,
-                            const std::string& haystack,
-                            std::vector<int>& matchPositions)
+int fuzzyScoreWithPositions(
+    const std::string& query,
+    const std::string& haystack,
+    std::vector<int>& matchPositions)
 {
     return fuzzyMatchScore(query, haystack, &matchPositions);
 }
@@ -2175,39 +2278,44 @@ std::vector<std::string> getPathCompletions(std::string_view partial)
         }
     }
 
-    std::sort(completions.begin(), completions.end(),
-              [&](const std::string& a, const std::string& b)
-              {
-                  const auto score = [&](const std::string& path)
-                  {
-                      std::string_view name = path;
-                      if(name.ends_with('/'))
-                          name.remove_suffix(1);
-                      const auto slash = name.find_last_of('/');
-                      if(slash != std::string_view::npos)
-                          name.remove_prefix(slash + 1);
-                      return fuzzyMatchScore("fz:" + prefix, name);
-                  };
-                  const int left = score(a), right = score(b);
-                  return left != right ? left > right : a < b;
-              });
+    std::sort(
+        completions.begin(),
+        completions.end(),
+        [&](const std::string& a, const std::string& b)
+        {
+            const auto score = [&](const std::string& path)
+            {
+                std::string_view name = path;
+                if(name.ends_with('/'))
+                    name.remove_suffix(1);
+                const auto slash = name.find_last_of('/');
+                if(slash != std::string_view::npos)
+                    name.remove_prefix(slash + 1);
+                return fuzzyMatchScore("fz:" + prefix, name);
+            };
+            const int left = score(a), right = score(b);
+            return left != right ? left > right : a < b;
+        });
 
     return completions;
 }
 
-static bool completionFuzzyMatch(std::string_view text,
-                                 std::string_view pattern)
+static bool completionFuzzyMatch(
+    std::string_view text,
+    std::string_view pattern)
 {
     // Paths are literal fuzzy queries, even if a component starts with re:.
     return fuzzyMatchScore("fz:" + std::string(pattern), text) >= 0;
 }
 
-static void collectRecursiveCompletion(const std::string& dir,
-                                       const std::string& relBase,
-                                       std::string_view prefix,
-                                       std::vector<std::string>& relMatches,
-                                       int depth, int& budget,
-                                       const GitIgnore* gitignore)
+static void collectRecursiveCompletion(
+    const std::string& dir,
+    const std::string& relBase,
+    std::string_view prefix,
+    std::vector<std::string>& relMatches,
+    int depth,
+    int& budget,
+    const GitIgnore* gitignore)
 {
     if(depth > 8 || budget <= 0)
         return;
@@ -2260,16 +2368,22 @@ static void collectRecursiveCompletion(const std::string& dir,
         if(isDir)
         {
             collectRecursiveCompletion(
-                fullPath, relBase.empty() ? name : relBase + "/" + name, prefix,
-                relMatches, depth + 1, budget, gitignore);
+                fullPath,
+                relBase.empty() ? name : relBase + "/" + name,
+                prefix,
+                relMatches,
+                depth + 1,
+                budget,
+                gitignore);
             if(budget <= 0)
                 break;
         }
     }
 }
 
-std::vector<std::string> getRecursivePathCompletions(std::string_view partial,
-                                                     bool respectGitignore)
+std::vector<std::string> getRecursivePathCompletions(
+    std::string_view partial,
+    bool respectGitignore)
 {
 #ifdef _WIN32
     // Filesystem paths typed or inserted with native separators must use the
@@ -2278,7 +2392,8 @@ std::vector<std::string> getRecursivePathCompletions(std::string_view partial,
     {
         std::string normalized(partial);
         std::replace(normalized.begin(), normalized.end(), '\\', '/');
-        auto matches = getRecursivePathCompletions(normalized, respectGitignore);
+        auto matches =
+            getRecursivePathCompletions(normalized, respectGitignore);
         for(auto& match : matches)
             std::replace(match.begin(), match.end(), '/', '\\');
         return matches;
@@ -2348,15 +2463,22 @@ std::vector<std::string> getRecursivePathCompletions(std::string_view partial,
             completions.swap(filtered);
         }
         std::sort(completions.begin(), completions.end());
-        completions.erase(std::unique(completions.begin(), completions.end()),
-                          completions.end());
+        completions.erase(
+            std::unique(completions.begin(), completions.end()),
+            completions.end());
         return completions;
     }
 
     std::vector<std::string> relMatches;
     int budget = 1000;
-    collectRecursiveCompletion(dirPath, "", prefix, relMatches, 0, budget,
-                               respectGitignore ? &gitignore : nullptr);
+    collectRecursiveCompletion(
+        dirPath,
+        "",
+        prefix,
+        relMatches,
+        0,
+        budget,
+        respectGitignore ? &gitignore : nullptr);
 
     if(!relMatches.empty())
     {
@@ -2404,24 +2526,28 @@ std::vector<std::string> getRecursivePathCompletions(std::string_view partial,
         return fuzzyMatchScore("fz:" + prefix, hay);
     };
 
-    std::sort(completions.begin(), completions.end(),
-              [&](const std::string& a, const std::string& b)
-              {
-                  int sa = scorePath(a);
-                  int sb = scorePath(b);
-                  if(sa != sb)
-                      return sa > sb;
-                  if(a.size() != b.size())
-                      return a.size() < b.size();
-                  return a < b;
-              });
-    completions.erase(std::unique(completions.begin(), completions.end()),
-                      completions.end());
+    std::sort(
+        completions.begin(),
+        completions.end(),
+        [&](const std::string& a, const std::string& b)
+        {
+            int sa = scorePath(a);
+            int sb = scorePath(b);
+            if(sa != sb)
+                return sa > sb;
+            if(a.size() != b.size())
+                return a.size() < b.size();
+            return a < b;
+        });
+    completions.erase(
+        std::unique(completions.begin(), completions.end()),
+        completions.end());
     return completions;
 }
 
-std::vector<std::string> getLocPathCompletions(std::string_view partial,
-                                               bool respectGitignore)
+std::vector<std::string> getLocPathCompletions(
+    std::string_view partial,
+    bool respectGitignore)
 {
     return getRecursivePathCompletions(partial, respectGitignore);
 }

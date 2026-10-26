@@ -62,8 +62,8 @@ TEST(RealModeTransitionsTest, VisualPasteReplacesManyWithSameYank)
     Editor editor = Editor::createForTests();
     editor.createNewBuffer();
     editor.useSystemClipboard = false;
-    editor.currentBuffer->lines = {"someWord first", "other line",
-                                   "third row", "fourth row"};
+    editor.currentBuffer
+        ->lines = {"someWord first", "other line", "third row", "fourth row"};
     *editor.cursorX = 0;
     *editor.cursorY = 0;
 
@@ -96,8 +96,8 @@ TEST(RealModeTransitionsTest, VisualInnerWordReplacesOnlyTheWord)
     Editor editor = Editor::createForTests();
     editor.createNewBuffer();
     editor.useSystemClipboard = false;
-    editor.currentBuffer->lines = {"some->blah", "someElse->blah",
-                                   "anotherOne->blah"};
+    editor.currentBuffer
+        ->lines = {"some->blah", "someElse->blah", "anotherOne->blah"};
     *editor.cursorX = 2;
     *editor.cursorY = 0;
 
@@ -181,9 +181,11 @@ TEST(RealModeTransitionsTest, OperatorYankReachesSystemClipboard)
     makeScript("pbpaste", "cat \"$UVIM_TEST_CLIPBOARD\"");
 #else
     // One fake xclip for both directions: "-o" reads, otherwise writes.
-    makeScript("xclip", "for a in \"$@\"; do [ \"$a\" = -o ] && "
-                        "exec cat \"$UVIM_TEST_CLIPBOARD\"; done\n"
-                        "cat > \"$UVIM_TEST_CLIPBOARD\"");
+    makeScript(
+        "xclip",
+        "for a in \"$@\"; do [ \"$a\" = -o ] && "
+        "exec cat \"$UVIM_TEST_CLIPBOARD\"; done\n"
+        "cat > \"$UVIM_TEST_CLIPBOARD\"");
 #endif
 
     const char* oldPath = std::getenv("PATH");
@@ -253,11 +255,12 @@ TEST(RealModeTransitionsTest, NormalPasteRefreshesSystemClipboard)
     auto pasteCmd = binDir / "xclip";
     write_file(pasteCmd, "#!/bin/sh\ncat \"$UVIM_TEST_CLIPBOARD\"\n");
 #endif
-    std::filesystem::permissions(pasteCmd,
-                                 std::filesystem::perms::owner_exec |
-                                     std::filesystem::perms::owner_read |
-                                     std::filesystem::perms::owner_write,
-                                 std::filesystem::perm_options::add);
+    std::filesystem::permissions(
+        pasteCmd,
+        std::filesystem::perms::owner_exec |
+            std::filesystem::perms::owner_read |
+            std::filesystem::perms::owner_write,
+        std::filesystem::perm_options::add);
 
     const char* oldPath = std::getenv("PATH");
     std::string path = binDir.string();
@@ -302,11 +305,12 @@ TEST(RealModeTransitionsTest, VisualLinePasteUsesSystemClipboard)
     auto pasteCmd = binDir / "xclip";
     write_file(pasteCmd, "#!/bin/sh\ncat \"$UVIM_TEST_CLIPBOARD\"\n");
 #endif
-    std::filesystem::permissions(pasteCmd,
-                                 std::filesystem::perms::owner_exec |
-                                     std::filesystem::perms::owner_read |
-                                     std::filesystem::perms::owner_write,
-                                 std::filesystem::perm_options::add);
+    std::filesystem::permissions(
+        pasteCmd,
+        std::filesystem::perms::owner_exec |
+            std::filesystem::perms::owner_read |
+            std::filesystem::perms::owner_write,
+        std::filesystem::perm_options::add);
 
     const char* oldPath = std::getenv("PATH");
     std::string path = binDir.string();
@@ -354,11 +358,12 @@ TEST(RealModeTransitionsTest, UndoVisualLinePasteRestoresVisualStartCursor)
     auto pasteCmd = binDir / "xclip";
     write_file(pasteCmd, "#!/bin/sh\ncat \"$UVIM_TEST_CLIPBOARD\"\n");
 #endif
-    std::filesystem::permissions(pasteCmd,
-                                 std::filesystem::perms::owner_exec |
-                                     std::filesystem::perms::owner_read |
-                                     std::filesystem::perms::owner_write,
-                                 std::filesystem::perm_options::add);
+    std::filesystem::permissions(
+        pasteCmd,
+        std::filesystem::perms::owner_exec |
+            std::filesystem::perms::owner_read |
+            std::filesystem::perms::owner_write,
+        std::filesystem::perm_options::add);
 
     const char* oldPath = std::getenv("PATH");
     std::string path = binDir.string();
@@ -502,8 +507,9 @@ TEST(RealModeTransitionsTest, FuzzyFindCtrlOTogglesFilenameFirstRanking)
     const size_t filenameOffset =
         state->matches.front().file.path.find("foo_target.txt");
     ASSERT_TRUE(text_utils::is_found(filenameOffset));
-    EXPECT_GE(state->matches.front().matchPositions.front(),
-              (int)filenameOffset);
+    EXPECT_GE(
+        state->matches.front().matchPositions.front(),
+        (int)filenameOffset);
 }
 
 TEST(RealModeTransitionsTest, GrepSearchAcceptsBracketedPaste)
@@ -525,7 +531,8 @@ TEST(RealModeTransitionsTest, GrepSearchAcceptsBracketedPaste)
     EXPECT_EQ(state->query, "needle pasted");
     flushGrepDebounce(*state, editor);
     ASSERT_EQ(state->matches.size(), 1u);
-    EXPECT_TRUE(text_utils::is_found(
-        state->matches.front().filepath.find("match.txt")));
+    EXPECT_TRUE(
+        text_utils::is_found(
+            state->matches.front().filepath.find("match.txt")));
     EXPECT_EQ(state->matches.front().lineNumber, 1);
 }

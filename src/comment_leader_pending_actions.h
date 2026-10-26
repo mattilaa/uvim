@@ -7,18 +7,24 @@ namespace editor::statemachine::commentleader
 bool isEscape(int key);
 bool isEnter(int key);
 
-std::optional<ModeState> applyLineComment(ModeContext& ctx,
-                                          CommentLeaderOrigin origin);
+std::optional<ModeState> applyLineComment(
+    ModeContext& ctx,
+    CommentLeaderOrigin origin);
 void toggleNormalLineComment(ModeContext& ctx);
 
-std::optional<ModeState> applyBlockComment(ModeContext& ctx,
-                                           CommentLeaderOrigin origin);
+std::optional<ModeState> applyBlockComment(
+    ModeContext& ctx,
+    CommentLeaderOrigin origin);
 void toggleNormalBlockComment(ModeContext& ctx);
 
-std::optional<ModeState> applyTodoLineComment(ModeContext& ctx,
-                                              CommentLeaderOrigin origin);
-std::optional<ModeState> applyTodoBlockComment(ModeContext& ctx,
-                                               CommentLeaderOrigin origin);
-std::optional<ModeState>
-replaceNormalAppliedBlockWithTodoComment(ModeContext& ctx, int row, int column);
+std::optional<ModeState> applyTodoLineComment(
+    ModeContext& ctx,
+    CommentLeaderOrigin origin);
+std::optional<ModeState> applyTodoBlockComment(
+    ModeContext& ctx,
+    CommentLeaderOrigin origin);
+std::optional<ModeState> replaceNormalAppliedBlockWithTodoComment(
+    ModeContext& ctx,
+    int row,
+    int column);
 } // namespace editor::statemachine::commentleader

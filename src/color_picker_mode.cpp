@@ -38,21 +38,29 @@ constexpr std::array<ColorEntry, 33> kColors = {{
     {"fg magenta", color::AnsiColor::FgMagenta, color::AnsiColor::BgMagenta},
     {"fg cyan", color::AnsiColor::FgCyan, color::AnsiColor::BgCyan},
     {"fg white", color::AnsiColor::FgWhite, color::AnsiColor::BgWhite},
-    {"fg bright black", color::AnsiColor::FgBrightBlack,
+    {"fg bright black",
+     color::AnsiColor::FgBrightBlack,
      color::AnsiColor::BgBrightBlack},
-    {"fg bright red", color::AnsiColor::FgBrightRed,
+    {"fg bright red",
+     color::AnsiColor::FgBrightRed,
      color::AnsiColor::BgBrightRed},
-    {"fg bright green", color::AnsiColor::FgBrightGreen,
+    {"fg bright green",
+     color::AnsiColor::FgBrightGreen,
      color::AnsiColor::BgBrightGreen},
-    {"fg bright yellow", color::AnsiColor::FgBrightYellow,
+    {"fg bright yellow",
+     color::AnsiColor::FgBrightYellow,
      color::AnsiColor::BgBrightYellow},
-    {"fg bright blue", color::AnsiColor::FgBrightBlue,
+    {"fg bright blue",
+     color::AnsiColor::FgBrightBlue,
      color::AnsiColor::BgBrightBlue},
-    {"fg bright magenta", color::AnsiColor::FgBrightMagenta,
+    {"fg bright magenta",
+     color::AnsiColor::FgBrightMagenta,
      color::AnsiColor::BgBrightMagenta},
-    {"fg bright cyan", color::AnsiColor::FgBrightCyan,
+    {"fg bright cyan",
+     color::AnsiColor::FgBrightCyan,
      color::AnsiColor::BgBrightCyan},
-    {"fg bright white", color::AnsiColor::FgBrightWhite,
+    {"fg bright white",
+     color::AnsiColor::FgBrightWhite,
      color::AnsiColor::BgBrightWhite},
     {"bg black", color::AnsiColor::BgBlack, color::AnsiColor::BgBlack},
     {"bg red", color::AnsiColor::BgRed, color::AnsiColor::BgRed},
@@ -62,21 +70,29 @@ constexpr std::array<ColorEntry, 33> kColors = {{
     {"bg magenta", color::AnsiColor::BgMagenta, color::AnsiColor::BgMagenta},
     {"bg cyan", color::AnsiColor::BgCyan, color::AnsiColor::BgCyan},
     {"bg white", color::AnsiColor::BgWhite, color::AnsiColor::BgWhite},
-    {"bg bright black", color::AnsiColor::BgBrightBlack,
+    {"bg bright black",
+     color::AnsiColor::BgBrightBlack,
      color::AnsiColor::BgBrightBlack},
-    {"bg bright red", color::AnsiColor::BgBrightRed,
+    {"bg bright red",
+     color::AnsiColor::BgBrightRed,
      color::AnsiColor::BgBrightRed},
-    {"bg bright green", color::AnsiColor::BgBrightGreen,
+    {"bg bright green",
+     color::AnsiColor::BgBrightGreen,
      color::AnsiColor::BgBrightGreen},
-    {"bg bright yellow", color::AnsiColor::BgBrightYellow,
+    {"bg bright yellow",
+     color::AnsiColor::BgBrightYellow,
      color::AnsiColor::BgBrightYellow},
-    {"bg bright blue", color::AnsiColor::BgBrightBlue,
+    {"bg bright blue",
+     color::AnsiColor::BgBrightBlue,
      color::AnsiColor::BgBrightBlue},
-    {"bg bright magenta", color::AnsiColor::BgBrightMagenta,
+    {"bg bright magenta",
+     color::AnsiColor::BgBrightMagenta,
      color::AnsiColor::BgBrightMagenta},
-    {"bg bright cyan", color::AnsiColor::BgBrightCyan,
+    {"bg bright cyan",
+     color::AnsiColor::BgBrightCyan,
      color::AnsiColor::BgBrightCyan},
-    {"bg bright white", color::AnsiColor::BgBrightWhite,
+    {"bg bright white",
+     color::AnsiColor::BgBrightWhite,
      color::AnsiColor::BgBrightWhite},
 }};
 
@@ -133,8 +149,12 @@ void appendPadded(std::string& out, std::string_view text, int width)
         out.append(pad, ' ');
 }
 
-void appendCell(std::string& out, const Theme& theme, const ColorEntry& entry,
-                bool selected, int width)
+void appendCell(
+    std::string& out,
+    const Theme& theme,
+    const ColorEntry& entry,
+    bool selected,
+    int width)
 {
     out += selected ? theme.selection() : theme.baseFg();
     out += selected ? "> " : "  ";
@@ -176,8 +196,11 @@ std::string readablePreviewFg(const ColorEntry& entry)
     return color::rgbFg(235, 235, 235);
 }
 
-void appendPreview(std::string& out, const Theme& theme,
-                   const ColorEntry& entry, int innerWidth)
+void appendPreview(
+    std::string& out,
+    const Theme& theme,
+    const ColorEntry& entry,
+    int innerWidth)
 {
     constexpr std::string_view prefix = " preview: ";
     constexpr std::string_view sampleText = "Example Text";
@@ -202,8 +225,10 @@ ModeState exitState(ModeContext& ctx)
     return ctx.hasBuffer() ? ModeState{NormalMode{}} : ModeState{WelcomeMode{}};
 }
 
-bool applyVisualColorRange(Editor& editor, VisualColorRange range,
-                           std::string_view code)
+bool applyVisualColorRange(
+    Editor& editor,
+    VisualColorRange range,
+    std::string_view code)
 {
     if(!editor.lines || editor.lines->empty())
         return false;
@@ -220,8 +245,8 @@ bool applyVisualColorRange(Editor& editor, VisualColorRange range,
 
     const std::string reset = color::literal(color::AnsiColor::Reset);
     (*editor.lines)[range.endY].insert((std::size_t)range.endX, reset);
-    (*editor.lines)[range.startY].insert((std::size_t)range.startX,
-                                         std::string(code));
+    (*editor.lines)[range.startY]
+        .insert((std::size_t)range.startX, std::string(code));
 
     if(editor.cursorY)
         *editor.cursorY = range.startY;
@@ -234,8 +259,9 @@ bool applyVisualColorRange(Editor& editor, VisualColorRange range,
 }
 } // namespace
 
-ColorPickerMode ColorPickerMode::forVisualRange(VisualColorRange range,
-                                                bool useBackground)
+ColorPickerMode ColorPickerMode::forVisualRange(
+    VisualColorRange range,
+    bool useBackground)
 {
     ColorPickerMode mode{useBackground};
     mode.visualTarget = range;
@@ -271,8 +297,9 @@ void ColorPickerMode::clampToVisible(int columns, int visibleRows)
     rowOffset = std::clamp(rowOffset, 0, maxOffset);
 }
 
-std::optional<ModeState> ColorPickerMode::handle(ModeContext& ctx,
-                                                 const ModeKeyEvent& event)
+std::optional<ModeState> ColorPickerMode::handle(
+    ModeContext& ctx,
+    const ModeKeyEvent& event)
 {
     const int c = keyCode(event.key);
     const int width = pickerWidth(ctx.screenCols());
@@ -331,8 +358,10 @@ std::optional<ModeState> ColorPickerMode::handle(ModeContext& ctx,
             const ColorEntry& entry = colorAt(cursor, background);
             if(visualTarget)
             {
-                if(applyVisualColorRange(*ctx.editor, *visualTarget,
-                                         color::literal(entry.code)))
+                if(applyVisualColorRange(
+                       *ctx.editor,
+                       *visualTarget,
+                       color::literal(entry.code)))
                 {
                     ctx.editor->saveState();
                     ctx.setStatusMessage("colored selected text");
@@ -389,17 +418,20 @@ void ColorPickerMode::draw(Editor& editor)
     moveTo(top, left);
     output += editor.theme.uiDim();
     text_utils::appendU8(output, ascii::BOX_ROUNDED_TOP_LEFT);
-    text_utils::appendUtf8Repeat(output, ascii::BOX_LIGHT_HORIZONTAL,
-                                 innerWidth);
+    text_utils::appendUtf8Repeat(
+        output,
+        ascii::BOX_LIGHT_HORIZONTAL,
+        innerWidth);
     text_utils::appendU8(output, ascii::BOX_ROUNDED_TOP_RIGHT);
 
     moveTo(top + 1, left);
     text_utils::appendU8(output, ascii::BOX_LIGHT_VERTICAL);
     output += editor.theme.uiAccent();
     output += Terminal::ESC_BOLD;
-    appendPadded(output,
-                 background ? " ANSI background colors" : " ANSI colors",
-                 innerWidth);
+    appendPadded(
+        output,
+        background ? " ANSI background colors" : " ANSI colors",
+        innerWidth);
     output += editor.theme.uiDim();
     text_utils::appendU8(output, ascii::BOX_LIGHT_VERTICAL);
 
@@ -417,8 +449,12 @@ void ColorPickerMode::draw(Editor& editor)
             const int index = colorRow * columns + col;
             if(index < colorCount(background))
             {
-                appendCell(output, editor.theme, colorAt(index, background),
-                           index == cursor, cellWidth);
+                appendCell(
+                    output,
+                    editor.theme,
+                    colorAt(index, background),
+                    index == cursor,
+                    cellWidth);
             }
             else
             {
@@ -436,8 +472,11 @@ void ColorPickerMode::draw(Editor& editor)
     moveTo(top + height - 3, left);
     output += editor.theme.uiDim();
     text_utils::appendU8(output, ascii::BOX_LIGHT_VERTICAL);
-    appendPreview(output, editor.theme, colorAt(cursor, background),
-                  innerWidth);
+    appendPreview(
+        output,
+        editor.theme,
+        colorAt(cursor, background),
+        innerWidth);
     output += editor.theme.uiDim();
     text_utils::appendU8(output, ascii::BOX_LIGHT_VERTICAL);
 
@@ -446,18 +485,23 @@ void ColorPickerMode::draw(Editor& editor)
     text_utils::appendU8(output, ascii::BOX_LIGHT_VERTICAL);
     output += editor.theme.uiDim();
     char footer[96];
-    std::snprintf(footer, sizeof(footer),
-                  " h/j/k/l move  s RGB adjust  Enter insert  q/Esc cancel  "
-                  "%d/%zu",
-                  cursor + 1, (size_t)colorCount(background));
+    std::snprintf(
+        footer,
+        sizeof(footer),
+        " h/j/k/l move  s RGB adjust  Enter insert  q/Esc cancel  "
+        "%d/%zu",
+        cursor + 1,
+        (size_t)colorCount(background));
     appendPadded(output, footer, innerWidth);
     output += editor.theme.uiDim();
     text_utils::appendU8(output, ascii::BOX_LIGHT_VERTICAL);
 
     moveTo(top + height - 1, left);
     text_utils::appendU8(output, ascii::BOX_ROUNDED_BOTTOM_LEFT);
-    text_utils::appendUtf8Repeat(output, ascii::BOX_LIGHT_HORIZONTAL,
-                                 innerWidth);
+    text_utils::appendUtf8Repeat(
+        output,
+        ascii::BOX_LIGHT_HORIZONTAL,
+        innerWidth);
     text_utils::appendU8(output, ascii::BOX_ROUNDED_BOTTOM_RIGHT);
     output += editor.theme.reset();
 

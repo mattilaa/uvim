@@ -45,19 +45,23 @@ struct AssemblyMode
 
     AssemblyMode() = default;
 
-    explicit AssemblyMode(std::string args,
-                          std::optional<std::pair<int, int>> range = {})
+    explicit AssemblyMode(
+        std::string args,
+        std::optional<std::pair<int, int>> range = {})
         : arguments(std::move(args)), sourceRange(range)
     {
     }
 
     void on_enter(ModeContext& ctx);
     void on_exit(ModeContext& ctx);
-    std::optional<ModeState> handle(ModeContext& ctx,
-                                    const ModeKeyEvent& event);
+    std::optional<ModeState> handle(
+        ModeContext& ctx,
+        const ModeKeyEvent& event);
     void draw(Editor& editor);
-    void processIdle(Editor& editor, std::chrono::steady_clock::time_point now =
-                                         std::chrono::steady_clock::now());
+    void processIdle(
+        Editor& editor,
+        std::chrono::steady_clock::time_point now =
+            std::chrono::steady_clock::now());
 
 private:
     PreviewHighlight highlight;

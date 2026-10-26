@@ -54,8 +54,9 @@ std::string collectingMessage(MlangFormatErrorsSource source)
     return "Collecting diagnostics...";
 }
 
-std::vector<MlangFormatErrorEntry> collectForSource(Editor& editor,
-                                                    MlangFormatErrorsSource source)
+std::vector<MlangFormatErrorEntry> collectForSource(
+    Editor& editor,
+    MlangFormatErrorsSource source)
 {
     switch(source)
     {
@@ -115,8 +116,9 @@ void MlangFormatErrorsMode::on_exit(ModeContext& /* ctx */)
     Terminal::setCursorBlock();
 }
 
-std::optional<ModeState>
-MlangFormatErrorsMode::handle(ModeContext& ctx, const ModeKeyEvent& event)
+std::optional<ModeState> MlangFormatErrorsMode::handle(
+    ModeContext& ctx,
+    const ModeKeyEvent& event)
 {
     Editor* ed = ctx.editor;
     const int c = keyCode(event.key);
@@ -143,13 +145,15 @@ MlangFormatErrorsMode::handle(ModeContext& ctx, const ModeKeyEvent& event)
             {
                 *ed->cursorY =
                     std::clamp(entry.line, 0, (int)ed->lines->size() - 1);
-                *ed->cursorX =
-                    std::clamp(entry.col, 0,
-                               (int)(*ed->lines)[*ed->cursorY].size());
+                *ed->cursorX = std::clamp(
+                    entry.col,
+                    0,
+                    (int)(*ed->lines)[*ed->cursorY].size());
                 ed->adjustViewport();
             }
-            ed->setStatusMessage(jumpPrefix(source) + entry.displayPath + ":" +
-                                 std::to_string(entry.line + 1));
+            ed->setStatusMessage(
+                jumpPrefix(source) + entry.displayPath + ":" +
+                std::to_string(entry.line + 1));
             return NormalMode{};
         }
         return std::nullopt;
@@ -161,28 +165,33 @@ MlangFormatErrorsMode::handle(ModeContext& ctx, const ModeKeyEvent& event)
         cursor = 0;
         offset = 0;
     }
-    else if(c == keyCode(typed::TypedKey::KEY_J) ||
-            c == keyCode(control::ControlKey::CTRL_N) ||
-            c == keyCode(navigation::NavigationKey::ARROW_DOWN))
+    else if(
+        c == keyCode(typed::TypedKey::KEY_J) ||
+        c == keyCode(control::ControlKey::CTRL_N) ||
+        c == keyCode(navigation::NavigationKey::ARROW_DOWN))
     {
         if(cursor < total - 1)
             ++cursor;
     }
-    else if(c == keyCode(typed::TypedKey::KEY_K) ||
-            c == keyCode(control::ControlKey::CTRL_P) ||
-            c == keyCode(navigation::NavigationKey::ARROW_UP))
+    else if(
+        c == keyCode(typed::TypedKey::KEY_K) ||
+        c == keyCode(control::ControlKey::CTRL_P) ||
+        c == keyCode(navigation::NavigationKey::ARROW_UP))
     {
         if(cursor > 0)
             --cursor;
     }
-    else if(c == keyCode(control::ControlKey::CTRL_D) ||
-            c == keyCode(navigation::NavigationKey::PAGE_DOWN))
+    else if(
+        c == keyCode(control::ControlKey::CTRL_D) ||
+        c == keyCode(navigation::NavigationKey::PAGE_DOWN))
     {
-        cursor = std::min(std::max(0, total - 1),
-                          cursor + std::max(1, visibleRows(*ed) / 2));
+        cursor = std::min(
+            std::max(0, total - 1),
+            cursor + std::max(1, visibleRows(*ed) / 2));
     }
-    else if(c == keyCode(control::ControlKey::CTRL_U) ||
-            c == keyCode(navigation::NavigationKey::PAGE_UP))
+    else if(
+        c == keyCode(control::ControlKey::CTRL_U) ||
+        c == keyCode(navigation::NavigationKey::PAGE_UP))
     {
         cursor = std::max(0, cursor - std::max(1, visibleRows(*ed) / 2));
     }
@@ -222,7 +231,8 @@ void MlangFormatErrorsMode::draw(Editor& editor) const
 
     int row = 0;
     const int rows = visibleRows(editor);
-    for(int idx = offset; row < rows && idx < (int)editor.mlangFormatErrors.size();
+    for(int idx = offset;
+        row < rows && idx < (int)editor.mlangFormatErrors.size();
         ++idx, ++row)
     {
         const auto& entry = editor.mlangFormatErrors[idx];

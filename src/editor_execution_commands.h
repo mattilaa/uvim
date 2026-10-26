@@ -211,8 +211,10 @@ public:
     bool execute(Editor& editor, const CommandRequest& request) const override;
 
 private:
-    static bool parse(std::string_view command, bool& listView,
-                      std::string& outPath);
+    static bool parse(
+        std::string_view command,
+        bool& listView,
+        std::string& outPath);
     static bool run(Editor& editor, bool listView, std::string path);
 };
 

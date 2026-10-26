@@ -145,8 +145,9 @@ TEST(RealModeTransitionsTest, EmojiAcceptInNormalModeStaysNormal)
     sm.dispatch(keyCode(control::ControlKey::ENTER));
 
     ASSERT_EQ(editor.currentBuffer->lines.size(), 1u);
-    EXPECT_EQ(editor.currentBuffer->lines[0],
-              std::string("a") + "\xF0\x9F\x98\x80" + "b");
+    EXPECT_EQ(
+        editor.currentBuffer->lines[0],
+        std::string("a") + "\xF0\x9F\x98\x80" + "b");
     EXPECT_EQ(*editor.cursorX, 1);
     EXPECT_STREQ(sm.currentStateName(), "NORMAL");
 }
@@ -225,8 +226,8 @@ TEST(RealModeTransitionsTest, EnterBetweenBracesAlignsClosingBraceWithBlock)
             Editor editor = Editor::createForTests();
             editor.createNewBuffer();
             set_buffer_filename(editor, filename);
-            editor.currentBuffer->lines = {indent +
-                                           "if (something) {  }; // keep"};
+            editor.currentBuffer->lines = {
+                indent + "if (something) {  }; // keep"};
             *editor.cursorX = static_cast<int>(indent.size()) + 16;
             *editor.cursorY = 0;
 
@@ -235,10 +236,12 @@ TEST(RealModeTransitionsTest, EnterBetweenBracesAlignsClosingBraceWithBlock)
             editor.currentBuffer->clangIndentWidth = 2;
             sm.dispatch(keyCode(control::ControlKey::ENTER));
 
-            EXPECT_EQ(editor.currentBuffer->lines,
-                      (std::vector<std::string>{indent + "if (something) {",
-                                                indent + "  ",
-                                                indent + "}; // keep"}));
+            EXPECT_EQ(
+                editor.currentBuffer->lines,
+                (std::vector<std::string>{
+                    indent + "if (something) {",
+                    indent + "  ",
+                    indent + "}; // keep"}));
             EXPECT_EQ(*editor.cursorY, 1);
             EXPECT_EQ(*editor.cursorX, static_cast<int>(indent.size()) + 2);
             EXPECT_STREQ(sm.currentStateName(), "INSERT");
@@ -260,8 +263,9 @@ TEST(RealModeTransitionsTest, EnterExpandsTypedInlineBracePair)
     ASSERT_EQ(editor.currentBuffer->lines[0], "    return {}");
     sm.dispatch(keyCode(control::ControlKey::ENTER));
 
-    EXPECT_EQ(editor.currentBuffer->lines,
-              (std::vector<std::string>{"    return {", "        ", "    }"}));
+    EXPECT_EQ(
+        editor.currentBuffer->lines,
+        (std::vector<std::string>{"    return {", "        ", "    }"}));
     EXPECT_EQ(*editor.cursorY, 1);
     EXPECT_EQ(*editor.cursorX, 8);
 }
@@ -282,8 +286,9 @@ TEST(RealModeTransitionsTest, SplitBracesSettingRestoresPreviousEnterBehavior)
     *editor.cursorY = 0;
     auto sm = makeMachine(editor, InsertMode{});
     sm.dispatch(keyCode(control::ControlKey::ENTER));
-    EXPECT_EQ(editor.currentBuffer->lines,
-              (std::vector<std::string>{"    if (something) {", "        }"}));
+    EXPECT_EQ(
+        editor.currentBuffer->lines,
+        (std::vector<std::string>{"    if (something) {", "        }"}));
     EXPECT_EQ(*editor.cursorX, 8);
 
     ASSERT_TRUE(editor.handleSetCommand("set splitbraces=true"));
@@ -430,21 +435,25 @@ TEST(RealModeTransitionsTest, EnterBetweenSquareBracketsAlignsClosingBracket)
             Editor editor = Editor::createForTests();
             editor.createNewBuffer();
             set_buffer_filename(editor, filename);
-            editor.currentBuffer->lines = {indent + "items = ; // keep",
-                                           "next"};
+            editor.currentBuffer
+                ->lines = {indent + "items = ; // keep", "next"};
             *editor.cursorX = static_cast<int>(indent.size()) + 8;
             *editor.cursorY = 0;
             auto sm = makeMachine(editor, InsertMode{});
             editor.currentBuffer->clangIndentWidthValid = true;
             editor.currentBuffer->clangIndentWidth = 2;
             sm.dispatch('[');
-            ASSERT_EQ(editor.currentBuffer->lines[0],
-                      indent + "items = []; // keep");
+            ASSERT_EQ(
+                editor.currentBuffer->lines[0],
+                indent + "items = []; // keep");
             sm.dispatch(keyCode(control::ControlKey::ENTER));
             EXPECT_EQ(
                 editor.currentBuffer->lines,
-                (std::vector<std::string>{indent + "items = [", indent + "  ",
-                                          indent + "]; // keep", "next"}));
+                (std::vector<std::string>{
+                    indent + "items = [",
+                    indent + "  ",
+                    indent + "]; // keep",
+                    "next"}));
             EXPECT_EQ(*editor.cursorY, 1);
             EXPECT_EQ(*editor.cursorX, static_cast<int>(indent.size()) + 2);
         }
@@ -483,8 +492,9 @@ TEST(RealModeTransitionsTest, SquareBracketSettingsControlPairingAndEnter)
     editor.currentBuffer->lines = {"    items = []"};
     *editor.cursorX = 13;
     sm.dispatch(keyCode(control::ControlKey::ENTER));
-    EXPECT_EQ(editor.currentBuffer->lines,
-              (std::vector<std::string>{"    items = [", "    ]"}));
+    EXPECT_EQ(
+        editor.currentBuffer->lines,
+        (std::vector<std::string>{"    items = [", "    ]"}));
     EXPECT_EQ(*editor.cursorX, 4);
     ASSERT_TRUE(editor.handleSetCommand("set splitbrackets=true"));
     EXPECT_TRUE(editor.splitBrackets);
@@ -508,8 +518,9 @@ TEST(RealModeTransitionsTest, SquareBracketsRespectStringAndMasterPairSettings)
         auto sm = makeMachine(editor, InsertMode{});
         editor.autoBracesInStrings = inStrings;
         sm.dispatch('[');
-        EXPECT_EQ(editor.currentBuffer->lines[0],
-                  inStrings ? "\"[]\"" : "\"[\"");
+        EXPECT_EQ(
+            editor.currentBuffer->lines[0],
+            inStrings ? "\"[]\"" : "\"[\"");
     }
     Editor editor = Editor::createForTests();
     editor.createNewBuffer();
@@ -530,8 +541,9 @@ TEST(RealModeTransitionsTest, EnterIndentsCollectionItemsAfterComma)
         *editor.cursorX = static_cast<int>(prefix.size());
         auto sm = makeMachine(editor, InsertMode{});
         sm.dispatch(keyCode(control::ControlKey::ENTER));
-        EXPECT_EQ(editor.currentBuffer->lines,
-                  (std::vector<std::string>{prefix, "        'b'];"}));
+        EXPECT_EQ(
+            editor.currentBuffer->lines,
+            (std::vector<std::string>{prefix, "        'b'];"}));
         EXPECT_EQ(*editor.cursorX, 8);
     }
 }
@@ -545,17 +557,21 @@ TEST(RealModeTransitionsTest, EnterContinuesListIndentWithoutAccumulatingIt)
     *editor.cursorX = 13;
     auto sm = makeMachine(editor, InsertMode{});
     sm.dispatch(keyCode(control::ControlKey::ENTER));
-    EXPECT_EQ(editor.currentBuffer->lines,
-              (std::vector<std::string>{"    v = ['a',", "        'b', ",
-                                        "        'c'];"}));
+    EXPECT_EQ(
+        editor.currentBuffer->lines,
+        (std::vector<
+            std::string>{"    v = ['a',", "        'b', ", "        'c'];"}));
     EXPECT_EQ(*editor.cursorX, 8);
 }
 
-TEST(RealModeTransitionsTest,
-     ContinuationIndentIgnoresQuotedAndCommentDelimiters)
+TEST(
+    RealModeTransitionsTest,
+    ContinuationIndentIgnoresQuotedAndCommentDelimiters)
 {
     for(const std::string line :
-        {"    text = '[', next", "    text = \"{\", next", "    // [, next",
+        {"    text = '[', next",
+         "    text = \"{\", next",
+         "    // [, next",
          "    /* [ */ next"})
     {
         Editor editor = Editor::createForTests();
@@ -568,8 +584,9 @@ TEST(RealModeTransitionsTest,
     }
 }
 
-TEST(RealModeTransitionsTest,
-     CollectionIndentSettingsControlContinuationAndWidth)
+TEST(
+    RealModeTransitionsTest,
+    CollectionIndentSettingsControlContinuationAndWidth)
 {
     Editor editor = Editor::createForTests();
     editor.createNewBuffer();
@@ -594,13 +611,14 @@ TEST(RealModeTransitionsTest,
     ASSERT_TRUE(editor.handleSetCommand("set continuationindent?"));
 }
 
-TEST(RealModeTransitionsTest,
-     CollectionShortcutReindentsNestedMapAndListAndUndoes)
+TEST(
+    RealModeTransitionsTest,
+    CollectionShortcutReindentsNestedMapAndListAndUndoes)
 {
     Editor editor = Editor::createForTests();
     editor.createNewBuffer();
-    const std::vector<std::string> before = {
-        "    v = {", "'a': [", "'x',", "'y'],", "'b': 2,", "};", "untouched"};
+    const std::vector<std::string> before =
+        {"    v = {", "'a': [", "'x',", "'y'],", "'b': 2,", "};", "untouched"};
     editor.currentBuffer->lines = before;
     editor.saveState();
     *editor.cursorX = 4;
@@ -608,17 +626,23 @@ TEST(RealModeTransitionsTest,
     sm.dispatch(keyCode(control::ControlKey::CTRL_T));
     EXPECT_EQ(
         editor.currentBuffer->lines,
-        (std::vector<std::string>{"    v = {", "        'a': [",
-                                  "            'x',", "            'y'],",
-                                  "        'b': 2,", "    };", "untouched"}));
+        (std::vector<std::string>{
+            "    v = {",
+            "        'a': [",
+            "            'x',",
+            "            'y'],",
+            "        'b': 2,",
+            "    };",
+            "untouched"}));
     EXPECT_STREQ(sm.currentStateName(), "NORMAL");
     EXPECT_TRUE(editor.currentBuffer->lspSyncNeeded);
     editor.undo();
     EXPECT_EQ(editor.currentBuffer->lines, before);
 }
 
-TEST(RealModeTransitionsTest,
-     CollectionShortcutWorksInInsertModeAndCanBeRebound)
+TEST(
+    RealModeTransitionsTest,
+    CollectionShortcutWorksInInsertModeAndCanBeRebound)
 {
     Editor editor = Editor::createForTests();
     editor.createNewBuffer();
@@ -641,27 +665,43 @@ TEST(RealModeTransitionsTest,
     ASSERT_TRUE(editor.handleSetCommand("set collectionindentkey?"));
 }
 
-TEST(RealModeTransitionsTest,
-     CollectionShortcutChoosesInnermostListAndPreservesComments)
+TEST(
+    RealModeTransitionsTest,
+    CollectionShortcutChoosesInnermostListAndPreservesComments)
 {
     Editor editor = Editor::createForTests();
     editor.createNewBuffer();
-    editor.currentBuffer->lines = {
-        "outer = {", "    'a': [", "']', // }", "/* [", " do not indent ]",
-        "*/",        "'x'",        "]",         "}"};
+    editor.currentBuffer->lines =
+        {"outer = {",
+         "    'a': [",
+         "']', // }",
+         "/* [",
+         " do not indent ]",
+         "*/",
+         "'x'",
+         "]",
+         "}"};
     *editor.cursorY = 2;
     *editor.cursorX = 0;
     auto sm = makeMachine(editor, NormalMode{});
     sm.dispatch(keyCode(control::ControlKey::CTRL_T));
-    EXPECT_EQ(editor.currentBuffer->lines,
-              (std::vector<std::string>{"outer = {", "    'a': [",
-                                        "        ']', // }", "        /* [",
-                                        " do not indent ]", "*/", "        'x'",
-                                        "    ]", "}"}));
+    EXPECT_EQ(
+        editor.currentBuffer->lines,
+        (std::vector<std::string>{
+            "outer = {",
+            "    'a': [",
+            "        ']', // }",
+            "        /* [",
+            " do not indent ]",
+            "*/",
+            "        'x'",
+            "    ]",
+            "}"}));
 }
 
-TEST(RealModeTransitionsTest,
-     CollectionShortcutLeavesUnmatchedAndSingleLineListsAlone)
+TEST(
+    RealModeTransitionsTest,
+    CollectionShortcutLeavesUnmatchedAndSingleLineListsAlone)
 {
     for(const std::vector<std::string> before :
         {std::vector<std::string>{"v = ['a', 'b'];"},

@@ -15,10 +15,12 @@ void replaceVisualLineSelection(Editor* ed, std::string pasteBuffer)
 
     const int visualStartY = ed->currentBuffer->visualStartY;
     const int visualStartX = ed->currentBuffer->visualStartX;
-    const int startY = std::min(ed->currentBuffer->visualStartY,
-                                ed->currentBuffer->visualEndY);
-    const int endY = std::max(ed->currentBuffer->visualStartY,
-                              ed->currentBuffer->visualEndY);
+    const int startY = std::min(
+        ed->currentBuffer->visualStartY,
+        ed->currentBuffer->visualEndY);
+    const int endY = std::max(
+        ed->currentBuffer->visualStartY,
+        ed->currentBuffer->visualEndY);
 
     *ed->cursorY = std::clamp(visualStartY, 0, (int)ed->lines->size() - 1);
     *ed->cursorX =
@@ -84,8 +86,9 @@ void VisualLineMode::on_exit(ModeContext& ctx)
     ctx.editor->needsFullRedraw = true;
 }
 
-std::optional<ModeState> VisualLineMode::handle(ModeContext& ctx,
-                                                const ModeKeyEvent& event)
+std::optional<ModeState> VisualLineMode::handle(
+    ModeContext& ctx,
+    const ModeKeyEvent& event)
 {
     const int key = event.key;
     Editor* ed = ctx.editor;
@@ -249,18 +252,24 @@ std::optional<ModeState> VisualLineMode::handle(ModeContext& ctx,
             c == keyCode(control::ControlKey::CTRL_J) ? 1 : -1;
         for(int i = 0; i < count; ++i)
         {
-            const int startLine = std::min(ed->currentBuffer->visualStartY,
-                                           ed->currentBuffer->visualEndY);
-            const int endLine = std::max(ed->currentBuffer->visualStartY,
-                                         ed->currentBuffer->visualEndY);
+            const int startLine = std::min(
+                ed->currentBuffer->visualStartY,
+                ed->currentBuffer->visualEndY);
+            const int endLine = std::max(
+                ed->currentBuffer->visualStartY,
+                ed->currentBuffer->visualEndY);
             if(!ed->moveLineBlock(startLine, endLine, direction))
                 break;
             ed->currentBuffer->visualStartY += direction;
             ed->currentBuffer->visualEndY += direction;
             ed->currentBuffer->visualStartY = std::clamp(
-                ed->currentBuffer->visualStartY, 0, (int)ed->lines->size() - 1);
+                ed->currentBuffer->visualStartY,
+                0,
+                (int)ed->lines->size() - 1);
             ed->currentBuffer->visualEndY = std::clamp(
-                ed->currentBuffer->visualEndY, 0, (int)ed->lines->size() - 1);
+                ed->currentBuffer->visualEndY,
+                0,
+                (int)ed->lines->size() - 1);
         }
         ctx.repeatCount = 0;
         ed->needsFullRedraw = true;
@@ -367,13 +376,16 @@ std::optional<ModeState> VisualLineMode::handle(ModeContext& ctx,
 
     case keyCode(typed::TypedKey::KEY_CAP_J):
     {
-        int startLine = std::min(ed->currentBuffer->visualStartY,
-                                 ed->currentBuffer->visualEndY);
-        int endLine = std::max(ed->currentBuffer->visualStartY,
-                               ed->currentBuffer->visualEndY);
+        int startLine = std::min(
+            ed->currentBuffer->visualStartY,
+            ed->currentBuffer->visualEndY);
+        int endLine = std::max(
+            ed->currentBuffer->visualStartY,
+            ed->currentBuffer->visualEndY);
         ctx.cursorY() = startLine;
         for(int i = startLine;
-            i < endLine && ctx.cursorY() < (int)ctx.lines().size() - 1; i++)
+            i < endLine && ctx.cursorY() < (int)ctx.lines().size() - 1;
+            i++)
         {
             ed->joinLines();
         }

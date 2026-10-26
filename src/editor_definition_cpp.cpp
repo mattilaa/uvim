@@ -25,8 +25,10 @@ bool EditorDefinitionController::goToCppDefinition(const std::string& symbol)
                editor.currentBuffer->lspSyncNeeded || *editor.dirty ||
                currentHash != editor.currentBuffer->lspContentHash)
             {
-                editor.lspClient->didChange(editor.currentBuffer->filename,
-                                            bufferText(), "cpp");
+                editor.lspClient->didChange(
+                    editor.currentBuffer->filename,
+                    bufferText(),
+                    "cpp");
                 editor.currentBuffer->lspContentHash = currentHash;
                 editor.currentBuffer->lspHashValid = true;
                 editor.currentBuffer->lspSyncNeeded = false;
@@ -39,8 +41,10 @@ bool EditorDefinitionController::goToCppDefinition(const std::string& symbol)
                 lineText = (*editor.lines)[*editor.cursorY];
             }
             auto loc = editor.lspClient->definition(
-                editor.currentBuffer->filename, *editor.cursorY,
-                *editor.cursorX, lineText);
+                editor.currentBuffer->filename,
+                *editor.cursorY,
+                *editor.cursorX,
+                lineText);
             if(loc)
             {
                 editor.pushJumpLocation();
@@ -57,12 +61,12 @@ bool EditorDefinitionController::goToCppDefinition(const std::string& symbol)
                                       loc->path.find("/Applications/") == 0;
                 if(isSystemHeader)
                 {
-                    displayPath = "<sys>/" +
-                                  std::string(text_utils::basename(loc->path));
+                    displayPath =
+                        "<sys>/" + std::string(text_utils::basename(loc->path));
                 }
-                editor.setStatusMessage(std::string("gd (clangd)") + gdArrow +
-                                        displayPath + ":" +
-                                        std::to_string(loc->line + 1));
+                editor.setStatusMessage(
+                    std::string("gd (clangd)") + gdArrow + displayPath + ":" +
+                    std::to_string(loc->line + 1));
                 return true;
             }
         }
@@ -77,31 +81,39 @@ bool EditorDefinitionController::goToCppDefinition(const std::string& symbol)
     std::string alternate = editor.findAlternateFile(current);
 
     if(CppNavigationUtilities::searchLocalDefinition(
-           *editor.lines, symbol, *editor.cursorY, *editor.cursorX, y, x))
+           *editor.lines,
+           symbol,
+           *editor.cursorY,
+           *editor.cursorX,
+           y,
+           x))
     {
         if(y != *editor.cursorY || x != *editor.cursorX)
         {
             *editor.cursorY = y;
             *editor.cursorX = x;
             applyViewport();
-            editor.setStatusMessage(std::string("gd") + gdArrow + "local '" +
-                                    symbol + "' at " + std::to_string(y + 1) +
-                                    ":" + std::to_string(x + 1));
+            editor.setStatusMessage(
+                std::string("gd") + gdArrow + "local '" + symbol + "' at " +
+                std::to_string(y + 1) + ":" + std::to_string(x + 1));
             return true;
         }
     }
 
-    if(CppNavigationUtilities::searchMemberDefinition(*editor.lines, symbol, y,
-                                                      x))
+    if(CppNavigationUtilities::searchMemberDefinition(
+           *editor.lines,
+           symbol,
+           y,
+           x))
     {
         if(y != *editor.cursorY || x != *editor.cursorX)
         {
             *editor.cursorY = y;
             *editor.cursorX = x;
             applyViewport();
-            editor.setStatusMessage(std::string("gd") + gdArrow + "member '" +
-                                    symbol + "' at " + std::to_string(y + 1) +
-                                    ":" + std::to_string(x + 1));
+            editor.setStatusMessage(
+                std::string("gd") + gdArrow + "member '" + symbol + "' at " +
+                std::to_string(y + 1) + ":" + std::to_string(x + 1));
             return true;
         }
     }
@@ -138,8 +150,8 @@ bool EditorDefinitionController::goToCppDefinition(const std::string& symbol)
         std::string detail = editor.lspClient->indexingStatus();
         if(detail.empty())
             detail = "in progress";
-        editor.setStatusMessage("gd: clangd indexing (" + detail +
-                                "), try again");
+        editor.setStatusMessage(
+            "gd: clangd indexing (" + detail + "), try again");
         return true;
     }
 #endif

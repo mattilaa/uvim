@@ -7,8 +7,9 @@
 
 namespace command::execution
 {
-bool ColorSelectorCommand::execute(Editor& editor,
-                                   const CommandRequest& request) const
+bool ColorSelectorCommand::execute(
+    Editor& editor,
+    const CommandRequest& request) const
 {
     if(request.text != "colorselect")
         return false;

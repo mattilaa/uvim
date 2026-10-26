@@ -109,16 +109,20 @@ TEST(RealModeTransitionsTest, FileBrowserRejectsChangedHotListing)
     std::error_code ec;
     const auto oldTime = std::filesystem::last_write_time(root, ec);
     ASSERT_FALSE(ec);
-    std::filesystem::last_write_time(root, oldTime + std::chrono::seconds(1),
-                                     ec);
+    std::filesystem::last_write_time(
+        root,
+        oldTime + std::chrono::seconds(1),
+        ec);
     ASSERT_FALSE(ec);
 
     sm.transitionTo(FileBrowserMode{root.string()});
     auto* browser = sm.getState<FileBrowserMode>();
     ASSERT_NE(browser, nullptr);
-    EXPECT_TRUE(std::any_of(browser->fileList.begin(), browser->fileList.end(),
-                            [](const FileEntry& entry)
-                            { return entry.name == "beta.txt"; }));
+    EXPECT_TRUE(
+        std::any_of(
+            browser->fileList.begin(),
+            browser->fileList.end(),
+            [](const FileEntry& entry) { return entry.name == "beta.txt"; }));
 }
 
 TEST(RealModeTransitionsTest, EditDotCommandFromCommandModeOpensFileBrowser)
@@ -179,8 +183,9 @@ TEST(RealModeTransitionsTest, FileBrowserFuzzyDisabledIgnoresTyping)
     EXPECT_STREQ(sm.currentStateName(), "BROWSE");
 }
 
-TEST(RealModeTransitionsTest,
-     FileBrowserCommandSlashRegexSearchStaysInCurrentDirectory)
+TEST(
+    RealModeTransitionsTest,
+    FileBrowserCommandSlashRegexSearchStaysInCurrentDirectory)
 {
     auto root = make_temp_dir("uvim_browse_regex_local_");
     write_file(root / "a.txt", "a\n");
@@ -205,8 +210,9 @@ TEST(RealModeTransitionsTest,
     dispatch_command(sm, "/needle\\.txt");
     state = sm.getState<FileBrowserMode>();
     ASSERT_NE(state, nullptr);
-    EXPECT_TRUE(text_utils::is_found(
-        editor.statusMessage.find("No match for regex: needle\\.txt")));
+    EXPECT_TRUE(
+        text_utils::is_found(
+            editor.statusMessage.find("No match for regex: needle\\.txt")));
     EXPECT_NE(state->browserCursor, aIndex);
 
     dispatch_command(sm, "/a\\.txt");
@@ -416,8 +422,9 @@ TEST(RealModeTransitionsTest, FileBrowserSearchTabCompletionCyclesMatches)
 
     EXPECT_STREQ(sm.currentStateName(), "NORMAL");
     ASSERT_NE(editor.currentBuffer, nullptr);
-    EXPECT_TRUE(text_utils::is_found(
-        editor.currentBuffer->filename.find("edit-alpha.txt")));
+    EXPECT_TRUE(
+        text_utils::is_found(
+            editor.currentBuffer->filename.find("edit-alpha.txt")));
 
     Editor editor2 = Editor::createForTests();
     auto sm2 = makeMachine(editor2, FileBrowserMode{root.string()});
@@ -570,12 +577,14 @@ TEST(RealModeTransitionsTest, FileBrowserSearchEnterOpensMatchedFile)
 
     EXPECT_STREQ(sm.currentStateName(), "NORMAL");
     ASSERT_NE(editor.currentBuffer, nullptr);
-    EXPECT_TRUE(text_utils::is_found(
-        editor.currentBuffer->filename.find("target.txt")));
+    EXPECT_TRUE(
+        text_utils::is_found(
+            editor.currentBuffer->filename.find("target.txt")));
 }
 
-TEST(RealModeTransitionsTest,
-     FileBrowserPromptSearchCtrlNEnterOpensSelectedMatches)
+TEST(
+    RealModeTransitionsTest,
+    FileBrowserPromptSearchCtrlNEnterOpensSelectedMatches)
 {
     auto root = make_temp_dir("uvim_browse_search_multi_open_");
     write_file(root / "match-alpha.txt", "alpha\n");
@@ -600,10 +609,12 @@ TEST(RealModeTransitionsTest,
     EXPECT_STREQ(sm.currentStateName(), "NORMAL");
     EXPECT_EQ(editor.buffers.size(), 2u);
     ASSERT_NE(editor.currentBuffer, nullptr);
-    EXPECT_TRUE(text_utils::is_found(
-        editor.buffers[0]->filename.find("match-alpha.txt")));
-    EXPECT_TRUE(text_utils::is_found(
-        editor.buffers[1]->filename.find("match-beta.txt")));
+    EXPECT_TRUE(
+        text_utils::is_found(
+            editor.buffers[0]->filename.find("match-alpha.txt")));
+    EXPECT_TRUE(
+        text_utils::is_found(
+            editor.buffers[1]->filename.find("match-beta.txt")));
 }
 
 TEST(RealModeTransitionsTest, FileBrowserSearchEnterOpensMatchedDirectory)
@@ -761,8 +772,9 @@ TEST(RealModeTransitionsTest, BufferBrowserStartsOnCurrentBuffer)
     auto* browser = sm.getState<BufferBrowserMode>();
     ASSERT_NE(browser, nullptr);
     ASSERT_GE(browser->bufferCursor, 0);
-    ASSERT_LT(browser->bufferCursor,
-              static_cast<int>(browser->bufferMatches.size()));
+    ASSERT_LT(
+        browser->bufferCursor,
+        static_cast<int>(browser->bufferMatches.size()));
     EXPECT_EQ(browser->bufferMatches[browser->bufferCursor].bufferIndex, 1);
 }
 
@@ -863,7 +875,9 @@ TEST(RealModeTransitionsTest, BufferBrowserCtrlShiftXAllMatchesReturnsWelcome)
     EXPECT_STREQ(sm.currentStateName(), "WELCOME");
 }
 
-TEST(RealModeTransitionsTest, FileBrowserFilterCommandAcceptsRegexAndClearsWithEscape)
+TEST(
+    RealModeTransitionsTest,
+    FileBrowserFilterCommandAcceptsRegexAndClearsWithEscape)
 {
     auto root = make_temp_dir("uvim_browser_regex_filter_");
     write_file(root / "main.cpp", "int main() {}\n");
@@ -878,7 +892,8 @@ TEST(RealModeTransitionsTest, FileBrowserFilterCommandAcceptsRegexAndClearsWithE
     EXPECT_TRUE(browser->filterActive);
     std::vector<std::string> names;
     for(int i : browser->filterMatches)
-        if(browser->fileList[i].name != "..") names.push_back(browser->fileList[i].name);
+        if(browser->fileList[i].name != "..")
+            names.push_back(browser->fileList[i].name);
     EXPECT_EQ(names, (std::vector<std::string>{"main.cpp"}));
     sm.dispatch(keyCode(control::ControlKey::ESC));
     EXPECT_FALSE(browser->filterActive);
@@ -904,9 +919,12 @@ TEST(RealModeTransitionsTest, FileBrowserCreatesNestedDirectoryFromPrompt)
     sm.dispatch(keyCode(control::ControlKey::ENTER));
 
     EXPECT_TRUE(std::filesystem::is_directory(root / "path1/path2/path3"));
-    EXPECT_EQ(std::filesystem::path(browser->currentDirectory),
-              root / "path1" / "path2");
-    ASSERT_LT(browser->browserCursor, static_cast<int>(browser->fileList.size()));
+    EXPECT_EQ(
+        std::filesystem::path(browser->currentDirectory),
+        root / "path1" / "path2");
+    ASSERT_LT(
+        browser->browserCursor,
+        static_cast<int>(browser->fileList.size()));
     EXPECT_EQ(browser->fileList[browser->browserCursor].name, "path3");
 }
 
@@ -940,11 +958,14 @@ TEST(RealModeTransitionsTest, FileBrowserConfirmsMissingParentsForNewFile)
     ASSERT_TRUE(browser->confirmingDirCreate);
     sm.dispatch('y');
     EXPECT_FALSE(browser->confirmingDirCreate);
-    EXPECT_TRUE(std::filesystem::is_regular_file(root / "path1/path2/file.txt"));
-    EXPECT_EQ(std::filesystem::path(browser->currentDirectory),
-              root / "path1" / "path2");
+    EXPECT_TRUE(
+        std::filesystem::is_regular_file(root / "path1/path2/file.txt"));
+    EXPECT_EQ(
+        std::filesystem::path(browser->currentDirectory),
+        root / "path1" / "path2");
 
     enterNewFile("sibling.txt");
     EXPECT_FALSE(browser->confirmingDirCreate);
-    EXPECT_TRUE(std::filesystem::is_regular_file(root / "path1/path2/sibling.txt"));
+    EXPECT_TRUE(
+        std::filesystem::is_regular_file(root / "path1/path2/sibling.txt"));
 }

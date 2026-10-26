@@ -77,7 +77,6 @@ int altChordKey(int ch)
     }
 }
 
-
 #if defined(UVIM_TERMINAL_WIN32)
 
 static DWORD g_origInMode = 0;
@@ -87,6 +86,7 @@ static HANDLE hIn() noexcept
 {
     return GetStdHandle(STD_INPUT_HANDLE);
 }
+
 static HANDLE hOut() noexcept
 {
     return GetStdHandle(STD_OUTPUT_HANDLE);
@@ -100,8 +100,8 @@ static void enable_vt_and_raw_console()
     if(GetConsoleMode(hIn(), &inMode))
     {
         g_origInMode = inMode;
-        inMode &= ~(ENABLE_ECHO_INPUT | ENABLE_LINE_INPUT |
-                    ENABLE_PROCESSED_INPUT);
+        inMode &=
+            ~(ENABLE_ECHO_INPUT | ENABLE_LINE_INPUT | ENABLE_PROCESSED_INPUT);
         inMode &= ~(ENABLE_MOUSE_INPUT);
         inMode |= ENABLE_EXTENDED_FLAGS;
         inMode &= ~(ENABLE_QUICK_EDIT_MODE);
@@ -173,22 +173,34 @@ static bool write_console_utf8(std::string_view str) noexcept
     // No MB_ERR_INVALID_CHARS: an invalid byte becomes U+FFFD instead of
     // failing the whole frame, which then went out as raw bytes and was
     // decoded with the legacy console code page (mojibake everywhere).
-    int wideLen = MultiByteToWideChar(CP_UTF8, 0, str.data(),
-                                      static_cast<int>(str.size()), nullptr,
-                                      0);
+    int wideLen = MultiByteToWideChar(
+        CP_UTF8,
+        0,
+        str.data(),
+        static_cast<int>(str.size()),
+        nullptr,
+        0);
     if(wideLen <= 0)
         return false;
 
     std::wstring wide(static_cast<size_t>(wideLen), L'\0');
-    wideLen = MultiByteToWideChar(CP_UTF8, 0, str.data(),
-                                  static_cast<int>(str.size()), wide.data(),
-                                  wideLen);
+    wideLen = MultiByteToWideChar(
+        CP_UTF8,
+        0,
+        str.data(),
+        static_cast<int>(str.size()),
+        wide.data(),
+        wideLen);
     if(wideLen <= 0)
         return false;
 
     DWORD written = 0;
-    return WriteConsoleW(out, wide.data(), static_cast<DWORD>(wide.size()),
-                         &written, nullptr) != 0;
+    return WriteConsoleW(
+               out,
+               wide.data(),
+               static_cast<DWORD>(wide.size()),
+               &written,
+               nullptr) != 0;
 }
 
 static int map_windows_key(const KEY_EVENT_RECORD& k) noexcept
@@ -393,8 +405,8 @@ void Terminal::disableRawMode()
     rawModeEnabled = false;
 
     // Restore normal screen and ensure mouse reporting stays disabled.
-    write("\x1b[?25h");  // Show cursor
-    write("\x1b[0 q");   // Reset cursor style to default
+    write("\x1b[?25h"); // Show cursor
+    write("\x1b[0 q");  // Reset cursor style to default
     write("\x1b[?1000l\x1b[?1002l\x1b[?1003l\x1b[?1004l");
     write("\x1b[?1005l\x1b[?1006l\x1b[?1015l");
     write("\x1b[?2004l");
@@ -546,8 +558,12 @@ void Terminal::write(const std::string& str)
     if(write_console_utf8(str))
         return;
     DWORD written = 0;
-    (void)WriteFile(GetStdHandle(STD_OUTPUT_HANDLE), str.data(),
-                    static_cast<DWORD>(str.size()), &written, nullptr);
+    (void)WriteFile(
+        GetStdHandle(STD_OUTPUT_HANDLE),
+        str.data(),
+        static_cast<DWORD>(str.size()),
+        &written,
+        nullptr);
 #else
     writeAll(str);
 #endif
@@ -791,8 +807,8 @@ int Terminal::readKeyInternal(int timeoutMs)
     {
         // Alt+key arrives as ESC and the key in one write, so the key is
         // already waiting; a person typing Esc then the key is much slower.
-        const bool followedAtOnce = !pendingInputBytes.empty() ||
-                                    wait_stdin(milliseconds(0));
+        const bool followedAtOnce =
+            !pendingInputBytes.empty() || wait_stdin(milliseconds(0));
         if(!followedAtOnce && !wait_stdin(milliseconds(50)))
             return keyCode(control::ControlKey::ESC);
 
@@ -857,8 +873,8 @@ int Terminal::readKeyInternal(int timeoutMs)
                     {
                         if(b == ';' || b == ':')
                         {
-                            ps.push_back(tok.empty() ? 0
-                                                     : std::atoi(tok.c_str()));
+                            ps.push_back(
+                                tok.empty() ? 0 : std::atoi(tok.c_str()));
                             tok.clear();
                         }
                         else
@@ -882,20 +898,15 @@ int Terminal::readKeyInternal(int timeoutMs)
                     if(mod == 6) // ctrl+shift
                     {
                         if(lower == 'h')
-                            return keyCode(
-                                control::ControlKey::SHIFT_CTRL_H);
+                            return keyCode(control::ControlKey::SHIFT_CTRL_H);
                         if(lower == 'j')
-                            return keyCode(
-                                control::ControlKey::SHIFT_CTRL_J);
+                            return keyCode(control::ControlKey::SHIFT_CTRL_J);
                         if(lower == 'k')
-                            return keyCode(
-                                control::ControlKey::SHIFT_CTRL_K);
+                            return keyCode(control::ControlKey::SHIFT_CTRL_K);
                         if(lower == 'l')
-                            return keyCode(
-                                control::ControlKey::SHIFT_CTRL_L);
+                            return keyCode(control::ControlKey::SHIFT_CTRL_L);
                         if(lower == 'x')
-                            return keyCode(
-                                control::ControlKey::SHIFT_CTRL_X);
+                            return keyCode(control::ControlKey::SHIFT_CTRL_X);
                     }
                     // Fallback: synthesize the natural code.
                     if(mod == 5 && lower >= 'a' && lower <= 'z')
@@ -948,8 +959,7 @@ int Terminal::readKeyInternal(int timeoutMs)
                         case 4:
                             return keyCode(navigation::NavigationKey::END);
                         case 5:
-                            return keyCode(
-                                navigation::NavigationKey::PAGE_UP);
+                            return keyCode(navigation::NavigationKey::PAGE_UP);
                         case 6:
                             return keyCode(
                                 navigation::NavigationKey::PAGE_DOWN);
@@ -1086,30 +1096,37 @@ void Terminal::resetColor()
 {
     write("\x1b[39;49m");
 }
+
 void Terminal::setBold()
 {
     write("\x1b[1m");
 }
+
 void Terminal::setReverse()
 {
     write("\x1b[7m");
 }
+
 void Terminal::resetAttributes()
 {
     write("\x1b[0m");
 }
+
 void Terminal::saveCursorPosition()
 {
     write("\x1b[s");
 }
+
 void Terminal::restoreCursorPosition()
 {
     write("\x1b[u");
 }
+
 void Terminal::setCursorBlock()
 {
     write("\x1b[2 q");
 }
+
 void Terminal::setCursorBarBlinking()
 {
     write("\x1b[5 q");

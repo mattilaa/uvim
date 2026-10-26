@@ -25,8 +25,11 @@ private:
     void applyViewport();
     void clampCursor();
     std::string bufferText() const;
-    bool jumpToLocation(const std::string& path, int line, int character,
-                        std::string_view label);
+    bool jumpToLocation(
+        const std::string& path,
+        int line,
+        int character,
+        std::string_view label);
     bool goToInclude();
     bool goToStdSymbol(const std::string& symbol);
     bool goToRobotDefinition();
@@ -37,7 +40,9 @@ private:
     bool goToCppDefinition(const std::string& symbol);
 
 #ifdef UVIM_ENABLE_CLANGD_LSP
-    bool goToGenericLspDefinition(LspClient* client, const char* languageId,
-                                  std::string_view label);
+    bool goToGenericLspDefinition(
+        LspClient* client,
+        const char* languageId,
+        std::string_view label);
 #endif
 };

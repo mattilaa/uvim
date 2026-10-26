@@ -47,6 +47,7 @@ struct Buffer
         int blameEnd = -1;
         bool blameValid = false;
     };
+
     std::vector<EditState> undoStack;
     int undoIndex = -1;
     int savedUndoIndex = -1; // Track which undo state was last saved

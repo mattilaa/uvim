@@ -177,8 +177,9 @@ enum class CommandKey : int
 };
 } // namespace command
 
-template <typename EnumT,
-          typename = std::enable_if_t<std::is_enum_v<EnumT>, int>>
+template <
+    typename EnumT,
+    typename = std::enable_if_t<std::is_enum_v<EnumT>, int>>
 constexpr int keyCode(EnumT key)
 {
     return static_cast<int>(key);
@@ -190,8 +191,9 @@ constexpr int keyCode(int key)
 }
 
 // String APIs take a byte, while editor key events may include special keys.
-template <typename EnumT,
-          typename = std::enable_if_t<std::is_enum_v<EnumT>, int>>
+template <
+    typename EnumT,
+    typename = std::enable_if_t<std::is_enum_v<EnumT>, int>>
 constexpr char keyChar(EnumT key)
 {
     const int code = keyCode(key);

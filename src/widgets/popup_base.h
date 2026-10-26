@@ -28,17 +28,25 @@ struct PopupFrameView
 
 std::pair<int, int> editorCursorScreenPosition(const Editor& editor);
 
-PopupPlacement placePopupNearEditorCursor(const Editor& editor, int width,
-                                          int preferredHeight,
-                                          int minHeight = 6,
-                                          bool centerHorizontally = true);
+PopupPlacement placePopupNearEditorCursor(
+    const Editor& editor,
+    int width,
+    int preferredHeight,
+    int minHeight = 6,
+    bool centerHorizontally = true);
 
-PopupPlacement placeBottomLeftPopup(int screenRows, int screenCols, int width,
-                                    int height, int preferredLeft = 2);
+PopupPlacement placeBottomLeftPopup(
+    int screenRows,
+    int screenCols,
+    int width,
+    int height,
+    int preferredLeft = 2);
 
-int visibleRowsForCursorPopup(editor::statemachine::ModeContext& ctx,
-                              int width, int preferredHeight,
-                              int chromeRows);
+int visibleRowsForCursorPopup(
+    editor::statemachine::ModeContext& ctx,
+    int width,
+    int preferredHeight,
+    int chromeRows);
 
 bool moveEditorCursorForPopup(editor::statemachine::ModeContext& ctx, int c);
 

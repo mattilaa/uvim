@@ -12,8 +12,10 @@ namespace
 mla::log::FileLogger LSP_LOG("PYTHON");
 }
 
-void Editor::enablePythonLspImpl(bool enable, const std::string& serverPath,
-                                 const std::vector<std::string>& serverArgs)
+void Editor::enablePythonLspImpl(
+    bool enable,
+    const std::string& serverPath,
+    const std::vector<std::string>& serverArgs)
 {
     pythonLspEnabled = false;
     this->pythonLspPath = serverPath;
@@ -42,7 +44,9 @@ void Editor::enablePythonLspImpl(bool enable, const std::string& serverPath,
     std::vector<std::string> args = this->pythonLspArgs;
 
     lspController->start(
-        "Python", pythonLspClient, pythonLspEnabled,
+        "Python",
+        pythonLspClient,
+        pythonLspEnabled,
         [path = this->pythonLspPath, rootDir, args](LspClient& client)
         { return client.startServer(path, rootDir, args); });
 #else

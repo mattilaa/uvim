@@ -12,8 +12,10 @@ namespace
 mla::log::FileLogger LSP_LOG("MLANG");
 }
 
-void Editor::enableMlangLspImpl(bool enable, const std::string& serverPath,
-                                const std::vector<std::string>& serverArgs)
+void Editor::enableMlangLspImpl(
+    bool enable,
+    const std::string& serverPath,
+    const std::vector<std::string>& serverArgs)
 {
     mlangLspEnabled = false;
     this->mlangLspPath = serverPath;
@@ -44,7 +46,9 @@ void Editor::enableMlangLspImpl(bool enable, const std::string& serverPath,
         args.push_back("--stdio");
 
     lspController->start(
-        "Mlang", mlangLspClient, mlangLspEnabled,
+        "Mlang",
+        mlangLspClient,
+        mlangLspEnabled,
         [path = this->mlangLspPath, rootDir, args](LspClient& client)
         { return client.startServer(path, rootDir, args); });
 #else

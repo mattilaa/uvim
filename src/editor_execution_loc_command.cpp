@@ -36,8 +36,10 @@ bool LocCommand::execute(Editor& editor, const CommandRequest& request) const
     return run(editor, listView, path);
 }
 
-bool LocCommand::parse(std::string_view command, bool& listView,
-                       std::string& outPath)
+bool LocCommand::parse(
+    std::string_view command,
+    bool& listView,
+    std::string& outPath)
 {
     std::string_view trimmed = trim_view(command);
     if(trimmed.rfind("loc", 0) != 0 || trimmed.rfind("loctotal", 0) == 0)
@@ -142,7 +144,8 @@ bool LocCommand::run(Editor& editor, bool listView, std::string path)
         // Counting the open buffer is instant; no need for a task.
         const std::string& file = files.front();
         if(locIsTextFile(file))
-            totalLoc = locCountInLines(*editor.lines, locCommentRulesForPath(file));
+            totalLoc =
+                locCountInLines(*editor.lines, locCommentRulesForPath(file));
     }
     else
     {
@@ -150,7 +153,8 @@ bool LocCommand::run(Editor& editor, bool listView, std::string path)
         // the status bar shows progress and typed keys queue up meanwhile.
         const bool respectGitignore = editor.respectGitignore;
         const bool ok = editor.runTask(
-            "loc " + rootDisplay, "loc",
+            "loc " + rootDisplay,
+            "loc",
             [&, respectGitignore](TaskQueue::Context& ctx)
             {
                 if(isDirectory)
@@ -159,8 +163,12 @@ bool LocCommand::run(Editor& editor, bool listView, std::string path)
                     GitIgnore gitignore;
                     if(respectGitignore)
                         gitignore.loadRecursive(rootPath.string());
-                    collectLocFiles(rootPath.string(), 0, gitignore, files,
-                                    [&ctx] { return ctx.cancelled(); });
+                    collectLocFiles(
+                        rootPath.string(),
+                        0,
+                        gitignore,
+                        files,
+                        [&ctx] { return ctx.cancelled(); });
                     ctx.detail({});
                 }
                 const long long total = (long long)files.size();
@@ -198,9 +206,11 @@ bool LocCommand::run(Editor& editor, bool listView, std::string path)
 
     if(listView)
     {
-        std::sort(entries.begin(), entries.end(),
-                  [](const Editor::LocEntry& a, const Editor::LocEntry& b)
-                  { return a.displayPath < b.displayPath; });
+        std::sort(
+            entries.begin(),
+            entries.end(),
+            [](const Editor::LocEntry& a, const Editor::LocEntry& b)
+            { return a.displayPath < b.displayPath; });
         editor.locList = std::move(entries);
         editor.locListTotal = totalLoc;
         editor.locListRoot = rootDisplay;

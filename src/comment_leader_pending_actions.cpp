@@ -43,10 +43,13 @@ std::string leadingWhitespace(std::string_view line)
 
 std::pair<int, int> visualLineSelection(const Editor& editor)
 {
-    return {std::min(editor.currentBuffer->visualStartY,
-                     editor.currentBuffer->visualEndY),
-            std::max(editor.currentBuffer->visualStartY,
-                     editor.currentBuffer->visualEndY)};
+    return {
+        std::min(
+            editor.currentBuffer->visualStartY,
+            editor.currentBuffer->visualEndY),
+        std::max(
+            editor.currentBuffer->visualStartY,
+            editor.currentBuffer->visualEndY)};
 }
 
 std::optional<ModeState> insertVisualLineTodoLineComment(ModeContext& ctx)
@@ -135,8 +138,9 @@ bool isEnter(int key)
     return key == keyCode(control::ControlKey::ENTER);
 }
 
-std::optional<ModeState> applyLineComment(ModeContext& ctx,
-                                          CommentLeaderOrigin origin)
+std::optional<ModeState> applyLineComment(
+    ModeContext& ctx,
+    CommentLeaderOrigin origin)
 {
     Editor* ed = ctx.editor;
     if(origin == CommentLeaderOrigin::Normal)
@@ -145,10 +149,12 @@ std::optional<ModeState> applyLineComment(ModeContext& ctx,
         return std::nullopt;
     }
 
-    const int startY = std::min(ed->currentBuffer->visualStartY,
-                                ed->currentBuffer->visualEndY);
-    const int endY = std::max(ed->currentBuffer->visualStartY,
-                              ed->currentBuffer->visualEndY);
+    const int startY = std::min(
+        ed->currentBuffer->visualStartY,
+        ed->currentBuffer->visualEndY);
+    const int endY = std::max(
+        ed->currentBuffer->visualStartY,
+        ed->currentBuffer->visualEndY);
     ed->commentLines(startY, endY);
     return NormalMode{};
 }
@@ -158,8 +164,9 @@ void toggleNormalLineComment(ModeContext& ctx)
     ctx.editor->commentLines(*ctx.editor->cursorY, *ctx.editor->cursorY);
 }
 
-std::optional<ModeState> applyBlockComment(ModeContext& ctx,
-                                           CommentLeaderOrigin origin)
+std::optional<ModeState> applyBlockComment(
+    ModeContext& ctx,
+    CommentLeaderOrigin origin)
 {
     Editor* ed = ctx.editor;
     if(origin == CommentLeaderOrigin::Normal)
@@ -179,10 +186,12 @@ std::optional<ModeState> applyBlockComment(ModeContext& ctx,
         return NormalMode{};
     }
 
-    const int startY = std::min(ed->currentBuffer->visualStartY,
-                                ed->currentBuffer->visualEndY);
-    const int endY = std::max(ed->currentBuffer->visualStartY,
-                              ed->currentBuffer->visualEndY);
+    const int startY = std::min(
+        ed->currentBuffer->visualStartY,
+        ed->currentBuffer->visualEndY);
+    const int endY = std::max(
+        ed->currentBuffer->visualStartY,
+        ed->currentBuffer->visualEndY);
     ed->commentBlock(startY, endY);
     return NormalMode{};
 }
@@ -192,8 +201,9 @@ void toggleNormalBlockComment(ModeContext& ctx)
     ctx.editor->commentBlock(*ctx.editor->cursorY, *ctx.editor->cursorY);
 }
 
-std::optional<ModeState> applyTodoLineComment(ModeContext& ctx,
-                                              CommentLeaderOrigin origin)
+std::optional<ModeState> applyTodoLineComment(
+    ModeContext& ctx,
+    CommentLeaderOrigin origin)
 {
     if(origin == CommentLeaderOrigin::VisualLine)
         return insertVisualLineTodoLineComment(ctx);
@@ -206,8 +216,9 @@ std::optional<ModeState> applyTodoLineComment(ModeContext& ctx,
     return std::nullopt;
 }
 
-std::optional<ModeState> applyTodoBlockComment(ModeContext& ctx,
-                                               CommentLeaderOrigin origin)
+std::optional<ModeState> applyTodoBlockComment(
+    ModeContext& ctx,
+    CommentLeaderOrigin origin)
 {
     if(origin == CommentLeaderOrigin::VisualLine)
         return insertVisualLineTodoBlockComment(ctx);
@@ -220,8 +231,10 @@ std::optional<ModeState> applyTodoBlockComment(ModeContext& ctx,
     return std::nullopt;
 }
 
-std::optional<ModeState>
-replaceNormalAppliedBlockWithTodoComment(ModeContext& ctx, int row, int column)
+std::optional<ModeState> replaceNormalAppliedBlockWithTodoComment(
+    ModeContext& ctx,
+    int row,
+    int column)
 {
     Editor* ed = ctx.editor;
     if(!ed || !ed->currentBuffer)

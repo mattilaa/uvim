@@ -250,32 +250,52 @@ constexpr const char* literal(AnsiColor color)
 inline std::string rgbFg(int red, int green, int blue)
 {
     char buffer[32];
-    std::snprintf(buffer, sizeof(buffer), "\x1b[38;2;%d;%d;%dm", red, green,
-                  blue);
+    std::snprintf(
+        buffer,
+        sizeof(buffer),
+        "\x1b[38;2;%d;%d;%dm",
+        red,
+        green,
+        blue);
     return buffer;
 }
 
 inline std::string rgbBg(int red, int green, int blue)
 {
     char buffer[32];
-    std::snprintf(buffer, sizeof(buffer), "\x1b[48;2;%d;%d;%dm", red, green,
-                  blue);
+    std::snprintf(
+        buffer,
+        sizeof(buffer),
+        "\x1b[48;2;%d;%d;%dm",
+        red,
+        green,
+        blue);
     return buffer;
 }
 
 inline std::string rgbLiteralFg(int red, int green, int blue)
 {
     char buffer[32];
-    std::snprintf(buffer, sizeof(buffer), "\\x1b[38;2;%d;%d;%dm", red, green,
-                  blue);
+    std::snprintf(
+        buffer,
+        sizeof(buffer),
+        "\\x1b[38;2;%d;%d;%dm",
+        red,
+        green,
+        blue);
     return buffer;
 }
 
 inline std::string rgbLiteralBg(int red, int green, int blue)
 {
     char buffer[32];
-    std::snprintf(buffer, sizeof(buffer), "\\x1b[48;2;%d;%d;%dm", red, green,
-                  blue);
+    std::snprintf(
+        buffer,
+        sizeof(buffer),
+        "\\x1b[48;2;%d;%d;%dm",
+        red,
+        green,
+        blue);
     return buffer;
 }
 } // namespace color

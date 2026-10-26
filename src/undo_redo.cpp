@@ -3,8 +3,9 @@
 #include <filesystem>
 #include <fstream>
 
-static bool write_lines_for_undo(const std::string& path,
-                                 const std::vector<std::string>& lines)
+static bool write_lines_for_undo(
+    const std::string& path,
+    const std::vector<std::string>& lines)
 {
     std::ofstream file(path, std::ios::binary | std::ios::trunc);
     if(!file)
@@ -97,8 +98,8 @@ bool Editor::restoreRenameUndoSnapshot()
     clearRenameUndoSnapshot();
     adjustViewport();
     needsFullRedraw = true;
-    setStatusMessage("rn: reverted rename in " + std::to_string(restored) +
-                     " file(s)");
+    setStatusMessage(
+        "rn: reverted rename in " + std::to_string(restored) + " file(s)");
     return true;
 }
 
@@ -118,9 +119,9 @@ void Editor::saveState()
             currentBuffer->savedUndoIndex = -1;
         }
 
-        currentBuffer->undoStack.erase(currentBuffer->undoStack.begin() +
-                                           currentBuffer->undoIndex + 1,
-                                       currentBuffer->undoStack.end());
+        currentBuffer->undoStack.erase(
+            currentBuffer->undoStack.begin() + currentBuffer->undoIndex + 1,
+            currentBuffer->undoStack.end());
     }
 
     Buffer::EditState state;

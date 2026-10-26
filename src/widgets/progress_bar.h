@@ -26,11 +26,11 @@ struct ProgressBarView
     long long done = 0;
     long long total = 0; // <= 0: indeterminate (spinner + bouncing block)
     long long elapsedMs = 0;
-    int position = 0;    // (position/queued) shown when queued > 1
+    int position = 0; // (position/queued) shown when queued > 1
     int queued = 0;
-    int running = 0;     // jobs running concurrently, including this one
-    bool waiting = false; // queued behind an older job, not started yet
-    int queuedKeys = 0;  // keystrokes waiting for a foreground job
+    int running = 0;        // jobs running concurrently, including this one
+    bool waiting = false;   // queued behind an older job, not started yet
+    int queuedKeys = 0;     // keystrokes waiting for a foreground job
     bool showCounts = true; // "done/total" after the percentage
     ProgressStyle style = ProgressStyle::Color;
     int barCells = 10;

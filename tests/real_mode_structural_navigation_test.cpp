@@ -14,16 +14,17 @@ protected:
     {
         editor.createNewBuffer();
         set_buffer_filename(editor, "/tmp/uvim_structure.py");
-        *editor.lines = {"# needle",
-                         "def first():",
-                         "    value = compute()",
-                         "    consume(value)",
-                         "",
-                         "def second():",
-                         "    other = consume()",
-                         "# needle"};
-        machine = std::make_unique<ModeStateMachine>(createModeContext(&editor),
-                                                     NormalMode{});
+        *editor.lines =
+            {"# needle",
+             "def first():",
+             "    value = compute()",
+             "    consume(value)",
+             "",
+             "def second():",
+             "    other = consume()",
+             "# needle"};
+        machine = std::make_unique<
+            ModeStateMachine>(createModeContext(&editor), NormalMode{});
     }
 
     void keys(std::string_view sequence)
@@ -40,8 +41,9 @@ protected:
 };
 } // namespace
 
-TEST_F(StructuralNavigationModeTest,
-       FunctionJumpsRepeatBothDirectionsAndKeepHistory)
+TEST_F(
+    StructuralNavigationModeTest,
+    FunctionJumpsRepeatBothDirectionsAndKeepHistory)
 {
     keys("]f");
     position(1, 4);
@@ -72,8 +74,9 @@ TEST_F(StructuralNavigationModeTest, CountsClampAtBoundariesWithoutWrapping)
     EXPECT_EQ(editor.repeatCount, 0);
 }
 
-TEST_F(StructuralNavigationModeTest,
-       LocalStepsUseSourceOrderAndStayInTheirFunction)
+TEST_F(
+    StructuralNavigationModeTest,
+    LocalStepsUseSourceOrderAndStayInTheirFunction)
 {
     keys("]f]s");
     position(2, 4); // declaration
@@ -111,8 +114,9 @@ TEST_F(StructuralNavigationModeTest, EscapeAndNewSearchRestoreSearchRepeats)
     position(0, 2);
 }
 
-TEST_F(StructuralNavigationModeTest,
-       CancelledPrefixDoesNotSwallowFollowingMovement)
+TEST_F(
+    StructuralNavigationModeTest,
+    CancelledPrefixDoesNotSwallowFollowingMovement)
 {
     keys("]\x1bj");
     position(1, 0);

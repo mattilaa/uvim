@@ -68,10 +68,13 @@ std::string substitutionDisplayPath(const Editor& editor, std::string_view path)
            substitutionSeparator(editor) + std::string(path);
 }
 
-bool SubstitutionMatchPicker::consider(std::string_view path, int row,
-                                       size_t column, size_t length,
-                                       const std::string& source,
-                                       const std::string& replacement)
+bool SubstitutionMatchPicker::consider(
+    std::string_view path,
+    int row,
+    size_t column,
+    size_t length,
+    const std::string& source,
+    const std::string& replacement)
 {
     if(collecting)
     {
@@ -88,9 +91,14 @@ bool SubstitutionMatchPicker::consider(std::string_view path, int row,
             --context;
         const std::string excerpt =
             (context ? "... " : "") + source.substr(context, 200);
-        entries.push_back({cachedDisplayPath, row, column, excerpt,
-                           source.substr(column, length), replacement,
-                           column - context + (context ? 4 : 0)});
+        entries.push_back(
+            {cachedDisplayPath,
+             row,
+             column,
+             excerpt,
+             source.substr(column, length),
+             replacement,
+             column - context + (context ? 4 : 0)});
         return true;
     }
     if(next >= entries.size())
@@ -100,17 +108,23 @@ bool SubstitutionMatchPicker::consider(std::string_view path, int row,
 
 void SubstitutionMatchPicker::draw(bool backdrop, int& visibleRows)
 {
-    const auto layout =
-        widgets::computePickerLayout({std::max(1, editor.screenRows - 2),
-                                      editor.screenCols, true, 90, 75, true});
+    const auto layout = widgets::computePickerLayout(
+        {std::max(1, editor.screenRows - 2),
+         editor.screenCols,
+         true,
+         90,
+         75,
+         true});
     Terminal::beginCapture();
     if(backdrop && editor.hasBuffer())
         editor.drawFullScreen();
     std::string out;
     widgets::PickerCanvas canvas(out, layout, editor.theme, editor.utf8Mode);
     const auto separator = substitutionSeparator(editor);
-    canvas.frame("Select replacements",
-                 "Enter apply selected" + separator + "Esc cancel", 3);
+    canvas.frame(
+        "Select replacements",
+        "Enter apply selected" + separator + "Esc cancel",
+        3);
     using Parts = std::vector<std::pair<std::string, std::string>>;
     const auto paint = [&](const Parts& parts, int width)
     {
@@ -131,8 +145,9 @@ void SubstitutionMatchPicker::draw(bool backdrop, int& visibleRows)
         const auto split = path.find_last_of("/\\");
         if(split == std::string::npos)
             return Parts{{path, editor.theme.uiAccent()}};
-        return Parts{{path.substr(0, split + 1), editor.theme.uiDirectory()},
-                     {path.substr(split + 1), editor.theme.uiAccent()}};
+        return Parts{
+            {path.substr(0, split + 1), editor.theme.uiDirectory()},
+            {path.substr(split + 1), editor.theme.uiAccent()}};
     };
     const auto sourceParts = [&](const Entry& entry)
     {
@@ -149,22 +164,26 @@ void SubstitutionMatchPicker::draw(bool backdrop, int& visibleRows)
         canvas.beginHeaderRow(row);
         canvas.endHeaderRow(paint(parts, layout.headerCols));
     };
-    header(0,
-           {{std::to_string(selectedCount), editor.theme.uiSuccess()},
-            {" selected / ", editor.theme.uiDim()},
-            {std::to_string(entries.size()), editor.theme.uiInfo()},
-            {" matches" + separator, editor.theme.uiDim()},
-            {std::to_string(cursor + 1) + "/" + std::to_string(entries.size()),
-             editor.theme.uiWarning()}});
-    header(1,
-           {{"j/k move" + separator + "Ctrl-D/U half-page" + separator +
-                 "Space toggle" + separator + "r reset",
-             editor.theme.uiDim()}});
+    header(
+        0,
+        {{std::to_string(selectedCount), editor.theme.uiSuccess()},
+         {" selected / ", editor.theme.uiDim()},
+         {std::to_string(entries.size()), editor.theme.uiInfo()},
+         {" matches" + separator, editor.theme.uiDim()},
+         {std::to_string(cursor + 1) + "/" + std::to_string(entries.size()),
+          editor.theme.uiWarning()}});
+    header(
+        1,
+        {{"j/k move" + separator + "Ctrl-D/U half-page" + separator +
+              "Space toggle" + separator + "r reset",
+          editor.theme.uiDim()}});
     const auto& current = entries[cursor];
-    header(2, {{"Match: ", editor.theme.uiDim()},
-               {current.matched, editor.theme.uiWarning()},
-               {" -> ", editor.theme.uiDim()},
-               {current.replacement, editor.theme.uiSuccess()}});
+    header(
+        2,
+        {{"Match: ", editor.theme.uiDim()},
+         {current.matched, editor.theme.uiWarning()},
+         {" -> ", editor.theme.uiDim()},
+         {current.replacement, editor.theme.uiSuccess()}});
     visibleRows = std::max(1, canvas.bodyRows());
     if(cursor < offset)
         offset = cursor;
@@ -184,16 +203,15 @@ void SubstitutionMatchPicker::draw(bool backdrop, int& visibleRows)
                                : color::rgbBg(24, 64, 36);
             else if(focused)
                 out += editor.theme.selection();
-            Parts parts = {
-                {focused ? "> " : "  ", editor.theme.uiAccent()},
-                {entry.selected
-                     ? (editor.utf8Mode ? "✅  " : "[x] ")
-                     : "    ",
-                 entry.selected ? editor.theme.baseFg() : editor.theme.uiDim()},
-                {std::to_string(entry.row + 1), editor.theme.uiWarning()},
-                {":", editor.theme.uiDim()},
-                {std::to_string(entry.column + 1), editor.theme.uiInfo()},
-                {" ", editor.theme.uiDim()}};
+            Parts parts =
+                {{focused ? "> " : "  ", editor.theme.uiAccent()},
+                 {entry.selected ? (editor.utf8Mode ? "✅  " : "[x] ") : "    ",
+                  entry.selected ? editor.theme.baseFg()
+                                 : editor.theme.uiDim()},
+                 {std::to_string(entry.row + 1), editor.theme.uiWarning()},
+                 {":", editor.theme.uiDim()},
+                 {std::to_string(entry.column + 1), editor.theme.uiInfo()},
+                 {" ", editor.theme.uiDim()}};
             const auto path = pathParts(entry.path);
             parts.insert(parts.end(), path.begin(), path.end());
             parts.push_back({separator, editor.theme.uiDim()});
@@ -209,18 +227,18 @@ void SubstitutionMatchPicker::draw(bool backdrop, int& visibleRows)
         Parts file = {{"File: ", editor.theme.uiDim()}};
         const auto path = pathParts(current.path);
         file.insert(file.end(), path.begin(), path.end());
-        const std::vector<Parts> details = {
-            std::move(file),
-            {{"Line ", editor.theme.uiDim()},
-             {std::to_string(current.row + 1), editor.theme.uiWarning()},
-             {", column ", editor.theme.uiDim()},
-             {std::to_string(current.column + 1), editor.theme.uiInfo()}},
-            {{"Source excerpt:", editor.theme.uiAccent()}},
-            sourceParts(current),
-            {{"Match: ", editor.theme.uiDim()},
-             {current.matched, editor.theme.uiWarning()}},
-            {{"Replace with: ", editor.theme.uiDim()},
-             {current.replacement, editor.theme.uiSuccess()}}};
+        const std::vector<Parts> details =
+            {std::move(file),
+             {{"Line ", editor.theme.uiDim()},
+              {std::to_string(current.row + 1), editor.theme.uiWarning()},
+              {", column ", editor.theme.uiDim()},
+              {std::to_string(current.column + 1), editor.theme.uiInfo()}},
+             {{"Source excerpt:", editor.theme.uiAccent()}},
+             sourceParts(current),
+             {{"Match: ", editor.theme.uiDim()},
+              {current.matched, editor.theme.uiWarning()}},
+             {{"Replace with: ", editor.theme.uiDim()},
+              {current.replacement, editor.theme.uiSuccess()}}};
         for(int row = 0; row < visibleRows; ++row)
         {
             canvas.beginPreviewRow(row);
@@ -247,7 +265,8 @@ bool SubstitutionMatchPicker::choose()
         draw(backdrop, visibleRows);
         backdrop = false;
         const int key = Terminal::readKey();
-        const size_t halfPage = static_cast<size_t>(std::max(1, visibleRows / 2));
+        const size_t halfPage =
+            static_cast<size_t>(std::max(1, visibleRows / 2));
         switch(key)
         {
         case keyCode(control::ControlKey::ENTER):
@@ -280,8 +299,9 @@ bool SubstitutionMatchPicker::choose()
                 --cursor;
             break;
         case keyCode(navigation::NavigationKey::PAGE_DOWN):
-            cursor = std::min(cursor + static_cast<size_t>(visibleRows),
-                              entries.size() - 1);
+            cursor = std::min(
+                cursor + static_cast<size_t>(visibleRows),
+                entries.size() - 1);
             break;
         case keyCode(control::ControlKey::CTRL_D):
             cursor = std::min(cursor + halfPage, entries.size() - 1);

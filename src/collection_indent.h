@@ -33,7 +33,8 @@ public:
     bool blockComment = false;
     bool lineComment = false;
     void scan(std::string_view line, size_t row);
-    std::optional<std::string> indentation(std::string_view remainder,
-                                           int width) const;
+    std::optional<std::string> indentation(
+        std::string_view remainder,
+        int width) const;
 };
 } // namespace collection_indent

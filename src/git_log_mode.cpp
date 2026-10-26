@@ -24,17 +24,24 @@ namespace
 std::vector<std::string> gitLogHelpTokens(bool prettyView)
 {
     if(prettyView)
-        return {"[^V: range]",
-                "[space: select]",
-                "[q: quit]",
-                "[j/k: commit]",
-                "[ctrl-j/k: diff scroll]",
-                "[gf: rebase]",
-                "[enter: show]",
-                "[gr: revert]"};
-    return {"[^V: range]",      "[space: select]", "[q: quit]",
-            "[ctrl-j/k: move]", "[gf: rebase]",    "[enter: show]",
-            "[gr: revert]",     "[type: filter]"};
+        return {
+            "[^V: range]",
+            "[space: select]",
+            "[q: quit]",
+            "[j/k: commit]",
+            "[ctrl-j/k: diff scroll]",
+            "[gf: rebase]",
+            "[enter: show]",
+            "[gr: revert]"};
+    return {
+        "[^V: range]",
+        "[space: select]",
+        "[q: quit]",
+        "[ctrl-j/k: move]",
+        "[gf: rebase]",
+        "[enter: show]",
+        "[gr: revert]",
+        "[type: filter]"};
 }
 
 int gitLogContentRows(int screenRows, int screenCols, bool prettyView)
@@ -45,9 +52,12 @@ int gitLogContentRows(int screenRows, int screenCols, bool prettyView)
     return std::max(1, screenRows - headerRows);
 }
 
-void append_highlighted(std::string& out, std::string_view text,
-                        std::string_view query, const std::string& normalSeq,
-                        const std::string& matchSeq)
+void append_highlighted(
+    std::string& out,
+    std::string_view text,
+    std::string_view query,
+    const std::string& normalSeq,
+    const std::string& matchSeq)
 {
     if(query.empty())
     {
@@ -213,9 +223,9 @@ std::string format_git_refs(std::string_view refs)
     while(pos <= refs.size())
     {
         size_t comma = refs.find(',', pos);
-        std::string ref = trim_copy(text_utils::is_not_found(comma)
-                                        ? refs.substr(pos)
-                                        : refs.substr(pos, comma - pos));
+        std::string ref = trim_copy(
+            text_utils::is_not_found(comma) ? refs.substr(pos)
+                                            : refs.substr(pos, comma - pos));
         if(!ref.empty() && ref != "HEAD")
         {
             if(ref.rfind("HEAD -> ", 0) == 0)
@@ -321,9 +331,13 @@ std::string entry_search_text(const GitLogMode::Entry& entry)
     return text;
 }
 
-void append_padded_field(std::string& out, std::string_view text, int width,
-                         const std::string& normalSeq,
-                         const std::string& matchSeq, std::string_view query)
+void append_padded_field(
+    std::string& out,
+    std::string_view text,
+    int width,
+    const std::string& normalSeq,
+    const std::string& matchSeq,
+    std::string_view query)
 {
     if(width <= 0)
         return;
@@ -337,9 +351,12 @@ void append_padded_field(std::string& out, std::string_view text, int width,
     }
 }
 
-void append_graph_field(std::string& out, const Theme& theme,
-                        std::string_view graph, int width,
-                        const std::string& selectedSeq)
+void append_graph_field(
+    std::string& out,
+    const Theme& theme,
+    std::string_view graph,
+    int width,
+    const std::string& selectedSeq)
 {
     if(width <= 0)
         return;
@@ -373,10 +390,15 @@ void append_graph_field(std::string& out, const Theme& theme,
     }
 }
 
-void append_git_log_entry_line(std::string& output, const Theme& theme,
-                               const GitLogMode::Entry& entry,
-                               std::string_view query, bool selected,
-                               bool marked, bool inRange, int width)
+void append_git_log_entry_line(
+    std::string& output,
+    const Theme& theme,
+    const GitLogMode::Entry& entry,
+    std::string_view query,
+    bool selected,
+    bool marked,
+    bool inRange,
+    int width)
 {
     if(width <= 0)
         return;
@@ -434,8 +456,10 @@ void append_git_log_entry_line(std::string& output, const Theme& theme,
     }
 }
 
-void append_pretty_diff_line(std::string& output, const Editor& editor,
-                             const std::string& line)
+void append_pretty_diff_line(
+    std::string& output,
+    const Editor& editor,
+    const std::string& line)
 {
     if(editor.gitUseDefaultColors)
     {
@@ -462,8 +486,9 @@ void append_pretty_diff_line(std::string& output, const Editor& editor,
         }
         else
         {
-            append_colored(hashAndRefs.substr(0, refsPos),
-                           editor.theme.uiWarning());
+            append_colored(
+                hashAndRefs.substr(0, refsPos),
+                editor.theme.uiWarning());
             append_colored(hashAndRefs.substr(refsPos), editor.theme.uiError());
         }
         return;
@@ -478,12 +503,15 @@ void append_pretty_diff_line(std::string& output, const Editor& editor,
             append_colored(line, editor.theme.uiAccent());
             return;
         }
-        append_colored(std::string_view(line.data(), colon + 1),
-                       editor.theme.uiAccent());
+        append_colored(
+            std::string_view(line.data(), colon + 1),
+            editor.theme.uiAccent());
         if(colon + 1 < line.size())
-            append_colored(std::string_view(line.data() + colon + 1,
-                                            line.size() - colon - 1),
-                           editor.theme.uiSuccess());
+            append_colored(
+                std::string_view(
+                    line.data() + colon + 1,
+                    line.size() - colon - 1),
+                editor.theme.uiSuccess());
         return;
     }
     if(line.rfind("diff --git ", 0) == 0)
@@ -512,12 +540,15 @@ void append_pretty_diff_line(std::string& output, const Editor& editor,
             append_colored(line, editor.theme.uiAccent());
             return;
         }
-        append_colored(std::string_view(line.data(), space + 1),
-                       editor.theme.uiAccent());
+        append_colored(
+            std::string_view(line.data(), space + 1),
+            editor.theme.uiAccent());
         if(space + 1 < line.size())
-            append_colored(std::string_view(line.data() + space + 1,
-                                            line.size() - space - 1),
-                           editor.theme.uiInfo());
+            append_colored(
+                std::string_view(
+                    line.data() + space + 1,
+                    line.size() - space - 1),
+                editor.theme.uiInfo());
         return;
     }
     if(line.rfind("index ", 0) == 0 || line.rfind("new file mode ", 0) == 0 ||
@@ -568,8 +599,8 @@ const char* GitLogMode::graphPrettyFormatArg()
     return "--pretty=format:%x1e%H%x1f%ad%x1f%an%x1f%D%x1f%P%x1f%s";
 }
 
-std::optional<GitLogMode::Entry>
-GitLogMode::parseGraphEntry(std::string_view line)
+std::optional<GitLogMode::Entry> GitLogMode::parseGraphEntry(
+    std::string_view line)
 {
     constexpr char recordSep = '\x1e';
     constexpr char fieldSep = '\x1f';
@@ -624,8 +655,9 @@ GitLogMode::parseGraphEntry(std::string_view line)
     return entry;
 }
 
-void GitLogMode::applyGraphConnector(Entry& entry,
-                                     std::string_view connectorLine)
+void GitLogMode::applyGraphConnector(
+    Entry& entry,
+    std::string_view connectorLine)
 {
     std::string connector = trim_copy(connectorLine);
     if(connector.empty() || (text_utils::is_not_found(connector.find('/')) &&
@@ -660,13 +692,15 @@ void GitLogMode::rebuildFilter(Editor& editor)
             if(score >= 0)
                 scored.emplace_back(i, score);
         }
-        std::stable_sort(scored.begin(), scored.end(),
-                         [](const auto& a, const auto& b)
-                         {
-                             if(a.second != b.second)
-                                 return a.second > b.second;
-                             return a.first < b.first;
-                         });
+        std::stable_sort(
+            scored.begin(),
+            scored.end(),
+            [](const auto& a, const auto& b)
+            {
+                if(a.second != b.second)
+                    return a.second > b.second;
+                return a.first < b.first;
+            });
         for(const auto& item : scored)
             filtered.push_back(item.first);
     }
@@ -731,8 +765,15 @@ void GitLogMode::ensurePrettyPreview(Editor& editor)
     }
 
     previewLines = run_git_lines(
-        {"git", "-C", repoDirUse, "--no-pager", "show", "--patch", "--stat",
-         editor.gitUseDefaultColors ? "--color=always" : "--no-color", hash});
+        {"git",
+         "-C",
+         repoDirUse,
+         "--no-pager",
+         "show",
+         "--patch",
+         "--stat",
+         editor.gitUseDefaultColors ? "--color=always" : "--no-color",
+         hash});
     if(previewLines.empty())
         previewLines.push_back("(no diff output)");
 
@@ -776,8 +817,9 @@ void GitLogMode::on_exit(ModeContext& ctx)
     ctx.requestFullRedraw();
 }
 
-std::optional<ModeState> GitLogMode::handle(ModeContext& ctx,
-                                            const ModeKeyEvent& event)
+std::optional<ModeState> GitLogMode::handle(
+    ModeContext& ctx,
+    const ModeKeyEvent& event)
 {
     const int key = event.key;
     Editor* ed = ctx.editor;
@@ -972,8 +1014,10 @@ std::optional<ModeState> GitLogMode::handle(ModeContext& ctx,
                 if(found >= 0)
                 {
                     cursor = found;
-                    int window = gitLogContentRows(ed->screenRows,
-                                                   ed->screenCols, prettyView);
+                    int window = gitLogContentRows(
+                        ed->screenRows,
+                        ed->screenCols,
+                        prettyView);
                     if(cursor < scrollOffset)
                         scrollOffset = cursor;
                     else if(cursor >= scrollOffset + window)
@@ -1055,8 +1099,7 @@ std::optional<ModeState> GitLogMode::handle(ModeContext& ctx,
             ed->setStatusMessage("git show: no output");
             return std::nullopt;
         }
-        GitShowCommitMode view{entries[idx].hash, std::move(showLines),
-                               *this};
+        GitShowCommitMode view{entries[idx].hash, std::move(showLines), *this};
         view.repoRoot = repoRoot; // enables d/v/c/u: rewrite this commit
         return view;
     }
@@ -1066,10 +1109,10 @@ std::optional<ModeState> GitLogMode::handle(ModeContext& ctx,
 
     if(prettyView && c == keyCode(control::ControlKey::CTRL_J))
     {
-        int maxDiffScroll =
-            std::max(0, (int)previewLines.size() -
-                            gitLogContentRows(ed->screenRows, ed->screenCols,
-                                              prettyView));
+        int maxDiffScroll = std::max(
+            0,
+            (int)previewLines.size() -
+                gitLogContentRows(ed->screenRows, ed->screenCols, prettyView));
         if(diffOffset < maxDiffScroll)
             diffOffset++;
     }
@@ -1078,9 +1121,10 @@ std::optional<ModeState> GitLogMode::handle(ModeContext& ctx,
         if(diffOffset > 0)
             diffOffset--;
     }
-    else if(c == keyCode(navigation::NavigationKey::ARROW_DOWN) ||
-            c == keyCode(typed::TypedKey::KEY_J) ||
-            (!prettyView && c == keyCode(control::ControlKey::CTRL_J)))
+    else if(
+        c == keyCode(navigation::NavigationKey::ARROW_DOWN) ||
+        c == keyCode(typed::TypedKey::KEY_J) ||
+        (!prettyView && c == keyCode(control::ControlKey::CTRL_J)))
     {
         if(cursor + 1 < (int)filtered.size())
         {
@@ -1089,9 +1133,10 @@ std::optional<ModeState> GitLogMode::handle(ModeContext& ctx,
                 scrollOffset = cursor - window + 1;
         }
     }
-    else if(c == keyCode(control::ControlKey::CTRL_K) ||
-            c == keyCode(navigation::NavigationKey::ARROW_UP) ||
-            c == keyCode(typed::TypedKey::KEY_K))
+    else if(
+        c == keyCode(control::ControlKey::CTRL_K) ||
+        c == keyCode(navigation::NavigationKey::ARROW_UP) ||
+        c == keyCode(typed::TypedKey::KEY_K))
     {
         if(cursor > 0)
         {
@@ -1102,8 +1147,9 @@ std::optional<ModeState> GitLogMode::handle(ModeContext& ctx,
     }
     else if(c == keyCode(control::ControlKey::CTRL_D))
     {
-        cursor = std::min(cursor + window / 2,
-                          filtered.empty() ? 0 : (int)filtered.size() - 1);
+        cursor = std::min(
+            cursor + window / 2,
+            filtered.empty() ? 0 : (int)filtered.size() - 1);
         scrollOffset = std::min(scrollOffset + window / 2, maxScroll);
     }
     else if(c == keyCode(control::ControlKey::CTRL_U))
@@ -1191,8 +1237,8 @@ std::optional<ModeState> GitLogMode::handle(ModeContext& ctx,
                     verb = "fixup";
                 else if(entry.subject.rfind("squash!", 0) == 0)
                     verb = "squash";
-                rebaseMode.messageLines.push_back(verb + " " + entry.hash +
-                                                  " " + entry.subject);
+                rebaseMode.messageLines.push_back(
+                    verb + " " + entry.hash + " " + entry.subject);
             }
             if(rebaseMode.messageLines.empty())
                 rebaseMode.messageLines.push_back("");
@@ -1238,8 +1284,9 @@ std::optional<ModeState> GitLogMode::handle(ModeContext& ctx,
         else
             selectedHashes.insert(hash);
     }
-    else if(c == keyCode(control::ControlKey::BACKSPACE) || c == 127 ||
-            c == keyCode(control::ControlKey::CTRL_H))
+    else if(
+        c == keyCode(control::ControlKey::BACKSPACE) || c == 127 ||
+        c == keyCode(control::ControlKey::CTRL_H))
     {
         if(!query.empty())
         {
@@ -1259,8 +1306,9 @@ std::optional<ModeState> GitLogMode::handle(ModeContext& ctx,
                 apply_range_selection();
         }
     }
-    else if(c == keyCode(command::CommandKey::KEY_SLASH) ||
-            c == keyCode(command::CommandKey::KEY_QUESTION))
+    else if(
+        c == keyCode(command::CommandKey::KEY_SLASH) ||
+        c == keyCode(command::CommandKey::KEY_QUESTION))
     {
         searchActive = true;
         searchForward = (c == keyCode(command::CommandKey::KEY_SLASH));
@@ -1269,9 +1317,10 @@ std::optional<ModeState> GitLogMode::handle(ModeContext& ctx,
         searchPrevScroll = scrollOffset;
         ed->lastEscTime = std::chrono::steady_clock::time_point();
     }
-    else if((c == keyCode(typed::TypedKey::KEY_N) ||
-             c == keyCode(typed::TypedKey::KEY_CAP_N)) &&
-            !searchQuery.empty())
+    else if(
+        (c == keyCode(typed::TypedKey::KEY_N) ||
+         c == keyCode(typed::TypedKey::KEY_CAP_N)) &&
+        !searchQuery.empty())
     {
         bool forward = (c == keyCode(typed::TypedKey::KEY_N)) ? searchForward
                                                               : !searchForward;
@@ -1319,13 +1368,17 @@ void GitLogMode::draw(Editor& editor) const
     {
         self->cursor =
             std::clamp(self->cursor, 0, (int)self->filtered.size() - 1);
-        int window = gitLogContentRows(editor.screenRows, editor.screenCols,
-                                       self->prettyView);
+        int window = gitLogContentRows(
+            editor.screenRows,
+            editor.screenCols,
+            self->prettyView);
         int maxScroll = std::max(0, (int)self->filtered.size() - window);
         self->scrollOffset = std::clamp(self->scrollOffset, 0, maxScroll);
         if(self->rangeSelectActive)
             self->rangeSelectAnchor = std::clamp(
-                self->rangeSelectAnchor, 0, (int)self->filtered.size() - 1);
+                self->rangeSelectAnchor,
+                0,
+                (int)self->filtered.size() - 1);
     }
 
     std::string output;
@@ -1342,15 +1395,20 @@ void GitLogMode::draw(Editor& editor) const
     if(fileOnly)
         output += " (file)";
     output += editor.theme.reset();
-    HeaderHelp::append(output, editor.theme, editor.screenCols,
-                       gitLogHelpTokens(prettyView));
+    HeaderHelp::append(
+        output,
+        editor.theme,
+        editor.screenCols,
+        gitLogHelpTokens(prettyView));
 
     int availableRows =
         gitLogContentRows(editor.screenRows, editor.screenCols, prettyView);
     if(prettyView)
     {
-        int leftWidth = std::clamp(editor.screenCols * 2 / 5, 32,
-                                   std::max(32, editor.screenCols - 24));
+        int leftWidth = std::clamp(
+            editor.screenCols * 2 / 5,
+            32,
+            std::max(32, editor.screenCols - 24));
         int rightWidth = std::max(1, editor.screenCols - leftWidth - 1);
 
         for(int i = 0; i < availableRows; ++i)
@@ -1388,8 +1446,9 @@ void GitLogMode::draw(Editor& editor) const
                         slice_plain(leftText, 0, leftContentWidth);
                     int leftDisplay = text_utils::utf8DisplayWidth(leftTrim);
                     if(leftDisplay < leftContentWidth)
-                        leftTrim.append(leftContentWidth - leftDisplay,
-                                        keyChar(control::ControlKey::SPACE));
+                        leftTrim.append(
+                            leftContentWidth - leftDisplay,
+                            keyChar(control::ControlKey::SPACE));
                     if(selected)
                         output += editor.theme.selection();
                     else
@@ -1424,13 +1483,15 @@ void GitLogMode::draw(Editor& editor) const
                     if(!entry.date.empty())
                         append_part(entry.date + " ", editor.theme.uiInfo());
                     if(!entry.author.empty())
-                        append_part(entry.author + " ",
-                                    editor.theme.uiAccent());
+                        append_part(
+                            entry.author + " ",
+                            editor.theme.uiAccent());
                     append_part(entry.subject, editor.theme.baseFg());
 
                     if(usedWidth < leftContentWidth)
-                        output.append(leftContentWidth - usedWidth,
-                                      keyChar(control::ControlKey::SPACE));
+                        output.append(
+                            leftContentWidth - usedWidth,
+                            keyChar(control::ControlKey::SPACE));
                     output += editor.theme.reset();
                 }
             }
@@ -1440,8 +1501,9 @@ void GitLogMode::draw(Editor& editor) const
                 output += editor.theme.uiGutter();
                 output += " ~";
                 if(leftContentWidth > 1)
-                    output.append(leftContentWidth - 1,
-                                  keyChar(control::ControlKey::SPACE));
+                    output.append(
+                        leftContentWidth - 1,
+                        keyChar(control::ControlKey::SPACE));
                 output += editor.theme.reset();
             }
 
@@ -1456,15 +1518,18 @@ void GitLogMode::draw(Editor& editor) const
                 output += " ";
                 if(editor.gitUseDefaultColors)
                 {
-                    output += slice_with_ansi(diffLine, diffHorizontalOffset,
-                                              std::max(0, rightWidth - 1));
+                    output += slice_with_ansi(
+                        diffLine,
+                        diffHorizontalOffset,
+                        std::max(0, rightWidth - 1));
                     output += editor.theme.reset();
                 }
                 else
                 {
-                    std::string sliced =
-                        slice_plain(diffLine, diffHorizontalOffset,
-                                    std::max(0, rightWidth - 1));
+                    std::string sliced = slice_plain(
+                        diffLine,
+                        diffHorizontalOffset,
+                        std::max(0, rightWidth - 1));
                     append_pretty_diff_line(output, editor, sliced);
                 }
             }
@@ -1497,8 +1562,14 @@ void GitLogMode::draw(Editor& editor) const
                     inRange = (idx >= lo && idx <= hi);
                 }
                 append_git_log_entry_line(
-                    output, editor.theme, entry, searchQuery, selected, marked,
-                    inRange, std::max(0, editor.screenCols - 2));
+                    output,
+                    editor.theme,
+                    entry,
+                    searchQuery,
+                    selected,
+                    marked,
+                    inRange,
+                    std::max(0, editor.screenCols - 2));
                 output += editor.theme.reset();
             }
             else
@@ -1521,10 +1592,12 @@ void GitLogMode::draw(Editor& editor) const
     right += " | sel " + std::to_string(selectedHashes.size());
     if(prettyView)
     {
-        int maxDiffScroll =
-            std::max(0, (int)previewLines.size() -
-                            gitLogContentRows(editor.screenRows,
-                                              editor.screenCols, prettyView));
+        int maxDiffScroll = std::max(
+            0,
+            (int)previewLines.size() - gitLogContentRows(
+                                           editor.screenRows,
+                                           editor.screenCols,
+                                           prettyView));
         right += " | diff " + std::to_string(diffOffset + 1) + "/" +
                  std::to_string(std::max(1, maxDiffScroll + 1));
     }
@@ -1559,14 +1632,24 @@ void GitLogMode::draw(Editor& editor) const
 }
 
 #ifdef UVIM_TESTING
-std::string GitLogMode::testRenderLine(const Theme& theme, const Entry& entry,
-                                       std::string_view query, bool selected,
-                                       int screenCols)
+std::string GitLogMode::testRenderLine(
+    const Theme& theme,
+    const Entry& entry,
+    std::string_view query,
+    bool selected,
+    int screenCols)
 {
     std::string output;
     output.reserve(256);
-    append_git_log_entry_line(output, theme, entry, query, selected, false,
-                              false, std::max(0, screenCols));
+    append_git_log_entry_line(
+        output,
+        theme,
+        entry,
+        query,
+        selected,
+        false,
+        false,
+        std::max(0, screenCols));
     output += theme.reset();
     return output;
 }

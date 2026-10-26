@@ -1,9 +1,9 @@
 #pragma once
 #include <functional>
 #include <optional>
-#include <utility>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 // Minimal clangd LSP client (stdio JSON-RPC) used by uvim.
@@ -72,11 +72,15 @@ public:
     // If queryDriverAllowList is non-empty, clangd is started with
     // --query-driver=<glob1,glob2,...> so it can discover system include paths
     // from the compiler in compile_commands.json.
-    bool start(const std::string& clangdPath, const std::string& rootDir,
-               const std::string& compileCommandsDir = "",
-               const std::string& queryDriverAllowList = "");
-    bool startServer(const std::string& serverPath, const std::string& rootDir,
-                     const std::vector<std::string>& args = {});
+    bool start(
+        const std::string& clangdPath,
+        const std::string& rootDir,
+        const std::string& compileCommandsDir = "",
+        const std::string& queryDriverAllowList = "");
+    bool startServer(
+        const std::string& serverPath,
+        const std::string& rootDir,
+        const std::vector<std::string>& args = {});
     void setLogSignature(const std::string& signature);
 
     void stop();
@@ -95,6 +99,7 @@ public:
         std::string message;
         int percent = -1;
     };
+
     std::optional<WorkProgress> workProgress() const;
 
     // Called (on the thread that set it) about every 30 ms while that thread
@@ -105,30 +110,41 @@ public:
 
     // Document sync. Messages are queued in order; pipe writes run on a
     // dedicated worker so a busy server cannot block editor input.
-    void didOpen(const std::string& filePath, const std::string& languageId,
-                 const std::string& text);
+    void didOpen(
+        const std::string& filePath,
+        const std::string& languageId,
+        const std::string& text);
     void didChange(const std::string& filePath, const std::string& text);
-    void didChange(const std::string& filePath, const std::string& text,
-                   const std::string& languageId);
+    void didChange(
+        const std::string& filePath,
+        const std::string& text,
+        const std::string& languageId);
     void didSave(const std::string& filePath);
 
     // Queries
-    std::optional<Location> definition(const std::string& filePath, int line,
-                                       int characterUtf8ByteOffset,
-                                       std::string_view lineText = {});
-    std::optional<Location> declaration(const std::string& filePath, int line,
-                                        int characterUtf8ByteOffset,
-                                        std::string_view lineText = {});
-    std::optional<Location> typeDefinition(const std::string& filePath,
-                                           int line,
-                                           int characterUtf8ByteOffset,
-                                           std::string_view lineText = {});
+    std::optional<Location> definition(
+        const std::string& filePath,
+        int line,
+        int characterUtf8ByteOffset,
+        std::string_view lineText = {});
+    std::optional<Location> declaration(
+        const std::string& filePath,
+        int line,
+        int characterUtf8ByteOffset,
+        std::string_view lineText = {});
+    std::optional<Location> typeDefinition(
+        const std::string& filePath,
+        int line,
+        int characterUtf8ByteOffset,
+        std::string_view lineText = {});
 
     // Find all references to symbol at position
     // Returns list of locations where the symbol is used
-    std::vector<Location> references(const std::string& filePath, int line,
-                                     int characterUtf8ByteOffset,
-                                     bool includeDeclaration = true);
+    std::vector<Location> references(
+        const std::string& filePath,
+        int line,
+        int characterUtf8ByteOffset,
+        bool includeDeclaration = true);
 
     struct CompletionItem
     {
@@ -144,10 +160,13 @@ public:
 
     // Completion items at a given cursor position.
     // characterUtf8ByteOffset is a UTF-8 byte offset within the line.
-    std::vector<CompletionItem>
-    completion(const std::string& filePath, int line,
-               int characterUtf8ByteOffset, std::string_view lineText = {},
-               int triggerKind = 1, char triggerCharacter = '\0');
+    std::vector<CompletionItem> completion(
+        const std::string& filePath,
+        int line,
+        int characterUtf8ByteOffset,
+        std::string_view lineText = {},
+        int triggerKind = 1,
+        char triggerCharacter = '\0');
 
     // Latest diagnostics for a file path (from publishDiagnostics).
     void setDiagnosticsEnabled(bool enabled);
@@ -157,30 +176,34 @@ public:
     void clearDiagnostics(const std::string& filePath);
     size_t diagnosticsRevision(const std::string& filePath) const;
 
-    std::vector<CodeAction>
-    codeActions(const std::string& filePath, int line,
-                std::string_view lineText,
-                const std::vector<Diagnostic>& diagnostics);
-    std::vector<TextEdit>
-    executeCommand(const std::string& command,
-                   const std::vector<std::string>& argumentsJson,
-                   const std::string& filePath);
+    std::vector<CodeAction> codeActions(
+        const std::string& filePath,
+        int line,
+        std::string_view lineText,
+        const std::vector<Diagnostic>& diagnostics);
+    std::vector<TextEdit> executeCommand(
+        const std::string& command,
+        const std::vector<std::string>& argumentsJson,
+        const std::string& filePath);
 
-    std::vector<WorkspaceEdit> renameSymbol(const std::string& filePath,
-                                            int line,
-                                            int characterUtf8ByteOffset,
-                                            std::string_view lineText,
-                                            const std::string& newName);
+    std::vector<WorkspaceEdit> renameSymbol(
+        const std::string& filePath,
+        int line,
+        int characterUtf8ByteOffset,
+        std::string_view lineText,
+        const std::string& newName);
 
     // Document formatting (textDocument/formatting)
-    std::vector<TextEdit> formatting(const std::string& filePath,
-                                     int tabSize = 4, bool insertSpaces = true);
+    std::vector<TextEdit> formatting(
+        const std::string& filePath,
+        int tabSize = 4,
+        bool insertSpaces = true);
 
     // Semantic tokens (textDocument/semanticTokens/full). This sends or polls
     // the request without blocking the editor thread.
     bool requestSemanticTokens(const std::string& filePath);
-    std::vector<SemanticToken>
-    semanticTokens(const std::string& filePath) const;
+    std::vector<SemanticToken> semanticTokens(
+        const std::string& filePath) const;
     size_t semanticTokensRevision(const std::string& filePath) const;
     bool semanticTokenHasModifier(int modifiers, std::string_view name) const;
     void clearSemanticTokens(const std::string& filePath);

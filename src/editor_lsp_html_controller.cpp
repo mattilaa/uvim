@@ -12,8 +12,10 @@ namespace
 mla::log::FileLogger LSP_LOG("HTML");
 }
 
-void Editor::enableHtmlLspImpl(bool enable, const std::string& serverPath,
-                               const std::vector<std::string>& serverArgs)
+void Editor::enableHtmlLspImpl(
+    bool enable,
+    const std::string& serverPath,
+    const std::vector<std::string>& serverArgs)
 {
     htmlLspEnabled = false;
     this->htmlLspPath = serverPath;
@@ -44,7 +46,9 @@ void Editor::enableHtmlLspImpl(bool enable, const std::string& serverPath,
         args.push_back("--stdio");
 
     lspController->start(
-        "HTML", htmlLspClient, htmlLspEnabled,
+        "HTML",
+        htmlLspClient,
+        htmlLspEnabled,
         [path = this->htmlLspPath, rootDir, args](LspClient& client)
         { return client.startServer(path, rootDir, args); });
 #else

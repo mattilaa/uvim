@@ -55,8 +55,9 @@ void EditorDrawingController::appendStatusBar(std::string& output)
     statusBarView->append(output);
 }
 
-void EditorDrawingController::appendMessageBar(std::string& output,
-                                               bool includePopups)
+void EditorDrawingController::appendMessageBar(
+    std::string& output,
+    bool includePopups)
 {
     messageBarView->append(output, includePopups);
 }
@@ -144,7 +145,8 @@ void EditorDrawingController::refreshScreen()
 #ifdef UVIM_ENABLE_BROWSER_TOOLS
         if(editor.modeStateMachine)
         {
-            if(auto* state = editor.modeStateMachine->getState<FunctionBrowserMode>())
+            if(auto* state =
+                   editor.modeStateMachine->getState<FunctionBrowserMode>())
                 state->draw(editor);
         }
 #endif
@@ -381,8 +383,7 @@ void EditorDrawingController::refreshScreen()
     {
         if(editor.modeStateMachine)
         {
-            if(auto* state =
-                   editor.modeStateMachine->getState<AnsiToolsMode>())
+            if(auto* state = editor.modeStateMachine->getState<AnsiToolsMode>())
                 state->draw(editor);
         }
         return;
@@ -419,8 +420,9 @@ void EditorDrawingController::refreshScreen()
         if(editor.currentBuffer && editor.isFileType<FileType::Cpp>() &&
            editor.isClangdLspEnabled() && editor.lspClient)
             diagnosticsClient = editor.lspClient.get();
-        else if(editor.currentBuffer && editor.isFileType<FileType::Mla>() &&
-                editor.isMlangLspEnabled() && editor.mlangLspClient)
+        else if(
+            editor.currentBuffer && editor.isFileType<FileType::Mla>() &&
+            editor.isMlangLspEnabled() && editor.mlangLspClient)
             diagnosticsClient = editor.mlangLspClient.get();
 
         if(diagnosticsClient && !editor.currentBuffer->filename.empty())
@@ -484,11 +486,13 @@ void EditorDrawingController::refreshScreen()
 
     bool isBufferEditingMode =
         (editor.currentMode == INSERT || editor.currentMode == REPLACE);
-    bool isCommandLikeMode = (editor.currentMode == COMMAND ||
-                              editor.currentMode == SEARCH_FORWARD ||
-                              editor.currentMode == SEARCH_BACKWARD);
-    bool isLiveSearchMode = (editor.currentMode == SEARCH_FORWARD ||
-                             editor.currentMode == SEARCH_BACKWARD);
+    bool isCommandLikeMode =
+        (editor.currentMode == COMMAND ||
+         editor.currentMode == SEARCH_FORWARD ||
+         editor.currentMode == SEARCH_BACKWARD);
+    bool isLiveSearchMode =
+        (editor.currentMode == SEARCH_FORWARD ||
+         editor.currentMode == SEARCH_BACKWARD);
     bool commandPopupChanged =
         (editor.commandPopupActive != lastFrameCommandPopupActive) ||
         (editor.commandHistorySearchActive !=
@@ -520,8 +524,9 @@ void EditorDrawingController::refreshScreen()
             Terminal::write(Terminal::ESC_SYNC_UPDATE_END);
         Terminal::flush();
     }
-    else if(scrollDelta != 0 && std::abs(scrollDelta) <= 5 &&
-            editor.currentMode == NORMAL && !Terminal::isTmux())
+    else if(
+        scrollDelta != 0 && std::abs(scrollDelta) <= 5 &&
+        editor.currentMode == NORMAL && !Terminal::isTmux())
     {
         editor.drawScrollUpdate(scrollDelta);
     }
@@ -580,8 +585,9 @@ void EditorDrawingController::updateCursorPosition(bool flushNow)
             cursorRow = layout.y + 1;
             cursorCol = layout.x + 1;
         }
-        else if(editor.cursorY && editor.cursorX && editor.offsetY &&
-                editor.offsetX && editor.lines)
+        else if(
+            editor.cursorY && editor.cursorX && editor.offsetY &&
+            editor.offsetX && editor.lines)
         {
             cursorRow = layout.y + (*editor.cursorY - *editor.offsetY) + 1 +
                         editor.tabBarRows();
@@ -617,10 +623,10 @@ void EditorDrawingController::updateCursorPosition(bool flushNow)
         editor.modeStateMachine->getState<FileBrowserMode>() != nullptr;
     bool hideCursor =
         (editor.currentMode == VISUAL || editor.currentMode == VISUAL_LINE ||
-         editor.currentMode == VISUAL_BLOCK || editor.currentMode == FILE_BROWSER ||
-         fileBrowserState);
-    Terminal::write(hideCursor ? Terminal::ESC_HIDE_CURSOR
-                               : Terminal::ESC_SHOW_CURSOR);
+         editor.currentMode == VISUAL_BLOCK ||
+         editor.currentMode == FILE_BROWSER || fileBrowserState);
+    Terminal::write(
+        hideCursor ? Terminal::ESC_HIDE_CURSOR : Terminal::ESC_SHOW_CURSOR);
     if(flushNow)
         Terminal::flush();
 

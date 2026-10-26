@@ -3,8 +3,8 @@
 
 namespace command::execution
 {
-bool FunctionsCommand::execute(Editor& editor,
-                               const CommandRequest& request) const
+bool FunctionsCommand::execute(Editor& editor, const CommandRequest& request)
+    const
 {
     if(request.text != "functions")
         return false;

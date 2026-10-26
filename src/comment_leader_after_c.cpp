@@ -15,8 +15,9 @@ namespace editor::statemachine
 namespace
 {
 #ifdef UVIM_ENABLE_COLOR_TOOLS
-std::optional<VisualColorRange> visualColorRangeFor(CommentLeaderOrigin origin,
-                                                    ModeContext& ctx)
+std::optional<VisualColorRange> visualColorRangeFor(
+    CommentLeaderOrigin origin,
+    ModeContext& ctx)
 {
     if(origin == CommentLeaderOrigin::Normal || !ctx.editor)
         return std::nullopt;
@@ -26,9 +27,10 @@ std::optional<VisualColorRange> visualColorRangeFor(CommentLeaderOrigin origin,
 #endif
 } // namespace
 
-std::optional<ModeState>
-CommentLeaderAfterC::handle(CommentLeaderPendingMachine& machine,
-                            ModeContext& ctx, const ModeKeyEvent& event)
+std::optional<ModeState> CommentLeaderAfterC::handle(
+    CommentLeaderPendingMachine& machine,
+    ModeContext& ctx,
+    const ModeKeyEvent& event)
 {
     const int key = event.key;
     if(commentleader::isEscape(key))

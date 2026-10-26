@@ -10,8 +10,8 @@
 #include "process_pipe.h"
 #include "search_match_colors.h"
 #include "terminal.h"
-#include "widgets/picker_frame.h"
 #include "text_utils.h"
+#include "widgets/picker_frame.h"
 #include <algorithm>
 #include <atomic>
 #include <cctype>
@@ -30,13 +30,17 @@ namespace
 {
 std::vector<std::string> grepSearchHelpTokens(int contrast, bool preview)
 {
-    std::vector<std::string> tokens = {
-        "[Enter: open]", "[Esc: cancel]", "[Ctrl+N: select]",
-        "[" + ascii::utf8(ascii::UP_DOWN_ARROWS) + ": navigate]",
-        "[Ctrl+I: gitignore]", "[Ctrl+V: preview]"};
+    std::vector<std::string> tokens =
+        {"[Enter: open]",
+         "[Esc: cancel]",
+         "[Ctrl+N: select]",
+         "[" + ascii::utf8(ascii::UP_DOWN_ARROWS) + ": navigate]",
+         "[Ctrl+I: gitignore]",
+         "[Ctrl+V: preview]"};
     if(preview)
-        tokens.push_back(std::string("[") + Terminal::shiftChordLabel() +
-                         "+J/K: scroll preview]");
+        tokens.push_back(
+            std::string("[") + Terminal::shiftChordLabel() +
+            "+J/K: scroll preview]");
     tokens.push_back("[Ctrl+T: contrast " + std::to_string(contrast) + "]");
     return tokens;
 }
@@ -44,15 +48,17 @@ std::vector<std::string> grepSearchHelpTokens(int contrast, bool preview)
 int grepSearchHeaderRows(int cols, int contrast, bool preview)
 {
     // Prompt line + key help; counts and flags live in the bottom status bar.
-    return 1 + HeaderHelp::lineCount(grepSearchHelpTokens(contrast, preview),
-                                     cols);
+    return 1 +
+           HeaderHelp::lineCount(grepSearchHelpTokens(contrast, preview), cols);
 }
 
 int grepSearchVisibleRows(const Editor& editor, bool preview)
 {
     const widgets::PickerLayout layout = editor.pickerLayout(preview);
     const int header = grepSearchHeaderRows(
-        layout.headerCols, editor.searchMatchContrast, layout.preview);
+        layout.headerCols,
+        editor.searchMatchContrast,
+        layout.preview);
     // A floating box separates the header from the panes with one row.
     return std::max(1, layout.rows - header - (layout.floating ? 1 : 0));
 }
@@ -60,8 +66,11 @@ int grepSearchVisibleRows(const Editor& editor, bool preview)
 std::string toLower(std::string_view input)
 {
     std::string out(input);
-    std::transform(out.begin(), out.end(), out.begin(), [](unsigned char c)
-                   { return static_cast<char>(std::tolower(c)); });
+    std::transform(
+        out.begin(),
+        out.end(),
+        out.begin(),
+        [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
     return out;
 }
 
@@ -75,9 +84,8 @@ std::string runCmd(const std::vector<std::string>& args)
 
 bool ripgrepAvailable()
 {
-    static const bool available = [] {
-        return !runCmd({"rg", "--version"}).empty();
-    }();
+    static const bool available = []
+    { return !runCmd({"rg", "--version"}).empty(); }();
     return available;
 }
 
@@ -128,9 +136,11 @@ std::string truncatePathMiddle(std::string path, int width)
     return prefix + suffix;
 }
 
-std::string grepResultBackground(const GrepMatch& match,
-                                 std::string_view lowerQuery,
-                                 bool explicitlySelected, int contrast)
+std::string grepResultBackground(
+    const GrepMatch& match,
+    std::string_view lowerQuery,
+    bool explicitlySelected,
+    int contrast)
 {
     size_t occurrences = 0;
     if(!lowerQuery.empty())
@@ -146,22 +156,24 @@ std::string grepResultBackground(const GrepMatch& match,
 
     const double matchedBytes =
         static_cast<double>(occurrences * lowerQuery.size());
-    const double contentBytes = static_cast<double>(
-        std::max<size_t>(1, match.lineContent.size()));
+    const double contentBytes =
+        static_cast<double>(std::max<size_t>(1, match.lineContent.size()));
     const double coverage = std::min(1.0, matchedBytes / contentBytes);
-    const double repetition =
-        std::min(1.0, static_cast<double>(occurrences > 0 ? occurrences - 1
-                                                         : 0) /
-                          3.0);
+    const double repetition = std::min(
+        1.0,
+        static_cast<double>(occurrences > 0 ? occurrences - 1 : 0) / 3.0);
     return SearchMatchColors::matchBackground(
-        SearchMatchColors::relevanceStrength(coverage, repetition), contrast,
+        SearchMatchColors::relevanceStrength(coverage, repetition),
+        contrast,
         explicitlySelected);
 }
 
 bool isAsciiText(std::string_view text)
 {
-    return std::all_of(text.begin(), text.end(), [](unsigned char ch)
-                       { return ch < 0x80; });
+    return std::all_of(
+        text.begin(),
+        text.end(),
+        [](unsigned char ch) { return ch < 0x80; });
 }
 
 std::string truncateDisplayText(std::string_view text, int width)
@@ -224,9 +236,12 @@ std::string truncateDisplayText(std::string_view text, int width)
 
 std::string singleLinePasteText(std::string text)
 {
-    text.erase(std::remove_if(text.begin(), text.end(),
-                              [](char ch) { return ch == '\n' || ch == '\r'; }),
-               text.end());
+    text.erase(
+        std::remove_if(
+            text.begin(),
+            text.end(),
+            [](char ch) { return ch == '\n' || ch == '\r'; }),
+        text.end());
     return text;
 }
 
@@ -269,8 +284,8 @@ std::filesystem::path rgCacheRoot()
     return cwd / ".rg";
 }
 
-std::unordered_map<std::string, RgCacheMeta>
-loadRgCacheIndex(const std::filesystem::path& indexPath)
+std::unordered_map<std::string, RgCacheMeta> loadRgCacheIndex(
+    const std::filesystem::path& indexPath)
 {
     std::unordered_map<std::string, RgCacheMeta> out;
     std::ifstream file(indexPath);
@@ -306,8 +321,9 @@ loadRgCacheIndex(const std::filesystem::path& indexPath)
     return out;
 }
 
-bool readCachedLines(const std::filesystem::path& path,
-                     std::vector<std::string>& lines)
+bool readCachedLines(
+    const std::filesystem::path& path,
+    std::vector<std::string>& lines)
 {
     std::ifstream file(path);
     if(!file)
@@ -319,12 +335,16 @@ bool readCachedLines(const std::filesystem::path& path,
     return true;
 }
 
-bool copyFileToCache(const std::filesystem::path& source,
-                     const std::filesystem::path& target)
+bool copyFileToCache(
+    const std::filesystem::path& source,
+    const std::filesystem::path& target)
 {
     std::error_code ec;
     std::filesystem::copy_file(
-        source, target, std::filesystem::copy_options::overwrite_existing, ec);
+        source,
+        target,
+        std::filesystem::copy_options::overwrite_existing,
+        ec);
     return !ec;
 }
 
@@ -340,8 +360,11 @@ std::vector<std::string> makeLowerLines(const std::vector<std::string>& lines)
 using RgCacheLineIndex =
     std::unordered_map<std::string, std::vector<Editor::RgCacheLineRef>>;
 
-void addRgCacheLineTokens(RgCacheLineIndex& index, std::string_view line,
-                          int fileIndex, int lineIndex)
+void addRgCacheLineTokens(
+    RgCacheLineIndex& index,
+    std::string_view line,
+    int fileIndex,
+    int lineIndex)
 {
     std::unordered_set<std::string> seen;
     for(size_t i = 0; i < line.size(); ++i)
@@ -362,7 +385,8 @@ void addRgCacheLineTokens(RgCacheLineIndex& index, std::string_view line,
 // Worker-thread safe: builds the token index for `files` into `index`.
 // Returns false when cancelled part-way.
 bool buildRgCacheLineIndex(
-    const std::vector<Editor::RgCachedFile>& files, RgCacheLineIndex& index,
+    const std::vector<Editor::RgCachedFile>& files,
+    RgCacheLineIndex& index,
     const std::function<bool()>& cancelled = {},
     const std::function<void(long long, long long)>& progress = {})
 {
@@ -377,9 +401,11 @@ bool buildRgCacheLineIndex(
         for(size_t lineIndex = 0; lineIndex < cached.lowerLines.size();
             ++lineIndex)
         {
-            addRgCacheLineTokens(index, cached.lowerLines[lineIndex],
-                                 static_cast<int>(fileIndex),
-                                 static_cast<int>(lineIndex));
+            addRgCacheLineTokens(
+                index,
+                cached.lowerLines[lineIndex],
+                static_cast<int>(fileIndex),
+                static_cast<int>(lineIndex));
         }
     }
     return true;
@@ -425,8 +451,10 @@ void invalidateRgCache(Editor& editor)
 }
 #endif
 
-void seedEditorSearchFromGrepMatch(Editor& editor, const GrepMatch& match,
-                                   std::string_view query)
+void seedEditorSearchFromGrepMatch(
+    Editor& editor,
+    const GrepMatch& match,
+    std::string_view query)
 {
     editor.searchQuery = std::string(query);
     editor.searchRegexError = false;
@@ -466,8 +494,10 @@ void seedEditorSearchFromGrepMatch(Editor& editor, const GrepMatch& match,
 
 // Syntax spans for preview line `index` of `cache` (tokens from the
 // editor's highlighter, coloured with the active theme).
-std::vector<widgets::PickerCanvas::Span>
-previewSpans(Editor& editor, const PreviewHighlight& cache, int index)
+std::vector<widgets::PickerCanvas::Span> previewSpans(
+    Editor& editor,
+    const PreviewHighlight& cache,
+    int index)
 {
     std::vector<widgets::PickerCanvas::Span> spans;
     if(index < 0 || index >= (int)cache.tokens.size())
@@ -479,8 +509,10 @@ previewSpans(Editor& editor, const PreviewHighlight& cache, int index)
         spans.push_back(
             {token.start, token.length, editor.theme.syntax(token.type)});
     }
-    std::sort(spans.begin(), spans.end(),
-              [](const auto& a, const auto& b) { return a.start < b.start; });
+    std::sort(
+        spans.begin(),
+        spans.end(),
+        [](const auto& a, const auto& b) { return a.start < b.start; });
     return spans;
 }
 } // namespace
@@ -508,8 +540,9 @@ void GrepSearchMode::on_exit(ModeContext& /* ctx */)
     Terminal::setCursorBlock();
 }
 
-std::optional<ModeState> GrepSearchMode::handle(ModeContext& ctx,
-                                                const ModeKeyEvent& event)
+std::optional<ModeState> GrepSearchMode::handle(
+    ModeContext& ctx,
+    const ModeKeyEvent& event)
 {
     const int key = event.key;
     Editor* ed = ctx.editor;
@@ -547,24 +580,28 @@ std::optional<ModeState> GrepSearchMode::handle(ModeContext& ctx,
     {
         toggleSelection();
     }
-    else if(c == keyCode(control::ControlKey::CTRL_J) ||
-            c == keyCode(navigation::NavigationKey::ARROW_DOWN))
+    else if(
+        c == keyCode(control::ControlKey::CTRL_J) ||
+        c == keyCode(navigation::NavigationKey::ARROW_DOWN))
     {
         resultDown(*ed);
     }
-    else if(c == keyCode(control::ControlKey::CTRL_P) ||
-            c == keyCode(control::ControlKey::CTRL_K) ||
-            c == keyCode(navigation::NavigationKey::ARROW_UP))
+    else if(
+        c == keyCode(control::ControlKey::CTRL_P) ||
+        c == keyCode(control::ControlKey::CTRL_K) ||
+        c == keyCode(navigation::NavigationKey::ARROW_UP))
     {
         resultUp(*ed);
     }
-    else if(c == keyCode(control::ControlKey::CTRL_D) ||
-            c == keyCode(navigation::NavigationKey::PAGE_DOWN))
+    else if(
+        c == keyCode(control::ControlKey::CTRL_D) ||
+        c == keyCode(navigation::NavigationKey::PAGE_DOWN))
     {
         resultHalfPageDown(*ed);
     }
-    else if(c == keyCode(control::ControlKey::CTRL_U) ||
-            c == keyCode(navigation::NavigationKey::PAGE_UP))
+    else if(
+        c == keyCode(control::ControlKey::CTRL_U) ||
+        c == keyCode(navigation::NavigationKey::PAGE_UP))
     {
         resultHalfPageUp(*ed);
     }
@@ -573,8 +610,9 @@ std::optional<ModeState> GrepSearchMode::handle(ModeContext& ctx,
     // Input Editing
     // ========================================================================
 
-    else if(c == keyCode(control::ControlKey::BACKSPACE) || c == 127 ||
-            c == keyCode(control::ControlKey::CTRL_H))
+    else if(
+        c == keyCode(control::ControlKey::BACKSPACE) || c == 127 ||
+        c == keyCode(control::ControlKey::CTRL_H))
     {
         searchBackspace(*ed);
     }
@@ -612,8 +650,9 @@ std::optional<ModeState> GrepSearchMode::handle(ModeContext& ctx,
     {
         togglePreview();
     }
-    else if(c == keyCode(control::ControlKey::SHIFT_CTRL_J) ||
-            c == keyCode(control::ControlKey::SHIFT_CTRL_K))
+    else if(
+        c == keyCode(control::ControlKey::SHIFT_CTRL_J) ||
+        c == keyCode(control::ControlKey::SHIFT_CTRL_K))
     {
         // Scroll the previewed file; the offset belongs to the selected
         // match and resets when the selection changes.
@@ -663,12 +702,11 @@ void GrepSearchMode::draw(Editor& editor)
     output.reserve(editor.screenRows * editor.screenCols * 2);
     if(layout.floating)
         output += Terminal::ESC_HIDE_CURSOR;
-    widgets::PickerCanvas canvas(output, layout, editor.theme,
-                                 editor.utf8Mode);
+    widgets::PickerCanvas canvas(output, layout, editor.theme, editor.utf8Mode);
     std::string footer;
     if(!matches.empty())
-        footer = std::to_string(cursor + 1) + " / " +
-                 std::to_string(matches.size());
+        footer =
+            std::to_string(cursor + 1) + " / " + std::to_string(matches.size());
     const auto helpLines = HeaderHelp::wrap(
         grepSearchHelpTokens(editor.searchMatchContrast, layout.preview),
         layout.headerCols);
@@ -731,8 +769,11 @@ void GrepSearchMode::draw(Editor& editor)
         }
         else
         {
-            output += grepResultBackground(match, lowerQuery, isSelected,
-                                           editor.searchMatchContrast);
+            output += grepResultBackground(
+                match,
+                lowerQuery,
+                isSelected,
+                editor.searchMatchContrast);
             output += editor.theme.baseFg();
         }
 
@@ -750,8 +791,10 @@ void GrepSearchMode::draw(Editor& editor)
         int pathWidth = cols - rowPrefixWidth - separatorsWidth -
                         (int)lineNumber.length() - minContentWidth;
         if(pathWidth < 8)
-            pathWidth = std::max(1, cols - rowPrefixWidth - separatorsWidth -
-                                        (int)lineNumber.length());
+            pathWidth = std::max(
+                1,
+                cols - rowPrefixWidth - separatorsWidth -
+                    (int)lineNumber.length());
 
         displayName = truncatePathMiddle(displayName, pathWidth);
         const int displayNameWidth = text_utils::utf8DisplayWidth(displayName);
@@ -795,9 +838,10 @@ void GrepSearchMode::draw(Editor& editor)
             output += content;
         }
 
-        canvas.endRow(rowPrefixWidth + displayNameWidth + separatorsWidth +
-                      static_cast<int>(lineNumber.length()) +
-                      text_utils::utf8DisplayWidth(content));
+        canvas.endRow(
+            rowPrefixWidth + displayNameWidth + separatorsWidth +
+            static_cast<int>(lineNumber.length()) +
+            text_utils::utf8DisplayWidth(content));
     }
 
     for(int i = std::max(0, (int)matches.size() - offset); i < availableRows;
@@ -822,8 +866,9 @@ void GrepSearchMode::draw(Editor& editor)
     Terminal::flush();
 }
 
-void GrepSearchMode::appendPreview(Editor& editor,
-                                   widgets::PickerCanvas& canvas) const
+void GrepSearchMode::appendPreview(
+    Editor& editor,
+    widgets::PickerCanvas& canvas) const
 {
     if(cursor < 0 || cursor >= (int)matches.size())
     {
@@ -849,18 +894,23 @@ void GrepSearchMode::appendPreview(Editor& editor,
         previewScroll = 0;
     // Keep the stored offset inside the file so scrolling back responds at
     // once after overshooting an edge.
-    previewScroll =
-        std::clamp(previewScroll, -centered, maxFirst - centered);
+    previewScroll = std::clamp(previewScroll, -centered, maxFirst - centered);
     const int first = std::clamp(centered + previewScroll, 0, maxFirst);
-    editor.highlightPreviewLines(previewHighlight, previewPath, previewLines,
-                                 static_cast<size_t>(first + rows));
+    editor.highlightPreviewLines(
+        previewHighlight,
+        previewPath,
+        previewLines,
+        static_cast<size_t>(first + rows));
     for(int row = 0; row < rows; ++row)
     {
         const int index = first + row;
         if(index < total)
-            canvas.previewRow(row, index + 1, previewLines[index],
-                              index == target,
-                              previewSpans(editor, previewHighlight, index));
+            canvas.previewRow(
+                row,
+                index + 1,
+                previewLines[index],
+                index == target,
+                previewSpans(editor, previewHighlight, index));
         else
             canvas.previewMessage(row, "");
     }
@@ -987,22 +1037,26 @@ void GrepSearchMode::loadFileIndex(Editor& editor)
     const bool respectGitignore = editor.respectGitignore;
     std::vector<FileEntry> files;
     // Listing + stat'ing a large tree can take seconds; keep the TUI alive.
-    if(editor.runTask("file index", "file-index",
-                      [&files, useGit, respectGitignore](TaskQueue::Context& ctx)
-                      {
-                          files = collectProjectFiles(
-                              useGit, respectGitignore,
-                              [&ctx] { return ctx.cancelled(); });
-                      }))
+    if(editor.runTask(
+           "file index",
+           "file-index",
+           [&files, useGit, respectGitignore](TaskQueue::Context& ctx)
+           {
+               files = collectProjectFiles(
+                   useGit,
+                   respectGitignore,
+                   [&ctx] { return ctx.cancelled(); });
+           }))
     {
         editor.grepProjectFiles = std::move(files);
         editor.grepFileIndexInitialized = true;
     }
 }
 
-std::vector<FileEntry>
-GrepSearchMode::collectProjectFiles(bool useGitFileIndex, bool respectGitignore,
-                                    const std::function<bool()>& cancelled)
+std::vector<FileEntry> GrepSearchMode::collectProjectFiles(
+    bool useGitFileIndex,
+    bool respectGitignore,
+    const std::function<bool()>& cancelled)
 {
     std::vector<FileEntry> files;
     std::error_code cwdEc;
@@ -1018,9 +1072,15 @@ GrepSearchMode::collectProjectFiles(bool useGitFileIndex, bool respectGitignore,
 
         if(!repoRoot.empty())
         {
-            const std::string raw =
-                runCmd({"git", "-C", cwdStr, "ls-files", "-z", "--cached",
-                        "--others", "--exclude-standard"});
+            const std::string raw = runCmd(
+                {"git",
+                 "-C",
+                 cwdStr,
+                 "ls-files",
+                 "-z",
+                 "--cached",
+                 "--others",
+                 "--exclude-standard"});
             const auto relPaths = splitNul(raw);
 
             for(const auto& relPath : relPaths)
@@ -1072,12 +1132,19 @@ GrepSearchMode::collectProjectFiles(bool useGitFileIndex, bool respectGitignore,
         {
             gitignore.loadRecursive(cwd);
         }
-        editor::helper::collectProjectFileEntries(cwdStr, 0, gitignore, files,
-                                                  cancelled);
-        files.erase(std::remove_if(files.begin(), files.end(),
-                                   [](const FileEntry& entry)
-                                   { return isRgCachePath(entry.path); }),
-                    files.end());
+        editor::helper::collectProjectFileEntries(
+            cwdStr,
+            0,
+            gitignore,
+            files,
+            cancelled);
+        files.erase(
+            std::remove_if(
+                files.begin(),
+                files.end(),
+                [](const FileEntry& entry)
+                { return isRgCachePath(entry.path); }),
+            files.end());
     }
     return files;
 }
@@ -1169,6 +1236,7 @@ void GrepSearchMode::startBackgroundSearch(Editor& editor)
         std::vector<FileEntry> files;
         std::vector<GrepMatch> results;
     };
+
     auto request = std::make_shared<Request>();
     request->query = searchPattern();
     request->caseSensitive = caseSensitive;
@@ -1184,21 +1252,23 @@ void GrepSearchMode::startBackgroundSearch(Editor& editor)
     Editor* ed = &editor;
 
     auto submitted = editor.submitTask(
-        "grep \"" + request->query + "\"", "",
+        "grep \"" + request->query + "\"",
+        "",
         [request](TaskQueue::Context& ctx)
         {
             GrepSearchMode searcher;
             searcher.query = request->query;
             searcher.caseSensitive = request->caseSensitive;
             auto cancelled = [&ctx] { return ctx.cancelled(); };
-            if(!searcher.performRipgrepSearch(request->respectGitignore,
-                                              cancelled))
+            if(!searcher
+                    .performRipgrepSearch(request->respectGitignore, cancelled))
             {
                 if(!request->haveFileIndex)
                 {
                     ctx.detail("listing files");
                     request->files = collectProjectFiles(
-                        request->useGitFileIndex, request->respectGitignore,
+                        request->useGitFileIndex,
+                        request->respectGitignore,
                         cancelled);
                     ctx.detail({});
                 }
@@ -1221,7 +1291,9 @@ void GrepSearchMode::startBackgroundSearch(Editor& editor)
         [ed, request, searchId]
         {
             ed->grepBackgroundResult = Editor::GrepBackgroundResult{
-                searchId, true, std::move(request->results)};
+                searchId,
+                true,
+                std::move(request->results)};
             ed->needsFullRedraw = true;
         },
         [ed, searchId]
@@ -1303,6 +1375,7 @@ bool GrepSearchMode::syncRgCache(Editor& editor, bool force)
         std::vector<Editor::RgCachedFile> cachedFiles;
         RgCacheLineIndex lineIndex;
     };
+
     auto job = std::make_shared<Job>();
     job->filesDir = cacheRoot / "files";
     job->indexPath = cacheRoot / "index.tsv";
@@ -1316,9 +1389,10 @@ bool GrepSearchMode::syncRgCache(Editor& editor, bool force)
     auto work = [job](TaskQueue::Context& ctx)
     {
         ctx.detail("listing files");
-        job->projectFiles =
-            collectProjectFiles(job->useGitFileIndex, job->respectGitignore,
-                                [&ctx] { return ctx.cancelled(); });
+        job->projectFiles = collectProjectFiles(
+            job->useGitFileIndex,
+            job->respectGitignore,
+            [&ctx] { return ctx.cancelled(); });
         ctx.detail({});
 
         std::error_code ec;
@@ -1348,9 +1422,12 @@ bool GrepSearchMode::syncRgCache(Editor& editor, bool force)
             if(sourcePath.is_relative())
                 sourcePath = std::filesystem::current_path() / sourcePath;
             const std::string cacheName = fnv1aHex(file.path) + ".txt";
-            pendingFiles.push_back(PendingFile{file.path, sourcePath,
-                                               job->filesDir / cacheName,
-                                               cacheName});
+            pendingFiles.push_back(
+                PendingFile{
+                    file.path,
+                    sourcePath,
+                    job->filesDir / cacheName,
+                    cacheName});
         }
 
         const int total = static_cast<int>(pendingFiles.size());
@@ -1441,7 +1518,8 @@ bool GrepSearchMode::syncRgCache(Editor& editor, bool force)
 
         const unsigned int reportedCores = std::thread::hardware_concurrency();
         const size_t maxWorkers = std::max<size_t>(
-            1, std::min<size_t>(reportedCores == 0 ? 2 : reportedCores, 8));
+            1,
+            std::min<size_t>(reportedCores == 0 ? 2 : reportedCores, 8));
         const size_t workerCount = std::min(pendingFiles.size(), maxWorkers);
         std::vector<std::thread> workers;
         workers.reserve(workerCount);
@@ -1493,7 +1571,8 @@ bool GrepSearchMode::syncRgCache(Editor& editor, bool force)
         // off the UI thread too.
         ctx.detail("indexing");
         if(!buildRgCacheLineIndex(
-               job->cachedFiles, job->lineIndex,
+               job->cachedFiles,
+               job->lineIndex,
                [&ctx] { return ctx.cancelled(); },
                [&ctx](long long done, long long total)
                { ctx.progress(done, total); }))
@@ -1527,15 +1606,18 @@ bool GrepSearchMode::syncRgCache(Editor& editor, bool force)
                     ++removed;
             }
         }
-        ctx.detail(std::to_string(updated) + " updated, " +
-                   std::to_string(removed) + " removed");
+        ctx.detail(
+            std::to_string(updated) + " updated, " + std::to_string(removed) +
+            " removed");
     };
 
     Editor* ed = &editor;
     const std::uint64_t generation = editor.rgCacheGeneration;
 
     auto submitted = editor.submitTask(
-        "rg cache", "rg-cache", std::move(work),
+        "rg cache",
+        "rg-cache",
+        std::move(work),
         [ed, job, generation]
         {
             if(ed->rgCacheGeneration != generation)
@@ -1614,8 +1696,9 @@ bool GrepSearchMode::performCachedSearch(Editor& editor)
         return true;
     }
 
-    auto addLineMatches = [&](const auto& cached, int lineIndex,
-                              std::string_view haystack) {
+    auto addLineMatches =
+        [&](const auto& cached, int lineIndex, std::string_view haystack)
+    {
         const std::string& line = cached.lines[static_cast<size_t>(lineIndex)];
         auto foundPositions = text_utils::find_cursor(haystack, searchNeedle);
         size_t pos = 0;
@@ -1662,10 +1745,11 @@ bool GrepSearchMode::performCachedSearch(Editor& editor)
 
             std::string_view haystack =
                 caseSensitive
-                    ? std::string_view(cached.lines[static_cast<size_t>(
-                          ref.lineIndex)])
-                    : std::string_view(cached.lowerLines[static_cast<size_t>(
-                          ref.lineIndex)]);
+                    ? std::string_view(
+                          cached.lines[static_cast<size_t>(ref.lineIndex)])
+                    : std::string_view(
+                          cached
+                              .lowerLines[static_cast<size_t>(ref.lineIndex)]);
             if(!addLineMatches(cached, ref.lineIndex, haystack))
             {
                 lastCachedQuery = pattern;
@@ -1688,7 +1772,8 @@ bool GrepSearchMode::performCachedSearch(Editor& editor)
 #endif
 
 bool GrepSearchMode::performRipgrepSearch(
-    bool respectGitignore, const std::function<bool()>& cancelled)
+    bool respectGitignore,
+    const std::function<bool()>& cancelled)
 {
 #ifdef _WIN32
     // Windows _popen waits for the child process in _pclose. Because ripgrep's
@@ -1763,8 +1848,8 @@ bool GrepSearchMode::performRipgrepSearch(
         match.lineNumber = lineNumber;
         match.lineContent = trimString(line.substr(lineEnd + 1));
 
-        std::string haystack = caseSensitive ? match.lineContent
-                                             : toLower(match.lineContent);
+        std::string haystack =
+            caseSensitive ? match.lineContent : toLower(match.lineContent);
         std::string needle = caseSensitive ? query : toLower(query);
         if(auto pos = haystack.find(needle); text_utils::is_found(pos))
             match.highlightRanges.push_back(
@@ -1777,8 +1862,9 @@ bool GrepSearchMode::performRipgrepSearch(
 #endif
 }
 
-void GrepSearchMode::searchInFile(const std::string& filepath,
-                                  std::string_view needle)
+void GrepSearchMode::searchInFile(
+    const std::string& filepath,
+    std::string_view needle)
 {
     if(needle.empty())
         return;
@@ -1841,12 +1927,12 @@ bool GrepSearchMode::isTextFile(const std::string& filepath)
     if(text_utils::is_found(dotPos))
     {
         ext = filepath.substr(dotPos);
-        bool isPythonExt =
-            constants::is_filetype<constants::no_pattern,
-                                   constants::python_suffixes>(filepath);
-        bool isMlaExt =
-            constants::is_filetype<constants::no_pattern,
-                                   constants::mla_suffixes>(filepath);
+        bool isPythonExt = constants::is_filetype<
+            constants::no_pattern,
+            constants::python_suffixes>(filepath);
+        bool isMlaExt = constants::is_filetype<
+            constants::no_pattern,
+            constants::mla_suffixes>(filepath);
 
         if(ext == ".txt" || ext == ".cpp" || ext == ".c" || ext == ".h" ||
            ext == ".hpp" || isPythonExt || ext == ".js" || ext == ".ts" ||
@@ -2114,7 +2200,8 @@ void GrepSearchMode::prewarmAroundCursor(Editor& editor) const
     std::unordered_set<std::string> seen;
     paths.reserve(21);
 
-    auto addPath = [&](int index) {
+    auto addPath = [&](int index)
+    {
         if(index < 0 || index >= (int)matches.size())
             return;
         const std::string& path = matches[index].filepath;

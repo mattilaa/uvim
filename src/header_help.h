@@ -12,8 +12,10 @@
 class HeaderHelp
 {
 public:
-    static std::vector<std::string> wrap(const std::vector<std::string>& tokens,
-                                         int width, int indent = 2)
+    static std::vector<std::string> wrap(
+        const std::vector<std::string>& tokens,
+        int width,
+        int indent = 2)
     {
         std::vector<std::string> lines;
         const std::string prefix(std::max(0, indent), ' ');
@@ -49,14 +51,20 @@ public:
         return lines;
     }
 
-    static int lineCount(const std::vector<std::string>& tokens, int width,
-                         int indent = 2)
+    static int lineCount(
+        const std::vector<std::string>& tokens,
+        int width,
+        int indent = 2)
     {
         return static_cast<int>(wrap(tokens, width, indent).size());
     }
 
-    static int append(std::string& output, const Theme& theme, int width,
-                      const std::vector<std::string>& tokens, int indent = 2)
+    static int append(
+        std::string& output,
+        const Theme& theme,
+        int width,
+        const std::vector<std::string>& tokens,
+        int indent = 2)
     {
         auto lines = wrap(tokens, width, indent);
         for(const auto& line : lines)

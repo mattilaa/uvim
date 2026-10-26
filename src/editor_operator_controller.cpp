@@ -17,18 +17,29 @@ void EditorOperatorController::enterOperatorPending(char op)
     editor.enterOperatorPendingImpl(op);
 }
 
-bool EditorOperatorController::getTextObjectRange(char objChar, bool around,
-                                                  int& outStartY,
-                                                  int& outStartX, int& outEndY,
-                                                  int& outEndX)
+bool EditorOperatorController::getTextObjectRange(
+    char objChar,
+    bool around,
+    int& outStartY,
+    int& outStartX,
+    int& outEndY,
+    int& outEndX)
 {
-    return editor.getTextObjectRangeImpl(objChar, around, outStartY, outStartX,
-                                         outEndY, outEndX);
+    return editor.getTextObjectRangeImpl(
+        objChar,
+        around,
+        outStartY,
+        outStartX,
+        outEndY,
+        outEndX);
 }
 
-void EditorOperatorController::applyOperatorToRange(char op, int startY,
-                                                    int startX, int endY,
-                                                    int endX)
+void EditorOperatorController::applyOperatorToRange(
+    char op,
+    int startY,
+    int startX,
+    int endY,
+    int endX)
 {
     editor.applyOperatorToRangeImpl(op, startY, startX, endY, endX);
 }
@@ -44,8 +55,13 @@ void Editor::enterOperatorPendingImpl(char op)
     setMode(OP_PENDING);
 }
 
-bool Editor::getTextObjectRangeImpl(char objChar, bool around, int& outStartY,
-                                    int& outStartX, int& outEndY, int& outEndX)
+bool Editor::getTextObjectRangeImpl(
+    char objChar,
+    bool around,
+    int& outStartY,
+    int& outStartX,
+    int& outEndY,
+    int& outEndX)
 {
     int y = *cursorY;
     int x = *cursorX;
@@ -131,22 +147,25 @@ bool Editor::getTextObjectRangeImpl(char objChar, bool around, int& outStartY,
     if(objChar == keyCode(command::CommandKey::KEY_LEFT_PAREN) ||
        objChar == keyCode(command::CommandKey::KEY_RIGHT_PAREN))
     {
-        if(findEnclosing(keyChar(command::CommandKey::KEY_LEFT_PAREN),
-                         keyChar(command::CommandKey::KEY_RIGHT_PAREN)))
+        if(findEnclosing(
+               keyChar(command::CommandKey::KEY_LEFT_PAREN),
+               keyChar(command::CommandKey::KEY_RIGHT_PAREN)))
             return true;
     }
     if(objChar == keyCode(command::CommandKey::KEY_LEFT_BRACE) ||
        objChar == keyCode(command::CommandKey::KEY_RIGHT_BRACE))
     {
-        if(findEnclosing(keyChar(command::CommandKey::KEY_LEFT_BRACE),
-                         keyChar(command::CommandKey::KEY_RIGHT_BRACE)))
+        if(findEnclosing(
+               keyChar(command::CommandKey::KEY_LEFT_BRACE),
+               keyChar(command::CommandKey::KEY_RIGHT_BRACE)))
             return true;
     }
     if(objChar == keyCode(command::CommandKey::KEY_LEFT_BRACKET) ||
        objChar == keyCode(command::CommandKey::KEY_RIGHT_BRACKET))
     {
-        if(findEnclosing(keyChar(command::CommandKey::KEY_LEFT_BRACKET),
-                         keyChar(command::CommandKey::KEY_RIGHT_BRACKET)))
+        if(findEnclosing(
+               keyChar(command::CommandKey::KEY_LEFT_BRACKET),
+               keyChar(command::CommandKey::KEY_RIGHT_BRACKET)))
             return true;
     }
 
@@ -271,8 +290,12 @@ bool Editor::getTextObjectRangeImpl(char objChar, bool around, int& outStartY,
     return false;
 }
 
-void Editor::applyOperatorToRangeImpl(char op, int startY, int startX, int endY,
-                                      int endX)
+void Editor::applyOperatorToRangeImpl(
+    char op,
+    int startY,
+    int startX,
+    int endY,
+    int endX)
 {
     if(startY > endY || (startY == endY && startX > endX))
     {
@@ -299,8 +322,9 @@ void Editor::applyOperatorToRangeImpl(char op, int startY, int startX, int endY,
         autoIndentRange(startY, endY);
 
         int linesIndented = endY - startY + 1;
-        setStatusMessage(std::to_string(linesIndented) + " line" +
-                         (linesIndented > 1 ? "s" : "") + " indented");
+        setStatusMessage(
+            std::to_string(linesIndented) + " line" +
+            (linesIndented > 1 ? "s" : "") + " indented");
         saveState();
     }
 

@@ -14,8 +14,10 @@ namespace
 mla::log::FileLogger LSP_LOG("CSHARP");
 }
 
-void Editor::enableCSharpLspImpl(bool enable, const std::string& serverPath,
-                                 const std::vector<std::string>& serverArgs)
+void Editor::enableCSharpLspImpl(
+    bool enable,
+    const std::string& serverPath,
+    const std::vector<std::string>& serverArgs)
 {
     csharpLspEnabled = false;
     this->csharpLspPath = serverPath;
@@ -34,8 +36,12 @@ void Editor::enableCSharpLspImpl(bool enable, const std::string& serverPath,
         currentBuffer ? currentBuffer->filename : "";
     const std::string root = projectRoot;
     lspController->start(
-        "C#", csharpLspClient, csharpLspEnabled,
-        [path = this->csharpLspPath, args = this->csharpLspArgs, bufferFilename,
+        "C#",
+        csharpLspClient,
+        csharpLspEnabled,
+        [path = this->csharpLspPath,
+         args = this->csharpLspArgs,
+         bufferFilename,
          root](LspClient& client)
         {
             const std::string server = csharp_lsp::resolveServer(path);
@@ -49,8 +55,10 @@ void Editor::enableCSharpLspImpl(bool enable, const std::string& serverPath,
                 if(ec)
                     rootDir = ".";
             }
-            return client.startServer(server, rootDir,
-                                      csharp_lsp::serverArgs(server, args));
+            return client.startServer(
+                server,
+                rootDir,
+                csharp_lsp::serverArgs(server, args));
         });
 #else
     (void)enable;

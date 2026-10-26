@@ -14,8 +14,11 @@ namespace
 {
 std::vector<std::string> gitPatchHelpTokens()
 {
-    return {"[y: stage]", "[n: skip]", "[ctrl-j/k: next/prev]",
-            "[q/esc: back]"};
+    return {
+        "[y: stage]",
+        "[n: skip]",
+        "[ctrl-j/k: next/prev]",
+        "[q/esc: back]"};
 }
 
 int gitPatchContentRows(const Editor& editor)
@@ -116,8 +119,8 @@ void GitPatchMode::on_enter(ModeContext& ctx)
 {
     if(hunks.empty())
     {
-        std::vector<std::string> args = {"git", "-C", repoDir, "--no-pager",
-                                         "diff"};
+        std::vector<std::string> args =
+            {"git", "-C", repoDir, "--no-pager", "diff"};
         if(!fixupFiles.empty())
         {
             args.push_back("--");
@@ -137,8 +140,9 @@ void GitPatchMode::on_exit(ModeContext& ctx)
     ctx.requestFullRedraw();
 }
 
-std::optional<ModeState> GitPatchMode::handle(ModeContext& ctx,
-                                              const ModeKeyEvent& event)
+std::optional<ModeState> GitPatchMode::handle(
+    ModeContext& ctx,
+    const ModeKeyEvent& event)
 {
     const int key = event.key;
     Editor* ed = ctx.editor;
@@ -158,13 +162,15 @@ std::optional<ModeState> GitPatchMode::handle(ModeContext& ctx,
     if(c == keyCode(typed::TypedKey::KEY_J) ||
        c == keyCode(navigation::NavigationKey::ARROW_DOWN))
     {
-        int maxScroll = std::max(0, (int)hunks[hunkIndex].lines.size() -
-                                        gitPatchContentRows(*ed));
+        int maxScroll = std::max(
+            0,
+            (int)hunks[hunkIndex].lines.size() - gitPatchContentRows(*ed));
         if(scrollOffset < maxScroll)
             scrollOffset++;
     }
-    else if(c == keyCode(typed::TypedKey::KEY_K) ||
-            c == keyCode(navigation::NavigationKey::ARROW_UP))
+    else if(
+        c == keyCode(typed::TypedKey::KEY_K) ||
+        c == keyCode(navigation::NavigationKey::ARROW_UP))
     {
         if(scrollOffset > 0)
             scrollOffset--;
@@ -188,7 +194,8 @@ std::optional<ModeState> GitPatchMode::handle(ModeContext& ctx,
     else if(c == keyCode(typed::TypedKey::KEY_Y))
     {
         ProcessPipe pipe(
-            {"git", "-C", repoDir, "apply", "--cached", "--unidiff-zero"}, "w");
+            {"git", "-C", repoDir, "apply", "--cached", "--unidiff-zero"},
+            "w");
         if(pipe)
         {
             pipe.write(hunks[hunkIndex].patch);
@@ -242,8 +249,11 @@ void GitPatchMode::draw(Editor& editor) const
     output += Terminal::ESC_BOLD;
     output += "  GIT PATCH";
     output += editor.theme.reset();
-    HeaderHelp::append(output, editor.theme, editor.screenCols,
-                       gitPatchHelpTokens());
+    HeaderHelp::append(
+        output,
+        editor.theme,
+        editor.screenCols,
+        gitPatchHelpTokens());
 
     int availableRows = gitPatchContentRows(editor);
     if(hunks.empty())
@@ -279,8 +289,9 @@ void GitPatchMode::draw(Editor& editor) const
                 if(!line.empty() &&
                    line[0] == keyCode(command::CommandKey::KEY_PLUS))
                     output += editor.theme.uiSuccess();
-                else if(!line.empty() &&
-                        line[0] == keyCode(command::CommandKey::KEY_MINUS))
+                else if(
+                    !line.empty() &&
+                    line[0] == keyCode(command::CommandKey::KEY_MINUS))
                     output += editor.theme.uiError();
                 else if(line.rfind("@@ ", 0) == 0)
                     output += editor.theme.uiInfo();

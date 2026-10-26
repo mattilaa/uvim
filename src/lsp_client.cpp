@@ -32,18 +32,21 @@
 #include <unordered_map>
 #include <vector>
 
-#include "json_utils.h"
 #include "enablelog.h"
+#include "json_utils.h"
 #include "text_utils.h"
 
 namespace ju = json_utils;
 
 #ifdef UVIM_DEBUG_LSP
-static void logLspDebug(mla::log::FileLogger logger, const std::string& tag,
-                        const ju::Value& payload)
+static void logLspDebug(
+    mla::log::FileLogger logger,
+    const std::string& tag,
+    const ju::Value& payload)
 {
-    logger.log(mla::log::LogLevel::Debug,
-               fmt::format("{}\n{}", tag, ju::stringify_pretty(payload)));
+    logger.log(
+        mla::log::LogLevel::Debug,
+        fmt::format("{}\n{}", tag, ju::stringify_pretty(payload)));
 }
 #endif
 
@@ -52,8 +55,9 @@ static std::string readFileAll(const std::string& path)
     std::ifstream f(path, std::ios::binary);
     if(!f)
         return {};
-    std::string s((std::istreambuf_iterator<char>(f)),
-                  std::istreambuf_iterator<char>());
+    std::string
+        s((std::istreambuf_iterator<char>(f)),
+          std::istreambuf_iterator<char>());
     return s;
 }
 
@@ -68,9 +72,17 @@ static std::vector<std::string> defaultSemanticTokenTypes()
 
 static std::vector<std::string> defaultSemanticTokenModifiers()
 {
-    return {"declaration",   "definition",    "readonly", "static",
-            "deprecated",    "abstract",      "async",    "modification",
-            "documentation", "defaultLibrary"};
+    return {
+        "declaration",
+        "definition",
+        "readonly",
+        "static",
+        "deprecated",
+        "abstract",
+        "async",
+        "modification",
+        "documentation",
+        "defaultLibrary"};
 }
 
 static std::string absPath(const std::string& p)
@@ -170,16 +182,24 @@ static std::wstring utf8_to_wide(std::string_view text)
     if(text.empty())
         return {};
 
-    int wideLen =
-        MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, text.data(),
-                            static_cast<int>(text.size()), nullptr, 0);
+    int wideLen = MultiByteToWideChar(
+        CP_UTF8,
+        MB_ERR_INVALID_CHARS,
+        text.data(),
+        static_cast<int>(text.size()),
+        nullptr,
+        0);
     if(wideLen <= 0)
         return {};
 
     std::wstring wide(static_cast<size_t>(wideLen), L'\0');
-    wideLen = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, text.data(),
-                                  static_cast<int>(text.size()), wide.data(),
-                                  wideLen);
+    wideLen = MultiByteToWideChar(
+        CP_UTF8,
+        MB_ERR_INVALID_CHARS,
+        text.data(),
+        static_cast<int>(text.size()),
+        wide.data(),
+        wideLen);
     if(wideLen <= 0)
         return {};
     return wide;
@@ -190,16 +210,28 @@ static std::string wide_to_utf8(std::wstring_view text)
     if(text.empty())
         return {};
 
-    int len = WideCharToMultiByte(CP_UTF8, 0, text.data(),
-                                  static_cast<int>(text.size()), nullptr, 0,
-                                  nullptr, nullptr);
+    int len = WideCharToMultiByte(
+        CP_UTF8,
+        0,
+        text.data(),
+        static_cast<int>(text.size()),
+        nullptr,
+        0,
+        nullptr,
+        nullptr);
     if(len <= 0)
         return {};
 
     std::string out(static_cast<size_t>(len), '\0');
-    len = WideCharToMultiByte(CP_UTF8, 0, text.data(),
-                              static_cast<int>(text.size()), out.data(), len,
-                              nullptr, nullptr);
+    len = WideCharToMultiByte(
+        CP_UTF8,
+        0,
+        text.data(),
+        static_cast<int>(text.size()),
+        out.data(),
+        len,
+        nullptr,
+        nullptr);
     if(len <= 0)
         return {};
     return out;
@@ -211,7 +243,12 @@ static std::string windows_error_message(DWORD error)
     DWORD len = FormatMessageW(
         FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM |
             FORMAT_MESSAGE_IGNORE_INSERTS,
-        nullptr, error, 0, reinterpret_cast<LPWSTR>(&buffer), 0, nullptr);
+        nullptr,
+        error,
+        0,
+        reinterpret_cast<LPWSTR>(&buffer),
+        0,
+        nullptr);
 
     std::string message;
     if(len > 0 && buffer)
@@ -304,8 +341,10 @@ static int get_int_member(const ju::Value* obj, const char* key, int def = 0)
     return ju::get_int(*obj, key, def);
 }
 
-static std::string get_string_member(const ju::Value* obj, const char* key,
-                                     std::string_view def = {})
+static std::string get_string_member(
+    const ju::Value* obj,
+    const char* key,
+    std::string_view def = {})
 {
     if(!obj || !obj->IsObject())
         return std::string(def);
@@ -315,8 +354,7 @@ static std::string get_string_member(const ju::Value* obj, const char* key,
 static std::string lowercase_copy(std::string text)
 {
     for(char& c : text)
-        c = static_cast<char>(
-            std::tolower(static_cast<unsigned char>(c)));
+        c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
     return text;
 }
 
@@ -379,12 +417,14 @@ struct LspClient::Impl
     std::unordered_map<std::string, std::vector<LspClient::SemanticToken>>
         semanticTokensByFile;
     std::unordered_map<std::string, size_t> semanticTokensRevision;
+
     struct PendingSemanticRequest
     {
         int id = 0;
         int documentVersion = 0;
         std::chrono::steady_clock::time_point startedAt{};
     };
+
     std::unordered_map<std::string, PendingSemanticRequest>
         pendingSemanticRequests;
     std::vector<std::string> semanticTokenTypes;
@@ -496,10 +536,8 @@ struct LspClient::Impl
         std::string err = capturedStderr();
         if(!err.empty())
         {
-            LOG_ERROR(logger, "LSP server stderr after '{}':\n{}", status,
-                      err);
-            status += " (details logged to " + mla::log::getLogFilePath() +
-                      ")";
+            LOG_ERROR(logger, "LSP server stderr after '{}':\n{}", status, err);
+            status += " (details logged to " + mla::log::getLogFilePath() + ")";
         }
         return status;
     }
@@ -512,8 +550,8 @@ struct LspClient::Impl
         DWORD exitCode = 0;
         if(GetExitCodeProcess(process, &exitCode) && exitCode != STILL_ACTIVE)
         {
-            return withCapturedStderr("server process exited with code " +
-                                      std::to_string(exitCode));
+            return withCapturedStderr(
+                "server process exited with code " + std::to_string(exitCode));
         }
         return withCapturedStderr(
             "server stdout closed while process is still active");
@@ -647,10 +685,8 @@ struct LspClient::Impl
         std::string err = capturedStderr();
         if(!err.empty())
         {
-            LOG_ERROR(logger, "LSP server stderr after '{}':\n{}", status,
-                      err);
-            status += " (details logged to " + mla::log::getLogFilePath() +
-                      ")";
+            LOG_ERROR(logger, "LSP server stderr after '{}':\n{}", status, err);
+            status += " (details logged to " + mla::log::getLogFilePath() + ")";
         }
         return status;
     }
@@ -690,8 +726,8 @@ struct LspClient::Impl
             stderrReader.join();
     }
 
-    bool isIndexingProgress(const ju::Value* token,
-                            const ju::Value* value) const
+    bool isIndexingProgress(const ju::Value* token, const ju::Value* value)
+        const
     {
         std::string haystack;
         if(token)
@@ -724,9 +760,10 @@ struct LspClient::Impl
         const std::string kind = get_string_member(value, "kind");
 
         std::lock_guard<std::mutex> lk(progressMutex);
-        auto it = std::find_if(workItems.begin(), workItems.end(),
-                               [&](const auto& item)
-                               { return item.first == key; });
+        auto it = std::find_if(
+            workItems.begin(),
+            workItems.end(),
+            [&](const auto& item) { return item.first == key; });
         if(kind == "end")
         {
             if(it != workItems.end())
@@ -748,15 +785,15 @@ struct LspClient::Impl
         if(const ju::Value* message = ju::find(*value, "message");
            message && message->IsString())
         {
-            work.message.assign(message->GetString(),
-                                message->GetStringLength());
+            work.message
+                .assign(message->GetString(), message->GetStringLength());
         }
         if(const ju::Value* percent = ju::find(*value, "percentage");
-           percent && (percent->IsInt() || percent->IsUint() ||
-                        percent->IsDouble()))
+           percent &&
+           (percent->IsInt() || percent->IsUint() || percent->IsDouble()))
         {
-            work.percent = std::clamp(
-                static_cast<int>(percent->GetDouble()), 0, 100);
+            work.percent =
+                std::clamp(static_cast<int>(percent->GetDouble()), 0, 100);
         }
     }
 
@@ -825,8 +862,9 @@ struct LspClient::Impl
             std::string message;
             {
                 std::unique_lock<std::mutex> lk(writeMutex);
-                writeCv.wait(lk, [this]
-                             { return !alive.load() || !outgoing.empty(); });
+                writeCv.wait(
+                    lk,
+                    [this] { return !alive.load() || !outgoing.empty(); });
                 if(!alive.load())
                     break;
                 message = std::move(outgoing.front());
@@ -927,15 +965,17 @@ struct LspClient::Impl
                 return std::nullopt;
             }
             const auto slice = std::min<std::chrono::steady_clock::duration>(
-                deadline - now, std::chrono::milliseconds(30));
+                deadline - now,
+                std::chrono::milliseconds(30));
             if(cv.wait_for(lk, slice, ready))
                 break;
             if(hookable)
             {
                 hooked = true;
                 lk.unlock();
-                waitHook(method.empty() ? std::string_view("request")
-                                        : std::string_view(method));
+                waitHook(
+                    method.empty() ? std::string_view("request")
+                                   : std::string_view(method));
                 lk.lock();
             }
         }
@@ -1017,8 +1057,7 @@ struct LspClient::Impl
 
                 if(const ju::Value* idVal = ju::find(msg, "id"))
                 {
-                    const ju::Value* requestMethod =
-                        ju::find(msg, "method");
+                    const ju::Value* requestMethod = ju::find(msg, "method");
                     if(requestMethod && requestMethod->IsString())
                     {
                         sendNullResultResponse(*idVal);
@@ -1035,11 +1074,13 @@ struct LspClient::Impl
                         cv.notify_all();
                     }
                 }
-                else if(const ju::Value* methodVal = ju::find(msg, "method");
-                        methodVal && methodVal->IsString())
+                else if(
+                    const ju::Value* methodVal = ju::find(msg, "method");
+                    methodVal && methodVal->IsString())
                 {
-                    std::string method(methodVal->GetString(),
-                                       methodVal->GetStringLength());
+                    std::string method(
+                        methodVal->GetString(),
+                        methodVal->GetStringLength());
                     if(method == "textDocument/publishDiagnostics")
                     {
                         const ju::Value* params = ju::find(msg, "params");
@@ -1080,7 +1121,9 @@ struct LspClient::Impl
                                     diag.endLine =
                                         get_int_member(end, "line", diag.line);
                                     diag.endCharacter = get_int_member(
-                                        end, "character", diag.character);
+                                        end,
+                                        "character",
+                                        diag.character);
                                     diag.severity =
                                         get_int_member(&item, "severity", 0);
                                     diag.message =
@@ -1147,8 +1190,9 @@ struct LspClient::Impl
         writeCv.notify_all();
     }
 
-    bool startClangd(const std::string& clangdPath,
-                     const std::vector<std::string>& extraArgs)
+    bool startClangd(
+        const std::string& clangdPath,
+        const std::vector<std::string>& extraArgs)
     {
         lastError.clear();
         {
@@ -1275,16 +1319,22 @@ struct LspClient::Impl
         startup.lpAttributeList =
             reinterpret_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(
                 attributeStorage.data());
-        const bool attributesInitialized =
-            InitializeProcThreadAttributeList(startup.lpAttributeList, 1, 0,
-                                              &attributeBytes) != FALSE;
-        HANDLE inherited[] = {childStdinRead, childStdoutWrite,
-                              childStderrWrite};
+        const bool attributesInitialized = InitializeProcThreadAttributeList(
+                                               startup.lpAttributeList,
+                                               1,
+                                               0,
+                                               &attributeBytes) != FALSE;
+        HANDLE inherited[] =
+            {childStdinRead, childStdoutWrite, childStderrWrite};
         const bool attributesReady =
-            attributesInitialized &&
-            UpdateProcThreadAttribute(
-                startup.lpAttributeList, 0, PROC_THREAD_ATTRIBUTE_HANDLE_LIST,
-                inherited, sizeof(inherited), nullptr, nullptr) != FALSE;
+            attributesInitialized && UpdateProcThreadAttribute(
+                                         startup.lpAttributeList,
+                                         0,
+                                         PROC_THREAD_ATTRIBUTE_HANDLE_LIST,
+                                         inherited,
+                                         sizeof(inherited),
+                                         nullptr,
+                                         nullptr) != FALSE;
 
         PROCESS_INFORMATION processInfo{};
         const bool hasPathSeparator =
@@ -1294,9 +1344,16 @@ struct LspClient::Impl
             hasPathSeparator ? executablePath.c_str() : nullptr;
         BOOL ok = attributesReady &&
                   CreateProcessW(
-                      applicationName, commandLine.data(), nullptr, nullptr,
-                      TRUE, CREATE_NO_WINDOW | EXTENDED_STARTUPINFO_PRESENT,
-                      nullptr, nullptr, &startup.StartupInfo, &processInfo);
+                      applicationName,
+                      commandLine.data(),
+                      nullptr,
+                      nullptr,
+                      TRUE,
+                      CREATE_NO_WINDOW | EXTENDED_STARTUPINFO_PRESENT,
+                      nullptr,
+                      nullptr,
+                      &startup.StartupInfo,
+                      &processInfo);
         const DWORD launchError = ok ? ERROR_SUCCESS : GetLastError();
         if(attributesInitialized)
             DeleteProcThreadAttributeList(startup.lpAttributeList);
@@ -1352,8 +1409,13 @@ struct LspClient::Impl
 
         // Other servers launched later must not keep this client's pipe ends
         // alive across exec, otherwise stopping it can wait forever for EOF.
-        for(int fd : {inPipe[0], inPipe[1], outPipe[0], outPipe[1], errPipe[0],
-                      errPipe[1]})
+        for(int fd :
+            {inPipe[0],
+             inPipe[1],
+             outPipe[0],
+             outPipe[1],
+             errPipe[0],
+             errPipe[1]})
             fcntl(fd, F_SETFD, FD_CLOEXEC);
 
         // Allocate argv before fork: other editor workers may hold allocator
@@ -1425,15 +1487,20 @@ struct LspClient::Impl
 #else
         params.AddMember("processId", (int)getpid(), alloc);
 #endif
-        params.AddMember("rootUri",
-                         ju::make_string(pathToFileUri(rootDirectory), alloc),
-                         alloc);
-        params.AddMember("rootPath",
-                         ju::make_string(absPath(rootDirectory), alloc), alloc);
+        params.AddMember(
+            "rootUri",
+            ju::make_string(pathToFileUri(rootDirectory), alloc),
+            alloc);
+        params.AddMember(
+            "rootPath",
+            ju::make_string(absPath(rootDirectory), alloc),
+            alloc);
         ju::Value workspaceFolders(ju::kArrayType);
         ju::Value workspaceFolder(ju::kObjectType);
         workspaceFolder.AddMember(
-            "uri", ju::make_string(pathToFileUri(rootDirectory), alloc), alloc);
+            "uri",
+            ju::make_string(pathToFileUri(rootDirectory), alloc),
+            alloc);
         workspaceFolder.AddMember(
             "name",
             ju::make_string(
@@ -1501,8 +1568,9 @@ struct LspClient::Impl
                 for(const auto& item : tokenTypesVal->GetArray())
                 {
                     if(item.IsString())
-                        types.emplace_back(item.GetString(),
-                                           item.GetStringLength());
+                        types.emplace_back(
+                            item.GetString(),
+                            item.GetStringLength());
                 }
                 if(!types.empty())
                     semanticTokenTypes = std::move(types);
@@ -1515,8 +1583,9 @@ struct LspClient::Impl
                 for(const auto& item : tokenModsVal->GetArray())
                 {
                     if(item.IsString())
-                        mods.emplace_back(item.GetString(),
-                                          item.GetStringLength());
+                        mods.emplace_back(
+                            item.GetString(),
+                            item.GetStringLength());
                 }
                 if(!mods.empty())
                     semanticTokenModifiers = std::move(mods);
@@ -1526,11 +1595,12 @@ struct LspClient::Impl
                 const ju::Value* name = ju::find(*serverInfo, "name");
                 const ju::Value* version = ju::find(*serverInfo, "version");
                 if(name && name->IsString())
-                    serverName.assign(name->GetString(),
-                                      name->GetStringLength());
+                    serverName
+                        .assign(name->GetString(), name->GetStringLength());
                 if(version && version->IsString())
-                    serverVersion.assign(version->GetString(),
-                                         version->GetStringLength());
+                    serverVersion.assign(
+                        version->GetString(),
+                        version->GetStringLength());
             }
         }
 
@@ -1555,9 +1625,11 @@ void LspClient::setLogSignature(const std::string& signature)
         impl->logger = mla::log::FileLogger(signature);
 }
 
-bool LspClient::start(const std::string& clangdPath, const std::string& rootDir,
-                      const std::string& compileCommandsDir,
-                      const std::string& queryDriverAllowList)
+bool LspClient::start(
+    const std::string& clangdPath,
+    const std::string& rootDir,
+    const std::string& compileCommandsDir,
+    const std::string& queryDriverAllowList)
 {
     if(running())
         return true;
@@ -1611,9 +1683,10 @@ bool LspClient::start(const std::string& clangdPath, const std::string& rootDir,
     return true;
 }
 
-bool LspClient::startServer(const std::string& serverPath,
-                            const std::string& rootDir,
-                            const std::vector<std::string>& args)
+bool LspClient::startServer(
+    const std::string& serverPath,
+    const std::string& rootDir,
+    const std::vector<std::string>& args)
 {
     if(running())
         return true;
@@ -1773,8 +1846,10 @@ int LspClient::workerCount() const
     return impl->launchedWorkerCount;
 }
 
-void LspClient::didOpen(const std::string& filePath,
-                        const std::string& languageId, const std::string& text)
+void LspClient::didOpen(
+    const std::string& filePath,
+    const std::string& languageId,
+    const std::string& text)
 {
     if(!running())
         return;
@@ -1800,8 +1875,10 @@ void LspClient::didChange(const std::string& filePath, const std::string& text)
     didChange(filePath, text, "cpp");
 }
 
-void LspClient::didChange(const std::string& filePath, const std::string& text,
-                          const std::string& languageId)
+void LspClient::didChange(
+    const std::string& filePath,
+    const std::string& text,
+    const std::string& languageId)
 {
     if(!running())
         return;
@@ -1847,8 +1924,8 @@ void LspClient::didSave(const std::string& filePath)
     impl->sendNotification("textDocument/didSave", params);
 }
 
-static std::optional<LspClient::Location>
-parseDefinitionResult(const ju::Value* result)
+static std::optional<LspClient::Location> parseDefinitionResult(
+    const ju::Value* result)
 {
     // clangd may return Location | Location[] | LocationLink[]
     if(!result || result->IsNull())
@@ -1873,8 +1950,9 @@ parseDefinitionResult(const ju::Value* result)
         {
             // LocationLink
             if(targetUriVal->IsString())
-                uri.assign(targetUriVal->GetString(),
-                           targetUriVal->GetStringLength());
+                uri.assign(
+                    targetUriVal->GetString(),
+                    targetUriVal->GetStringLength());
             range = ju::find(loc, "targetRange");
         }
         else
@@ -1903,9 +1981,11 @@ parseDefinitionResult(const ju::Value* result)
     return std::nullopt;
 }
 
-std::optional<LspClient::Location>
-LspClient::definition(const std::string& filePath, int line,
-                      int characterUtf8ByteOffset, std::string_view lineText)
+std::optional<LspClient::Location> LspClient::definition(
+    const std::string& filePath,
+    int line,
+    int characterUtf8ByteOffset,
+    std::string_view lineText)
 {
     if(!running())
         return std::nullopt;
@@ -1917,8 +1997,9 @@ LspClient::definition(const std::string& filePath, int line,
     int utf16ch = characterUtf8ByteOffset;
     if(!lineText.empty())
     {
-        utf16ch = text_utils::utf8ByteOffsetToUtf16(std::string(lineText),
-                                                    characterUtf8ByteOffset);
+        utf16ch = text_utils::utf8ByteOffsetToUtf16(
+            std::string(lineText),
+            characterUtf8ByteOffset);
     }
     else
     {
@@ -1936,7 +2017,8 @@ LspClient::definition(const std::string& filePath, int line,
                     {
                         std::string ln = text.substr(start, i - start);
                         utf16ch = text_utils::utf8ByteOffsetToUtf16(
-                            ln, characterUtf8ByteOffset);
+                            ln,
+                            characterUtf8ByteOffset);
                         break;
                     }
                     curLine++;
@@ -1968,9 +2050,11 @@ LspClient::definition(const std::string& filePath, int line,
     return parseDefinitionResult(result);
 }
 
-std::optional<LspClient::Location>
-LspClient::declaration(const std::string& filePath, int line,
-                       int characterUtf8ByteOffset, std::string_view lineText)
+std::optional<LspClient::Location> LspClient::declaration(
+    const std::string& filePath,
+    int line,
+    int characterUtf8ByteOffset,
+    std::string_view lineText)
 {
     if(!running())
         return std::nullopt;
@@ -1980,8 +2064,9 @@ LspClient::declaration(const std::string& filePath, int line,
     int utf16ch = characterUtf8ByteOffset;
     if(!lineText.empty())
     {
-        utf16ch = text_utils::utf8ByteOffsetToUtf16(std::string(lineText),
-                                                    characterUtf8ByteOffset);
+        utf16ch = text_utils::utf8ByteOffsetToUtf16(
+            std::string(lineText),
+            characterUtf8ByteOffset);
     }
     else
     {
@@ -1998,7 +2083,8 @@ LspClient::declaration(const std::string& filePath, int line,
                     {
                         std::string ln = text.substr(start, i - start);
                         utf16ch = text_utils::utf8ByteOffsetToUtf16(
-                            ln, characterUtf8ByteOffset);
+                            ln,
+                            characterUtf8ByteOffset);
                         break;
                     }
                     curLine++;
@@ -2029,10 +2115,11 @@ LspClient::declaration(const std::string& filePath, int line,
     return parseDefinitionResult(result);
 }
 
-std::optional<LspClient::Location>
-LspClient::typeDefinition(const std::string& filePath, int line,
-                          int characterUtf8ByteOffset,
-                          std::string_view lineText)
+std::optional<LspClient::Location> LspClient::typeDefinition(
+    const std::string& filePath,
+    int line,
+    int characterUtf8ByteOffset,
+    std::string_view lineText)
 {
     if(!running())
         return std::nullopt;
@@ -2042,8 +2129,9 @@ LspClient::typeDefinition(const std::string& filePath, int line,
     int utf16ch = characterUtf8ByteOffset;
     if(!lineText.empty())
     {
-        utf16ch = text_utils::utf8ByteOffsetToUtf16(std::string(lineText),
-                                                    characterUtf8ByteOffset);
+        utf16ch = text_utils::utf8ByteOffsetToUtf16(
+            std::string(lineText),
+            characterUtf8ByteOffset);
     }
     else
     {
@@ -2060,7 +2148,8 @@ LspClient::typeDefinition(const std::string& filePath, int line,
                     {
                         std::string ln = text.substr(start, i - start);
                         utf16ch = text_utils::utf8ByteOffsetToUtf16(
-                            ln, characterUtf8ByteOffset);
+                            ln,
+                            characterUtf8ByteOffset);
                         break;
                     }
                     curLine++;
@@ -2091,10 +2180,13 @@ LspClient::typeDefinition(const std::string& filePath, int line,
     return parseDefinitionResult(result);
 }
 
-std::vector<LspClient::CompletionItem>
-LspClient::completion(const std::string& filePath, int line,
-                      int characterUtf8ByteOffset, std::string_view lineText,
-                      int triggerKind, char triggerCharacter)
+std::vector<LspClient::CompletionItem> LspClient::completion(
+    const std::string& filePath,
+    int line,
+    int characterUtf8ByteOffset,
+    std::string_view lineText,
+    int triggerKind,
+    char triggerCharacter)
 {
     std::vector<CompletionItem> out;
     if(!running())
@@ -2106,8 +2198,9 @@ LspClient::completion(const std::string& filePath, int line,
     int utf16ch = characterUtf8ByteOffset;
     if(!lineText.empty())
     {
-        utf16ch = text_utils::utf8ByteOffsetToUtf16(std::string(lineText),
-                                                    characterUtf8ByteOffset);
+        utf16ch = text_utils::utf8ByteOffsetToUtf16(
+            std::string(lineText),
+            characterUtf8ByteOffset);
     }
     else
     {
@@ -2124,7 +2217,8 @@ LspClient::completion(const std::string& filePath, int line,
                     {
                         std::string ln = text.substr(start, i - start);
                         utf16ch = text_utils::utf8ByteOffsetToUtf16(
-                            ln, characterUtf8ByteOffset);
+                            ln,
+                            characterUtf8ByteOffset);
                         break;
                     }
                     curLine++;
@@ -2200,27 +2294,27 @@ LspClient::completion(const std::string& filePath, int line,
         {
             const ju::Value* detail = ju::find(*labelDetails, "detail");
             if(detail && detail->IsString())
-                ci.labelDetail.assign(detail->GetString(),
-                                      detail->GetStringLength());
+                ci.labelDetail
+                    .assign(detail->GetString(), detail->GetStringLength());
             const ju::Value* desc = ju::find(*labelDetails, "description");
             if(desc && desc->IsString())
-                ci.labelDescription.assign(desc->GetString(),
-                                           desc->GetStringLength());
+                ci.labelDescription
+                    .assign(desc->GetString(), desc->GetStringLength());
         }
         const ju::Value* docVal = ju::find(it, "documentation");
         if(docVal)
         {
             if(docVal->IsString())
             {
-                ci.documentation.assign(docVal->GetString(),
-                                        docVal->GetStringLength());
+                ci.documentation
+                    .assign(docVal->GetString(), docVal->GetStringLength());
             }
             else if(docVal->IsObject())
             {
                 const ju::Value* value = ju::find(*docVal, "value");
                 if(value && value->IsString())
-                    ci.documentation.assign(value->GetString(),
-                                            value->GetStringLength());
+                    ci.documentation
+                        .assign(value->GetString(), value->GetStringLength());
             }
         }
 
@@ -2231,8 +2325,8 @@ LspClient::completion(const std::string& filePath, int line,
             const ju::Value* newText = ju::find(*textEdit, "newText");
             if(newText && newText->IsString())
             {
-                ci.insertText.assign(newText->GetString(),
-                                     newText->GetStringLength());
+                ci.insertText
+                    .assign(newText->GetString(), newText->GetStringLength());
             }
         }
 
@@ -2246,9 +2340,11 @@ LspClient::completion(const std::string& filePath, int line,
     return out;
 }
 
-std::vector<LspClient::Location>
-LspClient::references(const std::string& filePath, int line,
-                      int characterUtf8ByteOffset, bool includeDeclaration)
+std::vector<LspClient::Location> LspClient::references(
+    const std::string& filePath,
+    int line,
+    int characterUtf8ByteOffset,
+    bool includeDeclaration)
 {
     std::vector<Location> out;
     if(!running())
@@ -2271,7 +2367,8 @@ LspClient::references(const std::string& filePath, int line,
                 {
                     std::string ln = text.substr(start, i - start);
                     utf16ch = text_utils::utf8ByteOffsetToUtf16(
-                        ln, characterUtf8ByteOffset);
+                        ln,
+                        characterUtf8ByteOffset);
                     break;
                 }
                 curLine++;
@@ -2345,8 +2442,8 @@ void LspClient::setDiagnosticsEnabled(bool enabled)
     impl->diagnosticsRevision.clear();
 }
 
-std::vector<LspClient::Diagnostic>
-LspClient::diagnostics(const std::string& filePath) const
+std::vector<LspClient::Diagnostic> LspClient::diagnostics(
+    const std::string& filePath) const
 {
     if(!impl)
         return {};
@@ -2392,8 +2489,8 @@ size_t LspClient::diagnosticsRevision(const std::string& filePath) const
     return it->second;
 }
 
-static std::vector<LspClient::TextEdit>
-parseTextEditsForUri(const ju::Value* edits)
+static std::vector<LspClient::TextEdit> parseTextEditsForUri(
+    const ju::Value* edits)
 {
     std::vector<LspClient::TextEdit> out;
     if(!edits || !edits->IsArray())
@@ -2418,9 +2515,10 @@ parseTextEditsForUri(const ju::Value* edits)
     return out;
 }
 
-static void parseWorkspaceEditInto(const ju::Value* editObj,
-                                   const std::string& filePath,
-                                   std::vector<LspClient::TextEdit>& out)
+static void parseWorkspaceEditInto(
+    const ju::Value* editObj,
+    const std::string& filePath,
+    std::vector<LspClient::TextEdit>& out)
 {
     if(!editObj || !editObj->IsObject())
         return;
@@ -2460,8 +2558,8 @@ static void parseWorkspaceEditInto(const ju::Value* editObj,
     }
 }
 
-static std::vector<LspClient::WorkspaceEdit>
-parseWorkspaceEditAll(const ju::Value* editObj)
+static std::vector<LspClient::WorkspaceEdit> parseWorkspaceEditAll(
+    const ju::Value* editObj)
 {
     std::vector<LspClient::WorkspaceEdit> out;
     if(!editObj || !editObj->IsObject())
@@ -2473,9 +2571,11 @@ parseWorkspaceEditAll(const ju::Value* editObj)
         if(parsed.empty())
             return;
         path = absPath(path);
-        auto it = std::find_if(out.begin(), out.end(),
-                               [&](const LspClient::WorkspaceEdit& item)
-                               { return absPath(item.path) == path; });
+        auto it = std::find_if(
+            out.begin(),
+            out.end(),
+            [&](const LspClient::WorkspaceEdit& item)
+            { return absPath(item.path) == path; });
         if(it == out.end())
         {
             LspClient::WorkspaceEdit item;
@@ -2518,9 +2618,10 @@ parseWorkspaceEditAll(const ju::Value* editObj)
     return out;
 }
 
-static void fillCodeActionFromJson(const ju::Value& item,
-                                   const std::string& filePath,
-                                   LspClient::CodeAction& action)
+static void fillCodeActionFromJson(
+    const ju::Value& item,
+    const std::string& filePath,
+    LspClient::CodeAction& action)
 {
     if(!item.IsObject())
         return;
@@ -2583,10 +2684,11 @@ static void fillCodeActionFromJson(const ju::Value& item,
     }
 }
 
-std::vector<LspClient::CodeAction>
-LspClient::codeActions(const std::string& filePath, int line,
-                       std::string_view lineText,
-                       const std::vector<Diagnostic>& diagnostics)
+std::vector<LspClient::CodeAction> LspClient::codeActions(
+    const std::string& filePath,
+    int line,
+    std::string_view lineText,
+    const std::vector<Diagnostic>& diagnostics)
 {
     std::vector<CodeAction> out;
     if(!running())
@@ -2594,8 +2696,9 @@ LspClient::codeActions(const std::string& filePath, int line,
 
     std::string abs = absPath(filePath);
 
-    int endCharUtf16 = text_utils::utf8ByteOffsetToUtf16(std::string(lineText),
-                                                         (int)lineText.size());
+    int endCharUtf16 = text_utils::utf8ByteOffsetToUtf16(
+        std::string(lineText),
+        (int)lineText.size());
 
     ju::Document params(ju::kObjectType);
     auto& alloc = params.GetAllocator();
@@ -2731,9 +2834,10 @@ LspClient::codeActions(const std::string& filePath, int line,
     return out;
 }
 
-std::vector<LspClient::TextEdit>
-LspClient::formatting(const std::string& filePath, int tabSize,
-                      bool insertSpaces)
+std::vector<LspClient::TextEdit> LspClient::formatting(
+    const std::string& filePath,
+    int tabSize,
+    bool insertSpaces)
 {
     std::vector<TextEdit> out;
     if(!running())
@@ -2761,10 +2865,12 @@ LspClient::formatting(const std::string& filePath, int tabSize,
     return parseTextEditsForUri(result);
 }
 
-std::vector<LspClient::WorkspaceEdit>
-LspClient::renameSymbol(const std::string& filePath, int line,
-                        int characterUtf8ByteOffset, std::string_view lineText,
-                        const std::string& newName)
+std::vector<LspClient::WorkspaceEdit> LspClient::renameSymbol(
+    const std::string& filePath,
+    int line,
+    int characterUtf8ByteOffset,
+    std::string_view lineText,
+    const std::string& newName)
 {
     std::vector<WorkspaceEdit> out;
     if(!running() || newName.empty())
@@ -2774,8 +2880,9 @@ LspClient::renameSymbol(const std::string& filePath, int line,
     int utf16ch = characterUtf8ByteOffset;
     if(!lineText.empty())
     {
-        utf16ch = text_utils::utf8ByteOffsetToUtf16(std::string(lineText),
-                                                    characterUtf8ByteOffset);
+        utf16ch = text_utils::utf8ByteOffsetToUtf16(
+            std::string(lineText),
+            characterUtf8ByteOffset);
     }
     else
     {
@@ -2792,7 +2899,8 @@ LspClient::renameSymbol(const std::string& filePath, int line,
                     {
                         std::string ln = text.substr(start, i - start);
                         utf16ch = text_utils::utf8ByteOffsetToUtf16(
-                            ln, characterUtf8ByteOffset);
+                            ln,
+                            characterUtf8ByteOffset);
                         break;
                     }
                     curLine++;
@@ -2822,10 +2930,10 @@ LspClient::renameSymbol(const std::string& filePath, int line,
     return parseWorkspaceEditAll(result);
 }
 
-std::vector<LspClient::TextEdit>
-LspClient::executeCommand(const std::string& command,
-                          const std::vector<std::string>& argumentsJson,
-                          const std::string& filePath)
+std::vector<LspClient::TextEdit> LspClient::executeCommand(
+    const std::string& command,
+    const std::vector<std::string>& argumentsJson,
+    const std::string& filePath)
 {
     std::vector<TextEdit> out;
     if(!running())
@@ -2891,8 +2999,10 @@ bool LspClient::requestSemanticTokens(const std::string& filePath)
         ju::Document params(ju::kObjectType);
         auto& alloc = params.GetAllocator();
         ju::Value textDoc(ju::kObjectType);
-        textDoc.AddMember("uri", ju::make_string(pathToFileUri(abs), alloc),
-                          alloc);
+        textDoc.AddMember(
+            "uri",
+            ju::make_string(pathToFileUri(abs), alloc),
+            alloc);
         params.AddMember("textDocument", textDoc, alloc);
 
         const int id =
@@ -2902,8 +3012,11 @@ bool LspClient::requestSemanticTokens(const std::string& filePath)
         if(version != impl->docVersion.end())
             documentVersion = version->second;
         impl->pendingSemanticRequests.emplace(
-            abs, Impl::PendingSemanticRequest{
-                     id, documentVersion, std::chrono::steady_clock::now()});
+            abs,
+            Impl::PendingSemanticRequest{
+                id,
+                documentVersion,
+                std::chrono::steady_clock::now()});
         return true;
     }
 
@@ -2998,8 +3111,8 @@ bool LspClient::requestSemanticTokens(const std::string& filePath)
     return true;
 }
 
-std::vector<LspClient::SemanticToken>
-LspClient::semanticTokens(const std::string& filePath) const
+std::vector<LspClient::SemanticToken> LspClient::semanticTokens(
+    const std::string& filePath) const
 {
     if(!running())
         return {};
@@ -3023,8 +3136,8 @@ size_t LspClient::semanticTokensRevision(const std::string& filePath) const
     return it->second;
 }
 
-bool LspClient::semanticTokenHasModifier(int modifiers,
-                                         std::string_view name) const
+bool LspClient::semanticTokenHasModifier(int modifiers, std::string_view name)
+    const
 {
     if(!impl)
         return false;
@@ -3052,14 +3165,19 @@ LspClient::LspClient() : impl(nullptr) {}
 
 LspClient::~LspClient() {}
 
-bool LspClient::start(const std::string&, const std::string&,
-                      const std::string&, const std::string&)
+bool LspClient::start(
+    const std::string&,
+    const std::string&,
+    const std::string&,
+    const std::string&)
 {
     return false;
 }
 
-bool LspClient::startServer(const std::string&, const std::string&,
-                            const std::vector<std::string>&)
+bool LspClient::startServer(
+    const std::string&,
+    const std::string&,
+    const std::vector<std::string>&)
 {
     return false;
 }
@@ -3103,61 +3221,80 @@ std::optional<LspClient::WorkProgress> LspClient::workProgress() const
     return std::nullopt;
 }
 
-void LspClient::setWaitHook(std::function<void(std::string_view)>)
-{
-}
+void LspClient::setWaitHook(std::function<void(std::string_view)>) {}
 
 int LspClient::workerCount() const
 {
     return 0;
 }
 
-void LspClient::didOpen(const std::string&, const std::string&,
-                        const std::string&)
+void LspClient::didOpen(
+    const std::string&,
+    const std::string&,
+    const std::string&)
 {
 }
 
 void LspClient::didChange(const std::string&, const std::string&) {}
 
-void LspClient::didChange(const std::string&, const std::string&,
-                          const std::string&)
+void LspClient::didChange(
+    const std::string&,
+    const std::string&,
+    const std::string&)
 {
 }
 
 void LspClient::didSave(const std::string&) {}
 
-std::optional<LspClient::Location>
-LspClient::definition(const std::string&, int, int, std::string_view)
+std::optional<LspClient::Location> LspClient::definition(
+    const std::string&,
+    int,
+    int,
+    std::string_view)
 {
     return std::nullopt;
 }
 
-std::optional<LspClient::Location>
-LspClient::declaration(const std::string&, int, int, std::string_view)
+std::optional<LspClient::Location> LspClient::declaration(
+    const std::string&,
+    int,
+    int,
+    std::string_view)
 {
     return std::nullopt;
 }
 
-std::optional<LspClient::Location>
-LspClient::typeDefinition(const std::string&, int, int, std::string_view)
+std::optional<LspClient::Location> LspClient::typeDefinition(
+    const std::string&,
+    int,
+    int,
+    std::string_view)
 {
     return std::nullopt;
 }
 
-std::vector<LspClient::CompletionItem>
-LspClient::completion(const std::string&, int, int, std::string_view, int, char)
+std::vector<LspClient::CompletionItem> LspClient::completion(
+    const std::string&,
+    int,
+    int,
+    std::string_view,
+    int,
+    char)
 {
     return {};
 }
 
-std::vector<LspClient::Location> LspClient::references(const std::string&, int,
-                                                       int, bool)
+std::vector<LspClient::Location> LspClient::references(
+    const std::string&,
+    int,
+    int,
+    bool)
 {
     return {};
 }
 
-std::vector<LspClient::Diagnostic>
-LspClient::diagnostics(const std::string&) const
+std::vector<LspClient::Diagnostic> LspClient::diagnostics(
+    const std::string&) const
 {
     return {};
 }
@@ -3177,16 +3314,19 @@ size_t LspClient::diagnosticsRevision(const std::string&) const
     return 0;
 }
 
-std::vector<LspClient::CodeAction>
-LspClient::codeActions(const std::string&, int, std::string_view,
-                       const std::vector<Diagnostic>&)
+std::vector<LspClient::CodeAction> LspClient::codeActions(
+    const std::string&,
+    int,
+    std::string_view,
+    const std::vector<Diagnostic>&)
 {
     return {};
 }
 
-std::vector<LspClient::TextEdit>
-LspClient::formatting(const std::string& filePath, int tabSize,
-                      bool insertSpaces)
+std::vector<LspClient::TextEdit> LspClient::formatting(
+    const std::string& filePath,
+    int tabSize,
+    bool insertSpaces)
 {
     (void)filePath;
     (void)tabSize;
@@ -3194,16 +3334,20 @@ LspClient::formatting(const std::string& filePath, int tabSize,
     return {};
 }
 
-std::vector<LspClient::TextEdit>
-LspClient::executeCommand(const std::string&, const std::vector<std::string>&,
-                          const std::string&)
+std::vector<LspClient::TextEdit> LspClient::executeCommand(
+    const std::string&,
+    const std::vector<std::string>&,
+    const std::string&)
 {
     return {};
 }
 
-std::vector<LspClient::WorkspaceEdit>
-LspClient::renameSymbol(const std::string&, int, int, std::string_view,
-                        const std::string&)
+std::vector<LspClient::WorkspaceEdit> LspClient::renameSymbol(
+    const std::string&,
+    int,
+    int,
+    std::string_view,
+    const std::string&)
 {
     return {};
 }
@@ -3213,8 +3357,8 @@ bool LspClient::requestSemanticTokens(const std::string&)
     return false;
 }
 
-std::vector<LspClient::SemanticToken>
-LspClient::semanticTokens(const std::string&) const
+std::vector<LspClient::SemanticToken> LspClient::semanticTokens(
+    const std::string&) const
 {
     return {};
 }

@@ -59,12 +59,12 @@ bool saveAllBuffers(Editor& editor, bool forceExit)
     if(!forceExit)
     {
         if(skippedNoName > 0)
-            editor.setStatusMessage("Saved " + std::to_string(savedCount) +
-                                    " buffer(s), " +
-                                    std::to_string(skippedNoName) + " unnamed");
+            editor.setStatusMessage(
+                "Saved " + std::to_string(savedCount) + " buffer(s), " +
+                std::to_string(skippedNoName) + " unnamed");
         else
-            editor.setStatusMessage("Saved " + std::to_string(savedCount) +
-                                    " buffer(s)");
+            editor.setStatusMessage(
+                "Saved " + std::to_string(savedCount) + " buffer(s)");
     }
 
     return skippedNoName == 0;
@@ -115,12 +115,14 @@ bool setCwd(Editor& editor, std::string path)
 
     std::string displayPath;
     std::string errorMessage;
-    if(EditorPathUtilities::setWorkingDirectory(path, displayPath,
-                                                errorMessage))
+    if(EditorPathUtilities::setWorkingDirectory(
+           path,
+           displayPath,
+           errorMessage))
         editor.setStatusMessage(displayPath);
     else
-        editor.setStatusMessage("Cannot change to: " + path + " (" +
-                                errorMessage + ")");
+        editor.setStatusMessage(
+            "Cannot change to: " + path + " (" + errorMessage + ")");
     return true;
 }
 } // namespace command::execution::detail

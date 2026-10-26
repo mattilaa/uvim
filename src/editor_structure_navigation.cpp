@@ -8,8 +8,12 @@ namespace structural_navigation
 FileType fileType(const Editor& editor)
 {
     for(FileType candidate :
-        {FileType::Cpp, FileType::Python, FileType::Mla, FileType::JavaScript,
-         FileType::TypeScript, FileType::CSharp})
+        {FileType::Cpp,
+         FileType::Python,
+         FileType::Mla,
+         FileType::JavaScript,
+         FileType::TypeScript,
+         FileType::CSharp})
     {
         if(editor.isFileType(candidate))
         {
@@ -50,8 +54,9 @@ bool navigate(Editor& editor, Target target, bool forward, int count)
             editor.setStatusMessage(label + ": at last target" + hint);
             return false;
         }
-        index += std::min(std::max(1, count) - 1,
-                          static_cast<int>(positions.size()) - 1 - index);
+        index += std::min(
+            std::max(1, count) - 1,
+            static_cast<int>(positions.size()) - 1 - index);
     }
     else
     {
@@ -71,8 +76,9 @@ bool navigate(Editor& editor, Target target, bool forward, int count)
     *editor.wantedX = positions[index].column;
     editor.adjustViewport();
     editor.needsFullRedraw = true;
-    editor.setStatusMessage(label + ": " + std::to_string(index + 1) + "/" +
-                            std::to_string(positions.size()) + hint);
+    editor.setStatusMessage(
+        label + ": " + std::to_string(index + 1) + "/" +
+        std::to_string(positions.size()) + hint);
     return true;
 }
 } // namespace structural_navigation

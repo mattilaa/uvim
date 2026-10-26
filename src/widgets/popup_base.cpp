@@ -29,13 +29,17 @@ std::pair<int, int> editorCursorScreenPosition(const Editor& editor)
                   std::string_view(line).substr(start, end - start)) +
               1 + editor.gutterWidth() + layout.x;
     }
-    return {std::clamp(row, 1, editor.screenRows),
-            std::clamp(col, 1, editor.screenCols)};
+    return {
+        std::clamp(row, 1, editor.screenRows),
+        std::clamp(col, 1, editor.screenCols)};
 }
 
-PopupPlacement placePopupNearEditorCursor(const Editor& editor, int width,
-                                          int preferredHeight, int minHeight,
-                                          bool centerHorizontally)
+PopupPlacement placePopupNearEditorCursor(
+    const Editor& editor,
+    int width,
+    int preferredHeight,
+    int minHeight,
+    bool centerHorizontally)
 {
     PopupPlacement placement;
     placement.width = std::clamp(width, 1, std::max(1, editor.screenCols));
@@ -46,17 +50,14 @@ PopupPlacement placePopupNearEditorCursor(const Editor& editor, int width,
     placement.cursorRow = cursorRow;
     placement.cursorCol = cursorCol;
 
-    placement.left = centerHorizontally
-                         ? std::max(1, (editor.screenCols - placement.width) /
-                                           2 +
-                                           1)
-                         : cursorCol;
+    placement.left =
+        centerHorizontally
+            ? std::max(1, (editor.screenCols - placement.width) / 2 + 1)
+            : cursorCol;
     if(placement.left + placement.width - 1 > editor.screenCols)
-        placement.left =
-            std::max(1, editor.screenCols - placement.width + 1);
+        placement.left = std::max(1, editor.screenCols - placement.width + 1);
 
-    placement.top =
-        std::max(1, (editor.screenRows - placement.height) / 2 + 1);
+    placement.top = std::max(1, (editor.screenRows - placement.height) / 2 + 1);
     const int bottomSpace = editor.screenRows - cursorRow;
     const int topSpace = cursorRow - 1;
     if(bottomSpace >= minHeight)
@@ -70,9 +71,8 @@ PopupPlacement placePopupNearEditorCursor(const Editor& editor, int width,
         placement.top = cursorRow - placement.height;
     }
 
-    const bool overlapsCursorRow =
-        cursorRow >= placement.top &&
-        cursorRow < placement.top + placement.height;
+    const bool overlapsCursorRow = cursorRow >= placement.top &&
+                                   cursorRow < placement.top + placement.height;
     if(overlapsCursorRow && cursorCol >= placement.left &&
        cursorCol < placement.left + placement.width)
     {
@@ -90,8 +90,12 @@ PopupPlacement placePopupNearEditorCursor(const Editor& editor, int width,
     return placement;
 }
 
-PopupPlacement placeBottomLeftPopup(int screenRows, int screenCols, int width,
-                                    int height, int preferredLeft)
+PopupPlacement placeBottomLeftPopup(
+    int screenRows,
+    int screenCols,
+    int width,
+    int height,
+    int preferredLeft)
 {
     PopupPlacement placement;
     placement.width = std::clamp(width, 1, std::max(1, screenCols));
@@ -105,8 +109,11 @@ PopupPlacement placeBottomLeftPopup(int screenRows, int screenCols, int width,
     return placement;
 }
 
-int visibleRowsForCursorPopup(editor::statemachine::ModeContext& ctx,
-                              int width, int preferredHeight, int chromeRows)
+int visibleRowsForCursorPopup(
+    editor::statemachine::ModeContext& ctx,
+    int width,
+    int preferredHeight,
+    int chromeRows)
 {
     if(ctx.editor)
     {
@@ -144,8 +151,7 @@ void PopupBase::resetBackdrop()
     backdropDrawn = false;
 }
 
-void PopupBase::requestBackdropRedraw(
-    editor::statemachine::ModeContext& ctx)
+void PopupBase::requestBackdropRedraw(editor::statemachine::ModeContext& ctx)
 {
     resetBackdrop();
     ctx.requestFullRedraw();

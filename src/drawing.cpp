@@ -23,8 +23,11 @@ void writeGitBlameField(const Theme& theme, std::string_view blame, int width)
     Terminal::write(ascii::utf8(ascii::BOX_HEAVY_VERTICAL));
 }
 
-void appendGitBlameField(std::string& output, const Theme& theme,
-                         std::string_view blame, int width)
+void appendGitBlameField(
+    std::string& output,
+    const Theme& theme,
+    std::string_view blame,
+    int width)
 {
     output += theme.uiDim();
     output.append(blame.data(), blame.size());
@@ -42,8 +45,11 @@ struct VisibleTextRange
     int width = 0;
 };
 
-VisibleTextRange visibleTextRange(std::string_view line, int requestedStart,
-                                  int maxWidth, bool utf8Mode)
+VisibleTextRange visibleTextRange(
+    std::string_view line,
+    int requestedStart,
+    int maxWidth,
+    bool utf8Mode)
 {
     VisibleTextRange range;
     range.start = std::clamp(requestedStart, 0, (int)line.size());
@@ -81,8 +87,7 @@ VisibleTextRange visibleTextRange(std::string_view line, int requestedStart,
     return range;
 }
 
-int nextVisibleCharStart(std::string_view line, int col, int end,
-                         bool utf8Mode)
+int nextVisibleCharStart(std::string_view line, int col, int end, bool utf8Mode)
 {
     if(!utf8Mode)
         return std::min(col + 1, end);
@@ -90,8 +95,11 @@ int nextVisibleCharStart(std::string_view line, int col, int end,
     return std::clamp(next, col + 1, end);
 }
 
-int displayColumnFromByteRange(std::string_view line, int start, int end,
-                               bool utf8Mode)
+int displayColumnFromByteRange(
+    std::string_view line,
+    int start,
+    int end,
+    bool utf8Mode)
 {
     start = std::clamp(start, 0, (int)line.size());
     end = std::clamp(end, 0, (int)line.size());
@@ -99,8 +107,8 @@ int displayColumnFromByteRange(std::string_view line, int start, int end,
         return 0;
     if(!utf8Mode)
         return end - start;
-    return text_utils::utf8DisplayWidth(line.substr((std::size_t)start,
-                                                    (std::size_t)(end - start)));
+    return text_utils::utf8DisplayWidth(
+        line.substr((std::size_t)start, (std::size_t)(end - start)));
 }
 
 std::string fitToWidth(std::string text, int width)
@@ -124,8 +132,11 @@ std::string fitToWidth(std::string text, int width)
 }
 
 std::string renderFileBrowserPaneRow(
-    const editor::statemachine::FileBrowserMode& browser, const Theme& theme,
-    int localRow, int paneWidth, bool activePane)
+    const editor::statemachine::FileBrowserMode& browser,
+    const Theme& theme,
+    int localRow,
+    int paneWidth,
+    bool activePane)
 {
     std::string row;
     row.reserve(std::max(1, paneWidth) * 2);
@@ -194,8 +205,8 @@ std::string renderFileBrowserPaneRow(
     }
 
     std::string label = "  ";
-    label += ascii::utf8(entry.isDirectory ? ascii::FOLDER_ICON
-                                           : ascii::FILE_ICON);
+    label +=
+        ascii::utf8(entry.isDirectory ? ascii::FOLDER_ICON : ascii::FILE_ICON);
 
     label += entry.name;
     if(entry.isDirectory && entry.name != "..")
@@ -423,14 +434,16 @@ void Editor::drawRows()
             for(int x = 0, fileCol = *offsetX; x < textCols;)
             {
                 const bool hasChar = fileCol < (int)line.length();
-                int nextCol =
-                    hasChar ? nextVisibleCharStart(line, fileCol,
-                                                   (int)line.length(), utf8Mode)
-                            : fileCol + 1;
-                std::string ch =
-                    hasChar ? line.substr((std::size_t)fileCol,
-                                          (std::size_t)(nextCol - fileCol))
-                            : std::string(1, ' ');
+                int nextCol = hasChar ? nextVisibleCharStart(
+                                            line,
+                                            fileCol,
+                                            (int)line.length(),
+                                            utf8Mode)
+                                      : fileCol + 1;
+                std::string ch = hasChar ? line.substr(
+                                               (std::size_t)fileCol,
+                                               (std::size_t)(nextCol - fileCol))
+                                         : std::string(1, ' ');
                 int chWidth =
                     hasChar && utf8Mode
                         ? std::max(1, text_utils::utf8DisplayWidth(ch))
@@ -438,8 +451,9 @@ void Editor::drawRows()
 
                 bool isCursor = (fileRow == *cursorY && fileCol == *cursorX);
 
-                bool inBlock = (currentMode == VISUAL_BLOCK &&
-                                isInVisualBlock(fileRow, fileCol));
+                bool inBlock =
+                    (currentMode == VISUAL_BLOCK &&
+                     isInVisualBlock(fileRow, fileCol));
 
                 bool inVisual =
                     ((currentMode == VISUAL || currentMode == VISUAL_LINE) &&
@@ -521,8 +535,9 @@ void Editor::drawScrollUpdate(int scrollDelta)
     output.reserve(screenRows * screenCols * 2);
     const bool syncOutput = Terminal::useSynchronizedOutput();
 
-    bool hideCursor = (currentMode == VISUAL || currentMode == VISUAL_LINE ||
-                       currentMode == VISUAL_BLOCK);
+    bool hideCursor =
+        (currentMode == VISUAL || currentMode == VISUAL_LINE ||
+         currentMode == VISUAL_BLOCK);
     if(syncOutput)
         Terminal::write(Terminal::ESC_SYNC_UPDATE_BEGIN);
     output += Terminal::ESC_HIDE_CURSOR;
@@ -657,8 +672,11 @@ void Editor::drawScrollUpdate(int scrollDelta)
                                 needsHighlight = true;
                                 break;
                             }
-                            x += nextVisibleCharStart(line, col, start + len,
-                                                      utf8Mode) -
+                            x += nextVisibleCharStart(
+                                     line,
+                                     col,
+                                     start + len,
+                                     utf8Mode) -
                                  col;
                         }
 
@@ -672,7 +690,10 @@ void Editor::drawScrollUpdate(int scrollDelta)
                             {
                                 int col = x + start;
                                 int nextCol = nextVisibleCharStart(
-                                    line, col, start + len, utf8Mode);
+                                    line,
+                                    col,
+                                    start + len,
+                                    utf8Mode);
                                 int charLen = nextCol - col;
                                 bool highlighted = false;
                                 if(isInSelection(fileRow, col) ||
@@ -705,9 +726,11 @@ void Editor::drawScrollUpdate(int scrollDelta)
 
                 if(showCursor && fileRow == *cursorY)
                 {
-                    int cursorCol =
-                        displayColumnFromByteRange(line, start, *cursorX,
-                                                   utf8Mode);
+                    int cursorCol = displayColumnFromByteRange(
+                        line,
+                        start,
+                        *cursorX,
+                        utf8Mode);
                     if(*cursorX >= start + len && cursorCol < textCols)
                     {
                         output += theme.reset();
@@ -809,8 +832,11 @@ void Editor::drawScrollUpdate(int scrollDelta)
                                 needsHighlight = true;
                                 break;
                             }
-                            x += nextVisibleCharStart(line, col, start + len,
-                                                      utf8Mode) -
+                            x += nextVisibleCharStart(
+                                     line,
+                                     col,
+                                     start + len,
+                                     utf8Mode) -
                                  col;
                         }
 
@@ -824,7 +850,10 @@ void Editor::drawScrollUpdate(int scrollDelta)
                             {
                                 int col = x + start;
                                 int nextCol = nextVisibleCharStart(
-                                    line, col, start + len, utf8Mode);
+                                    line,
+                                    col,
+                                    start + len,
+                                    utf8Mode);
                                 int charLen = nextCol - col;
                                 bool highlighted = false;
                                 if(isInSelection(fileRow, col) ||
@@ -857,9 +886,11 @@ void Editor::drawScrollUpdate(int scrollDelta)
 
                 if(showCursor && fileRow == *cursorY)
                 {
-                    int cursorCol =
-                        displayColumnFromByteRange(line, start, *cursorX,
-                                                   utf8Mode);
+                    int cursorCol = displayColumnFromByteRange(
+                        line,
+                        start,
+                        *cursorX,
+                        utf8Mode);
                     if(*cursorX >= start + len && cursorCol < textCols)
                     {
                         output += theme.reset();
@@ -1164,8 +1195,11 @@ void Editor::drawFullScreenSingle()
                             hasHighlighting = true;
                             break;
                         }
-                        x += nextVisibleCharStart(line, col, start + len,
-                                                  utf8Mode) -
+                        x += nextVisibleCharStart(
+                                 line,
+                                 col,
+                                 start + len,
+                                 utf8Mode) -
                              col;
                     }
                 }
@@ -1208,9 +1242,11 @@ void Editor::drawFullScreenSingle()
                     for(int x = 0; x < len;)
                     {
                         int col = x + start;
-                        int nextCol =
-                            nextVisibleCharStart(line, col, start + len,
-                                                 utf8Mode);
+                        int nextCol = nextVisibleCharStart(
+                            line,
+                            col,
+                            start + len,
+                            utf8Mode);
                         int charLen = nextCol - col;
                         bool highlighted = false;
                         if(isInSelection(fileRow, col) ||
@@ -1291,8 +1327,9 @@ void Editor::drawSplitFullScreen()
         bool browserPane = false;
         if(modeStateMachine)
         {
-            if(auto* browser = modeStateMachine->getState<
-                   editor::statemachine::FileBrowserMode>())
+            if(auto* browser =
+                   modeStateMachine
+                       ->getState<editor::statemachine::FileBrowserMode>())
             {
                 browserPane = browser->isBrowserPane(pane) ||
                               splitPanes[pane].bufferIndex < 0;
@@ -1430,16 +1467,17 @@ void Editor::drawSplitFullScreen()
 
     if(modeStateMachine)
     {
-        if(auto* browser = modeStateMachine->getState<
-               editor::statemachine::FileBrowserMode>())
+        if(auto* browser =
+               modeStateMachine
+                   ->getState<editor::statemachine::FileBrowserMode>())
         {
             if(browser->isBrowserPane(activePane))
                 browser->savePaneState(activePane);
         }
     }
 
-    auto renderPaneRow = [&](int pane, int localRow,
-                             int paneWidth) -> std::string
+    auto renderPaneRow =
+        [&](int pane, int localRow, int paneWidth) -> std::string
     {
         std::string row;
         row.reserve(paneWidth * 2);
@@ -1453,13 +1491,18 @@ void Editor::drawSplitFullScreen()
 
         if(modeStateMachine)
         {
-            if(auto* browser = modeStateMachine->getState<
-                   editor::statemachine::FileBrowserMode>())
+            if(auto* browser =
+                   modeStateMachine
+                       ->getState<editor::statemachine::FileBrowserMode>())
             {
                 if(pane == activePane && browser->isBrowserPane(pane))
                 {
-                    return renderFileBrowserPaneRow(*browser, theme, localRow,
-                                                    paneWidth, true);
+                    return renderFileBrowserPaneRow(
+                        *browser,
+                        theme,
+                        localRow,
+                        paneWidth,
+                        true);
                 }
                 if(const auto* state = browser->browserPaneState(pane))
                 {
@@ -1472,14 +1515,21 @@ void Editor::drawSplitFullScreen()
                     paneBrowser.filterQuery = state->filterQuery;
                     paneBrowser.filterMatches = state->filterMatches;
                     paneBrowser.selectedFiles = state->selectedFiles;
-                    return renderFileBrowserPaneRow(paneBrowser, theme,
-                                                    localRow, paneWidth,
-                                                    false);
+                    return renderFileBrowserPaneRow(
+                        paneBrowser,
+                        theme,
+                        localRow,
+                        paneWidth,
+                        false);
                 }
                 if(splitPanes[pane].bufferIndex < 0)
                 {
-                    return renderFileBrowserPaneRow(*browser, theme, localRow,
-                                                    paneWidth, false);
+                    return renderFileBrowserPaneRow(
+                        *browser,
+                        theme,
+                        localRow,
+                        paneWidth,
+                        false);
                 }
             }
         }
@@ -1606,16 +1656,15 @@ void Editor::drawSplitFullScreen()
                         hasHighlighting = true;
                         break;
                     }
-                    x += nextVisibleCharStart(line, col, start + len,
-                                              utf8Mode) -
-                         col;
+                    x +=
+                        nextVisibleCharStart(line, col, start + len, utf8Mode) -
+                        col;
                 }
             }
 
             if(isFileType<FileType::Cpp>() || isFileType<FileType::Mla>() ||
                isFileType<FileType::Robot>() ||
-               isFileType<FileType::Python>() ||
-               isFileType<FileType::Asm>() ||
+               isFileType<FileType::Python>() || isFileType<FileType::Asm>() ||
                isFileType<FileType::Flex>() || isFileType<FileType::Bison>() ||
                isFileType<FileType::CMake>() || isFileType<FileType::Shell>() ||
                isFileType<FileType::Html>() || isFileType<FileType::Css>() ||
@@ -1649,8 +1698,8 @@ void Editor::drawSplitFullScreen()
                     if(isInSelection(fileRow, col) ||
                        isInVisualBlock(fileRow, col))
                     {
-                        if(currentMode == VISUAL_BLOCK &&
-                           fileRow == *cursorY && col == *cursorX)
+                        if(currentMode == VISUAL_BLOCK && fileRow == *cursorY &&
+                           col == *cursorX)
                             row += theme.cursor();
                         else
                             row += theme.selection();
@@ -1724,13 +1773,15 @@ void Editor::drawSplitFullScreen()
             if(row >= layout.y && row < layout.y + layout.rows)
                 panesOnRow.push_back(pane);
         }
-        std::sort(panesOnRow.begin(), panesOnRow.end(),
-                  [&](int a, int b)
-                  {
-                      if(layouts[a].x != layouts[b].x)
-                          return layouts[a].x < layouts[b].x;
-                      return a < b;
-                  });
+        std::sort(
+            panesOnRow.begin(),
+            panesOnRow.end(),
+            [&](int a, int b)
+            {
+                if(layouts[a].x != layouts[b].x)
+                    return layouts[a].x < layouts[b].x;
+                return a < b;
+            });
 
         int col = 0;
         for(int pane : panesOnRow)
@@ -1769,20 +1820,26 @@ void Editor::drawSplitFullScreen()
     std::string rightStatus;
     if(modeStateMachine)
     {
-        if(auto* browser = modeStateMachine->getState<
-               editor::statemachine::FileBrowserMode>())
+        if(auto* browser =
+               modeStateMachine
+                   ->getState<editor::statemachine::FileBrowserMode>())
         {
-            const int count = browser->filterActive
-                                  ? static_cast<int>(
-                                        browser->filterMatches.size())
-                                  : static_cast<int>(browser->fileList.size());
+            const int count =
+                browser->filterActive
+                    ? static_cast<int>(browser->filterMatches.size())
+                    : static_cast<int>(browser->fileList.size());
             const int index =
                 std::clamp(browser->browserCursor + 1, 1, std::max(1, count));
             const int progress =
                 std::clamp((index * 100) / std::max(1, count), 0, 100);
             char rightStatusBuf[48];
-            snprintf(rightStatusBuf, sizeof(rightStatusBuf), " %d%%/%d/%d ",
-                     progress, index, std::max(1, count));
+            snprintf(
+                rightStatusBuf,
+                sizeof(rightStatusBuf),
+                " %d%%/%d/%d ",
+                progress,
+                index,
+                std::max(1, count));
             rightStatus = rightStatusBuf;
             displayName = browser->currentDirectory.empty()
                               ? std::string(".")
@@ -1796,8 +1853,13 @@ void Editor::drawSplitFullScreen()
         int progress = std::clamp((lineNumber * 100) / lineCount, 0, 100);
 
         char rightStatusBuf[48];
-        snprintf(rightStatusBuf, sizeof(rightStatusBuf), " %d%%/%d/%d ",
-                 progress, lineNumber, *cursorX + 1);
+        snprintf(
+            rightStatusBuf,
+            sizeof(rightStatusBuf),
+            " %d%%/%d/%d ",
+            progress,
+            lineNumber,
+            *cursorX + 1);
         rightStatus = rightStatusBuf;
     }
     const int rightFieldWidth = 12;
@@ -1873,8 +1935,8 @@ void Editor::drawSplitFullScreen()
 
     if((int)displayName.length() > availableForFile && availableForFile > 4)
     {
-        displayName = "..." + displayName.substr(displayName.length() -
-                                                 availableForFile + 3);
+        displayName = "..." + displayName.substr(
+                                  displayName.length() - availableForFile + 3);
     }
 
     statusLeft += displayName;
@@ -1909,8 +1971,9 @@ void Editor::drawSplitFullScreen()
             output += "?";
         else if(commandBuffer.empty())
             output += ":";
-        else if(commandBuffer.front() == ':' || commandBuffer.front() == '/' ||
-                commandBuffer.front() == '?')
+        else if(
+            commandBuffer.front() == ':' || commandBuffer.front() == '/' ||
+            commandBuffer.front() == '?')
             output += commandBuffer;
         else
             output += ":" + commandBuffer;

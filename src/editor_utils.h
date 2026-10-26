@@ -109,15 +109,19 @@ bool js_ts_decl_line(std::string_view line, std::string_view symbol, int& outX);
 /// @param outY Zero-based line index on success.
 /// @param outX Zero-based column on success.
 /// @return True if the definition is found.
-bool find_js_ts_def_in_file(const std::string& path, std::string_view symbol,
-                            int& outY, int& outX);
+bool find_js_ts_def_in_file(
+    const std::string& path,
+    std::string_view symbol,
+    int& outY,
+    int& outX);
 
 /// @brief Loads and parses a JSON file.
 /// @param path JSON file path.
 /// @param doc Output parsed JSON document.
 /// @return True if the file is loaded and parsed successfully.
-bool load_json_file(const std::filesystem::path& path,
-                    json_utils::Document& doc);
+bool load_json_file(
+    const std::filesystem::path& path,
+    json_utils::Document& doc);
 
 struct TsConfigPaths
 {
@@ -130,22 +134,25 @@ struct TsConfigPaths
 /// @param startDir Directory to start upward search from.
 /// @param out Output configuration paths.
 /// @return True if a config with usable path settings is found.
-bool load_tsconfig_paths(const std::filesystem::path& startDir,
-                         TsConfigPaths& out);
+bool load_tsconfig_paths(
+    const std::filesystem::path& startDir,
+    TsConfigPaths& out);
 
 /// @brief Expands a module specifier using tsconfig path aliases.
 /// @param cfg Loaded tsconfig/jsconfig mapping data.
 /// @param module Module specifier to expand.
 /// @return Candidate mapped module paths.
-std::vector<std::string> expand_tsconfig_paths(const TsConfigPaths& cfg,
-                                               std::string_view module);
+std::vector<std::string> expand_tsconfig_paths(
+    const TsConfigPaths& cfg,
+    std::string_view module);
 
 /// @brief Extracts module specifier from an import/export line.
 /// @param line JS/TS import or export line.
 /// @param outSpec Extracted module specifier on success.
 /// @return True if a module specifier is extracted.
-bool extract_js_ts_module_specifier(std::string_view line,
-                                    std::string_view& outSpec);
+bool extract_js_ts_module_specifier(
+    std::string_view line,
+    std::string_view& outSpec);
 
 /// @brief Collects symbol-to-module mappings from JS/TS imports/exports.
 /// @param lines Source lines.
@@ -158,29 +165,33 @@ void collect_js_ts_imports(
 /// @param baseDir Directory used as resolution base.
 /// @param module Module specifier.
 /// @return Resolved file path, or empty string if unresolved.
-std::string resolve_js_ts_from_dir(const std::filesystem::path& baseDir,
-                                   std::string_view module);
+std::string resolve_js_ts_from_dir(
+    const std::filesystem::path& baseDir,
+    std::string_view module);
 
 /// @brief Resolves a package-style module through node_modules traversal.
 /// @param fromFile Importing file path.
 /// @param module Package/module specifier.
 /// @return Resolved file path, or empty string if unresolved.
-std::string resolve_node_module(const std::string& fromFile,
-                                std::string_view module);
+std::string resolve_node_module(
+    const std::string& fromFile,
+    std::string_view module);
 
 /// @brief Resolves any JS/TS module (relative, aliased, or node module).
 /// @param fromFile Importing file path.
 /// @param module Module specifier.
 /// @return Resolved file path, or empty string if unresolved.
-std::string resolve_js_ts_module(const std::string& fromFile,
-                                 std::string_view module);
+std::string resolve_js_ts_module(
+    const std::string& fromFile,
+    std::string_view module);
 
 /// @brief Resolves only relative/absolute JS/TS module specifiers to a file.
 /// @param fromFile Importing file path.
 /// @param module Module specifier.
 /// @return Resolved file path, or empty string if unresolved.
-std::string resolve_js_ts_module_path(const std::string& fromFile,
-                                      std::string_view module);
+std::string resolve_js_ts_module_path(
+    const std::string& fromFile,
+    std::string_view module);
 
 /// @brief Parses a TypeScript type annotation head into a type name.
 /// @param text Type annotation text.
@@ -192,8 +203,10 @@ std::string parse_ts_type_name(std::string_view text);
 /// @param ident Identifier name.
 /// @param startY Start line (inclusive), scanned backward.
 /// @return Inferred type name, or empty string.
-std::string find_ts_type_for_identifier(const std::vector<std::string>& lines,
-                                        std::string_view ident, int startY);
+std::string find_ts_type_for_identifier(
+    const std::vector<std::string>& lines,
+    std::string_view ident,
+    int startY);
 
 /// @brief Infers callback parameter type from common array method calls.
 /// @param line Current source line.
@@ -202,8 +215,10 @@ std::string find_ts_type_for_identifier(const std::vector<std::string>& lines,
 /// @param lineNo Current line index used for backward inference.
 /// @return Inferred type name, or empty string.
 std::string infer_ts_type_from_array_method_line(
-    std::string_view line, std::string_view param,
-    const std::vector<std::string>& lines, int lineNo);
+    std::string_view line,
+    std::string_view param,
+    const std::vector<std::string>& lines,
+    int lineNo);
 
 /// @brief Finds a TypeScript type/interface/class definition.
 /// @param lines Source lines.
@@ -211,8 +226,11 @@ std::string infer_ts_type_from_array_method_line(
 /// @param outY Zero-based line index on success.
 /// @param outX Zero-based column on success.
 /// @return True if the type definition is found.
-bool find_ts_type_definition(const std::vector<std::string>& lines,
-                             std::string_view typeName, int& outY, int& outX);
+bool find_ts_type_definition(
+    const std::vector<std::string>& lines,
+    std::string_view typeName,
+    int& outY,
+    int& outX);
 
 /// @brief Finds a member declaration inside a TypeScript type body.
 /// @param lines Source lines.
@@ -221,23 +239,28 @@ bool find_ts_type_definition(const std::vector<std::string>& lines,
 /// @param outY Zero-based line index on success.
 /// @param outX Zero-based column on success.
 /// @return True if a matching member declaration is found.
-bool find_ts_member_in_type(const std::vector<std::string>& lines,
-                            int typeStartY, std::string_view member, int& outY,
-                            int& outX);
+bool find_ts_member_in_type(
+    const std::vector<std::string>& lines,
+    int typeStartY,
+    std::string_view member,
+    int& outY,
+    int& outX);
 
 /// @brief Extracts HTML href/src path under the cursor position.
 /// @param line HTML line.
 /// @param cursorX Zero-based cursor column.
 /// @param outPath Extracted path under cursor.
 /// @return True if a valid path is found under cursor.
-bool html_path_under_cursor(std::string_view line, int cursorX,
-                            std::string_view& outPath);
+bool html_path_under_cursor(
+    std::string_view line,
+    int cursorX,
+    std::string_view& outPath);
 
 /// @brief Extracts stylesheet href paths from HTML lines.
 /// @param lines HTML source lines.
 /// @return Stylesheet paths referenced by link tags.
-std::vector<std::string>
-extract_html_stylesheets(const std::vector<std::string>& lines);
+std::vector<std::string> extract_html_stylesheets(
+    const std::vector<std::string>& lines);
 
 /// @brief Finds a CSS selector occurrence in a file.
 /// @param path CSS file path.
@@ -245,16 +268,21 @@ extract_html_stylesheets(const std::vector<std::string>& lines);
 /// @param outY Zero-based line index on success.
 /// @param outX Zero-based column on success.
 /// @return True if the selector is found.
-bool find_css_selector_in_file(const std::string& path,
-                               std::string_view selector, int& outY, int& outX);
+bool find_css_selector_in_file(
+    const std::string& path,
+    std::string_view selector,
+    int& outY,
+    int& outX);
 
 /// @brief Extracts CSS @import path under the cursor position.
 /// @param line CSS line.
 /// @param cursorX Zero-based cursor column.
 /// @param outPath Extracted import path.
 /// @return True if a valid import path is found under cursor.
-bool css_import_path_under_cursor(std::string_view line, int cursorX,
-                                  std::string_view& outPath);
+bool css_import_path_under_cursor(
+    std::string_view line,
+    int cursorX,
+    std::string_view& outPath);
 
 /// @brief Finds a Robot Framework keyword definition in a file.
 /// @param path File path.
@@ -262,8 +290,11 @@ bool css_import_path_under_cursor(std::string_view line, int cursorX,
 /// @param outY Zero-based line index on success.
 /// @param outX Zero-based column on success.
 /// @return True if the keyword definition is found.
-bool find_robot_keyword_in_file(const std::string& path,
-                                std::string_view keyword, int& outY, int& outX);
+bool find_robot_keyword_in_file(
+    const std::string& path,
+    std::string_view keyword,
+    int& outY,
+    int& outX);
 
 /// @brief Finds a Python function definition in a file.
 /// @param path File path.
@@ -271,8 +302,11 @@ bool find_robot_keyword_in_file(const std::string& path,
 /// @param outY Zero-based line index on success.
 /// @param outX Zero-based column on success.
 /// @return True if the function definition is found.
-bool find_python_def_in_file(const std::string& path, std::string_view symbol,
-                             int& outY, int& outX);
+bool find_python_def_in_file(
+    const std::string& path,
+    std::string_view symbol,
+    int& outY,
+    int& outX);
 
 /// @brief Checks whether a directory name should be skipped during traversal.
 /// @param path Directory path.
@@ -313,8 +347,9 @@ int locCountInFile(const std::string& filepath, const LocCommentRules& rules);
 /// @param lines Source lines.
 /// @param rules Comment syntax rules.
 /// @return LOC count for the provided lines.
-int locCountInLines(const std::vector<std::string>& lines,
-                    const LocCommentRules& rules);
+int locCountInLines(
+    const std::vector<std::string>& lines,
+    const LocCommentRules& rules);
 
 /// @brief Recursively collects files for LOC traversal.
 /// @param dir Root directory.
@@ -323,19 +358,24 @@ int locCountInLines(const std::vector<std::string>& lines,
 /// @param out Output file paths.
 /// @param cancelled Optional; checked per entry so background walks of huge
 ///        trees stop promptly when their task is cancelled.
-void collectLocFiles(const std::string& dir, int depth,
-                     const GitIgnore& gitignore, std::vector<std::string>& out,
-                     const std::function<bool()>& cancelled = {});
+void collectLocFiles(
+    const std::string& dir,
+    int depth,
+    const GitIgnore& gitignore,
+    std::vector<std::string>& out,
+    const std::function<bool()>& cancelled = {});
 
 /// @brief Recursively collects filesystem entries for fuzzy-style file lists.
 /// @param dir Root directory.
 /// @param depth Current recursion depth.
 /// @param gitignore Loaded gitignore matcher.
 /// @param out Output file entries.
-void collectProjectFileEntries(const std::string& dir, int depth,
-                               const GitIgnore& gitignore,
-                               std::vector<FileEntry>& out,
-                               const std::function<bool()>& cancelled = {});
+void collectProjectFileEntries(
+    const std::string& dir,
+    int depth,
+    const GitIgnore& gitignore,
+    std::vector<FileEntry>& out,
+    const std::function<bool()>& cancelled = {});
 
 /// @brief Expands a leading tilde to the current HOME directory.
 /// @param path Path to expand.
@@ -348,20 +388,24 @@ bool isRegexQuery(std::string_view query);
 std::string regexQueryError(std::string_view query);
 // nullopt means this is an ordinary fuzzy query. Regex scores are positive on
 // a match (including zero-width matches), or -1 on failure/invalid expressions.
-std::optional<int> regexQueryScore(std::string_view query,
-                                   std::string_view text,
-                                   std::vector<int>* positions = nullptr);
+std::optional<int> regexQueryScore(
+    std::string_view query,
+    std::string_view text,
+    std::vector<int>* positions = nullptr);
 
 /// Shared fuzzy/regex matcher. Ordered matches rank above compact matches
 /// with out-of-order ASCII characters. Optional highlights are sorted byte
 /// offsets. Returns -1 for no match, 0 for an empty query.
-int fuzzyMatchScore(std::string_view query, std::string_view candidate,
-                    std::vector<int>* positions = nullptr);
+int fuzzyMatchScore(
+    std::string_view query,
+    std::string_view candidate,
+    std::vector<int>* positions = nullptr);
 
 /// Filter and rank completion candidates using the shared fuzzy/regex matcher.
 /// Ties and empty queries preserve the input order.
 std::vector<std::string> fuzzyCompletions(
-    const std::vector<std::string>& candidates, std::string_view query);
+    const std::vector<std::string>& candidates,
+    std::string_view query);
 
 /// @brief Scores fuzzy match quality between text and pattern.
 /// @param text Candidate text.
@@ -375,9 +419,10 @@ int fuzzyScore(const std::string& text, const std::string& pattern);
 /// @param haystack Candidate text.
 /// @param matchPositions Matched character offsets.
 /// @return Match score, or -1 if the pattern does not match.
-int fuzzyScoreWithPositions(const std::string& needle,
-                            const std::string& haystack,
-                            std::vector<int>& matchPositions);
+int fuzzyScoreWithPositions(
+    const std::string& needle,
+    const std::string& haystack,
+    std::vector<int>& matchPositions);
 
 /// @brief Returns filesystem path completions for a partial path.
 /// @param partial Partial path text.
@@ -388,15 +433,17 @@ std::vector<std::string> getPathCompletions(std::string_view partial);
 /// @param partial Partial path text.
 /// @param respectGitignore Whether to filter using .gitignore rules.
 /// @return Ranked completion candidates.
-std::vector<std::string> getRecursivePathCompletions(std::string_view partial,
-                                                     bool respectGitignore);
+std::vector<std::string> getRecursivePathCompletions(
+    std::string_view partial,
+    bool respectGitignore);
 
 /// @brief Returns path completions used by LOC command input.
 /// @param partial Partial path text.
 /// @param respectGitignore Whether to filter using .gitignore rules.
 /// @return Completion candidates.
-std::vector<std::string> getLocPathCompletions(std::string_view partial,
-                                               bool respectGitignore);
+std::vector<std::string> getLocPathCompletions(
+    std::string_view partial,
+    bool respectGitignore);
 
 /// @brief Computes the longest common prefix among strings.
 /// @param strings Input strings.

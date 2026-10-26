@@ -44,9 +44,12 @@ TEST(LspAsyncTest, EditorCanEditAndOpenFilesWhileServerInitializes)
         [&] { return std::filesystem::exists(root / "initialize.received"); }));
 
     editor.showLspInfo();
-    EXPECT_NE(std::find(editor.lspInfoLines.begin(), editor.lspInfoLines.end(),
-                        "clangd: STARTING"),
-              editor.lspInfoLines.end());
+    EXPECT_NE(
+        std::find(
+            editor.lspInfoLines.begin(),
+            editor.lspInfoLines.end(),
+            "clangd: STARTING"),
+        editor.lspInfoLines.end());
 
     auto sm = uvim_test::makeMachine(editor, NormalMode{});
     sm.dispatch('i');
@@ -89,11 +92,10 @@ TEST(LspAsyncTest, PipeBackpressureDoesNotBlockDocumentUpdatesAndKeepsOrder)
     uvim_test::write_file(root / "input.release", "");
     ASSERT_TRUE(until(
         [&]
-        {
-            return uvim_test::read_file(root / "latest-text") == newestText;
-        }));
-    EXPECT_EQ(uvim_test::read_file(root / "messages"),
-              "textDocument/didOpen\ntextDocument/didChange\n");
+        { return uvim_test::read_file(root / "latest-text") == newestText; }));
+    EXPECT_EQ(
+        uvim_test::read_file(root / "messages"),
+        "textDocument/didOpen\ntextDocument/didChange\n");
     client.stop();
     std::filesystem::remove_all(root);
 }
@@ -147,8 +149,10 @@ TEST(LspAsyncTest, StartupFailureUpdatesStatusWithoutPublishingClient)
     const auto root = uvim_test::make_temp_dir("uvim_lsp_failure_");
     Editor editor = Editor::createForTests();
     editor.setProjectRoot(root.string());
-    editor.enableClangdLsp(true, root.string(),
-                           (root / "missing-server").string());
+    editor.enableClangdLsp(
+        true,
+        root.string(),
+        (root / "missing-server").string());
     ASSERT_TRUE(until(
         [&]
         {
@@ -191,8 +195,9 @@ TEST(LspAsyncTest, OpeningAnotherRecognizedFileDoesNotRestartPendingServer)
 TEST(LspAsyncTest, CppHeaderIndexIsPublishedAfterBackgroundScan)
 {
     const auto root = uvim_test::make_temp_dir("uvim_cpp_index_async_");
-    uvim_test::write_file(root / "types.h",
-                          "struct Example { int member; };\n");
+    uvim_test::write_file(
+        root / "types.h",
+        "struct Example { int member; };\n");
     Editor editor = Editor::createForTests();
     editor.setProjectRoot(root.string());
     editor.createNewBuffer();

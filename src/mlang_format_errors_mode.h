@@ -27,6 +27,7 @@ struct MlangFormatErrorsMode
     MlangFormatErrorsSource source = MlangFormatErrorsSource::FormatErrors;
 
     MlangFormatErrorsMode() = default;
+
     explicit MlangFormatErrorsMode(MlangFormatErrorsSource source)
         : source(source),
           warnings(source == MlangFormatErrorsSource::LspWarnings)
@@ -38,8 +39,9 @@ struct MlangFormatErrorsMode
     void on_enter(ModeContext& ctx);
     void on_exit(ModeContext& ctx);
 
-    std::optional<ModeState> handle(ModeContext& ctx,
-                                    const ModeKeyEvent& event);
+    std::optional<ModeState> handle(
+        ModeContext& ctx,
+        const ModeKeyEvent& event);
 
     void draw(Editor& editor) const;
 };

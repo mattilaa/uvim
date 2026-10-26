@@ -25,13 +25,12 @@ inline PickerQuery parsePickerQuery(std::string_view query)
         return parsed;
     }
     size_t digits = 0;
-    while(digits < query.size() &&
-          query[query.size() - 1 - digits] >= '0' &&
+    while(digits < query.size() && query[query.size() - 1 - digits] >= '0' &&
           query[query.size() - 1 - digits] <= '9')
         ++digits;
 
-    const bool colonBeforeDigits = query.size() > digits &&
-                                   query[query.size() - 1 - digits] == ':';
+    const bool colonBeforeDigits =
+        query.size() > digits && query[query.size() - 1 - digits] == ':';
     if(!colonBeforeDigits)
     {
         parsed.pattern = std::string(query);

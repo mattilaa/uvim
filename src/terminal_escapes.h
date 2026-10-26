@@ -65,8 +65,7 @@ constexpr const char* STYLE_GREEN_BOLD =
     color::ansi(color::AnsiColor::StyleGreenBold);
 constexpr const char* STYLE_RESET_GREEN_BOLD =
     color::ansi(color::AnsiColor::StyleResetGreenBold);
-constexpr const char* STYLE_CURSOR =
-    color::ansi(color::AnsiColor::StyleCursor);
+constexpr const char* STYLE_CURSOR = color::ansi(color::AnsiColor::StyleCursor);
 
 constexpr const char* ESC_DELETE_LINE = "\x1b[M";
 constexpr const char* ESC_INSERT_LINE = "\x1b[L";

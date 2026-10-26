@@ -1,5 +1,5 @@
-#include "editor.h"
 #include "editor_mode_controller.h"
+#include "editor.h"
 #include "enablelog.h"
 #include "mode_state_machine.h"
 #include "terminal.h"
@@ -13,241 +13,260 @@ namespace
 class ModeChangeRecognizer
 {
 public:
-    std::optional<Mode> operator()(ModeContext& ctx,
-                                   const WelcomeMode& state) const
+    std::optional<Mode> operator()(ModeContext& ctx, const WelcomeMode& state)
+        const
     {
         return recognize(ctx, state);
     }
 
-    std::optional<Mode> operator()(ModeContext& ctx,
-                                   const NormalMode& state) const
+    std::optional<Mode> operator()(ModeContext& ctx, const NormalMode& state)
+        const
     {
         return recognize(ctx, state);
     }
 
-    std::optional<Mode> operator()(ModeContext& ctx,
-                                   const InsertMode& state) const
+    std::optional<Mode> operator()(ModeContext& ctx, const InsertMode& state)
+        const
     {
         return recognize(ctx, state);
     }
 
-    std::optional<Mode> operator()(ModeContext& ctx,
-                                   const ReplaceMode& state) const
+    std::optional<Mode> operator()(ModeContext& ctx, const ReplaceMode& state)
+        const
     {
         return recognize(ctx, state);
     }
 
-    std::optional<Mode> operator()(ModeContext& ctx,
-                                   const VisualMode& state) const
+    std::optional<Mode> operator()(ModeContext& ctx, const VisualMode& state)
+        const
     {
         return recognize(ctx, state);
     }
 
-    std::optional<Mode> operator()(ModeContext& ctx,
-                                   const VisualLineMode& state) const
+    std::optional<Mode> operator()(
+        ModeContext& ctx,
+        const VisualLineMode& state) const
     {
         return recognize(ctx, state);
     }
 
-    std::optional<Mode> operator()(ModeContext& ctx,
-                                   const VisualBlockMode& state) const
+    std::optional<Mode> operator()(
+        ModeContext& ctx,
+        const VisualBlockMode& state) const
     {
         return recognize(ctx, state);
     }
 
-    std::optional<Mode> operator()(ModeContext& ctx,
-                                   const CommandMode& state) const
+    std::optional<Mode> operator()(ModeContext& ctx, const CommandMode& state)
+        const
     {
         return recognize(ctx, state);
     }
 
-    std::optional<Mode> operator()(ModeContext& ctx,
-                                   const SearchForwardMode& state) const
+    std::optional<Mode> operator()(
+        ModeContext& ctx,
+        const SearchForwardMode& state) const
     {
         return recognize(ctx, state);
     }
 
-    std::optional<Mode> operator()(ModeContext& ctx,
-                                   const SearchBackwardMode& state) const
+    std::optional<Mode> operator()(
+        ModeContext& ctx,
+        const SearchBackwardMode& state) const
     {
         return recognize(ctx, state);
     }
 #ifdef UVIM_ENABLE_BROWSER_TOOLS
-    std::optional<Mode> operator()(ModeContext& ctx,
-                                   const FileBrowserMode& state) const
+    std::optional<Mode> operator()(
+        ModeContext& ctx,
+        const FileBrowserMode& state) const
     {
         return recognize(ctx, state);
     }
 #endif
 #ifdef UVIM_ENABLE_SEARCH_TOOLS
-    std::optional<Mode> operator()(ModeContext& ctx,
-                                   const FuzzyFindMode& state) const
+    std::optional<Mode> operator()(ModeContext& ctx, const FuzzyFindMode& state)
+        const
     {
         return recognize(ctx, state);
     }
 #endif
 #ifdef UVIM_ENABLE_BROWSER_TOOLS
-    std::optional<Mode> operator()(ModeContext& ctx,
-                                   const BufferBrowserMode& state) const
+    std::optional<Mode> operator()(
+        ModeContext& ctx,
+        const BufferBrowserMode& state) const
     {
         return recognize(ctx, state);
     }
-    std::optional<Mode> operator()(ModeContext& ctx,
-                                   const FunctionBrowserMode& state) const
+
+    std::optional<Mode> operator()(
+        ModeContext& ctx,
+        const FunctionBrowserMode& state) const
     {
         return recognize(ctx, state);
     }
 #endif
 #ifdef UVIM_ENABLE_SEARCH_TOOLS
-    std::optional<Mode> operator()(ModeContext& ctx,
-                                   const GrepSearchMode& state) const
+    std::optional<Mode> operator()(
+        ModeContext& ctx,
+        const GrepSearchMode& state) const
     {
         return recognize(ctx, state);
     }
 
-    std::optional<Mode> operator()(ModeContext& ctx,
-                                   const RegexSearchMode& state) const
+    std::optional<Mode> operator()(
+        ModeContext& ctx,
+        const RegexSearchMode& state) const
     {
         return recognize(ctx, state);
     }
 #endif
-    std::optional<Mode> operator()(ModeContext& ctx,
-                                   const OperatorPendingMode& state) const
+    std::optional<Mode> operator()(
+        ModeContext& ctx,
+        const OperatorPendingMode& state) const
     {
         return recognize(ctx, state);
     }
 #ifdef UVIM_ENABLE_AUXILIARY_VIEWS
-    std::optional<Mode> operator()(ModeContext& ctx,
-                                   const ReferencesMode& state) const
+    std::optional<Mode> operator()(
+        ModeContext& ctx,
+        const ReferencesMode& state) const
     {
         return recognize(ctx, state);
     }
 
-    std::optional<Mode> operator()(ModeContext& ctx,
-                                   const LspInfoMode& state) const
+    std::optional<Mode> operator()(ModeContext& ctx, const LspInfoMode& state)
+        const
     {
         return recognize(ctx, state);
     }
 
-    std::optional<Mode> operator()(ModeContext& ctx,
-                                   const ToolInfoMode& state) const
+    std::optional<Mode> operator()(ModeContext& ctx, const ToolInfoMode& state)
+        const
     {
         return recognize(ctx, state);
     }
 
-    std::optional<Mode> operator()(ModeContext& ctx,
-                                   const TaskListMode& state) const
+    std::optional<Mode> operator()(ModeContext& ctx, const TaskListMode& state)
+        const
     {
         return recognize(ctx, state);
     }
 
-    std::optional<Mode> operator()(ModeContext& ctx,
-                                   const CommandPaletteMode& state) const
+    std::optional<Mode> operator()(
+        ModeContext& ctx,
+        const CommandPaletteMode& state) const
     {
         return recognize(ctx, state);
     }
 
-    std::optional<Mode> operator()(ModeContext& ctx,
-                                   const LocListMode& state) const
+    std::optional<Mode> operator()(ModeContext& ctx, const LocListMode& state)
+        const
     {
         return recognize(ctx, state);
     }
 
-    std::optional<Mode> operator()(ModeContext& ctx,
-                                   const MlangFormatErrorsMode& state) const
+    std::optional<Mode> operator()(
+        ModeContext& ctx,
+        const MlangFormatErrorsMode& state) const
     {
         return recognize(ctx, state);
     }
 
-    std::optional<Mode> operator()(ModeContext& ctx,
-                                   const HelpMode& state) const
+    std::optional<Mode> operator()(ModeContext& ctx, const HelpMode& state)
+        const
     {
         return recognize(ctx, state);
     }
 #endif
 #ifdef UVIM_ENABLE_GIT_TOOLS
-    std::optional<Mode> operator()(ModeContext& ctx,
-                                   const GitShowCommitMode& state) const
+    std::optional<Mode> operator()(
+        ModeContext& ctx,
+        const GitShowCommitMode& state) const
     {
         return recognize(ctx, state);
     }
 
-    std::optional<Mode> operator()(ModeContext& ctx,
-                                   const GitLogMode& state) const
+    std::optional<Mode> operator()(ModeContext& ctx, const GitLogMode& state)
+        const
     {
         return recognize(ctx, state);
     }
 
-    std::optional<Mode> operator()(ModeContext& ctx,
-                                   const GitStageMode& state) const
+    std::optional<Mode> operator()(ModeContext& ctx, const GitStageMode& state)
+        const
     {
         return recognize(ctx, state);
     }
 
-    std::optional<Mode> operator()(ModeContext& ctx,
-                                   const GitCommitMode& state) const
+    std::optional<Mode> operator()(ModeContext& ctx, const GitCommitMode& state)
+        const
     {
         return recognize(ctx, state);
     }
 
-    std::optional<Mode> operator()(ModeContext& ctx,
-                                   const GitFixupMode& state) const
+    std::optional<Mode> operator()(ModeContext& ctx, const GitFixupMode& state)
+        const
     {
         return recognize(ctx, state);
     }
 
-    std::optional<Mode> operator()(ModeContext& ctx,
-                                   const GitPatchMode& state) const
+    std::optional<Mode> operator()(ModeContext& ctx, const GitPatchMode& state)
+        const
     {
         return recognize(ctx, state);
     }
 #endif
 #ifdef UVIM_ENABLE_DEBUGGER
-    std::optional<Mode> operator()(ModeContext& ctx,
-                                   const DebuggerMode& state) const
+    std::optional<Mode> operator()(ModeContext& ctx, const DebuggerMode& state)
+        const
     {
         return recognize(ctx, state);
     }
 #endif
 #ifdef UVIM_ENABLE_AUXILIARY_VIEWS
 
-    std::optional<Mode> operator()(ModeContext& ctx,
-                                   const CommandOutputMode& state) const
+    std::optional<Mode> operator()(
+        ModeContext& ctx,
+        const CommandOutputMode& state) const
     {
         return recognize(ctx, state);
     }
 
 #endif
 #ifdef UVIM_ENABLE_ASM_VIEW
-    std::optional<Mode> operator()(ModeContext& ctx,
-                                   const AssemblyMode& state) const
+    std::optional<Mode> operator()(ModeContext& ctx, const AssemblyMode& state)
+        const
     {
         return recognize(ctx, state);
     }
 #endif
 #ifdef UVIM_ENABLE_AUXILIARY_VIEWS
 
-    std::optional<Mode> operator()(ModeContext& ctx,
-                                   const GlyphSelectMode& state) const
+    std::optional<Mode> operator()(
+        ModeContext& ctx,
+        const GlyphSelectMode& state) const
     {
         return recognize(ctx, state);
     }
 #endif
 #ifdef UVIM_ENABLE_COLOR_TOOLS
-    std::optional<Mode> operator()(ModeContext& ctx,
-                                   const AnsiToolsMode& state) const
+    std::optional<Mode> operator()(ModeContext& ctx, const AnsiToolsMode& state)
+        const
     {
         return recognize(ctx, state);
     }
 
-    std::optional<Mode> operator()(ModeContext& ctx,
-                                   const ColorPickerMode& state) const
+    std::optional<Mode> operator()(
+        ModeContext& ctx,
+        const ColorPickerMode& state) const
     {
         return recognize(ctx, state);
     }
 
-    std::optional<Mode> operator()(ModeContext& ctx,
-                                   const ColorSelectorMode& state) const
+    std::optional<Mode> operator()(
+        ModeContext& ctx,
+        const ColorSelectorMode& state) const
     {
         return recognize(ctx, state);
     }
@@ -293,7 +312,8 @@ void EditorModeController::syncModeFromStateMachine()
     ModeContext ctx = createModeContext(&editor);
     std::optional<Mode> nextMode = std::visit(
         [&ctx](const auto& concreteState) -> std::optional<Mode>
-        { return ModeChangeRecognizer{}(ctx, concreteState); }, state);
+        { return ModeChangeRecognizer{}(ctx, concreteState); },
+        state);
     if(!nextMode)
     {
         return;
@@ -309,16 +329,20 @@ void EditorModeController::handleKeypress(int c)
         return;
     if(!editor.locMessage.empty())
         editor.locMessage.clear();
-    LOG_DEBUG(LOG, "handleKeypress c={} ('{}') mode={}", c, (char)c,
-              static_cast<int>(editor.currentMode));
+    LOG_DEBUG(
+        LOG,
+        "handleKeypress c={} ('{}') mode={}",
+        c,
+        (char)c,
+        static_cast<int>(editor.currentMode));
 
     if(handleEmojiPopupKey(c))
         return;
 
 #ifdef UVIM_ENABLE_SEARCH_TOOLS
     if(c == keyCode(control::ControlKey::CTRL_A) &&
-       editor.currentMode != REGEX_SEARCH && editor.currentMode != GREP_SEARCH &&
-       editor.currentMode != DEBUGGER)
+       editor.currentMode != REGEX_SEARCH &&
+       editor.currentMode != GREP_SEARCH && editor.currentMode != DEBUGGER)
     {
         if(editor.modeStateMachine)
         {

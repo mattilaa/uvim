@@ -51,8 +51,11 @@ std::filesystem::path makeTempRoot()
     return root;
 }
 
-bool hasTokenAt(const std::vector<Token>& tokens, int start, int length,
-                TokenType type)
+bool hasTokenAt(
+    const std::vector<Token>& tokens,
+    int start,
+    int length,
+    TokenType type)
 {
     for(const auto& token : tokens)
     {
@@ -92,8 +95,12 @@ TEST(SyntaxHighlighterTest, HighlightsImplicitMembersInCppMethodDefinition)
     ASSERT_TRUE(waitForHeaderIndex(editor));
 
     std::string output;
-    editor.renderLineWithSyntax(output, editor.currentBuffer->lines[1], 0,
-                                (int)editor.currentBuffer->lines[1].size(), 1);
+    editor.renderLineWithSyntax(
+        output,
+        editor.currentBuffer->lines[1],
+        0,
+        (int)editor.currentBuffer->lines[1].size(),
+        1);
 
     const std::string memberColor = editor.theme.syntax(TOKEN_MEMBER);
     EXPECT_TRUE(text_utils::is_found(output.find(memberColor)));
@@ -110,8 +117,12 @@ TEST(SyntaxHighlighterTest, HighlightsMemberDeclarationsInHeader)
     editor.currentBuffer->lines = {"class Foo {", "public:", "int bar;", "};"};
 
     std::string output;
-    editor.renderLineWithSyntax(output, editor.currentBuffer->lines[2], 0,
-                                (int)editor.currentBuffer->lines[2].size(), 2);
+    editor.renderLineWithSyntax(
+        output,
+        editor.currentBuffer->lines[2],
+        0,
+        (int)editor.currentBuffer->lines[2].size(),
+        2);
 
     const std::string memberColor = editor.theme.syntax(TOKEN_MEMBER);
     EXPECT_TRUE(text_utils::is_found(output.find(memberColor)));
@@ -160,7 +171,11 @@ TEST(SyntaxHighlighterTest, HighlightsAssemblyKeywordsAndRegisters)
     char markupFenceChar = 0;
     const std::string line = "movq %rdi, %rax";
     const auto tokens = editor.syntaxHighlighter->tokenizeLine(
-        line, inBlockComment, inTomlMultiline, tomlQuote, inMarkupFence,
+        line,
+        inBlockComment,
+        inTomlMultiline,
+        tomlQuote,
+        inMarkupFence,
         markupFenceChar);
 
     EXPECT_TRUE(hasTokenAt(tokens, 0, 4, TOKEN_KEYWORD));
@@ -169,7 +184,11 @@ TEST(SyntaxHighlighterTest, HighlightsAssemblyKeywordsAndRegisters)
 
     const std::string aarch64Line = "ldr x0, [sp]\n";
     const auto aarch64Tokens = editor.syntaxHighlighter->tokenizeLine(
-        aarch64Line, inBlockComment, inTomlMultiline, tomlQuote, inMarkupFence,
+        aarch64Line,
+        inBlockComment,
+        inTomlMultiline,
+        tomlQuote,
+        inMarkupFence,
         markupFenceChar);
 
     EXPECT_TRUE(hasTokenAt(aarch64Tokens, 0, 3, TOKEN_KEYWORD));
@@ -177,11 +196,16 @@ TEST(SyntaxHighlighterTest, HighlightsAssemblyKeywordsAndRegisters)
     EXPECT_TRUE(hasTokenAt(aarch64Tokens, 9, 2, TOKEN_TYPE));
 
     std::string rendered;
-    editor.renderLineWithSyntax(rendered, editor.currentBuffer->lines[0], 0,
-                                (int)editor.currentBuffer->lines[0].size(), 0);
+    editor.renderLineWithSyntax(
+        rendered,
+        editor.currentBuffer->lines[0],
+        0,
+        (int)editor.currentBuffer->lines[0].size(),
+        0);
 
-    EXPECT_TRUE(text_utils::is_found(
-        rendered.find(editor.theme.syntax(TOKEN_KEYWORD))));
+    EXPECT_TRUE(
+        text_utils::is_found(
+            rendered.find(editor.theme.syntax(TOKEN_KEYWORD))));
 }
 
 TEST(SyntaxHighlighterTest, HighlightsFlexAndBisonDirectives)
@@ -199,20 +223,32 @@ TEST(SyntaxHighlighterTest, HighlightsFlexAndBisonDirectives)
     char markupFenceChar = 0;
 
     auto flexTokens = editor.syntaxHighlighter->tokenizeLine(
-        "%option noyywrap", inBlockComment, inTomlMultiline, tomlQuote,
-        inMarkupFence, markupFenceChar);
+        "%option noyywrap",
+        inBlockComment,
+        inTomlMultiline,
+        tomlQuote,
+        inMarkupFence,
+        markupFenceChar);
     EXPECT_TRUE(hasTokenAt(flexTokens, 0, 7, TOKEN_KEYWORD));
 
     *editor.filename = "/tmp/parser.y";
     editor.currentBuffer->filename = *editor.filename;
     editor.currentBuffer->fileTypeCacheValid = false;
     auto bisonTokens = editor.syntaxHighlighter->tokenizeLine(
-        "%token NUMBER", inBlockComment, inTomlMultiline, tomlQuote,
-        inMarkupFence, markupFenceChar);
+        "%token NUMBER",
+        inBlockComment,
+        inTomlMultiline,
+        tomlQuote,
+        inMarkupFence,
+        markupFenceChar);
     EXPECT_TRUE(hasTokenAt(bisonTokens, 0, 6, TOKEN_KEYWORD));
 
     auto separatorTokens = editor.syntaxHighlighter->tokenizeLine(
-        "%%", inBlockComment, inTomlMultiline, tomlQuote, inMarkupFence,
+        "%%",
+        inBlockComment,
+        inTomlMultiline,
+        tomlQuote,
+        inMarkupFence,
         markupFenceChar);
     EXPECT_TRUE(hasTokenAt(separatorTokens, 0, 2, TOKEN_KEYWORD));
 }
@@ -233,28 +269,44 @@ TEST(SyntaxHighlighterTest, HighlightsFormatterConfigsLikeYaml)
 
     const std::string indentLine = "ContinuationIndentWidth: 8";
     const auto indentTokens = editor.syntaxHighlighter->tokenizeLine(
-        indentLine, inBlockComment, inTomlMultiline, tomlQuote, inMarkupFence,
+        indentLine,
+        inBlockComment,
+        inTomlMultiline,
+        tomlQuote,
+        inMarkupFence,
         markupFenceChar);
     EXPECT_TRUE(hasTokenAt(indentTokens, 0, 23, TOKEN_KEYWORD));
     EXPECT_TRUE(hasTokenAt(indentTokens, 23, 1, TOKEN_OPERATOR));
 
     const std::string styleLine = "BasedOnStyle: \"LLVM\"";
     const auto styleTokens = editor.syntaxHighlighter->tokenizeLine(
-        styleLine, inBlockComment, inTomlMultiline, tomlQuote, inMarkupFence,
+        styleLine,
+        inBlockComment,
+        inTomlMultiline,
+        tomlQuote,
+        inMarkupFence,
         markupFenceChar);
     EXPECT_TRUE(hasTokenAt(styleTokens, 0, 12, TOKEN_KEYWORD));
     EXPECT_TRUE(hasTokenAt(styleTokens, 14, 6, TOKEN_STRING));
 
     const std::string boolLine = "IndentFunctionSignatureClosingParen: true";
     const auto boolTokens = editor.syntaxHighlighter->tokenizeLine(
-        boolLine, inBlockComment, inTomlMultiline, tomlQuote, inMarkupFence,
+        boolLine,
+        inBlockComment,
+        inTomlMultiline,
+        tomlQuote,
+        inMarkupFence,
         markupFenceChar);
     EXPECT_TRUE(hasTokenAt(boolTokens, 0, 35, TOKEN_KEYWORD));
     EXPECT_TRUE(hasTokenAt(boolTokens, 37, 4, TOKEN_KEYWORD));
 
     const std::string commentLine = "// ignored config comment";
     const auto commentTokens = editor.syntaxHighlighter->tokenizeLine(
-        commentLine, inBlockComment, inTomlMultiline, tomlQuote, inMarkupFence,
+        commentLine,
+        inBlockComment,
+        inTomlMultiline,
+        tomlQuote,
+        inMarkupFence,
         markupFenceChar);
     EXPECT_TRUE(hasTokenAt(commentTokens, 0, 25, TOKEN_COMMENT));
 
@@ -262,7 +314,11 @@ TEST(SyntaxHighlighterTest, HighlightsFormatterConfigsLikeYaml)
     editor.currentBuffer->filename = *editor.filename;
     editor.currentBuffer->fileTypeCacheValid = false;
     const auto clangFormatTokens = editor.syntaxHighlighter->tokenizeLine(
-        styleLine, inBlockComment, inTomlMultiline, tomlQuote, inMarkupFence,
+        styleLine,
+        inBlockComment,
+        inTomlMultiline,
+        tomlQuote,
+        inMarkupFence,
         markupFenceChar);
     EXPECT_TRUE(hasTokenAt(clangFormatTokens, 0, 12, TOKEN_KEYWORD));
     EXPECT_TRUE(hasTokenAt(clangFormatTokens, 14, 6, TOKEN_STRING));
@@ -285,8 +341,12 @@ TEST(SyntaxHighlighterTest, DoesNotHighlightImplicitMembersWhenDisabled)
     editor.syntaxCppHighlightImplicitMembers = false;
 
     std::string output;
-    editor.renderLineWithSyntax(output, editor.currentBuffer->lines[1], 0,
-                                (int)editor.currentBuffer->lines[1].size(), 1);
+    editor.renderLineWithSyntax(
+        output,
+        editor.currentBuffer->lines[1],
+        0,
+        (int)editor.currentBuffer->lines[1].size(),
+        1);
 
     const std::string memberColor = editor.theme.syntax(TOKEN_MEMBER);
     EXPECT_TRUE(text_utils::is_not_found(output.find(memberColor)));
@@ -304,9 +364,16 @@ TEST(SyntaxHighlighterTest, HighlightsTemplateParamsSingleType)
     char tomlQuote = 0;
     bool inMarkupFence = false;
     char markupFenceChar = 0;
-    auto tokens =
-        editor.tokenizeLine(line, inBlockComment, inTomlMultiline, tomlQuote,
-                            inMarkupFence, markupFenceChar, false, false, true);
+    auto tokens = editor.tokenizeLine(
+        line,
+        inBlockComment,
+        inTomlMultiline,
+        tomlQuote,
+        inMarkupFence,
+        markupFenceChar,
+        false,
+        false,
+        true);
 
     int fooPos = (int)line.find("Foo");
     ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(fooPos)));
@@ -325,9 +392,13 @@ TEST(SyntaxHighlighterTest, HighlightsTemplateParamsNestedTypes)
     char tomlQuote = 0;
     bool inMarkupFence = false;
     char markupFenceChar = 0;
-    auto tokens =
-        editor.tokenizeLine(line, inBlockComment, inTomlMultiline, tomlQuote,
-                            inMarkupFence, markupFenceChar);
+    auto tokens = editor.tokenizeLine(
+        line,
+        inBlockComment,
+        inTomlMultiline,
+        tomlQuote,
+        inMarkupFence,
+        markupFenceChar);
 
     int fooPos = (int)line.find("Foo");
     int barPos = (int)line.find("Bar");
@@ -352,9 +423,13 @@ TEST(SyntaxHighlighterTest, HighlightsCppPreprocessorLine)
     char tomlQuote = 0;
     bool inMarkupFence = false;
     char markupFenceChar = 0;
-    auto tokens =
-        editor.tokenizeLine(line, inBlockComment, inTomlMultiline, tomlQuote,
-                            inMarkupFence, markupFenceChar);
+    auto tokens = editor.tokenizeLine(
+        line,
+        inBlockComment,
+        inTomlMultiline,
+        tomlQuote,
+        inMarkupFence,
+        markupFenceChar);
 
     ASSERT_FALSE(tokens.empty());
     EXPECT_EQ(tokens[0].type, TOKEN_PREPROCESSOR);
@@ -368,16 +443,19 @@ TEST(SyntaxHighlighterTest, HighlightsCppBranchPredictionAttributes)
     setupEditorBuffer(editor);
     *editor.filename = "/tmp/example.cpp";
 
-    const std::string line =
-        "if (ready) [[likely]]; else [[unlikely]] return;";
+    const std::string line = "if (ready) [[likely]]; else [[unlikely]] return;";
     bool inBlockComment = false;
     bool inTomlMultiline = false;
     char tomlQuote = 0;
     bool inMarkupFence = false;
     char markupFenceChar = 0;
-    const auto tokens =
-        editor.tokenizeLine(line, inBlockComment, inTomlMultiline, tomlQuote,
-                            inMarkupFence, markupFenceChar);
+    const auto tokens = editor.tokenizeLine(
+        line,
+        inBlockComment,
+        inTomlMultiline,
+        tomlQuote,
+        inMarkupFence,
+        markupFenceChar);
 
     const int likelyPos = (int)line.find("likely");
     const int unlikelyPos = (int)line.find("unlikely");
@@ -399,9 +477,13 @@ TEST(SyntaxHighlighterTest, HighlightsQualifiedTypeAfterScope)
     char tomlQuote = 0;
     bool inMarkupFence = false;
     char markupFenceChar = 0;
-    auto tokens =
-        editor.tokenizeLine(line, inBlockComment, inTomlMultiline, tomlQuote,
-                            inMarkupFence, markupFenceChar);
+    auto tokens = editor.tokenizeLine(
+        line,
+        inBlockComment,
+        inTomlMultiline,
+        tomlQuote,
+        inMarkupFence,
+        markupFenceChar);
 
     int vecPos = (int)line.find("vector");
     int stdPos = (int)line.find("std");
@@ -423,9 +505,13 @@ TEST(SyntaxHighlighterTest, HighlightsCppQualifiedNamespaceSegments)
     char tomlQuote = 0;
     bool inMarkupFence = false;
     char markupFenceChar = 0;
-    auto tokens =
-        editor.tokenizeLine(line, inBlockComment, inTomlMultiline, tomlQuote,
-                            inMarkupFence, markupFenceChar);
+    auto tokens = editor.tokenizeLine(
+        line,
+        inBlockComment,
+        inTomlMultiline,
+        tomlQuote,
+        inMarkupFence,
+        markupFenceChar);
 
     EXPECT_TRUE(hasTokenAt(tokens, 0, 3, TOKEN_NAMESPACE_1));
     EXPECT_TRUE(hasTokenAt(tokens, 3, 2, TOKEN_OPERATOR));
@@ -446,9 +532,13 @@ TEST(SyntaxHighlighterTest, HighlightsCppStaticCallQualifiedSegments)
     char tomlQuote = 0;
     bool inMarkupFence = false;
     char markupFenceChar = 0;
-    auto tokens =
-        editor.tokenizeLine(line, inBlockComment, inTomlMultiline, tomlQuote,
-                            inMarkupFence, markupFenceChar);
+    auto tokens = editor.tokenizeLine(
+        line,
+        inBlockComment,
+        inTomlMultiline,
+        tomlQuote,
+        inMarkupFence,
+        markupFenceChar);
 
     EXPECT_TRUE(hasTokenAt(tokens, 0, 10, TOKEN_NAMESPACE_1));
     EXPECT_TRUE(hasTokenAt(tokens, 10, 2, TOKEN_OPERATOR));
@@ -476,7 +566,8 @@ TEST(SyntaxHighlighterTest, CppSemanticTokensPreserveQualifiedSegments)
     editor.renderLineWithSyntax(output, line, 0, (int)line.size(), 0);
 
     const std::string namespaceColor = editor.theme.syntax(TOKEN_NAMESPACE_4);
-    EXPECT_TRUE(text_utils::is_found(output.find(namespaceColor + "SomeClass")));
+    EXPECT_TRUE(
+        text_utils::is_found(output.find(namespaceColor + "SomeClass")));
 }
 
 TEST(SyntaxHighlighterTest, SemanticTokensDoNotOverrideComments)
@@ -503,8 +594,9 @@ TEST(SyntaxHighlighterTest, SemanticTokensDoNotOverrideComments)
     std::string output;
     editor.renderLineWithSyntax(output, line, 0, (int)line.size(), 0);
 
-    EXPECT_EQ(output, editor.theme.syntax(TOKEN_COMMENT) + line +
-                          editor.theme.baseFg());
+    EXPECT_EQ(
+        output,
+        editor.theme.syntax(TOKEN_COMMENT) + line + editor.theme.baseFg());
 }
 
 TEST(SyntaxHighlighterTest, SemanticTokensDoNotOverrideLexicalKeywords)
@@ -524,8 +616,9 @@ TEST(SyntaxHighlighterTest, SemanticTokensDoNotOverrideLexicalKeywords)
     std::string output;
     editor.renderLineWithSyntax(output, line, 0, (int)line.size(), 0);
 
-    EXPECT_TRUE(text_utils::is_found(
-        output.find(editor.theme.syntax(TOKEN_KEYWORD) + "let")));
+    EXPECT_TRUE(
+        text_utils::is_found(
+            output.find(editor.theme.syntax(TOKEN_KEYWORD) + "let")));
 }
 
 TEST(SyntaxHighlighterTest, HighlightsOptionalAndProjectTypes)
@@ -541,9 +634,13 @@ TEST(SyntaxHighlighterTest, HighlightsOptionalAndProjectTypes)
     char tomlQuote = 0;
     bool inMarkupFence = false;
     char markupFenceChar = 0;
-    auto tokens =
-        editor.tokenizeLine(line, inBlockComment, inTomlMultiline, tomlQuote,
-                            inMarkupFence, markupFenceChar);
+    auto tokens = editor.tokenizeLine(
+        line,
+        inBlockComment,
+        inTomlMultiline,
+        tomlQuote,
+        inMarkupFence,
+        markupFenceChar);
 
     int optionalPos = (int)line.find("optional");
     int summaryPos = (int)line.find("LspDiagnosticSummary");
@@ -630,8 +727,10 @@ TEST(SyntaxHighlighterTest, SemanticTokensRespectLocalAndMemberColors)
     editor.currentBuffer->lspSemanticTokens.resize(1);
     editor.currentBuffer->lspSemanticTokensValid = true;
 
-    auto addToken = [&](std::string_view text, std::string_view tokenType,
-                        bool isDecl, bool isDef)
+    auto addToken = [&](std::string_view text,
+                        std::string_view tokenType,
+                        bool isDecl,
+                        bool isDef)
     {
         int pos = (int)line.find(std::string(text));
         ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(pos)));
@@ -736,8 +835,11 @@ TEST(SyntaxHighlighterTest, CompletionPopupPrefersBelowCursorLine)
 
     const int cursorRow =
         (*editor.cursorY - *editor.offsetY) + 1 + editor.tabBarRows();
-    EXPECT_TRUE(text_utils::is_found(output.find(Terminal::cursorPos(
-        cursorRow + 1, 1 + *editor.cursorX + editor.gutterWidth()))));
+    EXPECT_TRUE(
+        text_utils::is_found(output.find(
+            Terminal::cursorPos(
+                cursorRow + 1,
+                1 + *editor.cursorX + editor.gutterWidth()))));
 }
 
 TEST(SyntaxHighlighterTest, CompletionPopupAboveCursorDoesNotCoverCursorLine)
@@ -752,9 +854,10 @@ TEST(SyntaxHighlighterTest, CompletionPopupAboveCursorDoesNotCoverCursorLine)
     *editor.offsetY = 0;
     *editor.offsetX = 0;
     editor.completionActive = true;
-    editor.completionAll = {CompletionEntry{.label = "printf"},
-                            CompletionEntry{.label = "puts"},
-                            CompletionEntry{.label = "fprintf"}};
+    editor.completionAll =
+        {CompletionEntry{.label = "printf"},
+         CompletionEntry{.label = "puts"},
+         CompletionEntry{.label = "fprintf"}};
     editor.completionFiltered = {0, 1, 2};
 
     std::string output;
@@ -762,8 +865,9 @@ TEST(SyntaxHighlighterTest, CompletionPopupAboveCursorDoesNotCoverCursorLine)
 
     const int cursorRow =
         (*editor.cursorY - *editor.offsetY) + 1 + editor.tabBarRows();
-    EXPECT_TRUE(text_utils::is_not_found(
-        output.find(Terminal::cursorPos(cursorRow, 1))));
+    EXPECT_TRUE(
+        text_utils::is_not_found(
+            output.find(Terminal::cursorPos(cursorRow, 1))));
 }
 
 TEST(SyntaxHighlighterTest, CompletionPopupShowsAliasDocumentation)
@@ -850,9 +954,13 @@ TEST(SyntaxHighlighterTest, HighlightsSystemIncludeFromCompileCommands)
     char tomlQuote = 0;
     bool inMarkupFence = false;
     char markupFenceChar = 0;
-    auto tokens =
-        editor.tokenizeLine(line, inBlockComment, inTomlMultiline, tomlQuote,
-                            inMarkupFence, markupFenceChar);
+    auto tokens = editor.tokenizeLine(
+        line,
+        inBlockComment,
+        inTomlMultiline,
+        tomlQuote,
+        inMarkupFence,
+        markupFenceChar);
 
     EXPECT_FALSE(editor.tasks.idle());
     const auto deadline =
@@ -860,8 +968,13 @@ TEST(SyntaxHighlighterTest, HighlightsSystemIncludeFromCompileCommands)
     do
     {
         editor.serviceTasks();
-        tokens = editor.tokenizeLine(line, inBlockComment, inTomlMultiline,
-                                     tomlQuote, inMarkupFence, markupFenceChar);
+        tokens = editor.tokenizeLine(
+            line,
+            inBlockComment,
+            inTomlMultiline,
+            tomlQuote,
+            inMarkupFence,
+            markupFenceChar);
         std::this_thread::sleep_for(std::chrono::milliseconds(5));
     } while(!editor.tasks.idle() &&
             std::chrono::steady_clock::now() < deadline);
@@ -902,9 +1015,13 @@ TEST(SyntaxHighlighterTest, NoSystemIncludeHighlightWhenDisabled)
     char tomlQuote = 0;
     bool inMarkupFence = false;
     char markupFenceChar = 0;
-    auto tokens =
-        editor.tokenizeLine(line, inBlockComment, inTomlMultiline, tomlQuote,
-                            inMarkupFence, markupFenceChar);
+    auto tokens = editor.tokenizeLine(
+        line,
+        inBlockComment,
+        inTomlMultiline,
+        tomlQuote,
+        inMarkupFence,
+        markupFenceChar);
 
     EXPECT_FALSE(hasTokenType(tokens, TOKEN_STRING));
 }
@@ -931,9 +1048,13 @@ TEST(SyntaxHighlighterTest, HighlightsUserTypeInFunctionParams)
     char tomlQuote = 0;
     bool inMarkupFence = false;
     char markupFenceChar = 0;
-    auto tokens =
-        editor.tokenizeLine(line, inBlockComment, inTomlMultiline, tomlQuote,
-                            inMarkupFence, markupFenceChar);
+    auto tokens = editor.tokenizeLine(
+        line,
+        inBlockComment,
+        inTomlMultiline,
+        tomlQuote,
+        inMarkupFence,
+        markupFenceChar);
 
     int typePos = (int)line.find("ModeContext");
     ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(typePos)));
@@ -961,9 +1082,13 @@ TEST(SyntaxHighlighterTest, NoParamTypeHighlightWhenDisabled)
     char tomlQuote = 0;
     bool inMarkupFence = false;
     char markupFenceChar = 0;
-    auto tokens =
-        editor.tokenizeLine(line, inBlockComment, inTomlMultiline, tomlQuote,
-                            inMarkupFence, markupFenceChar);
+    auto tokens = editor.tokenizeLine(
+        line,
+        inBlockComment,
+        inTomlMultiline,
+        tomlQuote,
+        inMarkupFence,
+        markupFenceChar);
 
     int typePos = (int)line.find("ModeContext");
     ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(typePos)));
@@ -992,9 +1117,13 @@ TEST(SyntaxHighlighterTest, HighlightsUserTypeInLocalDeclaration)
     char tomlQuote = 0;
     bool inMarkupFence = false;
     char markupFenceChar = 0;
-    auto tokens =
-        editor.tokenizeLine(line, inBlockComment, inTomlMultiline, tomlQuote,
-                            inMarkupFence, markupFenceChar);
+    auto tokens = editor.tokenizeLine(
+        line,
+        inBlockComment,
+        inTomlMultiline,
+        tomlQuote,
+        inMarkupFence,
+        markupFenceChar);
 
     int typePos = (int)line.find("ModeContext");
     ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(typePos)));
@@ -1013,9 +1142,13 @@ TEST(SyntaxHighlighterTest, DoesNotHighlightParamVariableName)
     char tomlQuote = 0;
     bool inMarkupFence = false;
     char markupFenceChar = 0;
-    auto tokens =
-        editor.tokenizeLine(line, inBlockComment, inTomlMultiline, tomlQuote,
-                            inMarkupFence, markupFenceChar);
+    auto tokens = editor.tokenizeLine(
+        line,
+        inBlockComment,
+        inTomlMultiline,
+        tomlQuote,
+        inMarkupFence,
+        markupFenceChar);
 
     int barPos = (int)line.find("bar");
     ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(barPos)));
@@ -1040,9 +1173,16 @@ TEST(SyntaxHighlighterTest, DoesNotHighlightLocalVariableName)
     char tomlQuote = 0;
     bool inMarkupFence = false;
     char markupFenceChar = 0;
-    auto tokens =
-        editor.tokenizeLine(line, inBlockComment, inTomlMultiline, tomlQuote,
-                            inMarkupFence, markupFenceChar, true, true, false);
+    auto tokens = editor.tokenizeLine(
+        line,
+        inBlockComment,
+        inTomlMultiline,
+        tomlQuote,
+        inMarkupFence,
+        markupFenceChar,
+        true,
+        true,
+        false);
 
     EXPECT_FALSE(hasTokenType(tokens, TOKEN_MEMBER));
 }
@@ -1058,9 +1198,16 @@ TEST(SyntaxHighlighterTest, DoesNotHighlightLocalVariableInFreeFunction)
     char tomlQuote = 0;
     bool inMarkupFence = false;
     char markupFenceChar = 0;
-    auto tokens =
-        editor.tokenizeLine(line, inBlockComment, inTomlMultiline, tomlQuote,
-                            inMarkupFence, markupFenceChar, false, true, false);
+    auto tokens = editor.tokenizeLine(
+        line,
+        inBlockComment,
+        inTomlMultiline,
+        tomlQuote,
+        inMarkupFence,
+        markupFenceChar,
+        false,
+        true,
+        false);
 
     EXPECT_FALSE(hasTokenType(tokens, TOKEN_MEMBER));
 }
@@ -1083,9 +1230,16 @@ TEST(SyntaxHighlighterTest, DoesNotHighlightLocalVariableInMethod)
     char tomlQuote = 0;
     bool inMarkupFence = false;
     char markupFenceChar = 0;
-    auto tokens =
-        editor.tokenizeLine(line, inBlockComment, inTomlMultiline, tomlQuote,
-                            inMarkupFence, markupFenceChar, true, true, false);
+    auto tokens = editor.tokenizeLine(
+        line,
+        inBlockComment,
+        inTomlMultiline,
+        tomlQuote,
+        inMarkupFence,
+        markupFenceChar,
+        true,
+        true,
+        false);
 
     EXPECT_FALSE(hasTokenType(tokens, TOKEN_MEMBER));
 }
@@ -1112,9 +1266,13 @@ TEST(SyntaxHighlighterTest, HighlightsUserTypePointerInParams)
     char tomlQuote = 0;
     bool inMarkupFence = false;
     char markupFenceChar = 0;
-    auto tokens =
-        editor.tokenizeLine(line, inBlockComment, inTomlMultiline, tomlQuote,
-                            inMarkupFence, markupFenceChar);
+    auto tokens = editor.tokenizeLine(
+        line,
+        inBlockComment,
+        inTomlMultiline,
+        tomlQuote,
+        inMarkupFence,
+        markupFenceChar);
 
     int typePos = (int)line.find("Editor");
     ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(typePos)));
@@ -1143,9 +1301,16 @@ TEST(SyntaxHighlighterTest, DoesNotHighlightLocalVariableMatchingMember)
     char tomlQuote = 0;
     bool inMarkupFence = false;
     char markupFenceChar = 0;
-    auto tokens =
-        editor.tokenizeLine(line, inBlockComment, inTomlMultiline, tomlQuote,
-                            inMarkupFence, markupFenceChar, true, true, false);
+    auto tokens = editor.tokenizeLine(
+        line,
+        inBlockComment,
+        inTomlMultiline,
+        tomlQuote,
+        inMarkupFence,
+        markupFenceChar,
+        true,
+        true,
+        false);
 
     EXPECT_FALSE(hasTokenType(tokens, TOKEN_MEMBER));
 }
@@ -1177,9 +1342,13 @@ TEST(SyntaxHighlighterTest, DoesNotHighlightParamNameMatchingMember)
     char tomlQuote = 0;
     bool inMarkupFence = false;
     char markupFenceChar = 0;
-    auto tokens =
-        editor.tokenizeLine(line, inBlockComment, inTomlMultiline, tomlQuote,
-                            inMarkupFence, markupFenceChar);
+    auto tokens = editor.tokenizeLine(
+        line,
+        inBlockComment,
+        inTomlMultiline,
+        tomlQuote,
+        inMarkupFence,
+        markupFenceChar);
 
     int namePos = (int)line.find("editor)");
     ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(namePos)));
@@ -1198,9 +1367,13 @@ TEST(SyntaxHighlighterTest, HighlightsPythonBasics)
     char tomlQuote = 0;
     bool inMarkupFence = false;
     char markupFenceChar = 0;
-    auto tokens =
-        editor.tokenizeLine(line, inBlockComment, inTomlMultiline, tomlQuote,
-                            inMarkupFence, markupFenceChar);
+    auto tokens = editor.tokenizeLine(
+        line,
+        inBlockComment,
+        inTomlMultiline,
+        tomlQuote,
+        inMarkupFence,
+        markupFenceChar);
 
     int defPos = (int)line.find("def");
     int fooPos = (int)line.find("foo");
@@ -1213,8 +1386,11 @@ TEST(SyntaxHighlighterTest, HighlightsPythonBasics)
     EXPECT_TRUE(hasTokenAt(tokens, defPos, 3, TOKEN_KEYWORD));
     EXPECT_TRUE(hasTokenAt(tokens, fooPos, 3, TOKEN_FUNCTION));
     EXPECT_TRUE(hasTokenAt(tokens, numPos, 2, TOKEN_NUMBER));
-    EXPECT_TRUE(hasTokenAt(tokens, commentPos, (int)line.size() - commentPos,
-                           TOKEN_COMMENT));
+    EXPECT_TRUE(hasTokenAt(
+        tokens,
+        commentPos,
+        (int)line.size() - commentPos,
+        TOKEN_COMMENT));
 }
 
 TEST(SyntaxHighlighterTest, HighlightsPythonClassName)
@@ -1229,9 +1405,13 @@ TEST(SyntaxHighlighterTest, HighlightsPythonClassName)
     char tomlQuote = 0;
     bool inMarkupFence = false;
     char markupFenceChar = 0;
-    auto tokens =
-        editor.tokenizeLine(line, inBlockComment, inTomlMultiline, tomlQuote,
-                            inMarkupFence, markupFenceChar);
+    auto tokens = editor.tokenizeLine(
+        line,
+        inBlockComment,
+        inTomlMultiline,
+        tomlQuote,
+        inMarkupFence,
+        markupFenceChar);
 
     int classPos = (int)line.find("class");
     int fooPos = (int)line.find("Foo");
@@ -1253,9 +1433,13 @@ TEST(SyntaxHighlighterTest, HighlightsPythonSelfMember)
     char tomlQuote = 0;
     bool inMarkupFence = false;
     char markupFenceChar = 0;
-    auto tokens =
-        editor.tokenizeLine(line, inBlockComment, inTomlMultiline, tomlQuote,
-                            inMarkupFence, markupFenceChar);
+    auto tokens = editor.tokenizeLine(
+        line,
+        inBlockComment,
+        inTomlMultiline,
+        tomlQuote,
+        inMarkupFence,
+        markupFenceChar);
 
     int childPos = (int)line.find("child");
     ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(childPos)));
@@ -1274,9 +1458,13 @@ TEST(SyntaxHighlighterTest, HighlightsPythonBuiltinTypes)
     char tomlQuote = 0;
     bool inMarkupFence = false;
     char markupFenceChar = 0;
-    auto tokens =
-        editor.tokenizeLine(line, inBlockComment, inTomlMultiline, tomlQuote,
-                            inMarkupFence, markupFenceChar);
+    auto tokens = editor.tokenizeLine(
+        line,
+        inBlockComment,
+        inTomlMultiline,
+        tomlQuote,
+        inMarkupFence,
+        markupFenceChar);
 
     int intPos = (int)line.find("int");
     int nonePos = (int)line.find("None");
@@ -1298,9 +1486,13 @@ TEST(SyntaxHighlighterTest, HighlightsPythonEnumValue)
     char tomlQuote = 0;
     bool inMarkupFence = false;
     char markupFenceChar = 0;
-    auto tokens =
-        editor.tokenizeLine(line, inBlockComment, inTomlMultiline, tomlQuote,
-                            inMarkupFence, markupFenceChar);
+    auto tokens = editor.tokenizeLine(
+        line,
+        inBlockComment,
+        inTomlMultiline,
+        tomlQuote,
+        inMarkupFence,
+        markupFenceChar);
 
     int redPos = (int)line.find("RED");
     ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(redPos)));
@@ -1319,9 +1511,13 @@ TEST(SyntaxHighlighterTest, HighlightsMlangMemberAccess)
     char tomlQuote = 0;
     bool inMarkupFence = false;
     char markupFenceChar = 0;
-    auto tokens =
-        editor.tokenizeLine(line, inBlockComment, inTomlMultiline, tomlQuote,
-                            inMarkupFence, markupFenceChar);
+    auto tokens = editor.tokenizeLine(
+        line,
+        inBlockComment,
+        inTomlMultiline,
+        tomlQuote,
+        inMarkupFence,
+        markupFenceChar);
 
     int valuePos = (int)line.find("value");
     ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(valuePos)));
@@ -1341,9 +1537,13 @@ TEST(SyntaxHighlighterTest, HighlightsMlangQualifiedNamespaceSegments)
     char markupFenceChar = 0;
 
     const std::string line = "use std::esc::bold_on;";
-    auto tokens =
-        editor.tokenizeLine(line, inBlockComment, inTomlMultiline, tomlQuote,
-                            inMarkupFence, markupFenceChar);
+    auto tokens = editor.tokenizeLine(
+        line,
+        inBlockComment,
+        inTomlMultiline,
+        tomlQuote,
+        inMarkupFence,
+        markupFenceChar);
 
     EXPECT_TRUE(hasTokenAt(tokens, 4, 3, TOKEN_NAMESPACE_1));
     EXPECT_TRUE(hasTokenAt(tokens, 7, 2, TOKEN_OPERATOR));
@@ -1364,9 +1564,13 @@ TEST(SyntaxHighlighterTest, HighlightsMlangQualifiedTypeFinalSegment)
     char tomlQuote = 0;
     bool inMarkupFence = false;
     char markupFenceChar = 0;
-    auto tokens =
-        editor.tokenizeLine(line, inBlockComment, inTomlMultiline, tomlQuote,
-                            inMarkupFence, markupFenceChar);
+    auto tokens = editor.tokenizeLine(
+        line,
+        inBlockComment,
+        inTomlMultiline,
+        tomlQuote,
+        inMarkupFence,
+        markupFenceChar);
 
     int namespacePos = (int)line.find("namespace");
     int someClassPos = (int)line.find("SomeClass");
@@ -1388,9 +1592,13 @@ TEST(SyntaxHighlighterTest, HighlightsMlangModQualifiedNamespaceSegments)
     char tomlQuote = 0;
     bool inMarkupFence = false;
     char markupFenceChar = 0;
-    auto tokens =
-        editor.tokenizeLine(line, inBlockComment, inTomlMultiline, tomlQuote,
-                            inMarkupFence, markupFenceChar);
+    auto tokens = editor.tokenizeLine(
+        line,
+        inBlockComment,
+        inTomlMultiline,
+        tomlQuote,
+        inMarkupFence,
+        markupFenceChar);
 
     int stdPos = (int)line.find("std");
     int escPos = (int)line.find("esc");
@@ -1412,9 +1620,13 @@ TEST(SyntaxHighlighterTest, HighlightsMlangTraitNameAsType)
     char tomlQuote = 0;
     bool inMarkupFence = false;
     char markupFenceChar = 0;
-    auto tokens =
-        editor.tokenizeLine(line, inBlockComment, inTomlMultiline, tomlQuote,
-                            inMarkupFence, markupFenceChar);
+    auto tokens = editor.tokenizeLine(
+        line,
+        inBlockComment,
+        inTomlMultiline,
+        tomlQuote,
+        inMarkupFence,
+        markupFenceChar);
 
     int namePos = (int)line.find("Summary");
     ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(namePos)));
@@ -1433,9 +1645,13 @@ TEST(SyntaxHighlighterTest, HighlightsMlangUserTypeInAnnotationAndLiteral)
     char tomlQuote = 0;
     bool inMarkupFence = false;
     char markupFenceChar = 0;
-    auto tokens =
-        editor.tokenizeLine(line, inBlockComment, inTomlMultiline, tomlQuote,
-                            inMarkupFence, markupFenceChar);
+    auto tokens = editor.tokenizeLine(
+        line,
+        inBlockComment,
+        inTomlMultiline,
+        tomlQuote,
+        inMarkupFence,
+        markupFenceChar);
 
     int firstPos = (int)line.find("SocialPost");
     ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(firstPos)));
@@ -1459,17 +1675,25 @@ TEST(SyntaxHighlighterTest, HighlightsMlangAliasNameAsType)
     char markupFenceChar = 0;
 
     const std::string aliasLine = "alias Distance = f32;";
-    auto aliasTokens =
-        editor.tokenizeLine(aliasLine, inBlockComment, inTomlMultiline,
-                            tomlQuote, inMarkupFence, markupFenceChar);
+    auto aliasTokens = editor.tokenizeLine(
+        aliasLine,
+        inBlockComment,
+        inTomlMultiline,
+        tomlQuote,
+        inMarkupFence,
+        markupFenceChar);
     int aliasNamePos = (int)aliasLine.find("Distance");
     ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(aliasNamePos)));
     EXPECT_TRUE(hasTokenAt(aliasTokens, aliasNamePos, 8, TOKEN_TYPE));
 
     const std::string useLine = "let d1: Distance = 10.0f;";
-    auto useTokens =
-        editor.tokenizeLine(useLine, inBlockComment, inTomlMultiline, tomlQuote,
-                            inMarkupFence, markupFenceChar);
+    auto useTokens = editor.tokenizeLine(
+        useLine,
+        inBlockComment,
+        inTomlMultiline,
+        tomlQuote,
+        inMarkupFence,
+        markupFenceChar);
     int useNamePos = (int)useLine.find("Distance");
     ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(useNamePos)));
     EXPECT_TRUE(hasTokenAt(useTokens, useNamePos, 8, TOKEN_TYPE));
@@ -1487,9 +1711,13 @@ TEST(SyntaxHighlighterTest, HighlightsMlangUseTypeAliasNameAsType)
     char tomlQuote = 0;
     bool inMarkupFence = false;
     char markupFenceChar = 0;
-    auto tokens =
-        editor.tokenizeLine(line, inBlockComment, inTomlMultiline, tomlQuote,
-                            inMarkupFence, markupFenceChar);
+    auto tokens = editor.tokenizeLine(
+        line,
+        inBlockComment,
+        inTomlMultiline,
+        tomlQuote,
+        inMarkupFence,
+        markupFenceChar);
 
     int namePos = (int)line.find("Distance");
     ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(namePos)));
@@ -1509,9 +1737,13 @@ TEST(SyntaxHighlighterTest, HighlightsMlangBuiltinDocTypes)
     char tomlQuote = 0;
     bool inMarkupFence = false;
     char markupFenceChar = 0;
-    auto tokens =
-        editor.tokenizeLine(line, inBlockComment, inTomlMultiline, tomlQuote,
-                            inMarkupFence, markupFenceChar);
+    auto tokens = editor.tokenizeLine(
+        line,
+        inBlockComment,
+        inTomlMultiline,
+        tomlQuote,
+        inMarkupFence,
+        markupFenceChar);
 
     int fooPos = (int)line.find("Foo");
     ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(fooPos)));
@@ -1531,9 +1763,13 @@ TEST(SyntaxHighlighterTest, DisablesMlangBuiltinDocHighlighting)
     char tomlQuote = 0;
     bool inMarkupFence = false;
     char markupFenceChar = 0;
-    auto tokens =
-        editor.tokenizeLine(line, inBlockComment, inTomlMultiline, tomlQuote,
-                            inMarkupFence, markupFenceChar);
+    auto tokens = editor.tokenizeLine(
+        line,
+        inBlockComment,
+        inTomlMultiline,
+        tomlQuote,
+        inMarkupFence,
+        markupFenceChar);
 
     int fooPos = (int)line.find("Foo");
     ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(fooPos)));
@@ -1554,17 +1790,25 @@ TEST(SyntaxHighlighterTest, TogglesMlangTypeHighlighting)
     char markupFenceChar = 0;
 
     editor.syntaxMlangHighlightTypes = true;
-    auto tokensOn =
-        editor.tokenizeLine(line, inBlockComment, inTomlMultiline, tomlQuote,
-                            inMarkupFence, markupFenceChar);
+    auto tokensOn = editor.tokenizeLine(
+        line,
+        inBlockComment,
+        inTomlMultiline,
+        tomlQuote,
+        inMarkupFence,
+        markupFenceChar);
     int typePos = (int)line.find("int");
     ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(typePos)));
     EXPECT_TRUE(hasTokenAt(tokensOn, typePos, 3, TOKEN_TYPE));
 
     editor.syntaxMlangHighlightTypes = false;
-    auto tokensOff =
-        editor.tokenizeLine(line, inBlockComment, inTomlMultiline, tomlQuote,
-                            inMarkupFence, markupFenceChar);
+    auto tokensOff = editor.tokenizeLine(
+        line,
+        inBlockComment,
+        inTomlMultiline,
+        tomlQuote,
+        inMarkupFence,
+        markupFenceChar);
     EXPECT_FALSE(hasTokenAt(tokensOff, typePos, 3, TOKEN_TYPE));
 }
 
@@ -1581,9 +1825,13 @@ TEST(SyntaxHighlighterTest, HighlightsMlangPlatformKeywords)
     char tomlQuote = 0;
     bool inMarkupFence = false;
     char markupFenceChar = 0;
-    auto tokens =
-        editor.tokenizeLine(line, inBlockComment, inTomlMultiline, tomlQuote,
-                            inMarkupFence, markupFenceChar);
+    auto tokens = editor.tokenizeLine(
+        line,
+        inBlockComment,
+        inTomlMultiline,
+        tomlQuote,
+        inMarkupFence,
+        markupFenceChar);
 
     for(std::string_view word :
         {"aarch64", "linux", "macos", "posix", "windows", "x64"})
@@ -1607,9 +1855,13 @@ TEST(SyntaxHighlighterTest, HighlightsMlangBranchPredictionKeywords)
     char tomlQuote = 0;
     bool inMarkupFence = false;
     char markupFenceChar = 0;
-    const auto tokens =
-        editor.tokenizeLine(line, inBlockComment, inTomlMultiline, tomlQuote,
-                            inMarkupFence, markupFenceChar);
+    const auto tokens = editor.tokenizeLine(
+        line,
+        inBlockComment,
+        inTomlMultiline,
+        tomlQuote,
+        inMarkupFence,
+        markupFenceChar);
 
     const int likelyPos = (int)line.find("likely");
     const int unlikelyPos = (int)line.find("unlikely");
@@ -1631,9 +1883,13 @@ TEST(SyntaxHighlighterTest, HighlightsPythonCapsConstantAfterModule)
     char tomlQuote = 0;
     bool inMarkupFence = false;
     char markupFenceChar = 0;
-    auto tokens =
-        editor.tokenizeLine(line, inBlockComment, inTomlMultiline, tomlQuote,
-                            inMarkupFence, markupFenceChar);
+    auto tokens = editor.tokenizeLine(
+        line,
+        inBlockComment,
+        inTomlMultiline,
+        tomlQuote,
+        inMarkupFence,
+        markupFenceChar);
 
     int timeoutPos = (int)line.find("TIMEOUT");
     ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(timeoutPos)));
@@ -1652,9 +1908,13 @@ TEST(SyntaxHighlighterTest, DoesNotHighlightLambdaParamNames)
     char tomlQuote = 0;
     bool inMarkupFence = false;
     char markupFenceChar = 0;
-    auto tokens =
-        editor.tokenizeLine(line, inBlockComment, inTomlMultiline, tomlQuote,
-                            inMarkupFence, markupFenceChar);
+    auto tokens = editor.tokenizeLine(
+        line,
+        inBlockComment,
+        inTomlMultiline,
+        tomlQuote,
+        inMarkupFence,
+        markupFenceChar);
 
     int labelPos = (int)line.find("label");
     int runningPos = (int)line.find("running");
@@ -1674,8 +1934,8 @@ TEST(SyntaxHighlighterTest, DirtyLargeBufferUsesIncrementalSyntaxCache)
     *editor.filename = "/tmp/large.cpp";
     editor.currentBuffer->lines.clear();
     for(int i = 0; i < 12000; ++i)
-        editor.currentBuffer->lines.push_back("int value_" + std::to_string(i) +
-                                              " = " + std::to_string(i) + ";");
+        editor.currentBuffer->lines.push_back(
+            "int value_" + std::to_string(i) + " = " + std::to_string(i) + ";");
     editor.currentBuffer->dirty = true;
 
     std::string output;
@@ -1684,22 +1944,30 @@ TEST(SyntaxHighlighterTest, DirtyLargeBufferUsesIncrementalSyntaxCache)
     editor.renderLineWithSyntax(output, line, 0, (int)line.size(), row);
 
     EXPECT_GE(editor.currentBuffer->syntaxCacheComputedUpTo, row);
-    EXPECT_EQ(editor.currentBuffer->syntaxCache.size(),
-              editor.currentBuffer->lines.size());
+    EXPECT_EQ(
+        editor.currentBuffer->syntaxCache.size(),
+        editor.currentBuffer->lines.size());
     EXPECT_FALSE(output.empty());
 }
 
 namespace
 {
-std::vector<Token> tokenizeCSharp(Editor& editor, const std::string& line,
-                                  bool& inBlockComment)
+std::vector<Token> tokenizeCSharp(
+    Editor& editor,
+    const std::string& line,
+    bool& inBlockComment)
 {
     bool inTomlMultiline = false;
     char tomlQuote = 0;
     bool inMarkupFence = false;
     char markupFenceChar = 0;
-    return editor.tokenizeLine(line, inBlockComment, inTomlMultiline, tomlQuote,
-                               inMarkupFence, markupFenceChar);
+    return editor.tokenizeLine(
+        line,
+        inBlockComment,
+        inTomlMultiline,
+        tomlQuote,
+        inMarkupFence,
+        markupFenceChar);
 }
 } // namespace
 
@@ -1726,24 +1994,29 @@ TEST(SyntaxHighlighterTest, HighlightsCSharpKeywordsTypesAndStrings)
     tokens = tokenizeCSharp(editor, line, inBlock);
     const int at = (int)line.find('@');
     EXPECT_TRUE(hasTokenAt(tokens, at, (int)line.find(';') - at, TOKEN_STRING));
-    EXPECT_TRUE(hasTokenAt(tokens, (int)line.find("//"),
-                           (int)line.size() - (int)line.find("//"),
-                           TOKEN_COMMENT));
+    EXPECT_TRUE(hasTokenAt(
+        tokens,
+        (int)line.find("//"),
+        (int)line.size() - (int)line.find("//"),
+        TOKEN_COMMENT));
 
     // Verbatim "" is a quote; interpolated and raw strings.
-    line = R"(var s = @"say ""hi"""; var t = $"n={n}"; var r = """raw "x" """;)";
+    line =
+        R"(var s = @"say ""hi"""; var t = $"n={n}"; var r = """raw "x" """;)";
     tokens = tokenizeCSharp(editor, line, inBlock);
     const int v = (int)line.find('@');
     EXPECT_TRUE(hasTokenAt(tokens, v, (int)line.find(';') - v, TOKEN_STRING));
     const int d = (int)line.find('$');
-    EXPECT_TRUE(hasTokenAt(tokens, d, (int)line.find(';', d) - d, TOKEN_STRING));
+    EXPECT_TRUE(
+        hasTokenAt(tokens, d, (int)line.find(';', d) - d, TOKEN_STRING));
     const int r = (int)line.find(R"("""raw)");
     EXPECT_TRUE(hasTokenAt(tokens, r, (int)line.rfind(';') - r, TOKEN_STRING));
 
     // Directives and doc comments.
     line = "    #region Helpers";
     tokens = tokenizeCSharp(editor, line, inBlock);
-    EXPECT_TRUE(hasTokenAt(tokens, 4, (int)line.size() - 4, TOKEN_PREPROCESSOR));
+    EXPECT_TRUE(
+        hasTokenAt(tokens, 4, (int)line.size() - 4, TOKEN_PREPROCESSOR));
     line = "/// <summary>Docs</summary>";
     tokens = tokenizeCSharp(editor, line, inBlock);
     EXPECT_TRUE(hasTokenAt(tokens, 0, (int)line.size(), TOKEN_COMMENT));
@@ -1765,8 +2038,8 @@ TEST(SyntaxHighlighterTest, HighlightsPowerShell)
     char fenceChar = 0;
     auto tokenize = [&](const std::string& line)
     {
-        return editor.tokenizeLine(line, inBlock, inHere, hereQuote, inFence,
-                                   fenceChar);
+        return editor
+            .tokenizeLine(line, inBlock, inHere, hereQuote, inFence, fenceChar);
     };
 
     std::string line = "function Get-Thing([string]$Path) { if ($env:HOME "
@@ -1819,7 +2092,8 @@ TEST(SyntaxHighlighterTest, CppQualifiedTypesUseTheSameFinalSegmentColor)
     setupEditorBuffer(editor);
     *editor.filename = "/tmp/state.h";
     for(const auto& name :
-        {std::string("std::string"), std::string("std::string_view"),
+        {std::string("std::string"),
+         std::string("std::string_view"),
          std::string("std::optional<int>"),
          std::string("std::chrono::steady_clock::time_point")})
     {
@@ -1831,12 +2105,17 @@ TEST(SyntaxHighlighterTest, CppQualifiedTypesUseTheSameFinalSegmentColor)
         const auto end = name.find('<');
         const auto type = name.substr(0, end);
         const int start = static_cast<int>(type.rfind("::") + 2);
-        EXPECT_TRUE(hasTokenAt(tokens, start,
-                               static_cast<int>(type.size()) - start,
-                               TOKEN_NAMESPACE_4))
+        EXPECT_TRUE(hasTokenAt(
+            tokens,
+            start,
+            static_cast<int>(type.size()) - start,
+            TOKEN_NAMESPACE_4))
             << name;
         EXPECT_FALSE(hasTokenAt(
-            tokens, start, static_cast<int>(type.size()) - start, TOKEN_TYPE))
+            tokens,
+            start,
+            static_cast<int>(type.size()) - start,
+            TOKEN_TYPE))
             << name;
     }
 }
@@ -1847,16 +2126,16 @@ TEST(SyntaxHighlighterTest, CppFieldsAreDistinctFromTypesAndLocalVariables)
     setupEditorBuffer(editor);
     *editor.filename = "/tmp/state.h";
     editor.syntaxCppSemanticTokens = false;
-    editor.currentBuffer->lines = {
-        "struct State {",
-        "    bool active = true;",
-        "    bool docsLoading = false, docsIndicator = false;",
-        "    std::string docsTitle, docsText;",
-        "    std::chrono::steady_clock::time_point docsStarted{};",
-        "    void method() {",
-        "        bool local = false;",
-        "    }",
-        "};"};
+    editor.currentBuffer->lines =
+        {"struct State {",
+         "    bool active = true;",
+         "    bool docsLoading = false, docsIndicator = false;",
+         "    std::string docsTitle, docsText;",
+         "    std::chrono::steady_clock::time_point docsStarted{};",
+         "    void method() {",
+         "        bool local = false;",
+         "    }",
+         "};"};
     const auto memberColor = editor.theme.syntax(TOKEN_MEMBER);
     EXPECT_NE(memberColor, editor.theme.syntax(TOKEN_TYPE));
     EXPECT_NE(memberColor, editor.theme.syntax(TOKEN_NORMAL));
@@ -1869,19 +2148,28 @@ TEST(SyntaxHighlighterTest, CppFieldsAreDistinctFromTypesAndLocalVariables)
     {
         const auto& line = editor.currentBuffer->lines[row];
         std::string output;
-        editor.renderLineWithSyntax(output, line, 0,
-                                    static_cast<int>(line.size()), row);
+        editor.renderLineWithSyntax(
+            output,
+            line,
+            0,
+            static_cast<int>(line.size()),
+            row);
         for(const auto& name : names)
             EXPECT_NE(output.find(memberColor + name), std::string::npos)
                 << line << " member " << name;
     }
     const auto& local = editor.currentBuffer->lines[6];
     std::string output;
-    editor.renderLineWithSyntax(output, local, 0,
-                                static_cast<int>(local.size()), 6);
+    editor.renderLineWithSyntax(
+        output,
+        local,
+        0,
+        static_cast<int>(local.size()),
+        6);
     EXPECT_EQ(output.find(memberColor + "local"), std::string::npos);
-    EXPECT_NE(output.find(editor.theme.syntax(TOKEN_NORMAL) + " local"),
-              std::string::npos);
+    EXPECT_NE(
+        output.find(editor.theme.syntax(TOKEN_NORMAL) + " local"),
+        std::string::npos);
 }
 
 TEST(SyntaxHighlighterTest, CppFieldDeclaratorsSkipNestedInitializerCommas)
@@ -1899,14 +2187,23 @@ TEST(SyntaxHighlighterTest, CppFieldDeclaratorsSkipNestedInitializerCommas)
         char quote = 0, fenceChar = 0;
         const auto tokens =
             editor.tokenizeLine(line, comment, toml, quote, fence, fenceChar);
-        EXPECT_TRUE(hasTokenAt(tokens, static_cast<int>(line.find("enabled")),
-                               7, TOKEN_MEMBER))
+        EXPECT_TRUE(hasTokenAt(
+            tokens,
+            static_cast<int>(line.find("enabled")),
+            7,
+            TOKEN_MEMBER))
             << line;
-        EXPECT_TRUE(hasTokenAt(tokens, static_cast<int>(line.find("ready")), 5,
-                               TOKEN_MEMBER))
+        EXPECT_TRUE(hasTokenAt(
+            tokens,
+            static_cast<int>(line.find("ready")),
+            5,
+            TOKEN_MEMBER))
             << line;
-        EXPECT_FALSE(hasTokenAt(tokens, static_cast<int>(line.find("fake")), 4,
-                                TOKEN_MEMBER));
+        EXPECT_FALSE(hasTokenAt(
+            tokens,
+            static_cast<int>(line.find("fake")),
+            4,
+            TOKEN_MEMBER));
     }
 }
 
@@ -1925,46 +2222,63 @@ TEST(SyntaxHighlighterTest, CppFunctionAndOperatorDeclarationsAreNotFields)
             editor.tokenizeLine(line, comment, toml, quote, fence, fenceChar);
         EXPECT_FALSE(hasTokenType(tokens, TOKEN_MEMBER)) << line;
     }
-    for(const auto& line : {std::string("std::string value = make(a, b);"),
-                            std::string("int value = 1;")})
+    for(const auto& line :
+        {std::string("std::string value = make(a, b);"),
+         std::string("int value = 1;")})
     {
         bool comment = false, toml = false, fence = false;
         char quote = 0, fenceChar = 0;
         const auto tokens = editor.tokenizeLine(
-            line, comment, toml, quote, fence, fenceChar, false, true, false);
+            line,
+            comment,
+            toml,
+            quote,
+            fence,
+            fenceChar,
+            false,
+            true,
+            false);
         EXPECT_FALSE(hasTokenType(tokens, TOKEN_MEMBER)) << line;
     }
 }
 
-TEST(SyntaxHighlighterTest,
-     SemanticTokensKeepLocalObjectsNormalBeforeMemberCalls)
+TEST(
+    SyntaxHighlighterTest,
+    SemanticTokensKeepLocalObjectsNormalBeforeMemberCalls)
 {
     Editor editor = Editor::createForTests();
     setupEditorBuffer(editor);
     *editor.filename = "/tmp/locals.cpp";
     editor.syntaxCppSemanticTokens = true;
-    editor.currentBuffer->lines = {"void splitLines()",
-                                   "{",
-                                   "    std::vector<std::string> lines;",
-                                   "    lines.push_back(line);",
-                                   "    pointer->field.clear();",
-                                   "    object.lines.push_back(line);",
-                                   "}"};
+    editor.currentBuffer->lines =
+        {"void splitLines()",
+         "{",
+         "    std::vector<std::string> lines;",
+         "    lines.push_back(line);",
+         "    pointer->field.clear();",
+         "    object.lines.push_back(line);",
+         "}"};
     editor.currentBuffer->lspSemanticTokens.resize(editor.lines->size());
     editor.currentBuffer->lspSemanticTokensValid = true;
-    const auto add = [&](int row, std::string_view name,
-                         const std::string& type, bool declaration = false)
+    const auto add = [&](int row,
+                         std::string_view name,
+                         const std::string& type,
+                         bool declaration = false)
     {
         const auto& line = editor.currentBuffer->lines[row];
         editor.currentBuffer->lspSemanticTokens[row].push_back(
-            {static_cast<int>(line.find(name)), static_cast<int>(name.size()),
-             type, declaration, false});
+            {static_cast<int>(line.find(name)),
+             static_cast<int>(name.size()),
+             type,
+             declaration,
+             false});
     };
     add(2, "lines", "variable", true);
     add(3, "lines", "variable");
     add(3, "push_back", "method");
     add(4, "pointer", "variable");
-    add(4, "field",
+    add(4,
+        "field",
         "variable"); // Older servers can report fields as variables.
     add(4, "clear", "method");
     add(5, "object", "variable");
@@ -1974,8 +2288,12 @@ TEST(SyntaxHighlighterTest,
     {
         const auto& line = editor.currentBuffer->lines[row];
         std::string output;
-        editor.renderLineWithSyntax(output, line, 0,
-                                    static_cast<int>(line.size()), row);
+        editor.renderLineWithSyntax(
+            output,
+            line,
+            0,
+            static_cast<int>(line.size()),
+            row);
         const auto member = editor.theme.syntax(TOKEN_MEMBER);
         if(row == 2)
             EXPECT_EQ(output.find(member + "lines"), std::string::npos);
@@ -2047,36 +2365,49 @@ TEST(SyntaxHighlighterTest, CppLocalsStayLocalAcrossNestedCallBlocksAndLambdas)
         editor.currentBuffer->lines = lines;
         editor.currentBuffer->lspSemanticTokens.resize(lines.size());
         editor.currentBuffer->lspSemanticTokensValid = true;
-        for(const auto& [row, name] :
-            std::vector<std::pair<int, std::string>>{{11, "seenDirectories"},
-                                                     {12, "addAncestors"},
-                                                     {16, "parent"},
-                                                     {22, "seenDatabases"}})
+        for(const auto& [row, name] : std::vector<std::pair<int, std::string>>{
+                {11, "seenDirectories"},
+                {12, "addAncestors"},
+                {16, "parent"},
+                {22, "seenDatabases"}})
         {
             const int position = static_cast<int>(lines[row].find(name));
             editor.currentBuffer->lspSemanticTokens[row].push_back(
-                {position, static_cast<int>(name.size()), "variable", true,
+                {position,
+                 static_cast<int>(name.size()),
+                 "variable",
+                 true,
                  true});
             std::string output;
-            editor.renderLineWithSyntax(output, lines[row], 0,
-                                        static_cast<int>(lines[row].size()),
-                                        row);
-            ASSERT_GT(editor.currentBuffer->syntaxCache.size(),
-                      static_cast<size_t>(row));
+            editor.renderLineWithSyntax(
+                output,
+                lines[row],
+                0,
+                static_cast<int>(lines[row].size()),
+                row);
+            ASSERT_GT(
+                editor.currentBuffer->syntaxCache.size(),
+                static_cast<size_t>(row));
             EXPECT_TRUE(
                 editor.currentBuffer->syntaxCache[row].inCppFunctionContext)
                 << name;
-            EXPECT_NE(output.find(editor.theme.syntax(TOKEN_NORMAL) + " " + name),
-                      std::string::npos) << name;
+            EXPECT_NE(
+                output.find(editor.theme.syntax(TOKEN_NORMAL) + " " + name),
+                std::string::npos)
+                << name;
         }
         const int memberRow = 31;
         std::string output;
-        editor.renderLineWithSyntax(output, lines[memberRow], 0,
-                                    static_cast<int>(lines[memberRow].size()),
-                                    memberRow);
+        editor.renderLineWithSyntax(
+            output,
+            lines[memberRow],
+            0,
+            static_cast<int>(lines[memberRow].size()),
+            memberRow);
         EXPECT_FALSE(
             editor.currentBuffer->syntaxCache[memberRow].inCppFunctionContext);
-        EXPECT_NE(output.find(editor.theme.syntax(TOKEN_MEMBER) + "member"),
-                  std::string::npos);
+        EXPECT_NE(
+            output.find(editor.theme.syntax(TOKEN_MEMBER) + "member"),
+            std::string::npos);
     }
 }

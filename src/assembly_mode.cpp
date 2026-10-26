@@ -21,21 +21,23 @@ namespace
 {
 std::vector<std::string> helpTokens()
 {
-    return {"[j/k: rows]",
-            "[h/l: horizontal, 0: line start]",
-            "[PgUp/PgDn: page]",
-            "[v: source split]",
-            "[" + std::string(Terminal::shiftChordLabel()) + "-H/L: pane]",
-            "[i: inspect]",
-            "[Ctrl-J/K: scroll help]",
-            "[q/Esc: back]"};
+    return {
+        "[j/k: rows]",
+        "[h/l: horizontal, 0: line start]",
+        "[PgUp/PgDn: page]",
+        "[v: source split]",
+        "[" + std::string(Terminal::shiftChordLabel()) + "-H/L: pane]",
+        "[i: inspect]",
+        "[Ctrl-J/K: scroll help]",
+        "[q/Esc: back]"};
 }
 
 int contentRows(const Editor& editor, bool split = false)
 {
-    return std::max(1,
-                    editor.screenRows - 1 - (split ? 1 : 0) -
-                        HeaderHelp::lineCount(helpTokens(), editor.screenCols));
+    return std::max(
+        1,
+        editor.screenRows - 1 - (split ? 1 : 0) -
+            HeaderHelp::lineCount(helpTokens(), editor.screenCols));
 }
 
 std::string displayText(std::string_view line)
@@ -69,17 +71,24 @@ std::string clipped(std::string_view line, int columns)
     return out;
 }
 
-void appendSyntax(std::string& out, const std::string& line,
-                  const std::vector<Token>& tokens, int left, int width,
-                  const Theme& theme, int dimLevel)
+void appendSyntax(
+    std::string& out,
+    const std::string& line,
+    const std::vector<Token>& tokens,
+    int left,
+    int width,
+    const Theme& theme,
+    int dimLevel)
 {
     std::vector<TokenType> colors(line.size(), TOKEN_NORMAL);
     for(const auto& token : tokens)
     {
         const int first =
             std::clamp(token.start, 0, static_cast<int>(line.size()));
-        const int last = std::clamp(token.start + token.length, first,
-                                    static_cast<int>(line.size()));
+        const int last = std::clamp(
+            token.start + token.length,
+            first,
+            static_cast<int>(line.size()));
         std::fill(colors.begin() + first, colors.begin() + last, token.type);
     }
     int column = 0;
@@ -216,12 +225,14 @@ void AssemblyMode::on_enter(ModeContext& ctx)
     compileTask =
         editor
             .submitTask(
-                "compile assembly", "assembly",
+                "compile assembly",
+                "assembly",
                 [request = std::move(request), result](TaskQueue::Context& task)
                 {
                     task.detail("compiling C/C++ to assembly");
                     *result = assembly_compiler::compile(
-                        request, [&task] { return task.cancelled(); });
+                        request,
+                        [&task] { return task.cancelled(); });
                     for(auto& line : result->lines)
                         line = displayText(line);
                     for(auto& line : result->sourceLines)
@@ -329,8 +340,9 @@ void AssemblyMode::scheduleInspection(Editor& editor)
         std::chrono::steady_clock::now() + std::chrono::milliseconds(300);
 }
 
-void AssemblyMode::processIdle(Editor& editor,
-                               std::chrono::steady_clock::time_point now)
+void AssemblyMode::processIdle(
+    Editor& editor,
+    std::chrono::steady_clock::time_point now)
 {
     if(!content || !content->active || !inspect)
         return;
@@ -372,12 +384,15 @@ void AssemblyMode::inspectLine(Editor& editor)
             "It may be a declaration, a comment, or optimized away.";
         return;
     }
-    docsTask = assembly_instruction_help::load(editor, content,
-                                               content->result.lines[cursor]);
+    docsTask = assembly_instruction_help::load(
+        editor,
+        content,
+        content->result.lines[cursor]);
 }
 
-std::optional<ModeState> AssemblyMode::handle(ModeContext& ctx,
-                                              const ModeKeyEvent& event)
+std::optional<ModeState> AssemblyMode::handle(
+    ModeContext& ctx,
+    const ModeKeyEvent& event)
 {
     Editor& editor = *ctx.editor;
     const int key = event.key;
@@ -425,17 +440,18 @@ std::optional<ModeState> AssemblyMode::handle(ModeContext& ctx,
                      key == keyCode(control::ControlKey::CTRL_U);
         if(key == '0')
             left = 0;
-        else if(key == 'j' ||
-                key == keyCode(navigation::NavigationKey::ARROW_DOWN))
+        else if(
+            key == 'j' || key == keyCode(navigation::NavigationKey::ARROW_DOWN))
             ++row;
-        else if(key == 'k' ||
-                key == keyCode(navigation::NavigationKey::ARROW_UP))
+        else if(
+            key == 'k' || key == keyCode(navigation::NavigationKey::ARROW_UP))
             --row;
-        else if(key == 'h' ||
-                key == keyCode(navigation::NavigationKey::ARROW_LEFT))
+        else if(
+            key == 'h' || key == keyCode(navigation::NavigationKey::ARROW_LEFT))
             left = std::max(0, left - 4);
-        else if(key == 'l' ||
-                key == keyCode(navigation::NavigationKey::ARROW_RIGHT))
+        else if(
+            key == 'l' ||
+            key == keyCode(navigation::NavigationKey::ARROW_RIGHT))
             left += 4;
         else if(key == keyCode(navigation::NavigationKey::PAGE_DOWN))
             row += contentRows(editor, split);
@@ -492,9 +508,10 @@ void AssemblyMode::draw(Editor& editor)
         sourceRange ? " [lines " + std::to_string(sourceRange->first) + "-" +
                           std::to_string(sourceRange->second) + "]"
                     : "";
-    out += clipped(displayText(" Assembly: [" + architecture + "]" + selection +
-                               " " + sourceName),
-                   editor.screenCols);
+    out += clipped(
+        displayText(
+            " Assembly: [" + architecture + "]" + selection + " " + sourceName),
+        editor.screenCols);
     out += editor.theme.reset();
     HeaderHelp::append(out, editor.theme, editor.screenCols, helpTokens());
     const int rows = contentRows(editor, split);
@@ -506,13 +523,18 @@ void AssemblyMode::draw(Editor& editor)
     const int linked = linkedSourceLine();
     if(result.success)
         editor.highlightPreviewLines(
-            highlight, "assembly.s", result.lines,
+            highlight,
+            "assembly.s",
+            result.lines,
             std::min(result.lines.size(), static_cast<size_t>(offset + rows)));
     if(split)
         editor.highlightPreviewLines(
-            sourceHighlight, result.sourcePath, result.sourceLines,
-            std::min(result.sourceLines.size(),
-                     static_cast<size_t>(sourceOffset + rows)));
+            sourceHighlight,
+            result.sourcePath,
+            result.sourceLines,
+            std::min(
+                result.sourceLines.size(),
+                static_cast<size_t>(sourceOffset + rows)));
     const auto errors =
         wrappedDocs(result.diagnostics, std::max(1, assemblyWidth - 2));
     auto separator = [&]
@@ -528,14 +550,15 @@ void AssemblyMode::draw(Editor& editor)
         const bool active = source == sourcePane;
         out += editor.theme.reset() +
                (active ? editor.theme.uiAccent() : editor.theme.uiDim());
-        const auto text =
-            clipped((source ? std::string(" Source")
-                            : " Assembly [" + architecture + "]") +
-                        (active ? " [active]" : ""),
-                    width);
+        const auto text = clipped(
+            (source ? std::string(" Source")
+                    : " Assembly [" + architecture + "]") +
+                (active ? " [active]" : ""),
+            width);
         out += text;
-        out.append(std::max(0, width - text_utils::utf8DisplayWidth(text)),
-                   ' ');
+        out.append(
+            std::max(0, width - text_utils::utf8DisplayWidth(text)),
+            ' ');
     };
     if(split)
     {
@@ -572,12 +595,14 @@ void AssemblyMode::draw(Editor& editor)
                 out += editor.theme.sourceMapping();
             else if(active && current)
                 out += editor.theme.selection();
-            else if(source && sourceRange && index + 1 >= sourceRange->first &&
-                    index + 1 <= sourceRange->second)
+            else if(
+                source && sourceRange && index + 1 >= sourceRange->first &&
+                index + 1 <= sourceRange->second)
                 out += editor.theme.assemblySelection();
-            else if(!source && hasOrigins &&
-                    !result.sourceOrigins[index].mainSource &&
-                    !result.sourceOrigins[index].path.empty())
+            else if(
+                !source && hasOrigins &&
+                !result.sourceOrigins[index].mainSource &&
+                !result.sourceOrigins[index].path.empty())
                 out += editor.theme.externalSource();
             int dimLevel = 0;
             if(!source && editor.asmDimUnmapped &&
@@ -595,13 +620,19 @@ void AssemblyMode::draw(Editor& editor)
                 static_cast<int>(std::to_string(lines.size()).size()) + 2;
             std::string number = std::to_string(index + 1);
             number.insert(
-                0, std::max(0, gutter - 2 - static_cast<int>(number.size())),
+                0,
+                std::max(0, gutter - 2 - static_cast<int>(number.size())),
                 ' ');
             out +=
                 clipped((active && current ? ">" : " ") + number + " ", width);
-            appendSyntax(out, lines[index], tokens[index],
-                         source ? sourceHorizontal : horizontal,
-                         std::max(0, width - gutter), editor.theme, dimLevel);
+            appendSyntax(
+                out,
+                lines[index],
+                tokens[index],
+                source ? sourceHorizontal : horizontal,
+                std::max(0, width - gutter),
+                editor.theme,
+                dimLevel);
         }
         else
         {
@@ -612,8 +643,9 @@ void AssemblyMode::draw(Editor& editor)
                 out += editor.theme.uiInfo();
                 message = " Compiling... q/Esc returns immediately.";
             }
-            else if(!source && (!result.success || result.lines.empty()) &&
-                    row < static_cast<int>(errors.size()))
+            else if(
+                !source && (!result.success || result.lines.empty()) &&
+                row < static_cast<int>(errors.size()))
             {
                 out += result.success ? editor.theme.uiInfo()
                                       : editor.theme.uiError();
@@ -621,8 +653,9 @@ void AssemblyMode::draw(Editor& editor)
             }
             const auto text = clipped(message, width);
             out += text;
-            out.append(std::max(0, width - text_utils::utf8DisplayWidth(text)),
-                       ' ');
+            out.append(
+                std::max(0, width - text_utils::utf8DisplayWidth(text)),
+                ' ');
         }
     };
     for(int row = 0; row < rows; ++row)
@@ -651,8 +684,9 @@ void AssemblyMode::draw(Editor& editor)
     if(!result.compilationDatabase.empty())
         status.flags.push_back("compile_commands");
     if(split)
-        status.flags.push_back(linked > 0 ? "source L" + std::to_string(linked)
-                                          : "no source mapping");
+        status.flags.push_back(
+            linked > 0 ? "source L" + std::to_string(linked)
+                       : "no source mapping");
     if(!(split && sourcePane) && hasOrigins && cursor >= 0 &&
        static_cast<size_t>(cursor) < result.sourceOrigins.size())
     {
@@ -675,13 +709,15 @@ void AssemblyMode::draw(Editor& editor)
     // summary within the status row instead of wrapping over the source view.
     const auto progress = editor.taskStatusText();
     const int rulerWidth = std::max(
-        12, 8 + 2 * static_cast<int>(
-                        std::to_string(std::max(1, status.count)).size()));
+        12,
+        8 + 2 * static_cast<int>(
+                    std::to_string(std::max(1, status.count)).size()));
     const int budget = std::max(
-        0, editor.screenCols - static_cast<int>(status.modeLabel.size()) - 5 -
-               rulerWidth -
-               (progress.empty() ? 0
-                                 : text_utils::utf8DisplayWidth(progress) + 1));
+        0,
+        editor.screenCols - static_cast<int>(status.modeLabel.size()) - 5 -
+            rulerWidth -
+            (progress.empty() ? 0
+                              : text_utils::utf8DisplayWidth(progress) + 1));
     auto flagWidth = [&]
     {
         int width = 0;

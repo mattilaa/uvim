@@ -27,8 +27,9 @@ void VisualBlockMode::on_exit(ModeContext& ctx)
     ctx.editor->needsFullRedraw = true;
 }
 
-std::optional<ModeState> VisualBlockMode::handle(ModeContext& ctx,
-                                                 const ModeKeyEvent& event)
+std::optional<ModeState> VisualBlockMode::handle(
+    ModeContext& ctx,
+    const ModeKeyEvent& event)
 {
     const int key = event.key;
     Editor* ed = ctx.editor;

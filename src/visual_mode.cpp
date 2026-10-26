@@ -31,8 +31,9 @@ void VisualMode::on_exit(ModeContext& ctx)
     ctx.editor->needsFullRedraw = true;
 }
 
-std::optional<ModeState> VisualMode::handle(ModeContext& ctx,
-                                            const ModeKeyEvent& event)
+std::optional<ModeState> VisualMode::handle(
+    ModeContext& ctx,
+    const ModeKeyEvent& event)
 {
     const int key = event.key;
     Editor* ed = ctx.editor;
@@ -86,14 +87,15 @@ std::optional<ModeState> VisualMode::handle(ModeContext& ctx,
         {
             if(!ed->diagnosticPopupFixes.empty())
             {
-                ed->diagnosticPopupFixIndex =
-                    std::min(ed->diagnosticPopupFixIndex + 1,
-                             (int)ed->diagnosticPopupFixes.size() - 1);
+                ed->diagnosticPopupFixIndex = std::min(
+                    ed->diagnosticPopupFixIndex + 1,
+                    (int)ed->diagnosticPopupFixes.size() - 1);
                 int window = std::min(6, (int)ed->diagnosticPopupFixes.size());
                 if(ed->diagnosticPopupFixIndex < ed->diagnosticPopupFixScroll)
                     ed->diagnosticPopupFixScroll = ed->diagnosticPopupFixIndex;
-                else if(ed->diagnosticPopupFixIndex >=
-                        ed->diagnosticPopupFixScroll + window)
+                else if(
+                    ed->diagnosticPopupFixIndex >=
+                    ed->diagnosticPopupFixScroll + window)
                     ed->diagnosticPopupFixScroll =
                         ed->diagnosticPopupFixIndex - window + 1;
                 ed->needsFullRedraw = true;
@@ -111,8 +113,9 @@ std::optional<ModeState> VisualMode::handle(ModeContext& ctx,
                 int window = std::min(6, (int)ed->diagnosticPopupFixes.size());
                 if(ed->diagnosticPopupFixIndex < ed->diagnosticPopupFixScroll)
                     ed->diagnosticPopupFixScroll = ed->diagnosticPopupFixIndex;
-                else if(ed->diagnosticPopupFixIndex >=
-                        ed->diagnosticPopupFixScroll + window)
+                else if(
+                    ed->diagnosticPopupFixIndex >=
+                    ed->diagnosticPopupFixScroll + window)
                     ed->diagnosticPopupFixScroll =
                         ed->diagnosticPopupFixIndex - window + 1;
                 ed->needsFullRedraw = true;
@@ -480,13 +483,16 @@ std::optional<ModeState> VisualMode::handle(ModeContext& ctx,
     case keyCode(typed::TypedKey::KEY_CAP_J):
     {
         // Join selected lines
-        int startLine = std::min(ed->currentBuffer->visualStartY,
-                                 ed->currentBuffer->visualEndY);
-        int endLine = std::max(ed->currentBuffer->visualStartY,
-                               ed->currentBuffer->visualEndY);
+        int startLine = std::min(
+            ed->currentBuffer->visualStartY,
+            ed->currentBuffer->visualEndY);
+        int endLine = std::max(
+            ed->currentBuffer->visualStartY,
+            ed->currentBuffer->visualEndY);
         ctx.cursorY() = startLine;
         for(int i = startLine;
-            i < endLine && ctx.cursorY() < (int)ctx.lines().size() - 1; i++)
+            i < endLine && ctx.cursorY() < (int)ctx.lines().size() - 1;
+            i++)
         {
             ed->joinLines();
         }

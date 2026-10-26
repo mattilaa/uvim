@@ -11,7 +11,8 @@ TEST(RealModeTransitionsTest, DebuggerCommandsSelectRunAndAttach)
     editor.createNewBuffer();
     auto sm = makeMachine(editor, NormalMode{});
     dispatch_command(
-        sm, "dbgrun --backend gdb './app with spaces' -- arg1 'two words'");
+        sm,
+        "dbgrun --backend gdb './app with spaces' -- arg1 'two words'");
     auto* debug = sm.getState<DebuggerMode>();
     ASSERT_NE(debug, nullptr);
     EXPECT_FALSE(debug->attach);
@@ -19,8 +20,9 @@ TEST(RealModeTransitionsTest, DebuggerCommandsSelectRunAndAttach)
     EXPECT_EQ(
         debug->target,
         EditorPathUtilities::resolveEditorPath("./app with spaces").string());
-    EXPECT_EQ(debug->programArguments,
-              (std::vector<std::string>{"arg1", "two words"}));
+    EXPECT_EQ(
+        debug->programArguments,
+        (std::vector<std::string>{"arg1", "two words"}));
     EXPECT_EQ(modeForState(sm.state()), DEBUGGER);
     EXPECT_FALSE(debug->started);
     sm.dispatch('q');
@@ -31,8 +33,9 @@ TEST(RealModeTransitionsTest, DebuggerCommandsSelectRunAndAttach)
     EXPECT_EQ(debug->target, "1234");
 }
 
-TEST(RealModeTransitionsTest,
-     DebuggerFramePickerFiltersSymbolsAndInsertsFrameIdentity)
+TEST(
+    RealModeTransitionsTest,
+    DebuggerFramePickerFiltersSymbolsAndInsertsFrameIdentity)
 {
     Editor editor = Editor::createForTests();
     editor.createNewBuffer();
@@ -108,15 +111,18 @@ TEST(RealModeTransitionsTest,
     EXPECT_NE(sm.getState<DebuggerMode>(), nullptr);
 }
 
-TEST(RealModeTransitionsTest,
-     DebuggerFramePickerPreviewsSourceAndLibraryAssemblyWithoutSelecting)
+TEST(
+    RealModeTransitionsTest,
+    DebuggerFramePickerPreviewsSourceAndLibraryAssemblyWithoutSelecting)
 {
     auto dir = make_temp_dir("uvim_frame_preview_");
     auto original = dir / "original.cpp";
     auto other = dir / "preview.cpp";
     write_file(original, "int main() {\n  return 0;\n}\n");
-    write_file(other, "int other() {\n  int value = 7;\n  // "
-                      "PREVIEW_TARGET_LINE\n  return value;\n}\n");
+    write_file(
+        other,
+        "int other() {\n  int value = 7;\n  // "
+        "PREVIEW_TARGET_LINE\n  return value;\n}\n");
     Editor editor = Editor::createForTests();
     editor.createNewBuffer();
     editor.screenRows = 32;
@@ -147,10 +153,16 @@ TEST(RealModeTransitionsTest,
         "\"libexample.so\",\"address\":\"0x3000\"}]}");
     EXPECT_NE(debug->stackFrames[0].label.find("int main"), std::string::npos);
     const auto& spans = debug->stackFrames[0].colors;
-    EXPECT_TRUE(std::any_of(spans.begin(), spans.end(), [](const Token& token)
-                            { return token.type == TOKEN_TYPE; }));
-    EXPECT_TRUE(std::any_of(spans.begin(), spans.end(), [](const Token& token)
-                            { return token.type == TOKEN_FUNCTION; }));
+    EXPECT_TRUE(
+        std::any_of(
+            spans.begin(),
+            spans.end(),
+            [](const Token& token) { return token.type == TOKEN_TYPE; }));
+    EXPECT_TRUE(
+        std::any_of(
+            spans.begin(),
+            spans.end(),
+            [](const Token& token) { return token.type == TOKEN_FUNCTION; }));
     sm.dispatch(keyCode(control::ControlKey::CTRL_J));
     EXPECT_EQ(debug->framePreviewId, "7");
     EXPECT_TRUE(debug->framePreviewSourceAvailable);
@@ -172,9 +184,9 @@ TEST(RealModeTransitionsTest,
     sm.dispatch(keyCode(control::ControlKey::CTRL_D));
     EXPECT_TRUE(debug->framePreviewAssembly);
     const auto token = debug->framePreviewToken;
-    debug->applyMessage("{\"framePreview\":{\"id\":\"9\",\"token\":" +
-                        std::to_string(token - 1) +
-                        ",\"lines\":[\"stale response\"]}}");
+    debug->applyMessage(
+        "{\"framePreview\":{\"id\":\"9\",\"token\":" +
+        std::to_string(token - 1) + ",\"lines\":[\"stale response\"]}}");
     EXPECT_NE(debug->framePreviewLines[0], "stale response");
     debug->applyMessage(
         "{\"framePreview\":{\"id\":\"9\",\"token\":" + std::to_string(token) +
@@ -183,8 +195,9 @@ TEST(RealModeTransitionsTest,
     testing::internal::CaptureStdout();
     debug->draw(editor);
     const auto assembly = testing::internal::GetCapturedStdout();
-    EXPECT_NE(assembly.find("Assembly preview #9 libexample.so"),
-              std::string::npos);
+    EXPECT_NE(
+        assembly.find("Assembly preview #9 libexample.so"),
+        std::string::npos);
     EXPECT_NE(assembly.find("0x3000"), std::string::npos);
     EXPECT_EQ(debug->output, output);
     EXPECT_EQ(debug->frameIndex, 0);
@@ -226,8 +239,9 @@ TEST(RealModeTransitionsTest,
     std::filesystem::remove_all(dir);
 }
 
-TEST(RealModeTransitionsTest,
-     DebuggerInstructionHelpPreservesFrameSearchAndTracksAssemblyRow)
+TEST(
+    RealModeTransitionsTest,
+    DebuggerInstructionHelpPreservesFrameSearchAndTracksAssemblyRow)
 {
     Editor editor = Editor::createForTests();
     editor.createNewBuffer();
@@ -242,8 +256,9 @@ TEST(RealModeTransitionsTest,
     sm.dispatch(':');
     for(char key : std::string("frame --"))
         sm.dispatch(key);
-    debug->applyMessage("{\"frames\":[{\"id\":\"0\",\"function\":\"library_"
-                        "call\",\"address\":\"0x3001\"}]}");
+    debug->applyMessage(
+        "{\"frames\":[{\"id\":\"0\",\"function\":\"library_"
+        "call\",\"address\":\"0x3001\"}]}");
     sm.dispatch('i');
     EXPECT_EQ(debug->prompt, "frame -- i");
     EXPECT_FALSE(debug->assemblyHelpOpen);
@@ -263,12 +278,14 @@ TEST(RealModeTransitionsTest,
     EXPECT_EQ(debug->prompt, prompt);
 #ifdef UVIM_ENABLE_ASM_DOCS
     EXPECT_EQ(debug->assemblyHelp->docsTitle, "add (x86)");
-    EXPECT_NE(debug->assemblyHelp->docsText.find("addq $1, %rax"),
-              std::string::npos);
+    EXPECT_NE(
+        debug->assemblyHelp->docsText.find("addq $1, %rax"),
+        std::string::npos);
     EXPECT_EQ(debug->assemblyHelp->docsText.find("[48 83"), std::string::npos);
 #else
-    EXPECT_NE(debug->assemblyHelp->docsText.find("not compiled"),
-              std::string::npos);
+    EXPECT_NE(
+        debug->assemblyHelp->docsText.find("not compiled"),
+        std::string::npos);
 #endif
     sm.dispatch(keyCode(control::ControlKey::CTRL_J));
     EXPECT_EQ(debug->assemblyHelpOffset, 1);
@@ -353,16 +370,22 @@ TEST(RealModeTransitionsTest, DebuggerFramePickerCancelsAndShowsErrors)
     debug->applyMessage("{\"frames\":[{\"id\":\"0\",\"function\":\"main\"}]}");
     debug->applyMessage("{\"state\":\"running\"}");
     EXPECT_TRUE(debug->frameMatches.empty());
-    EXPECT_EQ(debug->framePickerError,
-              "Pause execution before browsing stack frames");
+    EXPECT_EQ(
+        debug->framePickerError,
+        "Pause execution before browsing stack frames");
 }
 
 TEST(RealModeTransitionsTest, DebuggerRejectsInvalidLaunchRequests)
 {
     for(const auto& command :
-        {"dbgattach 0", "dbgattach -3", "dbgattach 12x",
-         "dbgattach 99999999999999999999999", "dbgattach 3 extra", "dbgrun",
-         "dbgrun --backend unknown app", "dbgrun 'unclosed"})
+        {"dbgattach 0",
+         "dbgattach -3",
+         "dbgattach 12x",
+         "dbgattach 99999999999999999999999",
+         "dbgattach 3 extra",
+         "dbgrun",
+         "dbgrun --backend unknown app",
+         "dbgrun 'unclosed"})
     {
         Editor editor = Editor::createForTests();
         editor.createNewBuffer();
@@ -375,13 +398,15 @@ TEST(RealModeTransitionsTest, DebuggerRejectsInvalidLaunchRequests)
     }
 }
 
-TEST(RealModeTransitionsTest,
-     DebuggerFrameSelectionReturnsToUnchangedExecutionLine)
+TEST(
+    RealModeTransitionsTest,
+    DebuggerFrameSelectionReturnsToUnchangedExecutionLine)
 {
     auto dir = make_temp_dir("uvim_debugger_frame_");
     auto file = dir / "recursive.cpp";
-    write_file(file,
-               "int recurse(int depth) {\n  return recurse(depth - 1);\n}\n");
+    write_file(
+        file,
+        "int recurse(int depth) {\n  return recurse(depth - 1);\n}\n");
     Editor editor = Editor::createForTests();
     editor.createNewBuffer();
     auto sm = makeMachine(editor, DebuggerMode{"app", false});
@@ -405,8 +430,9 @@ TEST(RealModeTransitionsTest, DebuggerStoppedPanesAndPromptNavigation)
 {
     auto dir = make_temp_dir("uvim_debugger_");
     auto file = dir / "debug source.cpp";
-    write_file(file,
-               "int main() {\n    int count = 42;\n    return count;\n}\n");
+    write_file(
+        file,
+        "int main() {\n    int count = 42;\n    return count;\n}\n");
     Editor editor = Editor::createForTests();
     editor.createNewBuffer();
     auto sm = makeMachine(editor, DebuggerMode{"app", false});
@@ -414,10 +440,11 @@ TEST(RealModeTransitionsTest, DebuggerStoppedPanesAndPromptNavigation)
     ASSERT_NE(debug, nullptr);
     std::string quoted;
     json_utils::append_escaped(quoted, file.string());
-    debug->applyMessage("{\"state\":\"stopped\",\"path\":" + quoted +
-                        ",\"line\":2,\"variables\":[\"count = 42\",\"other = "
-                        "3\"],\"threads\":[{\"id\":\"1\",\"label\":\"main\"},{"
-                        "\"id\":\"2\",\"label\":\"worker\"}]}");
+    debug->applyMessage(
+        "{\"state\":\"stopped\",\"path\":" + quoted +
+        ",\"line\":2,\"variables\":[\"count = 42\",\"other = "
+        "3\"],\"threads\":[{\"id\":\"1\",\"label\":\"main\"},{"
+        "\"id\":\"2\",\"label\":\"worker\"}]}");
     EXPECT_EQ(debug->source.size(), 4u);
     EXPECT_EQ(debug->executionLine, 2);
     EXPECT_EQ(debug->cursor[0], 1);
@@ -438,8 +465,10 @@ TEST(RealModeTransitionsTest, DebuggerStoppedPanesAndPromptNavigation)
     sm.dispatch(keyCode(control::ControlKey::SHIFT_TAB));
     EXPECT_EQ(debug->pane, 2);
     for(auto key :
-        {control::ControlKey::SHIFT_CTRL_H, control::ControlKey::SHIFT_CTRL_J,
-         control::ControlKey::SHIFT_CTRL_K, control::ControlKey::SHIFT_CTRL_L})
+        {control::ControlKey::SHIFT_CTRL_H,
+         control::ControlKey::SHIFT_CTRL_J,
+         control::ControlKey::SHIFT_CTRL_K,
+         control::ControlKey::SHIFT_CTRL_L})
     {
         sm.dispatch(keyCode(key));
         EXPECT_EQ(debug->pane, 2);
@@ -460,31 +489,36 @@ TEST(RealModeTransitionsTest, DebuggerStoppedPanesAndPromptNavigation)
     std::filesystem::remove_all(dir);
 }
 
-TEST(RealModeTransitionsTest,
-     DebuggerInspectionShowsNewResultsAndKeepsVariableIdentity)
+TEST(
+    RealModeTransitionsTest,
+    DebuggerInspectionShowsNewResultsAndKeepsVariableIdentity)
 {
     Editor editor = Editor::createForTests();
     editor.createNewBuffer();
     auto sm = makeMachine(editor, DebuggerMode{"app", false});
     auto* debug = sm.getState<DebuggerMode>();
     ASSERT_NE(debug, nullptr);
-    debug->applyMessage("{\"state\":\"stopped\",\"variables\":[\"callback: int "
-                        "(*)(int) = 0x1000\"],"
-                        "\"variableExpressions\":[\"callback\"]}");
-    EXPECT_EQ(debug->variableExpressions,
-              (std::vector<std::string>{"callback"}));
+    debug->applyMessage(
+        "{\"state\":\"stopped\",\"variables\":[\"callback: int "
+        "(*)(int) = 0x1000\"],"
+        "\"variableExpressions\":[\"callback\"]}");
+    EXPECT_EQ(
+        debug->variableExpressions,
+        (std::vector<std::string>{"callback"}));
     sm.dispatch('v');
     const auto start = static_cast<int>(debug->output.size());
-    debug->applyMessage("{\"inspection\":true,\"output\":[\"Disassembly: "
-                        "callback\",\"0x1000 ret\"]}");
+    debug->applyMessage(
+        "{\"inspection\":true,\"output\":[\"Disassembly: "
+        "callback\",\"0x1000 ret\"]}");
     EXPECT_EQ(debug->pane, 1);
     EXPECT_EQ(debug->offset[1], start);
     EXPECT_EQ(debug->cursor[1], start);
     EXPECT_EQ(debug->state, "stopped");
     debug->applyMessage(
         "{\"state\":\"running\",\"variables\":[],\"variableExpressions\":[]}");
-    EXPECT_EQ(debug->variableExpressions,
-              (std::vector<std::string>{"callback"}));
+    EXPECT_EQ(
+        debug->variableExpressions,
+        (std::vector<std::string>{"callback"}));
     debug->applyMessage("{\"state\":\"stopped\",\"variables\":[]}");
     EXPECT_TRUE(debug->variableExpressions.empty());
 }
@@ -498,13 +532,15 @@ TEST(RealModeTransitionsTest, DebuggerSizePopupScrollsAndRestoresVariableFocus)
     auto sm = makeMachine(editor, DebuggerMode{"app", false});
     auto* debug = sm.getState<DebuggerMode>();
     ASSERT_NE(debug, nullptr);
-    debug->applyMessage("{\"state\":\"stopped\",\"variables\":[\"item\"],"
-                        "\"variableExpressions\":[\"item\"]}");
+    debug->applyMessage(
+        "{\"state\":\"stopped\",\"variables\":[\"item\"],"
+        "\"variableExpressions\":[\"item\"]}");
     sm.dispatch('v');
     const auto output = debug->output;
-    debug->applyMessage("{\"layoutTitle\":\"Size and padding: "
-                        "item\",\"layoutLines\":[\"Storage: item, 12 "
-                        "bytes\",\"Padding: 6 bytes\"]}");
+    debug->applyMessage(
+        "{\"layoutTitle\":\"Size and padding: "
+        "item\",\"layoutLines\":[\"Storage: item, 12 "
+        "bytes\",\"Padding: 6 bytes\"]}");
     EXPECT_TRUE(debug->sizePopupOpen);
     EXPECT_EQ(debug->pane, 2);
     EXPECT_EQ(debug->output, output);
@@ -513,8 +549,9 @@ TEST(RealModeTransitionsTest, DebuggerSizePopupScrollsAndRestoresVariableFocus)
     const auto popup = testing::internal::GetCapturedStdout();
     EXPECT_NE(popup.find("Size and padding: item"), std::string::npos);
     EXPECT_NE(popup.find("Storage: item, 12 bytes"), std::string::npos);
-    EXPECT_NE(popup.find(ascii::utf8(ascii::BOX_ROUNDED_TOP_LEFT)),
-              std::string::npos);
+    EXPECT_NE(
+        popup.find(ascii::utf8(ascii::BOX_ROUNDED_TOP_LEFT)),
+        std::string::npos);
     for(int i = 0; i < 40; ++i)
         debug->sizePopupLines.push_back("  member " + std::to_string(i));
     sm.dispatch(keyCode(control::ControlKey::CTRL_J));
@@ -542,8 +579,9 @@ TEST(RealModeTransitionsTest, DebuggerSizePopupScrollsAndRestoresVariableFocus)
         "{\"layoutTitle\":\"Size and padding: "
         "item\",\"layoutAppend\":true,\"layoutLines\":[\"late field\"]}");
     EXPECT_FALSE(debug->sizePopupOpen);
-    debug->applyMessage("{\"layoutTitle\":\"Size and padding: "
-                        "item\",\"layoutLines\":[\"Storage: item\"]}");
+    debug->applyMessage(
+        "{\"layoutTitle\":\"Size and padding: "
+        "item\",\"layoutLines\":[\"Storage: item\"]}");
     debug->applyMessage(
         "{\"layoutTitle\":\"Size and padding: "
         "item\",\"layoutAppend\":true,\"layoutLines\":[\"Padding: 6 bytes\"]}");
@@ -552,8 +590,9 @@ TEST(RealModeTransitionsTest, DebuggerSizePopupScrollsAndRestoresVariableFocus)
     EXPECT_FALSE(debug->sizePopupOpen);
 }
 
-TEST(RealModeTransitionsTest,
-     DebuggerBreakpointCompletionPreservesLineAndDoesNotExecute)
+TEST(
+    RealModeTransitionsTest,
+    DebuggerBreakpointCompletionPreservesLineAndDoesNotExecute)
 {
     auto dir = make_temp_dir("uvim_debugger_completion_");
     write_file(dir / "unique.cpp", "int value;\n");
@@ -595,14 +634,18 @@ TEST(RealModeTransitionsTest, DebuggerDrawsSyntaxAndFocusedCompactPane)
     testing::internal::CaptureStdout();
     debug->draw(editor);
     const auto full = testing::internal::GetCapturedStdout();
-    EXPECT_NE(full.find(ascii::utf8(ascii::BOX_ROUNDED_TOP_LEFT)),
-              std::string::npos);
-    EXPECT_NE(full.find(ascii::utf8(ascii::BOX_ROUNDED_BOTTOM_RIGHT)),
-              std::string::npos);
-    EXPECT_NE(full.find(ascii::utf8(ascii::BOX_LIGHT_VERTICAL)),
-              std::string::npos);
-    EXPECT_NE(full.find(ascii::utf8(ascii::BOX_LIGHT_HORIZONTAL)),
-              std::string::npos);
+    EXPECT_NE(
+        full.find(ascii::utf8(ascii::BOX_ROUNDED_TOP_LEFT)),
+        std::string::npos);
+    EXPECT_NE(
+        full.find(ascii::utf8(ascii::BOX_ROUNDED_BOTTOM_RIGHT)),
+        std::string::npos);
+    EXPECT_NE(
+        full.find(ascii::utf8(ascii::BOX_LIGHT_VERTICAL)),
+        std::string::npos);
+    EXPECT_NE(
+        full.find(ascii::utf8(ascii::BOX_LIGHT_HORIZONTAL)),
+        std::string::npos);
     EXPECT_NE(full.find("n next (finish pending call)"), std::string::npos);
     EXPECT_NE(full.find("Variables"), std::string::npos);
     EXPECT_NE(full.find("Threads"), std::string::npos);
@@ -809,8 +852,9 @@ TEST(RealModeTransitionsTest, DebuggerCommandMenuOnlyRepaintsCoveredRows)
     EXPECT_EQ(prompt.find("int main"), std::string::npos);
 }
 
-TEST(RealModeTransitionsTest,
-     DebuggerProcessListingPreservesNamesAndRejectsInvalidPids)
+TEST(
+    RealModeTransitionsTest,
+    DebuggerProcessListingPreservesNamesAndRejectsInvalidPids)
 {
     const auto entries = parseDebuggerProcesses(
         " 234 /tmp/My App/debugger-cpp\n12 /bin/helper name\ninvalid row\n"
@@ -828,15 +872,17 @@ namespace
 {
 DebuggerProcessList recordedDebuggerProcesses()
 {
-    return {{{1234, "debugger-cpp", "/tmp/My App/debugger-cpp"},
-             {444, "compiler", "/bin/compiler"},
-             {12, "helper-1234", "/bin/helper-1234"}},
-            {}};
+    return {
+        {{1234, "debugger-cpp", "/tmp/My App/debugger-cpp"},
+         {444, "compiler", "/bin/compiler"},
+         {12, "helper-1234", "/bin/helper-1234"}},
+        {}};
 }
 } // namespace
 
-TEST(RealModeTransitionsTest,
-     DebuggerProcessPopupFiltersAndNavigatesWithoutReplacingQuery)
+TEST(
+    RealModeTransitionsTest,
+    DebuggerProcessPopupFiltersAndNavigatesWithoutReplacingQuery)
 {
     Editor editor = Editor::createForTests();
     editor.createNewBuffer();
@@ -866,8 +912,9 @@ TEST(RealModeTransitionsTest,
     editor.drawCommandPopup(popup);
     EXPECT_NE(popup.find("Processes"), std::string::npos);
     EXPECT_NE(popup.find("debugger-cpp"), std::string::npos);
-    EXPECT_NE(popup.find(ascii::utf8(ascii::BOX_ROUNDED_TOP_LEFT)),
-              std::string::npos);
+    EXPECT_NE(
+        popup.find(ascii::utf8(ascii::BOX_ROUNDED_TOP_LEFT)),
+        std::string::npos);
     sm.dispatch(keyCode(control::ControlKey::ENTER));
     auto* debug = sm.getState<DebuggerMode>();
     ASSERT_NE(debug, nullptr);
@@ -877,8 +924,9 @@ TEST(RealModeTransitionsTest,
     EXPECT_TRUE(editor.commandPopupTitle.empty());
 }
 
-TEST(RealModeTransitionsTest,
-     DebuggerProcessPopupPreservesBackendAndTabInsertsPid)
+TEST(
+    RealModeTransitionsTest,
+    DebuggerProcessPopupPreservesBackendAndTabInsertsPid)
 {
     Editor editor = Editor::createForTests();
     editor.createNewBuffer();
@@ -900,8 +948,9 @@ TEST(RealModeTransitionsTest,
     EXPECT_EQ(debug->target, "1234");
 }
 
-TEST(RealModeTransitionsTest,
-     DebuggerProcessPopupHandlesEmptyResultsRefreshAndEscape)
+TEST(
+    RealModeTransitionsTest,
+    DebuggerProcessPopupHandlesEmptyResultsRefreshAndEscape)
 {
     Editor editor = Editor::createForTests();
     editor.createNewBuffer();
@@ -911,14 +960,16 @@ TEST(RealModeTransitionsTest,
     command.processPicker.loader = [&]
     {
         if(loads++ == 0)
-            return DebuggerProcessList{{},
-                                       "Cannot list processes: access denied"};
+            return DebuggerProcessList{
+                {},
+                "Cannot list processes: access denied"};
         return recordedDebuggerProcesses();
     };
     auto sm = makeMachine(editor, std::move(command));
     EXPECT_TRUE(editor.commandPopupFiltered.empty());
-    EXPECT_NE(editor.commandPopupEmptyMessage.find("access denied"),
-              std::string::npos);
+    EXPECT_NE(
+        editor.commandPopupEmptyMessage.find("access denied"),
+        std::string::npos);
     sm.dispatch(keyCode(control::ControlKey::ENTER));
     EXPECT_NE(sm.getState<CommandMode>(), nullptr);
     EXPECT_TRUE(editor.commandPopupActive);
@@ -967,13 +1018,15 @@ TEST(RealModeTransitionsTest, DebuggerProcessPickerWorksInSharedBrowserPrompt)
     EXPECT_FALSE(editor.commandPopupActive);
 }
 
-TEST(RealModeTransitionsTest,
-     DebuggerBreakpointMarkersTrackBackendLocationsAndDeletion)
+TEST(
+    RealModeTransitionsTest,
+    DebuggerBreakpointMarkersTrackBackendLocationsAndDeletion)
 {
     auto dir = make_temp_dir("uvim_breakpoints_");
     auto file = dir / "demo.cpp";
-    write_file(file,
-               "int main() {\n    int count = 42;\n    return count;\n}\n");
+    write_file(
+        file,
+        "int main() {\n    int count = 42;\n    return count;\n}\n");
     Editor editor = Editor::createForTests();
     editor.createNewBuffer();
     editor.screenRows = 30;
@@ -983,13 +1036,14 @@ TEST(RealModeTransitionsTest,
     ASSERT_NE(debug, nullptr);
     std::string path;
     json_utils::append_escaped(path, file.string());
-    debug->applyMessage("{\"state\":\"stopped\",\"path\":" + path +
-                        ",\"line\":2,\"breakpoints\":[{\"id\":\"1\","
-                        "\"enabled\":true,\"locations\":[{\"path\":" +
-                        path +
-                        ",\"line\":2}]},{\"id\":\"2\",\"enabled\":false,"
-                        "\"locations\":[{\"path\":" +
-                        path + ",\"line\":3}]}]}");
+    debug->applyMessage(
+        "{\"state\":\"stopped\",\"path\":" + path +
+        ",\"line\":2,\"breakpoints\":[{\"id\":\"1\","
+        "\"enabled\":true,\"locations\":[{\"path\":" +
+        path +
+        ",\"line\":2}]},{\"id\":\"2\",\"enabled\":false,"
+        "\"locations\":[{\"path\":" +
+        path + ",\"line\":3}]}]}");
     EXPECT_TRUE(debug->breakpointLines.contains(2));
     EXPECT_FALSE(debug->breakpointLines.contains(3));
     testing::internal::CaptureStdout();
@@ -1022,8 +1076,9 @@ TEST(RealModeTransitionsTest,
     std::filesystem::remove_all(dir);
 }
 
-TEST(RealModeTransitionsTest,
-     DebuggerPromptCommandsFilterAndCompleteWithNavigation)
+TEST(
+    RealModeTransitionsTest,
+    DebuggerPromptCommandsFilterAndCompleteWithNavigation)
 {
     Editor editor = Editor::createForTests();
     editor.createNewBuffer();
@@ -1064,8 +1119,9 @@ TEST(RealModeTransitionsTest, DebuggerFilePickerKeepsSessionAndPinsOtherSource)
     auto dir = make_temp_dir("uvim_debugger_pick_source_");
     auto main = dir / "main.cpp";
     auto helper = dir / "helper.hpp";
-    write_file(main,
-               "int main() {\n    int count = 42;\n    return count;\n}\n");
+    write_file(
+        main,
+        "int main() {\n    int count = 42;\n    return count;\n}\n");
     write_file(
         helper,
         "inline int helper() {\n    int value = 7;\n    return value;\n}\n");
@@ -1082,8 +1138,8 @@ TEST(RealModeTransitionsTest, DebuggerFilePickerKeepsSessionAndPinsOtherSource)
         std::string mainPath, helperPath;
         json_utils::append_escaped(mainPath, main.string());
         json_utils::append_escaped(helperPath, helper.string());
-        debug->applyMessage("{\"state\":\"stopped\",\"path\":" + mainPath +
-                            ",\"line\":2}");
+        debug->applyMessage(
+            "{\"state\":\"stopped\",\"path\":" + mainPath + ",\"line\":2}");
         sm.dispatch(keyCode(control::ControlKey::CTRL_P));
         ASSERT_NE(debug->filePicker, nullptr);
         EXPECT_TRUE(debug->filePicker->singleSelection);
@@ -1094,20 +1150,24 @@ TEST(RealModeTransitionsTest, DebuggerFilePickerKeepsSessionAndPinsOtherSource)
         EXPECT_EQ(sm.getState<DebuggerMode>(), debug);
         EXPECT_EQ(debug->filePicker, nullptr);
         EXPECT_TRUE(debug->sourcePinned);
-        EXPECT_EQ(std::filesystem::weakly_canonical(debug->sourcePath),
-                  std::filesystem::weakly_canonical(helper));
+        EXPECT_EQ(
+            std::filesystem::weakly_canonical(debug->sourcePath),
+            std::filesystem::weakly_canonical(helper));
         EXPECT_EQ(debug->cursor[0], 2);
         EXPECT_EQ(debug->pane, 0);
         EXPECT_EQ(debug->state, "stopped");
         EXPECT_EQ(editor.currentBuffer, buffer);
-        EXPECT_EQ(editor.currentBuffer->lines,
-                  (std::vector<std::string>{"untouched editor buffer"}));
-        debug->applyMessage("{\"state\":\"stopped\",\"path\":" + mainPath +
-                            ",\"line\":2,\"breakpoints\":[{\"id\":\"1\","
-                            "\"enabled\":true,\"locations\":[{\"path\":" +
-                            helperPath + ",\"line\":3}]}]}");
-        EXPECT_EQ(std::filesystem::weakly_canonical(debug->sourcePath),
-                  std::filesystem::weakly_canonical(helper));
+        EXPECT_EQ(
+            editor.currentBuffer->lines,
+            (std::vector<std::string>{"untouched editor buffer"}));
+        debug->applyMessage(
+            "{\"state\":\"stopped\",\"path\":" + mainPath +
+            ",\"line\":2,\"breakpoints\":[{\"id\":\"1\","
+            "\"enabled\":true,\"locations\":[{\"path\":" +
+            helperPath + ",\"line\":3}]}]}");
+        EXPECT_EQ(
+            std::filesystem::weakly_canonical(debug->sourcePath),
+            std::filesystem::weakly_canonical(helper));
         EXPECT_EQ(debug->cursor[0], 2);
         EXPECT_TRUE(debug->breakpointLines.contains(3));
         testing::internal::CaptureStdout();
@@ -1116,8 +1176,8 @@ TEST(RealModeTransitionsTest, DebuggerFilePickerKeepsSessionAndPinsOtherSource)
         EXPECT_EQ(rendered.find(">2 "), std::string::npos);
         EXPECT_NE(rendered.find("Source (browse)"), std::string::npos);
         debug->followExecutionOnStop = true;
-        debug->applyMessage("{\"state\":\"stopped\",\"path\":" + mainPath +
-                            ",\"line\":3}");
+        debug->applyMessage(
+            "{\"state\":\"stopped\",\"path\":" + mainPath + ",\"line\":3}");
         EXPECT_FALSE(debug->sourcePinned);
         EXPECT_EQ(debug->sourcePath, main.string());
         EXPECT_EQ(debug->cursor[0], 2);
@@ -1134,8 +1194,9 @@ TEST(RealModeTransitionsTest, DebuggerFilePickerKeepsSessionAndPinsOtherSource)
 }
 #endif
 
-TEST(RealModeTransitionsTest,
-     DebuggerBreakpointListFollowsFilesRowsAndMetadataRefreshes)
+TEST(
+    RealModeTransitionsTest,
+    DebuggerBreakpointListFollowsFilesRowsAndMetadataRefreshes)
 {
     auto dir = make_temp_dir("uvim_breakpoint_follow_");
     const auto original = dir / "running.cpp";
@@ -1146,8 +1207,10 @@ TEST(RealModeTransitionsTest,
     for(int row = 1; row <= 80; ++row)
         code += "int first_" + std::to_string(row) + " = 1;\n";
     write_file(first, code);
-    write_file(second, "one\ntwo\nthree\nFOUR_TARGET\nfive\nsix\nSEVEN_"
-                       "TARGET\neight\nnine\nTEN_TARGET\n");
+    write_file(
+        second,
+        "one\ntwo\nthree\nFOUR_TARGET\nfive\nsix\nSEVEN_"
+        "TARGET\neight\nnine\nTEN_TARGET\n");
     Editor editor = Editor::createForTests();
     editor.createNewBuffer();
     editor.screenRows = 32;
@@ -1180,8 +1243,9 @@ TEST(RealModeTransitionsTest,
     dispatch_command(sm, "bps");
     EXPECT_TRUE(debug->breakpointListOpen);
     EXPECT_TRUE(debug->sourcePinned);
-    EXPECT_EQ(debug->sourcePath,
-              EditorPathUtilities::resolveEditorPath(first.string()).string());
+    EXPECT_EQ(
+        debug->sourcePath,
+        EditorPathUtilities::resolveEditorPath(first.string()).string());
     EXPECT_EQ(debug->cursor[0], 2);
     EXPECT_EQ(debug->pane, 0);
     const auto firstSource = debug->source;
@@ -1195,8 +1259,9 @@ TEST(RealModeTransitionsTest,
     EXPECT_NE(rendered.find("+60 "), std::string::npos);
     EXPECT_NE(rendered.find("first_60"), std::string::npos);
     sm.dispatch(keyCode(control::ControlKey::CTRL_J));
-    EXPECT_EQ(debug->sourcePath,
-              EditorPathUtilities::resolveEditorPath(second.string()).string());
+    EXPECT_EQ(
+        debug->sourcePath,
+        EditorPathUtilities::resolveEditorPath(second.string()).string());
     EXPECT_EQ(debug->cursor[0], 3);
     EXPECT_EQ(debug->source[3], "FOUR_TARGET");
     EXPECT_EQ(debug->frameIndex, 7);
@@ -1207,8 +1272,9 @@ TEST(RealModeTransitionsTest,
     EXPECT_FALSE(debug->breakpointSourceError.empty());
     EXPECT_EQ(debug->source[3], "FOUR_TARGET");
     sm.dispatch(keyCode(control::ControlKey::CTRL_J));
-    EXPECT_NE(debug->breakpointSourceError.find("Source unavailable"),
-              std::string::npos);
+    EXPECT_NE(
+        debug->breakpointSourceError.find("Source unavailable"),
+        std::string::npos);
     EXPECT_EQ(debug->cursor[0], 3);
     // Deleting a selected breakpoint follows the replacement list selection.
     debug->applyMessage(
@@ -1231,16 +1297,17 @@ TEST(RealModeTransitionsTest,
     EXPECT_TRUE(debug->sourcePinned);
     EXPECT_EQ(debug->cursor[0], 9);
     debug->followExecutionOnStop = true;
-    debug->applyMessage("{\"state\":\"stopped\",\"path\":" + runningPath +
-                        ",\"line\":3}");
+    debug->applyMessage(
+        "{\"state\":\"stopped\",\"path\":" + runningPath + ",\"line\":3}");
     EXPECT_FALSE(debug->sourcePinned);
     EXPECT_EQ(debug->sourcePath, original.string());
     EXPECT_EQ(debug->cursor[0], 2);
     std::filesystem::remove_all(dir);
 }
 
-TEST(RealModeTransitionsTest,
-     DebuggerBreakpointListFollowsLocationsArrivingAfterOpening)
+TEST(
+    RealModeTransitionsTest,
+    DebuggerBreakpointListFollowsLocationsArrivingAfterOpening)
 {
     auto dir = make_temp_dir("uvim_breakpoint_late_");
     const auto file = dir / "late.cpp";
@@ -1258,16 +1325,18 @@ TEST(RealModeTransitionsTest,
     debug->applyMessage(
         "{\"breakpoints\":[{\"id\":\"1\",\"locations\":[{\"path\":" + path +
         ",\"line\":3}]}]}");
-    EXPECT_EQ(debug->sourcePath,
-              EditorPathUtilities::resolveEditorPath(file.string()).string());
+    EXPECT_EQ(
+        debug->sourcePath,
+        EditorPathUtilities::resolveEditorPath(file.string()).string());
     EXPECT_EQ(debug->cursor[0], 2);
     sm.dispatch(keyCode(control::ControlKey::CTRL_K));
     EXPECT_EQ(debug->cursor[0], 2);
     std::filesystem::remove_all(dir);
 }
 
-TEST(RealModeTransitionsTest,
-     DebuggerSourceReadersStripCRLFWithoutRemovingRealSpaces)
+TEST(
+    RealModeTransitionsTest,
+    DebuggerSourceReadersStripCRLFWithoutRemovingRealSpaces)
 {
     auto dir = make_temp_dir("uvim_debugger_crlf_");
     const auto sourceFile = dir / "source.cpp";
@@ -1284,8 +1353,8 @@ TEST(RealModeTransitionsTest,
     ASSERT_NE(debug, nullptr);
     std::string path;
     json_utils::append_escaped(path, sourceFile.string());
-    debug->applyMessage("{\"state\":\"stopped\",\"path\":" + path +
-                        ",\"line\":2}");
+    debug->applyMessage(
+        "{\"state\":\"stopped\",\"path\":" + path + ",\"line\":2}");
     EXPECT_EQ(debug->source, expected);
     ASSERT_TRUE(debug->selectSourceFile(sourceFile.string(), 2));
     EXPECT_EQ(debug->source, expected);
@@ -1307,8 +1376,9 @@ TEST(RealModeTransitionsTest,
     std::filesystem::remove_all(dir);
 }
 
-TEST(RealModeTransitionsTest,
-     DebuggerSourceSelectionRejectsBinaryWithoutChangingSource)
+TEST(
+    RealModeTransitionsTest,
+    DebuggerSourceSelectionRejectsBinaryWithoutChangingSource)
 {
     auto dir = make_temp_dir("uvim_debugger_bad_source_");
     auto file = dir / "binary.cpp";
@@ -1349,18 +1419,20 @@ TEST(RealModeTransitionsTest, DebuggerFrameAndProcessPickersAcceptRegexQueries)
     DebuggerProcessPicker picker;
     picker.loader = []
     {
-        return DebuggerProcessList{{{12, "cpp", "/tmp/cpp"},
-                                    {34, "python", "/usr/bin/python"},
-                                    {56, "mlang", "/tmp/mlang"}},
-                                   {}};
+        return DebuggerProcessList{
+            {{12, "cpp", "/tmp/cpp"},
+             {34, "python", "/usr/bin/python"},
+             {56, "mlang", "/tmp/mlang"}},
+            {}};
     };
     auto ctx = createModeContext(&editor);
     EXPECT_TRUE(picker.update(ctx, ":dbgattach -- re:(cpp|mlang)$"));
     EXPECT_EQ(editor.commandPopupFiltered.size(), 2u);
     EXPECT_TRUE(picker.update(ctx, ":dbgattach -- re:["));
     EXPECT_TRUE(editor.commandPopupFiltered.empty());
-    EXPECT_NE(editor.commandPopupEmptyMessage.find("Invalid regex"),
-              std::string::npos);
+    EXPECT_NE(
+        editor.commandPopupEmptyMessage.find("Invalid regex"),
+        std::string::npos);
     picker.close(ctx);
 }
 
@@ -1406,8 +1478,9 @@ TEST(RealModeTransitionsTest, DebuggerProcessRegexShorthandFiltersWhileTyping)
     EXPECT_EQ(editor.commandBuffer, ":dbgattach 1234");
 }
 
-TEST(RealModeTransitionsTest,
-     DebuggerProcessRegexShorthandPreservesBackendAndRecoversFromInvalidClass)
+TEST(
+    RealModeTransitionsTest,
+    DebuggerProcessRegexShorthandPreservesBackendAndRecoversFromInvalidClass)
 {
     Editor editor = Editor::createForTests();
     editor.createNewBuffer();
@@ -1418,8 +1491,9 @@ TEST(RealModeTransitionsTest,
     ASSERT_TRUE(editor.commandPopupActive);
     sm.dispatch('[');
     EXPECT_TRUE(editor.commandPopupFiltered.empty());
-    EXPECT_NE(editor.commandPopupEmptyMessage.find("Invalid regex"),
-              std::string::npos);
+    EXPECT_NE(
+        editor.commandPopupEmptyMessage.find("Invalid regex"),
+        std::string::npos);
     for(char key : std::string("A-Za-z0-9]"))
         sm.dispatch(key);
     EXPECT_EQ(editor.commandPopupFiltered.size(), 3u);

@@ -182,11 +182,12 @@ static std::string rewrite_windows_paths_in_text(std::string_view text)
     return out;
 }
 
-static std::vector<fs::path>
-find_compile_commands_files_recursively(const fs::path& root);
+static std::vector<fs::path> find_compile_commands_files_recursively(
+    const fs::path& root);
 
-static fs::path detect_compile_commands_file(const fs::path& sourceRoot,
-                                             const std::string& ccdir)
+static fs::path detect_compile_commands_file(
+    const fs::path& sourceRoot,
+    const std::string& ccdir)
 {
     std::error_code ec;
 
@@ -243,9 +244,10 @@ static void maybe_rewrite_entry_for_wsl(ju::Value& entry, ju::Alloc& alloc)
                                     : rewrite_windows_paths_in_text(value);
         if(converted.empty())
             return;
-        it->value.SetString(converted.c_str(),
-                            static_cast<ju::SizeType>(converted.size()),
-                            alloc);
+        it->value.SetString(
+            converted.c_str(),
+            static_cast<ju::SizeType>(converted.size()),
+            alloc);
     };
 
     rewrite_string_member("file", true);
@@ -266,9 +268,10 @@ static void maybe_rewrite_entry_for_wsl(ju::Value& entry, ju::Alloc& alloc)
             converted = rewrite_windows_paths_in_text(value);
         if(converted.empty())
             continue;
-        arg.SetString(converted.c_str(),
-                      static_cast<ju::SizeType>(converted.size()),
-                      alloc);
+        arg.SetString(
+            converted.c_str(),
+            static_cast<ju::SizeType>(converted.size()),
+            alloc);
     }
 }
 
@@ -279,31 +282,31 @@ static std::string compile_entry_key(const ju::Value& entry)
     auto fileIt = entry.FindMember("file");
     if(fileIt == entry.MemberEnd() || !fileIt->value.IsString())
         return {};
-    std::string file(fileIt->value.GetString(),
-                     fileIt->value.GetStringLength());
+    std::string
+        file(fileIt->value.GetString(), fileIt->value.GetStringLength());
     fs::path filePath(file);
 
     auto dirIt = entry.FindMember("directory");
     if(!filePath.is_absolute() && dirIt != entry.MemberEnd() &&
        dirIt->value.IsString())
     {
-        std::string directory(dirIt->value.GetString(),
-                              dirIt->value.GetStringLength());
+        std::string
+            directory(dirIt->value.GetString(), dirIt->value.GetStringLength());
         filePath = fs::path(directory) / filePath;
     }
     return filePath.lexically_normal().string();
 }
 
-static std::vector<fs::path>
-find_compile_commands_files_recursively(const fs::path& root)
+static std::vector<fs::path> find_compile_commands_files_recursively(
+    const fs::path& root)
 {
     std::vector<fs::path> files;
     std::error_code ec;
     if(!fs::exists(root, ec) || !fs::is_directory(root, ec))
         return files;
 
-    fs::recursive_directory_iterator it(
-        root, fs::directory_options::skip_permission_denied, ec);
+    fs::recursive_directory_iterator
+        it(root, fs::directory_options::skip_permission_denied, ec);
     fs::recursive_directory_iterator end;
     for(; it != end; it.increment(ec))
     {
@@ -329,9 +332,10 @@ find_compile_commands_files_recursively(const fs::path& root)
     return files;
 }
 
-static std::vector<fs::path>
-discover_compile_commands_sources(const fs::path& sourceRoot,
-                                  const std::string& ccdir, bool collectAll)
+static std::vector<fs::path> discover_compile_commands_sources(
+    const fs::path& sourceRoot,
+    const std::string& ccdir,
+    bool collectAll)
 {
     std::vector<fs::path> sourceFiles;
     if(collectAll)
@@ -348,10 +352,11 @@ discover_compile_commands_sources(const fs::path& sourceRoot,
     return sourceFiles;
 }
 
-static bool
-regenerate_clangd_compile_commands(const fs::path& outputRoot,
-                                   const std::vector<fs::path>& sourceFiles,
-                                   bool windowsToWsl, bool failHard)
+static bool regenerate_clangd_compile_commands(
+    const fs::path& outputRoot,
+    const std::vector<fs::path>& sourceFiles,
+    bool windowsToWsl,
+    bool failHard)
 {
     if(sourceFiles.empty())
     {
@@ -442,11 +447,12 @@ regenerate_clangd_compile_commands(const fs::path& outputRoot,
     return true;
 }
 
-static std::string prepare_clangd_compile_commands(const fs::path& sourceRoot,
-                                                   const fs::path& outputRoot,
-                                                   const std::string& ccdir,
-                                                   bool collectAll,
-                                                   bool windowsToWsl)
+static std::string prepare_clangd_compile_commands(
+    const fs::path& sourceRoot,
+    const fs::path& outputRoot,
+    const std::string& ccdir,
+    bool collectAll,
+    bool windowsToWsl)
 {
     if(!collectAll && !windowsToWsl)
     {
@@ -460,9 +466,11 @@ static std::string prepare_clangd_compile_commands(const fs::path& sourceRoot,
                 find_compile_commands_files_recursively(sourceRoot);
             if(sourceFiles.size() == 1)
                 return sourceFiles.front().parent_path().string();
-            if(sourceFiles.size() > 1 &&
-               regenerate_clangd_compile_commands(outputRoot, sourceFiles,
-                                                  false, false))
+            if(sourceFiles.size() > 1 && regenerate_clangd_compile_commands(
+                                             outputRoot,
+                                             sourceFiles,
+                                             false,
+                                             false))
             {
                 return (outputRoot / ".uvim" / "clangd").string();
             }
@@ -481,8 +489,11 @@ static std::string prepare_clangd_compile_commands(const fs::path& sourceRoot,
         return ccdir;
     }
 
-    if(!regenerate_clangd_compile_commands(outputRoot, sourceFiles,
-                                           windowsToWsl, true))
+    if(!regenerate_clangd_compile_commands(
+           outputRoot,
+           sourceFiles,
+           windowsToWsl,
+           true))
     {
         return ccdir;
     }
@@ -492,8 +503,12 @@ static std::string prepare_clangd_compile_commands(const fs::path& sourceRoot,
 class CompileCommandsSyncer
 {
 public:
-    CompileCommandsSyncer(fs::path sourceRoot, fs::path outputRoot,
-                          std::string ccdir, bool collectAll, bool windowsToWsl)
+    CompileCommandsSyncer(
+        fs::path sourceRoot,
+        fs::path outputRoot,
+        std::string ccdir,
+        bool collectAll,
+        bool windowsToWsl)
         : sourceRoot_(std::move(sourceRoot)),
           outputRoot_(std::move(outputRoot)), sourceCcdir_(std::move(ccdir)),
           collectAll_(collectAll), windowsToWsl_(windowsToWsl)
@@ -526,13 +541,18 @@ private:
         while(running_.load(std::memory_order_acquire))
         {
             std::vector<fs::path> sources = discover_compile_commands_sources(
-                sourceRoot_, sourceCcdir_, collectAll_);
+                sourceRoot_,
+                sourceCcdir_,
+                collectAll_);
             if(has_changes(sources))
             {
                 if(!sources.empty())
                 {
-                    regenerate_clangd_compile_commands(outputRoot_, sources,
-                                                       windowsToWsl_, false);
+                    regenerate_clangd_compile_commands(
+                        outputRoot_,
+                        sources,
+                        windowsToWsl_,
+                        false);
                 }
             }
             std::this_thread::sleep_for(std::chrono::milliseconds(1500));
@@ -592,8 +612,10 @@ private:
     std::exit(2);
 }
 
-static bool split_eq(std::string_view s, std::string_view& key,
-                     std::string_view& value)
+static bool split_eq(
+    std::string_view s,
+    std::string_view& key,
+    std::string_view& value)
 {
     if(auto pos = s.find('='); text_utils::is_found(pos))
     {
@@ -604,9 +626,12 @@ static bool split_eq(std::string_view s, std::string_view& key,
     return false;
 }
 
-static std::string_view require_value(std::string_view opt, int& i, int argc,
-                                      char* argv[],
-                                      std::string_view inline_value)
+static std::string_view require_value(
+    std::string_view opt,
+    int& i,
+    int argc,
+    char* argv[],
+    std::string_view inline_value)
 {
     if(!inline_value.empty())
         return inline_value;
@@ -1007,8 +1032,10 @@ constexpr std::array<HelpRow, 3> kHelpConfig = {{
 }};
 
 [[maybe_unused]] constexpr std::array<HelpRow, 3> kHelpCSharpLsp = {{
-    {kCSharpLsp, "Start the C# LSP at startup (otherwise on the first .cs file)"},
-    {"--csharp-lsp-path <path>", "C# LSP server: csharp-ls (default) or OmniSharp"},
+    {kCSharpLsp,
+     "Start the C# LSP at startup (otherwise on the first .cs file)"},
+    {"--csharp-lsp-path <path>",
+     "C# LSP server: csharp-ls (default) or OmniSharp"},
     {"--csharp-lsp-args <args>", "Extra args for the C# LSP (space-separated)"},
 }};
 
@@ -1104,7 +1131,7 @@ public:
         };
         scan(kHelpGeneral);
         scan(kHelpConfig);
-#if defined(UVIM_ENABLE_BROWSER_TOOLS) || defined(UVIM_ENABLE_SEARCH_TOOLS) ||  \
+#if defined(UVIM_ENABLE_BROWSER_TOOLS) || defined(UVIM_ENABLE_SEARCH_TOOLS) || \
     defined(UVIM_ENABLE_AUXILIARY_VIEWS)
         scan(kHelpFileIndex);
 #endif
@@ -1159,7 +1186,7 @@ public:
 
         print_section("General:", kHelpGeneral);
         print_section("Config:", kHelpConfig);
-#if defined(UVIM_ENABLE_BROWSER_TOOLS) || defined(UVIM_ENABLE_SEARCH_TOOLS) ||  \
+#if defined(UVIM_ENABLE_BROWSER_TOOLS) || defined(UVIM_ENABLE_SEARCH_TOOLS) || \
     defined(UVIM_ENABLE_AUXILIARY_VIEWS)
         print_section("File indexing:", kHelpFileIndex);
 #endif
@@ -1647,11 +1674,11 @@ struct EditorSettings
                 if(found.empty())
                 {
                     const char* programFiles = std::getenv("ProgramFiles");
-                    fs::path llvmClangd =
-                        fs::path(programFiles && *programFiles
-                                     ? programFiles
-                                     : "C:\\Program Files") /
-                        "LLVM" / "bin" / "clangd.exe";
+                    fs::path llvmClangd = fs::path(
+                                              programFiles && *programFiles
+                                                  ? programFiles
+                                                  : "C:\\Program Files") /
+                                          "LLVM" / "bin" / "clangd.exe";
                     std::error_code ec;
                     if(fs::is_regular_file(llvmClangd, ec))
                         found = llvmClangd.string();
@@ -1668,13 +1695,17 @@ struct EditorSettings
                     "starting clangd",
                     [this, &editor, resolved]
                     {
-                        auto launch = [&editor, result = ccdirResult,
-                                       requested = ccdir, resolved,
+                        auto launch = [&editor,
+                                       result = ccdirResult,
+                                       requested = ccdir,
+                                       resolved,
                                        queryDriver = queryDriver]
                         {
-                            editor.enableClangdLsp(true,
-                                                   result ? *result : requested,
-                                                   resolved, queryDriver);
+                            editor.enableClangdLsp(
+                                true,
+                                result ? *result : requested,
+                                resolved,
+                                queryDriver);
                         };
                         if(ccdirTask != 0)
                         {
@@ -1683,7 +1714,8 @@ struct EditorSettings
                             // the input loop.
                             editor.submitTask(
                                 "clangd: waiting for compile_commands",
-                                "startup", [](TaskQueue::Context&) {},
+                                "startup",
+                                [](TaskQueue::Context&) {},
                                 std::move(launch));
                         }
                         else
@@ -1696,8 +1728,7 @@ struct EditorSettings
                 editor.clangdLspEnabled = false;
                 editor.clangdLspPath = resolved;
                 editor.clangdLspStartupAttempted = false;
-                editor.clangdLspLastError =
-                    "startup skipped: binary not found";
+                editor.clangdLspLastError = "startup skipped: binary not found";
                 editor.setStatusMessage("clangd: not found");
             }
         }
@@ -1720,8 +1751,9 @@ struct EditorSettings
                 {
                     robotPath = robotPathVenv.string();
                 }
-                else if(fs::exists(pythonPath, ec) &&
-                        fs::is_regular_file(pythonPath, ec))
+                else if(
+                    fs::exists(pythonPath, ec) &&
+                    fs::is_regular_file(pythonPath, ec))
                 {
                     robotPath = pythonPath.string();
                     if(args.empty())
@@ -1755,7 +1787,8 @@ struct EditorSettings
             {
                 editor.addStartupStep(
                     "starting robot LSP",
-                    [&editor, robotPath, args] { editor.enableRobotLsp(true, robotPath, args); });
+                    [&editor, robotPath, args]
+                    { editor.enableRobotLsp(true, robotPath, args); });
             }
             else if(autoDetect && !useRobotLsp)
             {
@@ -1812,8 +1845,9 @@ struct EditorSettings
                         {
                             pyPath = brewPath.string();
                         }
-                        else if(fs::exists(localPath, ec) &&
-                                fs::is_regular_file(localPath, ec))
+                        else if(
+                            fs::exists(localPath, ec) &&
+                            fs::is_regular_file(localPath, ec))
                         {
                             pyPath = localPath.string();
                         }
@@ -1832,13 +1866,15 @@ struct EditorSettings
                 {
                     pyPath = pylspPath.string();
                 }
-                else if(fs::exists(pyrightPath, ec) &&
-                        fs::is_regular_file(pyrightPath, ec))
+                else if(
+                    fs::exists(pyrightPath, ec) &&
+                    fs::is_regular_file(pyrightPath, ec))
                 {
                     pyPath = pyrightPath.string();
                 }
-                else if(fs::exists(pythonPath, ec) &&
-                        fs::is_regular_file(pythonPath, ec))
+                else if(
+                    fs::exists(pythonPath, ec) &&
+                    fs::is_regular_file(pythonPath, ec))
                 {
                     pyPath = pythonPath.string();
                     if(args.empty())
@@ -1881,7 +1917,8 @@ struct EditorSettings
             {
                 editor.addStartupStep(
                     "starting python LSP",
-                    [&editor, pyPath, args] { editor.enablePythonLsp(true, pyPath, args); });
+                    [&editor, pyPath, args]
+                    { editor.enablePythonLsp(true, pyPath, args); });
             }
             else if(autoDetect && !usePythonLsp)
             {
@@ -1913,13 +1950,13 @@ struct EditorSettings
                 if(mlangPath == "mlangd-mla" || mlangPath == "mlangd")
                 {
                     std::error_code ec;
-                    std::vector<fs::path> localBuildCandidates = {
-                        fs::current_path() / "build" / "mlangd-mla",
-                        fs::current_path() / "build" / "mlangd",
-                        fs::current_path() / ".." / "mlang" / "build" /
-                            "mlangd-mla",
-                        fs::current_path() / ".." / "mlang" / "build" /
-                            "mlangd"};
+                    std::vector<fs::path> localBuildCandidates =
+                        {fs::current_path() / "build" / "mlangd-mla",
+                         fs::current_path() / "build" / "mlangd",
+                         fs::current_path() / ".." / "mlang" / "build" /
+                             "mlangd-mla",
+                         fs::current_path() / ".." / "mlang" / "build" /
+                             "mlangd"};
                     for(const auto& localPath : localBuildCandidates)
                     {
                         if(fs::exists(localPath, ec) &&
@@ -1947,9 +1984,9 @@ struct EditorSettings
                     const char* home = std::getenv("HOME");
                     if(home && *home)
                     {
-                        std::vector<fs::path> localCandidates = {
-                            fs::path(home) / ".local" / "bin" / "mlangd-mla",
-                            fs::path(home) / ".local" / "bin" / "mlangd"};
+                        std::vector<fs::path> localCandidates =
+                            {fs::path(home) / ".local" / "bin" / "mlangd-mla",
+                             fs::path(home) / ".local" / "bin" / "mlangd"};
                         for(const auto& localPath : localCandidates)
                         {
                             std::error_code ec;
@@ -1966,10 +2003,11 @@ struct EditorSettings
                 if(mlangPath == "mlangd-mla" || mlangPath == "mlangd")
                 {
                     std::error_code ec;
-                    std::vector<fs::path> sysCandidates = {
-                        "/opt/homebrew/bin/mlangd-mla",
-                        "/usr/local/bin/mlangd-mla", "/opt/homebrew/bin/mlangd",
-                        "/usr/local/bin/mlangd"};
+                    std::vector<fs::path> sysCandidates =
+                        {"/opt/homebrew/bin/mlangd-mla",
+                         "/usr/local/bin/mlangd-mla",
+                         "/opt/homebrew/bin/mlangd",
+                         "/usr/local/bin/mlangd"};
                     for(const auto& sysPath : sysCandidates)
                     {
                         if(fs::exists(sysPath, ec) &&
@@ -2033,7 +2071,8 @@ struct EditorSettings
             {
                 editor.addStartupStep(
                     "starting mlang LSP",
-                    [&editor, mlangPath, args] { editor.enableMlangLsp(true, mlangPath, args); });
+                    [&editor, mlangPath, args]
+                    { editor.enableMlangLsp(true, mlangPath, args); });
             }
             else if(autoDetect && !useMlangLsp)
             {
@@ -2054,7 +2093,8 @@ struct EditorSettings
             {
                 editor.addStartupStep(
                     "starting html LSP",
-                    [&editor, htmlPath, args] { editor.enableHtmlLsp(true, htmlPath, args); });
+                    [&editor, htmlPath, args]
+                    { editor.enableHtmlLsp(true, htmlPath, args); });
             }
             else if(autoDetect && !useHtmlLsp)
             {
@@ -2075,7 +2115,8 @@ struct EditorSettings
             {
                 editor.addStartupStep(
                     "starting css LSP",
-                    [&editor, cssPath, args] { editor.enableCssLsp(true, cssPath, args); });
+                    [&editor, cssPath, args]
+                    { editor.enableCssLsp(true, cssPath, args); });
             }
             else if(autoDetect && !useCssLsp)
             {
@@ -2096,7 +2137,8 @@ struct EditorSettings
             {
                 editor.addStartupStep(
                     "starting json LSP",
-                    [&editor, jsonPath, args] { editor.enableJsonLsp(true, jsonPath, args); });
+                    [&editor, jsonPath, args]
+                    { editor.enableJsonLsp(true, jsonPath, args); });
             }
             else if(autoDetect && !useJsonLsp)
             {
@@ -2117,7 +2159,8 @@ struct EditorSettings
             {
                 editor.addStartupStep(
                     "starting ts LSP",
-                    [&editor, tsPath, args] { editor.enableTsLsp(true, tsPath, args); });
+                    [&editor, tsPath, args]
+                    { editor.enableTsLsp(true, tsPath, args); });
             }
             else if(autoDetect && !useTsLsp)
             {
@@ -2133,7 +2176,8 @@ struct EditorSettings
         {
             editor.addStartupStep(
                 "starting C# LSP",
-                [&editor, path = csharpLspPath,
+                [&editor,
+                 path = csharpLspPath,
                  args = split_args(csharpLspArgs)]
                 { editor.enableCSharpLsp(true, path, args); });
         }
@@ -2293,26 +2337,37 @@ int main(int argc, char* argv[])
         settings.ccdirResult = ccResult;
         settings.ccdirTask =
             editor
-                .submitTask("clangd: compile_commands", "startup",
-                            [ccResult, browseRoot, clangdCcOutputRoot,
-                             requestedCcdir](TaskQueue::Context& ctx)
-                            {
-                                ctx.detail("searching");
-                                *ccResult = prepare_clangd_compile_commands(
-                                    browseRoot, clangdCcOutputRoot,
-                                    requestedCcdir, false, false);
-                            })
+                .submitTask(
+                    "clangd: compile_commands",
+                    "startup",
+                    [ccResult, browseRoot, clangdCcOutputRoot, requestedCcdir](
+                        TaskQueue::Context& ctx)
+                    {
+                        ctx.detail("searching");
+                        *ccResult = prepare_clangd_compile_commands(
+                            browseRoot,
+                            clangdCcOutputRoot,
+                            requestedCcdir,
+                            false,
+                            false);
+                    })
                 .id;
     }
     else
     {
         settings.ccdir = prepare_clangd_compile_commands(
-            browseRoot, clangdCcOutputRoot, settings.ccdir,
-            settings.ccCollectAll, settings.ccWindowsToWsl);
+            browseRoot,
+            clangdCcOutputRoot,
+            settings.ccdir,
+            settings.ccCollectAll,
+            settings.ccWindowsToWsl);
     }
-    CompileCommandsSyncer ccSyncer(browseRoot, clangdCcOutputRoot, sourceCcdir,
-                                   settings.ccCollectAll,
-                                   settings.ccWindowsToWsl);
+    CompileCommandsSyncer ccSyncer(
+        browseRoot,
+        clangdCcOutputRoot,
+        sourceCcdir,
+        settings.ccCollectAll,
+        settings.ccWindowsToWsl);
     ccSyncer.start();
     settings.apply(editor);
 

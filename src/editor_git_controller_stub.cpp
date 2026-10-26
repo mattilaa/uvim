@@ -58,8 +58,8 @@ void EditorGitController::openGitShowCommitMode()
     editor.setStatusMessage("git tools disabled in this build");
 }
 
-std::vector<std::string>
-EditorGitController::loadGitShowLines(const std::string&)
+std::vector<std::string> EditorGitController::loadGitShowLines(
+    const std::string&)
 {
     return {};
 }
@@ -95,8 +95,7 @@ void EditorGitController::openGitDiffMode()
 }
 
 std::vector<editor::statemachine::GitLogMode::Entry>
-EditorGitController::reloadGitLogEntries(const std::string&,
-                                         const std::string&)
+EditorGitController::reloadGitLogEntries(const std::string&, const std::string&)
 {
     return {};
 }
@@ -106,9 +105,9 @@ void EditorGitController::openUnsavedChangesMode()
     editor.setStatusMessage("git tools disabled in this build");
 }
 
-std::vector<std::string>
-EditorGitController::unsavedChangesDiff(std::string& title,
-                                        std::string& message)
+std::vector<std::string> EditorGitController::unsavedChangesDiff(
+    std::string& title,
+    std::string& message)
 {
     title.clear();
     message = "git tools disabled in this build";

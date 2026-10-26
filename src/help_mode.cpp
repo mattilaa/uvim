@@ -18,9 +18,14 @@ namespace
 {
 std::vector<std::string> helpModeHelpTokens()
 {
-    return {"[Enter: open]", "[q: quit]", "[j/k: navigate]",
-            "[gg/G: top/bottom]", "[/: fuzzy help]",
-            "[Ctrl-I: doc rows]", "[:help <topic>]"};
+    return {
+        "[Enter: open]",
+        "[q: quit]",
+        "[j/k: navigate]",
+        "[gg/G: top/bottom]",
+        "[/: fuzzy help]",
+        "[Ctrl-I: doc rows]",
+        "[:help <topic>]"};
 }
 
 int helpModeContentRows(const Editor& editor)
@@ -85,9 +90,12 @@ std::string trimSearchDisplayLine(std::string line)
 
 std::string singleLineHelpPasteText(std::string text)
 {
-    text.erase(std::remove_if(text.begin(), text.end(),
-                              [](char ch) { return ch == '\n' || ch == '\r'; }),
-               text.end());
+    text.erase(
+        std::remove_if(
+            text.begin(),
+            text.end(),
+            [](char ch) { return ch == '\n' || ch == '\r'; }),
+        text.end());
     return text;
 }
 
@@ -225,7 +233,8 @@ void HelpMode::on_enter(ModeContext& ctx)
     }
 
     loadHelpContent(topic);
-    if(isMainHelpTopic(topic) && topicForLine(selectedLine).has_value() == false)
+    if(isMainHelpTopic(topic) &&
+       topicForLine(selectedLine).has_value() == false)
     {
         for(int i = 0; i < (int)lines.size(); ++i)
         {
@@ -241,8 +250,9 @@ void HelpMode::on_enter(ModeContext& ctx)
 
 void HelpMode::on_exit(ModeContext& /* ctx */) {}
 
-std::optional<ModeState> HelpMode::handle(ModeContext& ctx,
-                                          const ModeKeyEvent& event)
+std::optional<ModeState> HelpMode::handle(
+    ModeContext& ctx,
+    const ModeKeyEvent& event)
 {
     const int key = event.key;
     int c = keyCode(key);
@@ -253,8 +263,11 @@ std::optional<ModeState> HelpMode::handle(ModeContext& ctx,
        (commandPrompt->isActive() ||
         (!searchActive && c == keyCode(command::CommandKey::KEY_COLON))) &&
        commandPrompt->handle(
-           ctx, c, [&](std::string_view commandLine)
-           { return executeCommand(ctx, commandLine); }, nextState))
+           ctx,
+           c,
+           [&](std::string_view commandLine)
+           { return executeCommand(ctx, commandLine); },
+           nextState))
     {
         return nextState;
     }
@@ -283,14 +296,16 @@ std::optional<ModeState> HelpMode::handle(ModeContext& ctx,
         {
             searchMoveDown(*ctx.editor);
         }
-        else if(c == keyCode(control::ControlKey::CTRL_P) ||
-                c == keyCode(control::ControlKey::CTRL_K) ||
-                c == keyCode(navigation::NavigationKey::ARROW_UP))
+        else if(
+            c == keyCode(control::ControlKey::CTRL_P) ||
+            c == keyCode(control::ControlKey::CTRL_K) ||
+            c == keyCode(navigation::NavigationKey::ARROW_UP))
         {
             searchMoveUp();
         }
-        else if(c == keyCode(control::ControlKey::CTRL_D) ||
-                c == keyCode(navigation::NavigationKey::PAGE_DOWN))
+        else if(
+            c == keyCode(control::ControlKey::CTRL_D) ||
+            c == keyCode(navigation::NavigationKey::PAGE_DOWN))
         {
             searchHalfPageDown(*ctx.editor);
         }
@@ -303,15 +318,17 @@ std::optional<ModeState> HelpMode::handle(ModeContext& ctx,
         {
             searchDocumentation = !searchDocumentation;
             updateSearchMatches(*ctx.editor);
-            ctx.setStatusMessage(std::string("Help documentation search ") +
-                                 (searchDocumentation ? "on" : "off"));
+            ctx.setStatusMessage(
+                std::string("Help documentation search ") +
+                (searchDocumentation ? "on" : "off"));
         }
         else if(c == keyCode(navigation::NavigationKey::PAGE_UP))
         {
             searchHalfPageUp(*ctx.editor);
         }
-        else if(c == keyCode(control::ControlKey::BACKSPACE) || c == 127 ||
-                c == keyCode(control::ControlKey::CTRL_H))
+        else if(
+            c == keyCode(control::ControlKey::BACKSPACE) || c == 127 ||
+            c == keyCode(control::ControlKey::CTRL_H))
         {
             if(!searchQuery.empty())
             {
@@ -394,8 +411,9 @@ std::optional<ModeState> HelpMode::handle(ModeContext& ctx,
             }
         }
     }
-    else if(c == keyCode(typed::TypedKey::KEY_K) ||
-            c == keyCode(navigation::NavigationKey::ARROW_UP))
+    else if(
+        c == keyCode(typed::TypedKey::KEY_K) ||
+        c == keyCode(navigation::NavigationKey::ARROW_UP))
     {
         if(moveSelection(*ctx.editor, -1))
         {
@@ -459,13 +477,15 @@ std::optional<ModeState> HelpMode::handle(ModeContext& ctx,
     else if(c == keyCode(control::ControlKey::CTRL_I))
     {
         searchDocumentation = !searchDocumentation;
-        ctx.setStatusMessage(std::string("Help documentation search ") +
-                             (searchDocumentation ? "on" : "off"));
+        ctx.setStatusMessage(
+            std::string("Help documentation search ") +
+            (searchDocumentation ? "on" : "off"));
         needsRedraw = true;
     }
-    else if(c == keyCode(control::ControlKey::ENTER) ||
-            c == keyCode(typed::TypedKey::KEY_L) ||
-            c == keyCode(navigation::NavigationKey::ARROW_RIGHT))
+    else if(
+        c == keyCode(control::ControlKey::ENTER) ||
+        c == keyCode(typed::TypedKey::KEY_L) ||
+        c == keyCode(navigation::NavigationKey::ARROW_RIGHT))
     {
         if(acceptSelection(*ctx.editor))
             needsRedraw = true;
@@ -504,8 +524,11 @@ void HelpMode::draw(Editor& editor) const
         output += ": " + topic;
     }
     output += editor.theme.reset();
-    HeaderHelp::append(output, editor.theme, editor.screenCols,
-                       helpModeHelpTokens());
+    HeaderHelp::append(
+        output,
+        editor.theme,
+        editor.screenCols,
+        helpModeHelpTokens());
 
     int availableRows = helpModeContentRows(editor);
 
@@ -517,10 +540,9 @@ void HelpMode::draw(Editor& editor) const
 
         const int lineIndex = i + scrollOffset;
         const std::string& line = lines[i + scrollOffset];
-        const bool isSelected =
-            lineIndex == selectedLine &&
-            (jumpHighlight || !isMainHelpTopic(topic) ||
-             topicForLine(lineIndex).has_value());
+        const bool isSelected = lineIndex == selectedLine &&
+                                (jumpHighlight || !isMainHelpTopic(topic) ||
+                                 topicForLine(lineIndex).has_value());
         if(isSelected)
         {
             const std::string displayLine =
@@ -547,10 +569,12 @@ void HelpMode::draw(Editor& editor) const
             output += line.substr(1); // Skip #
             output += editor.theme.reset();
         }
-        else if(!line.empty() && std::isupper(line[0]) &&
-                text_utils::contains(line,
-                                     keyChar(command::CommandKey::KEY_COLON)) &&
-                line.find(keyChar(command::CommandKey::KEY_COLON)) < 30)
+        else if(
+            !line.empty() && std::isupper(line[0]) &&
+            text_utils::contains(
+                line,
+                keyChar(command::CommandKey::KEY_COLON)) &&
+            line.find(keyChar(command::CommandKey::KEY_COLON)) < 30)
         {
             // Section header (e.g., "COMMANDS:")
             output += editor.theme.uiAccent();
@@ -592,7 +616,8 @@ void HelpMode::draw(Editor& editor) const
                 {
                     // Code/command in backticks
                     size_t end = line.find(
-                        keyChar(command::CommandKey::KEY_BACKTICK), pos + 1);
+                        keyChar(command::CommandKey::KEY_BACKTICK),
+                        pos + 1);
                     if(text_utils::is_found(end))
                     {
                         const bool preserveCodeColumns =
@@ -631,12 +656,12 @@ void HelpMode::draw(Editor& editor) const
         {
             output += editor.theme.reset();
         }
-
     }
 
     // Fill remaining lines
     for(int i = std::min((int)lines.size() - scrollOffset, availableRows);
-        i < availableRows; i++)
+        i < availableRows;
+        i++)
     {
         output += Terminal::NEWLINE_CLEAR;
         output += editor.theme.uiGutter();
@@ -651,10 +676,11 @@ void HelpMode::draw(Editor& editor) const
     if(!topic.empty())
         status += " | " + topic;
 
-    std::string right = " " + std::to_string(scrollOffset + 1) + "-" +
-                        std::to_string(std::min(scrollOffset + availableRows,
-                                                (int)lines.size())) +
-                        "/" + std::to_string(lines.size()) + " ";
+    std::string right =
+        " " + std::to_string(scrollOffset + 1) + "-" +
+        std::to_string(
+            std::min(scrollOffset + availableRows, (int)lines.size())) +
+        "/" + std::to_string(lines.size()) + " ";
 
     editor.appendStatusLine(output, status, right);
 
@@ -854,7 +880,9 @@ void HelpMode::updateSearchMatches(Editor&)
 
         positions.clear();
         int score = editor::helper::fuzzyScoreWithPositions(
-            searchQuery, display, positions);
+            searchQuery,
+            display,
+            positions);
         if(score >= 0)
         {
             match.score = score;
@@ -882,7 +910,9 @@ void HelpMode::updateSearchMatches(Editor&)
 
                 positions.clear();
                 int score = editor::helper::fuzzyScoreWithPositions(
-                    searchQuery, display, positions);
+                    searchQuery,
+                    display,
+                    positions);
                 if(score < 0)
                     continue;
 
@@ -898,13 +928,15 @@ void HelpMode::updateSearchMatches(Editor&)
         }
     }
 
-    std::stable_sort(scored.begin(), scored.end(),
-                     [](const auto& left, const auto& right)
-                     {
-                         if(left.first.score != right.first.score)
-                             return left.first.score > right.first.score;
-                         return left.second < right.second;
-                     });
+    std::stable_sort(
+        scored.begin(),
+        scored.end(),
+        [](const auto& left, const auto& right)
+        {
+            if(left.first.score != right.first.score)
+                return left.first.score > right.first.score;
+            return left.second < right.second;
+        });
 
     for(auto& entry : scored)
         searchMatches.push_back(std::move(entry.first));
@@ -937,7 +969,8 @@ bool HelpMode::acceptSearch(Editor& editor)
     const int visibleRows = helpModeContentRows(editor);
     const int maxScroll = std::max(0, (int)lines.size() - visibleRows);
     scrollOffset = std::clamp(match.line, 0, maxScroll);
-    selectedLine = std::clamp(match.line, 0, std::max(0, (int)lines.size() - 1));
+    selectedLine =
+        std::clamp(match.line, 0, std::max(0, (int)lines.size() - 1));
     jumpHighlight = true;
     Terminal::setCursorBlock();
     editor.needsFullRedraw = true;
@@ -977,8 +1010,9 @@ void HelpMode::searchHalfPageDown(Editor& editor)
         return;
 
     const int visible = helpSearchVisibleMatches(editor);
-    searchCursor = std::min((int)searchMatches.size() - 1,
-                            searchCursor + std::max(1, visible / 2));
+    searchCursor = std::min(
+        (int)searchMatches.size() - 1,
+        searchCursor + std::max(1, visible / 2));
     if(searchCursor >= searchOffset + visible)
         searchOffset = searchCursor - visible + 1;
 }
@@ -1088,7 +1122,8 @@ void HelpMode::drawSearch(Editor& editor) const
         if(isSelected)
             output += editor.theme.reset();
 
-        const int usedCols = prefixWidth + text_utils::utf8DisplayWidth(content);
+        const int usedCols =
+            prefixWidth + text_utils::utf8DisplayWidth(content);
         if(usedCols < editor.screenCols)
             output += std::string(editor.screenCols - usedCols, ' ');
         output += "\r\n";
@@ -1114,7 +1149,8 @@ void HelpMode::drawSearch(Editor& editor) const
                  "] <Enter> jump  <Esc> close  <j/k> navigate  <Ctrl-I> docs:";
         status += searchDocumentation ? "on" : "off";
     }
-    if(const auto error = editor::helper::regexQueryError(searchQuery); !error.empty())
+    if(const auto error = editor::helper::regexQueryError(searchQuery);
+       !error.empty())
         status = error;
     editor.appendStatusLine(output, status, "");
 
@@ -1127,8 +1163,10 @@ void HelpMode::drawSearch(Editor& editor) const
 
     output += Terminal::ESC_SHOW_CURSOR;
     output += Terminal::cursorPos(
-        1, std::min(editor.screenCols,
-                    (int)headerPrefix.size() + (int)searchQuery.size() + 1));
+        1,
+        std::min(
+            editor.screenCols,
+            (int)headerPrefix.size() + (int)searchQuery.size() + 1));
 
     const bool syncOutput = Terminal::useSynchronizedOutput();
     if(syncOutput)
@@ -1150,8 +1188,11 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
         topic_lower.erase(topic_lower.begin());
     while(!topic_lower.empty() && text_utils::is_space(topic_lower.back()))
         topic_lower.pop_back();
-    std::transform(topic_lower.begin(), topic_lower.end(), topic_lower.begin(),
-                   ::tolower);
+    std::transform(
+        topic_lower.begin(),
+        topic_lower.end(),
+        topic_lower.begin(),
+        ::tolower);
 
 #ifdef UVIM_ENABLE_DEBUGGER
     if(topic_lower == "dbgrun" || topic_lower == "dbgattach")
@@ -1164,7 +1205,8 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "`:dbgattach re:` opens live process regex filtering without --.",
             "`re:^worker_[0-9]+$` matches names; `re:^[0-9]{4}$` matches PIDs.",
             "Use [A-Za-z0-9] for letters/digits; commas/spaces are literal.",
-            "`:dbgattach --` opens the process picker; type name/PID to filter.",
+            "`:dbgattach --` opens the process picker; type name/PID to "
+            "filter.",
             "Ctrl-J/K or arrows select; Enter attaches; Tab inserts the PID.",
             "Esc closes the picker, Ctrl-R refreshes, Ctrl-U clears its query.",
             "`:dbgattach --backend gdb -- QUERY` selects a backend first.",
@@ -1176,34 +1218,46 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "variables and threads appear on the right. Small terminals",
             "show the focused pane alone.",
             "",
-            "`j/k` selects rows. Tab selects the next pane; Shift-Tab the previous.",
+            "`j/k` selects rows. Tab selects the next pane; Shift-Tab the "
+            "previous.",
             "v focuses Variables; t focuses Threads.",
             "Attaching in sleep selects a readable application caller.",
             "The source title identifies it; :frame 0 shows the stop frame.",
             "Use :up/:down to inspect other frames.",
-            "Type :frame -- to open a fuzzy picker of the selected thread's frames.",
+            "Type :frame -- to open a fuzzy picker of the selected thread's "
+            "frames.",
             "Filter by number, symbol, file, or address; Ctrl-J/K selects.",
             "Enter selects the frame; Tab inserts its ID without selecting.",
-            "* marks the current frame. Ctrl-R refreshes; Ctrl-U clears the filter.",
-            "Esc returns to the frame prompt. Lists up to 256 frames while paused.",
-            "Frames without readable local source are dimmed and marked [no source].",
-            "Highlighting previews the file and target row in Source before Enter.",
-            "Ctrl-D toggles source/library assembly at the highlighted frame's PC.",
+            "* marks the current frame. Ctrl-R refreshes; Ctrl-U clears the "
+            "filter.",
+            "Esc returns to the frame prompt. Lists up to 256 frames while "
+            "paused.",
+            "Frames without readable local source are dimmed and marked [no "
+            "source].",
+            "Highlighting previews the file and target row in Source before "
+            "Enter.",
+            "Ctrl-D toggles source/library assembly at the highlighted frame's "
+            "PC.",
             "Previewing does not select a frame or change its variables.",
             "Esc restores the original source view.",
             "Enter on a thread selects it and refreshes source and locals.",
             "In Variables: p/Enter prints, a disassembles a pointer/address,",
             "m shows raw storage bytes; s shows total size and padding.",
-            "Size inspection includes member sizes and nested layouts (i aliases s).",
+            "Size inspection includes member sizes and nested layouts (i "
+            "aliases s).",
             "Outside Variables, s still steps into code.",
             "Printing local variables includes storage/layout information.",
-            "Size/layout opens a popup: j/k or Ctrl-J/K scrolls, PgUp/PgDn pages.",
-            "g/G goes first/last; Esc/Enter/q closes and preserves variable focus.",
-            "Values, assembly, and bytes use Output. Function size is code bytes.",
+            "Size/layout opens a popup: j/k or Ctrl-J/K scrolls, PgUp/PgDn "
+            "pages.",
+            "g/G goes first/last; Esc/Enter/q closes and preserves variable "
+            "focus.",
+            "Values, assembly, and bytes use Output. Function size is code "
+            "bytes.",
             "Press v to return to Variables; j/k scrolls Output rows.",
             "`:disasm callback` or `:disasm 0xADDRESS` reads instructions.",
             "`:disasm` alone uses the selected frame's program counter.",
-            "`:mem &variable` reads storage; `:mem ptr` reads pointed-to bytes.",
+            "`:mem &variable` reads storage; `:mem ptr` reads pointed-to "
+            "bytes.",
             "Add --count N before the expression to limit the output:",
             "`:mem --count 16 &count`, `:disasm --count 8 callback`.",
             "Defaults: 64 bytes / 32 instructions; maxima: 4096 / 256.",
@@ -1244,7 +1298,8 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
     }
     else
 #endif
-    if(topic_lower.empty() || topic_lower == "index" || topic_lower == "help")
+        if(topic_lower.empty() || topic_lower == "index" ||
+           topic_lower == "help")
     {
         lines = {
             "# uvim Help",
@@ -1256,40 +1311,43 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
         };
         for(const std::string& topicName : helpSearchTopics())
         {
-            lines.push_back("  `" + helpTopicLabel(topicName) + "` - " +
-                            helpTopicDescription(topicName));
+            lines.push_back(
+                "  `" + helpTopicLabel(topicName) + "` - " +
+                helpTopicDescription(topicName));
         }
-        lines.insert(lines.end(), {
-            "",
-            "QUICK START:",
-            "  `i`        - Enter insert mode",
-            "  `ESC`      - Return to normal mode",
-            "  `:w`       - Save file",
-            "  `:q`       - Quit",
-            "  `:wq`      - Save and quit",
-            "",
-            "NAVIGATION:",
-            "  `h j k l`  - Move left/down/up/right",
-            "  `gg`       - Go to top",
-            "  `G`        - Go to bottom",
-            "  `Ctrl-f`   - Fuzzy file finder",
-            "  `Ctrl-x`   - Regex search view",
-            "  `Space-e`  - Diagnostic popup on LSP diagnostic row",
-            "  `Space-m e/w` - Active-LSP error/warning jump list",
-            "  `Space-x`  - File browser",
-            "  `Space Space` - Command palette (`:help palette`)",
-            "  `Ctrl-w`   - Browse buffers for the active pane",
-            "  `Space-w c` - Close active split pane",
+        lines.insert(
+            lines.end(),
+            {
+                "",
+                "QUICK START:",
+                "  `i`        - Enter insert mode",
+                "  `ESC`      - Return to normal mode",
+                "  `:w`       - Save file",
+                "  `:q`       - Quit",
+                "  `:wq`      - Save and quit",
+                "",
+                "NAVIGATION:",
+                "  `h j k l`  - Move left/down/up/right",
+                "  `gg`       - Go to top",
+                "  `G`        - Go to bottom",
+                "  `Ctrl-f`   - Fuzzy file finder",
+                "  `Ctrl-x`   - Regex search view",
+                "  `Space-e`  - Diagnostic popup on LSP diagnostic row",
+                "  `Space-m e/w` - Active-LSP error/warning jump list",
+                "  `Space-x`  - File browser",
+                "  `Space Space` - Command palette (`:help palette`)",
+                "  `Ctrl-w`   - Browse buffers for the active pane",
+                "  `Space-w c` - Close active split pane",
 #ifdef UVIM_ENABLE_MODERN_KEYBINDINGS
 #ifdef UVIM_ENABLE_MULTI_PANE_SPLITS
-            "  `Ctrl-Shift-h/j/k/l` - Switch split pane by direction",
+                "  `Ctrl-Shift-h/j/k/l` - Switch split pane by direction",
 #else
-            "  `Ctrl-h`/`Ctrl-l` - Prev/next buffer",
+                "  `Ctrl-h`/`Ctrl-l` - Prev/next buffer",
 #endif
 #endif
-            "",
-            "Press `q` to close this help window.",
-        });
+                "",
+                "Press `q` to close this help window.",
+            });
     }
     else if(topic_lower == "commands")
     {
@@ -1953,7 +2011,8 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `ga`       - Open git stage view",
             "",
             "SPLITS / WINDOWS:",
-#if defined(UVIM_ENABLE_MODERN_KEYBINDINGS) && defined(UVIM_ENABLE_MULTI_PANE_SPLITS)
+#if defined(UVIM_ENABLE_MODERN_KEYBINDINGS) &&                                 \
+    defined(UVIM_ENABLE_MULTI_PANE_SPLITS)
             "  `Ctrl-Shift-h/j/k/l` - Switch active split pane by direction",
 #elif defined(UVIM_ENABLE_MODERN_KEYBINDINGS)
             "  `Ctrl-h`/`Ctrl-l` - Prev/next buffer",
@@ -2082,7 +2141,8 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `Ctrl-Shift-H`    - Move buffer left when no split is active",
             "  `Ctrl-Shift-L`    - Move buffer right when no split is active",
             "  `Ctrl-^`          - Alternate buffer",
-#if defined(UVIM_ENABLE_MODERN_KEYBINDINGS) && defined(UVIM_ENABLE_MULTI_PANE_SPLITS)
+#if defined(UVIM_ENABLE_MODERN_KEYBINDINGS) &&                                 \
+    defined(UVIM_ENABLE_MULTI_PANE_SPLITS)
             "  `Ctrl-Shift-h/j/k/l` - Switch split pane by direction",
 #elif !defined(UVIM_ENABLE_MULTI_PANE_SPLITS)
             "  `Ctrl-h`/`Ctrl-l`    - Prev / next buffer",
@@ -2119,7 +2179,8 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `Ctrl-w`                       - Browse open buffers for the "
             "active pane",
             "  Buffer browser `Enter` changes only the active pane",
-#if defined(UVIM_ENABLE_MODERN_KEYBINDINGS) && defined(UVIM_ENABLE_MULTI_PANE_SPLITS)
+#if defined(UVIM_ENABLE_MODERN_KEYBINDINGS) &&                                 \
+    defined(UVIM_ENABLE_MULTI_PANE_SPLITS)
             "",
             "PANE NAVIGATION (NORMAL MODE):",
             "  `Ctrl-Shift-h` - Focus pane to the left",
@@ -2306,8 +2367,9 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `d$`      - Delete to end of line",
         };
     }
-    else if(topic_lower == "filebrowser" || topic_lower == "browser" ||
-            topic_lower == "explore" || topic_lower == "ex")
+    else if(
+        topic_lower == "filebrowser" || topic_lower == "browser" ||
+        topic_lower == "explore" || topic_lower == "ex")
     {
         lines = {
             "# File Browser",
@@ -2330,7 +2392,8 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `.`                    - Toggle hidden files",
             "  `Ctrl-g`               - Toggle .gitignore filtering",
             "  `r` / `Ctrl-l`         - Refresh",
-            "  `q`                    - Close active browser pane; final pane exits",
+            "  `q`                    - Close active browser pane; final pane "
+            "exits",
             "  `Q`                    - Exit browser and save pane layout",
             "",
             "SELECTION (multi-file):",
@@ -2414,8 +2477,9 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "for cursor movement and selection.",
         };
     }
-    else if(topic_lower == "diagnostics" || topic_lower == "diag" ||
-            topic_lower == "keylog")
+    else if(
+        topic_lower == "diagnostics" || topic_lower == "diag" ||
+        topic_lower == "keylog")
     {
         lines = {
             "# Diagnostics",
@@ -2451,8 +2515,9 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  Press the key, quit, then `cat /tmp/uvim_keys.log`.",
         };
     }
-    else if(topic_lower == "lsp" || topic_lower == "lsp-install" ||
-            topic_lower == "lspinfo")
+    else if(
+        topic_lower == "lsp" || topic_lower == "lsp-install" ||
+        topic_lower == "lspinfo")
     {
         lines = {
             "# LSP Setup And Troubleshooting",
@@ -2560,7 +2625,8 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "`Space Space` (or `:palette`) - in normal and visual modes -",
             "opens a floating picker, like",
             "Ctrl-p and Ctrl-a, listing what uVim can do by name - \"Open",
-            "file browser\", \"Change buffer\", \"Save all files\", \"Git: log\"",
+            "file browser\", \"Change buffer\", \"Save all files\", \"Git: "
+            "log\"",
             "- with the key or command that does the same on the right",
             "(`Space x`, `Ctrl-W`, `:wa`). Choosing one does exactly that.",
             "All other `:` commands follow, titled by what they do.",
@@ -2588,8 +2654,9 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "screen like the other pickers.",
         };
     }
-    else if(topic_lower == "keys" || topic_lower == "iskitty" ||
-            topic_lower == "kitty")
+    else if(
+        topic_lower == "keys" || topic_lower == "iskitty" ||
+        topic_lower == "kitty")
     {
         lines = {
             "# Ctrl+Shift Keys and Alt Alternatives",
@@ -2607,8 +2674,10 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `Ctrl-Shift-h`  `Alt-h`    Focus pane left / move buffer left",
             "  `Ctrl-Shift-l`  `Alt-l`    Focus pane right / move buffer right",
             "  `Ctrl-Shift-k`  `Alt-k`    Focus pane above; scroll preview up",
-            "  `Ctrl-Shift-j`  `Alt-j`    Focus pane below; scroll preview down",
-            "  `Ctrl-Shift-x`  `Alt-x`    Close matching buffers (buffer browser)",
+            "  `Ctrl-Shift-j`  `Alt-j`    Focus pane below; scroll preview "
+            "down",
+            "  `Ctrl-Shift-x`  `Alt-x`    Close matching buffers (buffer "
+            "browser)",
             "",
             "Preview scrolling works in the Ctrl-p / Ctrl-a pickers; pane",
             "focus in normal mode and the file browser.",
@@ -2670,8 +2739,9 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `q`/`Esc` - Close",
         };
     }
-    else if(topic_lower == "logging" || topic_lower == "logs" ||
-            topic_lower == "uvimlog")
+    else if(
+        topic_lower == "logging" || topic_lower == "logs" ||
+        topic_lower == "uvimlog")
     {
         lines = {
             "# uvim Logging",
@@ -2747,12 +2817,15 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
     }
 }
 
-std::optional<ModeState> HelpMode::executeCommand(ModeContext& ctx,
-                                                  std::string_view commandLine)
+std::optional<ModeState> HelpMode::executeCommand(
+    ModeContext& ctx,
+    std::string_view commandLine)
 {
     return dispatchCommandLine(
-        ctx, commandLine,
-        [&](ModeContext& ctx, const ParsedCommand& command,
+        ctx,
+        commandLine,
+        [&](ModeContext& ctx,
+            const ParsedCommand& command,
             std::optional<ModeState>& nextState) -> bool
         {
             // Handle :help command to navigate to different topics
@@ -2762,8 +2835,8 @@ std::optional<ModeState> HelpMode::executeCommand(ModeContext& ctx,
                 topic = newTopic;
                 scrollOffset = 0;
                 loadHelpContent(topic);
-                ctx.setStatusMessage("Help: " +
-                                     (topic.empty() ? "index" : topic));
+                ctx.setStatusMessage(
+                    "Help: " + (topic.empty() ? "index" : topic));
                 ctx.requestFullRedraw();
                 return true;
             }

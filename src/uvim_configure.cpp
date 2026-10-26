@@ -132,22 +132,34 @@ bool write_console_utf8(std::string_view text) noexcept
     if(text.size() > static_cast<size_t>((std::numeric_limits<int>::max)()))
         return false;
 
-    int wideLen =
-        MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, text.data(),
-                            static_cast<int>(text.size()), nullptr, 0);
+    int wideLen = MultiByteToWideChar(
+        CP_UTF8,
+        MB_ERR_INVALID_CHARS,
+        text.data(),
+        static_cast<int>(text.size()),
+        nullptr,
+        0);
     if(wideLen <= 0)
         return false;
 
     std::wstring wide(static_cast<size_t>(wideLen), L'\0');
-    wideLen = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, text.data(),
-                                  static_cast<int>(text.size()), wide.data(),
-                                  wideLen);
+    wideLen = MultiByteToWideChar(
+        CP_UTF8,
+        MB_ERR_INVALID_CHARS,
+        text.data(),
+        static_cast<int>(text.size()),
+        wide.data(),
+        wideLen);
     if(wideLen <= 0)
         return false;
 
     DWORD written = 0;
-    return WriteConsoleW(out, wide.data(), static_cast<DWORD>(wide.size()),
-                         &written, nullptr) != 0;
+    return WriteConsoleW(
+               out,
+               wide.data(),
+               static_cast<DWORD>(wide.size()),
+               &written,
+               nullptr) != 0;
 }
 #endif
 
@@ -290,29 +302,23 @@ struct Config
 
 bool operator==(const Config& lhs, const Config& rhs)
 {
-    return lhs.featureSet == rhs.featureSet &&
-           lhs.buildType == rhs.buildType && lhs.platform == rhs.platform &&
+    return lhs.featureSet == rhs.featureSet && lhs.buildType == rhs.buildType &&
+           lhs.platform == rhs.platform &&
            lhs.optimization == rhs.optimization &&
            lhs.ninjaGenerator == rhs.ninjaGenerator &&
            lhs.installDir == rhs.installDir && lhs.jobs == rhs.jobs &&
            lhs.logFile == rhs.logFile && lhs.minimal == rhs.minimal &&
            lhs.browserTools == rhs.browserTools &&
            lhs.auxiliaryViews == rhs.auxiliaryViews &&
-           lhs.clangdLsp == rhs.clangdLsp &&
-           lhs.robotLsp == rhs.robotLsp &&
-           lhs.pythonLsp == rhs.pythonLsp &&
-           lhs.mlangLsp == rhs.mlangLsp &&
+           lhs.clangdLsp == rhs.clangdLsp && lhs.robotLsp == rhs.robotLsp &&
+           lhs.pythonLsp == rhs.pythonLsp && lhs.mlangLsp == rhs.mlangLsp &&
            lhs.mlangSemanticTokens == rhs.mlangSemanticTokens &&
            lhs.htmlLsp == rhs.htmlLsp && lhs.cssLsp == rhs.cssLsp &&
            lhs.jsonLsp == rhs.jsonLsp && lhs.tsLsp == rhs.tsLsp &&
-           lhs.csharpLsp == rhs.csharpLsp &&
-           lhs.debugger == rhs.debugger &&
-           lhs.asmView == rhs.asmView &&
-           lhs.asmDocs == rhs.asmDocs &&
-           lhs.gitTools == rhs.gitTools &&
-           lhs.searchTools == rhs.searchTools &&
-           lhs.rgCache == rhs.rgCache &&
-           lhs.formatters == rhs.formatters &&
+           lhs.csharpLsp == rhs.csharpLsp && lhs.debugger == rhs.debugger &&
+           lhs.asmView == rhs.asmView && lhs.asmDocs == rhs.asmDocs &&
+           lhs.gitTools == rhs.gitTools && lhs.searchTools == rhs.searchTools &&
+           lhs.rgCache == rhs.rgCache && lhs.formatters == rhs.formatters &&
            lhs.systemClipboard == rhs.systemClipboard &&
            lhs.structSizePopup == rhs.structSizePopup &&
            lhs.colorTools == rhs.colorTools &&
@@ -320,14 +326,13 @@ bool operator==(const Config& lhs, const Config& rhs)
            lhs.modernKeybindings == rhs.modernKeybindings &&
            lhs.multiPaneSplits == rhs.multiPaneSplits &&
            lhs.perPaneLsp == rhs.perPaneLsp && lhs.tests == rhs.tests &&
-           lhs.compileCommands == rhs.compileCommands &&
-           lhs.lto == rhs.lto && lhs.gcSections == rhs.gcSections &&
+           lhs.compileCommands == rhs.compileCommands && lhs.lto == rhs.lto &&
+           lhs.gcSections == rhs.gcSections &&
            lhs.stripBinary == rhs.stripBinary &&
            lhs.staticLink == rhs.staticLink &&
            lhs.autoIncrementBuild == rhs.autoIncrementBuild &&
            lhs.sanitizers == rhs.sanitizers &&
-           lhs.debugLogging == rhs.debugLogging &&
-           lhs.debugLsp == rhs.debugLsp;
+           lhs.debugLogging == rhs.debugLogging && lhs.debugLsp == rhs.debugLsp;
 }
 
 bool operator!=(const Config& lhs, const Config& rhs)
@@ -386,13 +391,13 @@ struct VisibleRow
     size_t item = 0;
 };
 
-const std::vector<std::string> kFeatureSets = {"vi-real", "vi-min", "minimal",
-                                               "basic", "full"};
-const std::vector<std::string> kBuildTypes = {"Release", "Debug",
-                                              "RelWithDebInfo", "MinSizeRel"};
+const std::vector<std::string> kFeatureSets =
+    {"vi-real", "vi-min", "minimal", "basic", "full"};
+const std::vector<std::string> kBuildTypes =
+    {"Release", "Debug", "RelWithDebInfo", "MinSizeRel"};
 const std::vector<std::string> kPlatforms = {"AUTO", "POSIX", "WIN32"};
-const std::vector<std::string> kOptimizations = {"O0", "O1", "O2",
-                                                 "O3", "Os", "Oz"};
+const std::vector<std::string> kOptimizations =
+    {"O0", "O1", "O2", "O3", "Os", "Oz"};
 
 bool equals_ci(std::string_view lhs, std::string_view rhs)
 {
@@ -407,8 +412,9 @@ bool equals_ci(std::string_view lhs, std::string_view rhs)
     return true;
 }
 
-std::optional<int> choice_index(std::string_view value,
-                                const std::vector<std::string>& choices)
+std::optional<int> choice_index(
+    std::string_view value,
+    const std::vector<std::string>& choices)
 {
     for(size_t i = 0; i < choices.size(); ++i)
     {
@@ -846,26 +852,41 @@ std::vector<Section> make_sections()
            "vi-real is a hard minimal build that keeps file/buffer browser "
            "support but compiles out optional popups, help views, LSP, git, "
            "fzf/rg-style search views, formatters, clipboard, color tools, "
-           "terminal colors, and struct-size probes. It also disables modern "
+           "terminal colors, and struct-size probes. It also disables "
+           "modern "
            "convenience keybindings. "
            "vi-min keeps file/buffer browser, tabs, and color tools but "
            "compiles out git, fzf/rg-style search views, formatters, "
-           "clipboard, struct-size probes, docs, tests, and LSP. Minimal keeps "
-           "the normal editor tools but removes docs/tests/LSP. Basic is the "
+           "clipboard, struct-size probes, docs, tests, and LSP. Minimal "
+           "keeps "
+           "the normal editor tools but removes docs/tests/LSP. Basic is "
+           "the "
            "default developer build. Full also enables LSP and the assembly "
            "browser."}}},
         {"Target",
          "Platform, compiler mode, and build parallelism. Release defaults to "
          "-O2 unless another optimization level is selected.",
          true,
-         {{ItemKind::Choice, "Build type", "CMAKE_BUILD_TYPE", nullptr,
-           &Config::buildType, kBuildTypes,
+         {{ItemKind::Choice,
+           "Build type",
+           "CMAKE_BUILD_TYPE",
+           nullptr,
+           &Config::buildType,
+           kBuildTypes,
            "CMake build type. Release is the normal default."},
-          {ItemKind::Choice, "Terminal backend", "UVIM_TERMINAL_BACKEND",
-           nullptr, &Config::platform, kPlatforms,
+          {ItemKind::Choice,
+           "Terminal backend",
+           "UVIM_TERMINAL_BACKEND",
+           nullptr,
+           &Config::platform,
+           kPlatforms,
            "Select AUTO, POSIX, or WIN32 terminal backend."},
-          {ItemKind::Choice, "Optimization", "UVIM_OPTIMIZATION_LEVEL", nullptr,
-           &Config::optimization, kOptimizations,
+          {ItemKind::Choice,
+           "Optimization",
+           "UVIM_OPTIMIZATION_LEVEL",
+           nullptr,
+           &Config::optimization,
+           kOptimizations,
            "Release optimization flag. O2 is the default; Oz is best for "
            "minimum binary size on Clang-style toolchains."},
           {ItemKind::Toggle,
@@ -875,14 +896,16 @@ std::vector<Section> make_sections()
            nullptr,
            {},
            "Use CMake's Ninja generator when configuring the build. The "
-           "bootstrap and build scripts enable it only when ninja is found."},
+           "bootstrap and build scripts enable it only when ninja is "
+           "found."},
           {ItemKind::Text,
            "Build jobs",
            "UVIM_BUILD_JOBS",
            nullptr,
            nullptr,
            {},
-           "Parallel build jobs used in the generated cmake --build command. "
+           "Parallel build jobs used in the generated cmake --build "
+           "command. "
            "Defaults to the maximum available hardware threads.",
            &Config::jobs}}},
         {"Install",
@@ -909,7 +932,8 @@ std::vector<Section> make_sections()
            &Config::browserTools,
            nullptr,
            {},
-           "Build switch for the built-in file browser and buffer browser."},
+           "Build switch for the built-in file browser and buffer "
+           "browser."},
           {ItemKind::Toggle,
            "Auxiliary views",
            "",
@@ -933,7 +957,8 @@ std::vector<Section> make_sections()
            nullptr,
            {},
            "Build :asm compilation, source/assembly browsing, the compiler "
-           "flag picker, and instruction inspection. Requires auxiliary views. "
+           "flag picker, and instruction inspection. Requires auxiliary "
+           "views. "
            "Enabled by default only in Full."},
           {ItemKind::Toggle,
            "Assembly docs",
@@ -992,7 +1017,7 @@ std::vector<Section> make_sections()
            &Config::colorTools,
            nullptr,
            {},
-          "Build switch for :ansitools, :colorpicker, :colorselect, and "
+           "Build switch for :ansitools, :colorpicker, :colorselect, and "
            "leader-cp/cs shortcuts."},
           {ItemKind::Toggle,
            "Terminal colors",
@@ -1016,7 +1041,7 @@ std::vector<Section> make_sections()
            &Config::multiPaneSplits,
            nullptr,
            {},
-          "Build switch for nested split panes. Disable to keep the older "
+           "Build switch for nested split panes. Disable to keep the older "
            "single split pair behavior and normal-mode Ctrl-h/l buffer "
            "navigation."},
           {ItemKind::Toggle,
@@ -1129,7 +1154,8 @@ std::vector<Section> make_sections()
            &Config::autoIncrementBuild,
            nullptr,
            {},
-           "Auto-increments the project patch/build number on configure."}}},
+           "Auto-increments the project patch/build number on "
+           "configure."}}},
         {"Size And Link",
          "Advanced binary-size controls. These are the main knobs for a very "
          "small release binary.",
@@ -1147,7 +1173,8 @@ std::vector<Section> make_sections()
            &Config::gcSections,
            nullptr,
            {},
-           "Builds functions/data into separate sections and asks the linker "
+           "Builds functions/data into separate sections and asks the "
+           "linker "
            "to drop unused sections."},
           {ItemKind::Toggle,
            "Strip binary",
@@ -1277,8 +1304,10 @@ std::string preset_help(const Config& cfg)
            "compile_commands.json.";
 }
 
-std::string help_for(const Config& cfg, const std::vector<Section>& sections,
-                     const VisibleRow& row)
+std::string help_for(
+    const Config& cfg,
+    const std::vector<Section>& sections,
+    const VisibleRow& row)
 {
     if(row.kind == RowKind::Section)
         return sections[row.section].help;
@@ -1345,8 +1374,12 @@ std::string pad_ansi_line(std::string line, int cols)
     return line;
 }
 
-std::string row_text(const Config& cfg, const std::vector<Section>& sections,
-                     const VisibleRow& row, bool selected, bool editing)
+std::string row_text(
+    const Config& cfg,
+    const std::vector<Section>& sections,
+    const VisibleRow& row,
+    bool selected,
+    bool editing)
 {
     std::string out = selected ? "> " : "  ";
 
@@ -1362,7 +1395,8 @@ std::string row_text(const Config& cfg, const std::vector<Section>& sections,
     }
 
     const Item& item = sections[row.section].items[row.item];
-    const bool disabled = item.flag == &Config::staticLink && !kStaticLinkAvailable;
+    const bool disabled =
+        item.flag == &Config::staticLink && !kStaticLinkAvailable;
     if(item.kind == ItemKind::Toggle)
     {
         out += "  ";
@@ -1469,10 +1503,12 @@ int longest_documentation_height(const std::vector<Section>& sections, int cols)
     for(const auto& section : sections)
     {
         height = std::max(
-            height, static_cast<int>(wrap_text(section.help, cols).size()));
+            height,
+            static_cast<int>(wrap_text(section.help, cols).size()));
         for(const auto& item : section.items)
             height = std::max(
-                height, static_cast<int>(wrap_text(item.help, cols).size()));
+                height,
+                static_cast<int>(wrap_text(item.help, cols).size()));
     }
 
     return height;
@@ -1482,9 +1518,10 @@ Layout make_layout(const std::vector<Section>& sections, TerminalSize screen)
 {
     Layout layout;
     layout.keyRows = static_cast<int>(
-        wrap_text("j/k/arrows move  h close  l open  space/enter change  "
-                  "s save (Y/n)  q quit",
-                  screen.cols)
+        wrap_text(
+            "j/k/arrows move  h close  l open  space/enter change  "
+            "s save (Y/n)  q quit",
+            screen.cols)
             .size());
     layout.outputRows = static_cast<int>(
         wrap_text("Output: build/uvim_config_cache.cmake", screen.cols).size());
@@ -1492,9 +1529,9 @@ Layout make_layout(const std::vector<Section>& sections, TerminalSize screen)
     const int fixedWithoutListAndDoc = layout.titleRows + layout.keyRows +
                                        layout.spacerRows + layout.docTitleRows +
                                        layout.outputRows;
-    layout.messageRows =
-        std::min(layout.messageRows,
-                 std::max(1, screen.rows - fixedWithoutListAndDoc - 2));
+    layout.messageRows = std::min(
+        layout.messageRows,
+        std::max(1, screen.rows - fixedWithoutListAndDoc - 2));
 
     const int nonDocRows = fixedWithoutListAndDoc + layout.messageRows;
     const int availableForListAndDoc = std::max(2, screen.rows - nonDocRows);
@@ -1544,8 +1581,11 @@ int clamp_scroll(int scrollOffset, int cursor, int rowCount, int listHeight)
     return scrollOffset;
 }
 
-void append_wrapped_fixed(std::vector<std::string>& out, std::string_view text,
-                          int rows, int cols)
+void append_wrapped_fixed(
+    std::vector<std::string>& out,
+    std::string_view text,
+    int rows,
+    int cols)
 {
     std::vector<std::string> lines = wrap_text(text, cols);
     for(int i = 0; i < rows; ++i)
@@ -1557,18 +1597,27 @@ void append_wrapped_fixed(std::vector<std::string>& out, std::string_view text,
     }
 }
 
-void append_documentation(std::vector<std::string>& out, const Config& cfg,
-                          const std::vector<Section>& sections,
-                          const VisibleRow& row, int docHeight, int cols)
+void append_documentation(
+    std::vector<std::string>& out,
+    const Config& cfg,
+    const std::vector<Section>& sections,
+    const VisibleRow& row,
+    int docHeight,
+    int cols)
 {
-    out.push_back(color_enabled() ? "\x1b[1mDocumentation\x1b[0m"
-                                  : "Documentation");
+    out.push_back(
+        color_enabled() ? "\x1b[1mDocumentation\x1b[0m" : "Documentation");
     append_wrapped_fixed(out, help_for(cfg, sections, row), docHeight, cols);
 }
 
-void draw(const Config& cfg, const std::vector<Section>& sections, int cursor,
-          int scrollOffset, TerminalSize screen, std::string_view message,
-          bool editingText)
+void draw(
+    const Config& cfg,
+    const std::vector<Section>& sections,
+    int cursor,
+    int scrollOffset,
+    TerminalSize screen,
+    std::string_view message,
+    bool editingText)
 {
     static std::vector<std::string> previousScreenLines;
     static TerminalSize previousScreen{};
@@ -1586,10 +1635,12 @@ void draw(const Config& cfg, const std::vector<Section>& sections, int cursor,
         std::string(color_enabled() ? "\x1b[1;36m" : "") +
         truncate_line("uvim build configurator", screen.cols) +
         std::string(color_enabled() ? "\x1b[0m" : ""));
-    append_wrapped_fixed(screenLines,
-                         "j/k/arrows move  h/left close  l/right open  "
-                         "space/enter change  s save (Y/n)  q quit",
-                         layout.keyRows, screen.cols);
+    append_wrapped_fixed(
+        screenLines,
+        "j/k/arrows move  h/left close  l/right open  "
+        "space/enter change  s save (Y/n)  q quit",
+        layout.keyRows,
+        screen.cols);
     screenLines.push_back("");
 
     int listRowsPrinted = 0;
@@ -1609,8 +1660,12 @@ void draw(const Config& cfg, const std::vector<Section>& sections, int cursor,
     for(int i = scrollOffset; i < endRow && listRowsPrinted < listHeight; ++i)
     {
         std::string line = truncate_line(
-            row_text(cfg, sections, rows[static_cast<size_t>(i)],
-                     i == safeCursor, editingText && i == safeCursor),
+            row_text(
+                cfg,
+                sections,
+                rows[static_cast<size_t>(i)],
+                i == safeCursor,
+                editingText && i == safeCursor),
             screen.cols);
         if(i == safeCursor)
         {
@@ -1631,11 +1686,18 @@ void draw(const Config& cfg, const std::vector<Section>& sections, int cursor,
         screenLines.push_back("");
 
     if(!rows.empty())
-        append_documentation(screenLines, cfg, sections,
-                             rows[static_cast<size_t>(safeCursor)],
-                             layout.docRows, screen.cols);
-    append_wrapped_fixed(screenLines, "Output: build/uvim_config_cache.cmake",
-                         layout.outputRows, screen.cols);
+        append_documentation(
+            screenLines,
+            cfg,
+            sections,
+            rows[static_cast<size_t>(safeCursor)],
+            layout.docRows,
+            screen.cols);
+    append_wrapped_fixed(
+        screenLines,
+        "Output: build/uvim_config_cache.cmake",
+        layout.outputRows,
+        screen.cols);
     if(!message.empty())
     {
         std::vector<std::string> lines = wrap_text(message, screen.cols);
@@ -1666,14 +1728,15 @@ void draw(const Config& cfg, const std::vector<Section>& sections, int cursor,
     auto cursor_position = [](size_t row) -> std::string
     { return "\x1b[" + std::to_string(row + 1) + ";1H"; };
 
-    const bool fullRedraw =
-        previousScreenLines.empty() || previousScreen.rows != screen.rows ||
-        previousScreen.cols != screen.cols ||
-        previousScreenLines.size() != screenLines.size();
+    const bool fullRedraw = previousScreenLines.empty() ||
+                            previousScreen.rows != screen.rows ||
+                            previousScreen.cols != screen.cols ||
+                            previousScreenLines.size() != screenLines.size();
 
     std::string output;
-    output.reserve(static_cast<size_t>(std::max(1, screen.rows)) *
-                   static_cast<size_t>(std::max(1, screen.cols + 16)));
+    output.reserve(
+        static_cast<size_t>(std::max(1, screen.rows)) *
+        static_cast<size_t>(std::max(1, screen.cols + 16)));
     output += "\x1b[?25l";
 
     if(fullRedraw)
@@ -1741,8 +1804,10 @@ std::string install_command_suffix(const CliOptions& options)
            " --component uvim";
 }
 
-std::string configure_command(const Config& cfg, const CliOptions& options,
-                              const fs::path& cacheFile)
+std::string configure_command(
+    const Config& cfg,
+    const CliOptions& options,
+    const fs::path& cacheFile)
 {
     std::string command = "cmake -C " + cacheFile.string() + " -S " +
                           fs::absolute(options.sourceDir).string() + " -B " +
@@ -1761,9 +1826,12 @@ std::string build_command(const Config& cfg, const CliOptions& options)
     return command;
 }
 
-bool apply_config_value(Config& cfg, CliOptions& options,
-                        std::string_view rawKey, std::string_view rawValue,
-                        std::string& error)
+bool apply_config_value(
+    Config& cfg,
+    CliOptions& options,
+    std::string_view rawKey,
+    std::string_view rawValue,
+    std::string& error)
 {
     const std::string key = trim(rawKey);
     const std::string value = trim(rawValue);
@@ -1905,8 +1973,7 @@ bool apply_config_value(Config& cfg, CliOptions& options,
     else if(key == "static_link")
     {
         cfg.staticLink =
-            kStaticLinkAvailable &&
-            parse_bool(value).value_or(cfg.staticLink);
+            kStaticLinkAvailable && parse_bool(value).value_or(cfg.staticLink);
     }
     else if(key == "sanitizers")
         cfg.sanitizers = parse_bool(value).value_or(cfg.sanitizers);
@@ -1923,8 +1990,11 @@ bool apply_config_value(Config& cfg, CliOptions& options,
     return true;
 }
 
-bool load_config_file(const fs::path& path, Config& cfg, CliOptions& options,
-                      std::string& error)
+bool load_config_file(
+    const fs::path& path,
+    Config& cfg,
+    CliOptions& options,
+    std::string& error)
 {
     std::ifstream file(path);
     if(!file)
@@ -1950,8 +2020,12 @@ bool load_config_file(const fs::path& path, Config& cfg, CliOptions& options,
             return false;
         }
 
-        if(!apply_config_value(cfg, options, trimmed.substr(0, equals),
-                               trimmed.substr(equals + 1), error))
+        if(!apply_config_value(
+               cfg,
+               options,
+               trimmed.substr(0, equals),
+               trimmed.substr(equals + 1),
+               error))
         {
             error = path.string() + ":" + std::to_string(lineNo) + ": " + error;
             return false;
@@ -1961,8 +2035,11 @@ bool load_config_file(const fs::path& path, Config& cfg, CliOptions& options,
     return true;
 }
 
-bool try_load_config_file(const fs::path& path, Config& cfg,
-                          CliOptions& options, std::string& message)
+bool try_load_config_file(
+    const fs::path& path,
+    Config& cfg,
+    CliOptions& options,
+    std::string& message)
 {
     std::error_code ec;
     if(!fs::exists(path, ec))
@@ -1979,8 +2056,10 @@ bool try_load_config_file(const fs::path& path, Config& cfg,
     return true;
 }
 
-bool write_config_file(const Config& cfg, const CliOptions& options,
-                       std::string& error)
+bool write_config_file(
+    const Config& cfg,
+    const CliOptions& options,
+    std::string& error)
 {
     const fs::path path = config_path(options);
     std::error_code ec;
@@ -2054,8 +2133,11 @@ bool write_config_file(const Config& cfg, const CliOptions& options,
     return true;
 }
 
-bool write_cache(const Config& cfg, const std::vector<Section>& sections,
-                 const CliOptions& options, std::string& message)
+bool write_cache(
+    const Config& cfg,
+    const std::vector<Section>& sections,
+    const CliOptions& options,
+    std::string& message)
 {
     fs::path out = output_path(options);
     std::error_code ec;
@@ -2089,11 +2171,9 @@ bool write_cache(const Config& cfg, const std::vector<Section>& sections,
     file << "set(UVIM_MINIMAL " << (cfg.minimal ? "ON" : "OFF")
          << " CACHE BOOL \"\" FORCE)\n";
     file << "set(UVIM_ENABLE_BROWSER_TOOLS "
-         << (cfg.browserTools ? "ON" : "OFF")
-         << " CACHE BOOL \"\" FORCE)\n";
+         << (cfg.browserTools ? "ON" : "OFF") << " CACHE BOOL \"\" FORCE)\n";
     file << "set(UVIM_ENABLE_AUXILIARY_VIEWS "
-         << (cfg.auxiliaryViews ? "ON" : "OFF")
-         << " CACHE BOOL \"\" FORCE)\n";
+         << (cfg.auxiliaryViews ? "ON" : "OFF") << " CACHE BOOL \"\" FORCE)\n";
     for(const auto& section : sections)
     {
         for(const auto& item : section.items)
@@ -2101,9 +2181,8 @@ bool write_cache(const Config& cfg, const std::vector<Section>& sections,
             if(item.kind == ItemKind::Choice)
             {
                 file << "set(" << item.cmakeName << " \""
-                     << cmake_string_literal(
-                            item.choices[static_cast<size_t>(
-                                cfg.*(item.choice))])
+                     << cmake_string_literal(item.choices[static_cast<size_t>(
+                            cfg.*(item.choice))])
                      << "\" CACHE STRING \"\" FORCE)\n";
             }
             else if(item.kind == ItemKind::Text)
@@ -2192,8 +2271,11 @@ void print_help(std::ostream& out)
         << "  uvim-config -p vi-real --install-dir ~/.local/bin --install\n";
 }
 
-bool set_feature(Config& cfg, std::string_view name, bool enabled,
-                 std::string& error)
+bool set_feature(
+    Config& cfg,
+    std::string_view name,
+    bool enabled,
+    std::string& error)
 {
     if(equals_ci(name, "clangd") || equals_ci(name, "lsp") ||
        equals_ci(name, "clangd-lsp"))
@@ -2204,8 +2286,9 @@ bool set_feature(Config& cfg, std::string_view name, bool enabled,
         cfg.pythonLsp = enabled;
     else if(equals_ci(name, "mlang-lsp") || equals_ci(name, "mlang"))
         cfg.mlangLsp = enabled;
-    else if(equals_ci(name, "mlang-semantic-tokens") ||
-            equals_ci(name, "mlang-semantic"))
+    else if(
+        equals_ci(name, "mlang-semantic-tokens") ||
+        equals_ci(name, "mlang-semantic"))
         cfg.mlangSemanticTokens = enabled;
     else if(equals_ci(name, "html-lsp") || equals_ci(name, "html"))
         cfg.htmlLsp = enabled;
@@ -2213,90 +2296,92 @@ bool set_feature(Config& cfg, std::string_view name, bool enabled,
         cfg.cssLsp = enabled;
     else if(equals_ci(name, "json-lsp") || equals_ci(name, "json"))
         cfg.jsonLsp = enabled;
-    else if(equals_ci(name, "ts-lsp") || equals_ci(name, "typescript-lsp") ||
-            equals_ci(name, "typescript") || equals_ci(name, "javascript-lsp"))
+    else if(
+        equals_ci(name, "ts-lsp") || equals_ci(name, "typescript-lsp") ||
+        equals_ci(name, "typescript") || equals_ci(name, "javascript-lsp"))
         cfg.tsLsp = enabled;
-    else if(equals_ci(name, "csharp-lsp") || equals_ci(name, "csharp") ||
-            equals_ci(name, "cs-lsp") || equals_ci(name, "c#"))
+    else if(
+        equals_ci(name, "csharp-lsp") || equals_ci(name, "csharp") ||
+        equals_ci(name, "cs-lsp") || equals_ci(name, "c#"))
         cfg.csharpLsp = enabled;
     else if(equals_ci(name, "debugger"))
         cfg.debugger = enabled;
-    else if(equals_ci(name, "asm-view") || equals_ci(name, "assembly-view") ||
-            equals_ci(name, "assembly-browser"))
+    else if(
+        equals_ci(name, "asm-view") || equals_ci(name, "assembly-view") ||
+        equals_ci(name, "assembly-browser"))
         cfg.asmView = enabled;
     else if(equals_ci(name, "asm-docs") || equals_ci(name, "asm"))
         cfg.asmDocs = enabled;
-    else if(equals_ci(name, "browser-tools") ||
-            equals_ci(name, "browser") ||
-            equals_ci(name, "file-browser") ||
-            equals_ci(name, "buffer-browser"))
+    else if(
+        equals_ci(name, "browser-tools") || equals_ci(name, "browser") ||
+        equals_ci(name, "file-browser") || equals_ci(name, "buffer-browser"))
         cfg.browserTools = enabled;
-    else if(equals_ci(name, "auxiliary-views") ||
-            equals_ci(name, "aux-views") ||
-            equals_ci(name, "auxiliary") ||
-            equals_ci(name, "popups") ||
-            equals_ci(name, "help"))
+    else if(
+        equals_ci(name, "auxiliary-views") || equals_ci(name, "aux-views") ||
+        equals_ci(name, "auxiliary") || equals_ci(name, "popups") ||
+        equals_ci(name, "help"))
         cfg.auxiliaryViews = enabled;
     else if(equals_ci(name, "git") || equals_ci(name, "git-tools"))
         cfg.gitTools = enabled;
     else if(equals_ci(name, "search") || equals_ci(name, "search-tools"))
         cfg.searchTools = enabled;
-    else if(equals_ci(name, "rg-cache") || equals_ci(name, "ripgrep-cache") ||
-            equals_ci(name, "grep-cache"))
+    else if(
+        equals_ci(name, "rg-cache") || equals_ci(name, "ripgrep-cache") ||
+        equals_ci(name, "grep-cache"))
         cfg.rgCache = enabled;
     else if(equals_ci(name, "formatters") || equals_ci(name, "formatter"))
         cfg.formatters = enabled;
     else if(equals_ci(name, "clipboard") || equals_ci(name, "system-clipboard"))
         cfg.systemClipboard = enabled;
-    else if(equals_ci(name, "struct-size") ||
-            equals_ci(name, "struct-size-popup"))
+    else if(
+        equals_ci(name, "struct-size") || equals_ci(name, "struct-size-popup"))
         cfg.structSizePopup = enabled;
-    else if(equals_ci(name, "color-tools") || equals_ci(name, "color") ||
-            equals_ci(name, "ansitools") || equals_ci(name, "ansi-tools") ||
-            equals_ci(name, "colorpicker") || equals_ci(name, "color-picker") ||
-            equals_ci(name, "colorselect") ||
-            equals_ci(name, "color-selector"))
+    else if(
+        equals_ci(name, "color-tools") || equals_ci(name, "color") ||
+        equals_ci(name, "ansitools") || equals_ci(name, "ansi-tools") ||
+        equals_ci(name, "colorpicker") || equals_ci(name, "color-picker") ||
+        equals_ci(name, "colorselect") || equals_ci(name, "color-selector"))
         cfg.colorTools = enabled;
-    else if(equals_ci(name, "terminal-colors") ||
-            equals_ci(name, "terminal-color") ||
-            equals_ci(name, "ui-colors") || equals_ci(name, "syntax-colors") ||
-            equals_ci(name, "colors"))
+    else if(
+        equals_ci(name, "terminal-colors") ||
+        equals_ci(name, "terminal-color") || equals_ci(name, "ui-colors") ||
+        equals_ci(name, "syntax-colors") || equals_ci(name, "colors"))
         cfg.terminalColors = enabled;
-    else if(equals_ci(name, "modern-keybindings") ||
-            equals_ci(name, "modern-keys") ||
-            equals_ci(name, "convenience-keys") ||
-            equals_ci(name, "pane-keys") ||
-            equals_ci(name, "split-keys"))
+    else if(
+        equals_ci(name, "modern-keybindings") ||
+        equals_ci(name, "modern-keys") || equals_ci(name, "convenience-keys") ||
+        equals_ci(name, "pane-keys") || equals_ci(name, "split-keys"))
         cfg.modernKeybindings = enabled;
-    else if(equals_ci(name, "multi-pane-splits") ||
-            equals_ci(name, "multi-panes") ||
-            equals_ci(name, "nested-splits") ||
-            equals_ci(name, "pane-tree"))
+    else if(
+        equals_ci(name, "multi-pane-splits") ||
+        equals_ci(name, "multi-panes") || equals_ci(name, "nested-splits") ||
+        equals_ci(name, "pane-tree"))
         cfg.multiPaneSplits = enabled;
-    else if(equals_ci(name, "per-pane-lsp") ||
-            equals_ci(name, "pane-lsp") ||
-            equals_ci(name, "split-lsp") ||
-            equals_ci(name, "lsp-per-pane"))
+    else if(
+        equals_ci(name, "per-pane-lsp") || equals_ci(name, "pane-lsp") ||
+        equals_ci(name, "split-lsp") || equals_ci(name, "lsp-per-pane"))
         cfg.perPaneLsp = enabled;
     else if(equals_ci(name, "tests") || equals_ci(name, "test"))
         cfg.tests = enabled;
-    else if(equals_ci(name, "compile-commands") ||
-            equals_ci(name, "compile-commands-json"))
+    else if(
+        equals_ci(name, "compile-commands") ||
+        equals_ci(name, "compile-commands-json"))
         cfg.compileCommands = enabled;
-    else if(equals_ci(name, "auto-build-number") ||
-            equals_ci(name, "auto-increment-build"))
+    else if(
+        equals_ci(name, "auto-build-number") ||
+        equals_ci(name, "auto-increment-build"))
         cfg.autoIncrementBuild = enabled;
     else if(equals_ci(name, "lto") || equals_ci(name, "ipo"))
         cfg.lto = enabled;
-    else if(equals_ci(name, "gc-sections") ||
-            equals_ci(name, "dead-code-sections"))
+    else if(
+        equals_ci(name, "gc-sections") || equals_ci(name, "dead-code-sections"))
         cfg.gcSections = enabled;
     else if(equals_ci(name, "strip") || equals_ci(name, "strip-binary"))
         cfg.stripBinary = enabled;
-    else if(equals_ci(name, "static") || equals_ci(name, "static-link") ||
-            equals_ci(name, "static-runtime") ||
-            equals_ci(name, "static-libs") ||
-            equals_ci(name, "static-libraries"))
+    else if(
+        equals_ci(name, "static") || equals_ci(name, "static-link") ||
+        equals_ci(name, "static-runtime") || equals_ci(name, "static-libs") ||
+        equals_ci(name, "static-libraries"))
     {
         if(enabled && !kStaticLinkAvailable)
         {
@@ -2319,9 +2404,12 @@ bool set_feature(Config& cfg, std::string_view name, bool enabled,
     return true;
 }
 
-std::optional<std::string_view> next_arg(int& i, int argc, char** argv,
-                                         std::string_view option,
-                                         std::string& error)
+std::optional<std::string_view> next_arg(
+    int& i,
+    int argc,
+    char** argv,
+    std::string_view option,
+    std::string& error)
 {
     if(i + 1 >= argc)
     {
@@ -2332,8 +2420,13 @@ std::optional<std::string_view> next_arg(int& i, int argc, char** argv,
     return std::string_view(argv[i]);
 }
 
-bool parse_cli(int argc, char** argv, Config& cfg, CliOptions& options,
-               bool& showHelp, std::string& error)
+bool parse_cli(
+    int argc,
+    char** argv,
+    Config& cfg,
+    CliOptions& options,
+    bool& showHelp,
+    std::string& error)
 {
     showHelp = false;
     for(int i = 1; i < argc; ++i)
@@ -2435,8 +2528,11 @@ bool parse_cli(int argc, char** argv, Config& cfg, CliOptions& options,
             auto value = next_arg(i, argc, argv, arg, error);
             if(!value)
                 return false;
-            if(!load_config_file(fs::absolute(fs::path(std::string(*value))),
-                                 cfg, options, error))
+            if(!load_config_file(
+                   fs::absolute(fs::path(std::string(*value))),
+                   cfg,
+                   options,
+                   error))
                 return false;
         }
         else if(arg == "--install-dir")
@@ -2499,8 +2595,8 @@ void activate(Config& cfg, const Item& item)
         cfg.featureSet = (cfg.featureSet + 1) % (int)kFeatureSets.size();
         apply_feature_set(cfg);
     }
-    else if(item.kind == ItemKind::Choice && item.choice &&
-            !item.choices.empty())
+    else if(
+        item.kind == ItemKind::Choice && item.choice && !item.choices.empty())
     {
         cfg.*(item.choice) =
             (cfg.*(item.choice) + 1) % static_cast<int>(item.choices.size());
@@ -2542,8 +2638,9 @@ bool toggle_section_items(Config& cfg, const Section& section)
     return true;
 }
 
-void open_selected_section(std::vector<Section>& sections,
-                           const VisibleRow& row)
+void open_selected_section(
+    std::vector<Section>& sections,
+    const VisibleRow& row)
 {
     if(row.kind == RowKind::Section)
         sections[row.section].open = true;
@@ -2551,11 +2648,13 @@ void open_selected_section(std::vector<Section>& sections,
         sections[row.section].open = true;
 }
 
-void close_selected_section(std::vector<Section>& sections,
-                            const VisibleRow& row)
+void close_selected_section(
+    std::vector<Section>& sections,
+    const VisibleRow& row)
 {
     sections[row.section].open = false;
 }
+
 uvim_config_deps::Features features_of(const Config& cfg)
 {
     uvim_config_deps::Features f;
@@ -2599,12 +2698,13 @@ void dependency_phase(const Config& cfg, bool interactive)
     std::vector<deps::Dependency> missing = deps::missing(all, find);
     for(const deps::Dependency& dep : all)
     {
-        const bool absent =
-            std::any_of(missing.begin(), missing.end(),
-                        [&](const deps::Dependency& m)
-                        { return m.name == dep.name; });
-        std::cout << "  " << (absent ? (dep.optional ? "[optional]" : "[missing] ")
-                                     : "[ok]      ")
+        const bool absent = std::any_of(
+            missing.begin(),
+            missing.end(),
+            [&](const deps::Dependency& m) { return m.name == dep.name; });
+        std::cout << "  "
+                  << (absent ? (dep.optional ? "[optional]" : "[missing] ")
+                             : "[ok]      ")
                   << " " << dep.name << "  (" << dep.feature << ")\n";
     }
     if(missing.empty())
@@ -2629,8 +2729,8 @@ void dependency_phase(const Config& cfg, bool interactive)
     std::string answer;
     if(!std::getline(std::cin, answer))
         return;
-    const char choice = answer.empty() ? 'n' : static_cast<char>(
-                                                   std::tolower(answer[0]));
+    const char choice =
+        answer.empty() ? 'n' : static_cast<char>(std::tolower(answer[0]));
     if(choice != 'a' && choice != 's')
     {
         std::cout << "Nothing installed. `uvim-config --check-deps` lists "
@@ -2668,8 +2768,8 @@ void dependency_phase(const Config& cfg, bool interactive)
         const int status = std::system(dep.install.c_str());
         const bool nowFound = deps::missing({dep}, find).empty();
         std::cout << (nowFound ? "    installed " : "    not installed ")
-                  << dep.name
-                  << (status != 0 ? " (command failed)" : "") << "\n";
+                  << dep.name << (status != 0 ? " (command failed)" : "")
+                  << "\n";
     }
 }
 } // namespace
@@ -2718,8 +2818,11 @@ int main(int argc, char** argv)
     const bool hadConfigFile =
         fs::exists(persistentConfigPath, configExistsError);
     if(hadConfigFile)
-        try_load_config_file(persistentConfigPath, cfg, options,
-                             startupMessage);
+        try_load_config_file(
+            persistentConfigPath,
+            cfg,
+            options,
+            startupMessage);
     int cursor = 0;
     int scrollOffset = 0;
     std::string message = startupMessage;
@@ -2756,130 +2859,146 @@ int main(int argc, char** argv)
     };
     std::optional<PendingConfirm> pendingConfirm;
     {
-    TerminalRawMode rawMode;
+        TerminalRawMode rawMode;
 #ifndef _WIN32
-    std::signal(SIGWINCH, handle_resize);
+        std::signal(SIGWINCH, handle_resize);
 #endif
 
-    while(true)
-    {
-        const std::vector<VisibleRow> rows = visible_rows(sections);
-        cursor = std::clamp(cursor, 0,
-                            std::max(0, static_cast<int>(rows.size()) - 1));
-        const TerminalSize screen = terminal_size();
-        scrollOffset =
-            clamp_scroll(scrollOffset, cursor, static_cast<int>(rows.size()),
-                         make_layout(sections, screen).listRows);
-        std::string drawMessage;
-        if(pendingConfirm == PendingConfirm::Save)
-            drawMessage = "Save file (Y/n)?";
-        else if(pendingConfirm == PendingConfirm::Quit)
-            drawMessage = "Save file before quit (Y/n)?";
-        else if(editingText)
-            drawMessage = "editing value: type text, Enter saves, Esc cancels";
-        else
-            drawMessage = message;
-        draw(cfg, sections, cursor, scrollOffset, screen, drawMessage,
-             editingText);
-
-        int key = read_key();
-        if(key == kKeyResize)
-            continue;
-        if(pendingConfirm)
+        while(true)
         {
-            const bool yes =
-                key == '\n' || key == '\r' || key == 'y' || key == 'Y';
-            const bool no = key == 'n' || key == 'N' || key == kKeyEsc;
-            if(!yes && !no)
+            const std::vector<VisibleRow> rows = visible_rows(sections);
+            cursor = std::clamp(
+                cursor,
+                0,
+                std::max(0, static_cast<int>(rows.size()) - 1));
+            const TerminalSize screen = terminal_size();
+            scrollOffset = clamp_scroll(
+                scrollOffset,
+                cursor,
+                static_cast<int>(rows.size()),
+                make_layout(sections, screen).listRows);
+            std::string drawMessage;
+            if(pendingConfirm == PendingConfirm::Save)
+                drawMessage = "Save file (Y/n)?";
+            else if(pendingConfirm == PendingConfirm::Quit)
+                drawMessage = "Save file before quit (Y/n)?";
+            else if(editingText)
+                drawMessage =
+                    "editing value: type text, Enter saves, Esc cancels";
+            else
+                drawMessage = message;
+            draw(
+                cfg,
+                sections,
+                cursor,
+                scrollOffset,
+                screen,
+                drawMessage,
+                editingText);
+
+            int key = read_key();
+            if(key == kKeyResize)
                 continue;
+            if(pendingConfirm)
+            {
+                const bool yes =
+                    key == '\n' || key == '\r' || key == 'y' || key == 'Y';
+                const bool no = key == 'n' || key == 'N' || key == kKeyEsc;
+                if(!yes && !no)
+                    continue;
 
-            const PendingConfirm confirmedAction = *pendingConfirm;
-            pendingConfirm.reset();
-            if(yes)
-            {
-                if(saveCurrentConfig() &&
-                   confirmedAction == PendingConfirm::Quit)
-                    break;
-            }
-            else if(confirmedAction == PendingConfirm::Save)
-                message = "save cancelled";
-            else
-                break;
-            continue;
-        }
-        if(editingText && editingField)
-        {
-            if(key == kKeyEsc)
-            {
-                cfg.*(editingField) = textBeforeEdit;
-                editingText = false;
-                editingField = nullptr;
-                message = "value unchanged";
-            }
-            else if(key == '\n' || key == '\r')
-            {
-                editingText = false;
-                editingField = nullptr;
-                message = "value set";
-            }
-            else if(key == 127 || key == 8)
-            {
-                if(!(cfg.*(editingField)).empty())
-                    (cfg.*(editingField)).pop_back();
-            }
-            else if(key == 21)
-            {
-                (cfg.*(editingField)).clear();
-            }
-            else if(key >= 32 && key < 127)
-            {
-                (cfg.*(editingField)).push_back(static_cast<char>(key));
-            }
-            continue;
-        }
-        message.clear();
-        if(key == 'q' || key == 'Q' || key == kKeyEsc)
-        {
-            if(hasUnsavedChanges())
-                pendingConfirm = PendingConfirm::Quit;
-            else
-                break;
-            continue;
-        }
-        if(key == 'j' || key == kKeyDown)
-            cursor = std::min(cursor + 1, (int)rows.size() - 1);
-        else if(key == 'k' || key == kKeyUp)
-            cursor = std::max(cursor - 1, 0);
-        else if(key == 'l' || key == kKeyRight)
-            open_selected_section(sections, rows[static_cast<size_t>(cursor)]);
-        else if(key == 'h' || key == kKeyLeft)
-            close_selected_section(sections, rows[static_cast<size_t>(cursor)]);
-        else if(key == ' ' || key == '\n' || key == '\r')
-        {
-            const VisibleRow& row = rows[static_cast<size_t>(cursor)];
-            if(row.kind == RowKind::Section)
-            {
-                if(toggle_section_items(cfg, sections[row.section]))
-                    message = "section toggled";
-                else
-                    sections[row.section].open = !sections[row.section].open;
-            }
-            else
-            {
-                const Item& item = sections[row.section].items[row.item];
-                if(item.kind == ItemKind::Text && item.text)
+                const PendingConfirm confirmedAction = *pendingConfirm;
+                pendingConfirm.reset();
+                if(yes)
                 {
-                    editingText = true;
-                    editingField = item.text;
-                    textBeforeEdit = cfg.*(item.text);
+                    if(saveCurrentConfig() &&
+                       confirmedAction == PendingConfirm::Quit)
+                        break;
+                }
+                else if(confirmedAction == PendingConfirm::Save)
+                    message = "save cancelled";
+                else
+                    break;
+                continue;
+            }
+            if(editingText && editingField)
+            {
+                if(key == kKeyEsc)
+                {
+                    cfg.*(editingField) = textBeforeEdit;
+                    editingText = false;
+                    editingField = nullptr;
+                    message = "value unchanged";
+                }
+                else if(key == '\n' || key == '\r')
+                {
+                    editingText = false;
+                    editingField = nullptr;
+                    message = "value set";
+                }
+                else if(key == 127 || key == 8)
+                {
+                    if(!(cfg.*(editingField)).empty())
+                        (cfg.*(editingField)).pop_back();
+                }
+                else if(key == 21)
+                {
+                    (cfg.*(editingField)).clear();
+                }
+                else if(key >= 32 && key < 127)
+                {
+                    (cfg.*(editingField)).push_back(static_cast<char>(key));
+                }
+                continue;
+            }
+            message.clear();
+            if(key == 'q' || key == 'Q' || key == kKeyEsc)
+            {
+                if(hasUnsavedChanges())
+                    pendingConfirm = PendingConfirm::Quit;
+                else
+                    break;
+                continue;
+            }
+            if(key == 'j' || key == kKeyDown)
+                cursor = std::min(cursor + 1, (int)rows.size() - 1);
+            else if(key == 'k' || key == kKeyUp)
+                cursor = std::max(cursor - 1, 0);
+            else if(key == 'l' || key == kKeyRight)
+                open_selected_section(
+                    sections,
+                    rows[static_cast<size_t>(cursor)]);
+            else if(key == 'h' || key == kKeyLeft)
+                close_selected_section(
+                    sections,
+                    rows[static_cast<size_t>(cursor)]);
+            else if(key == ' ' || key == '\n' || key == '\r')
+            {
+                const VisibleRow& row = rows[static_cast<size_t>(cursor)];
+                if(row.kind == RowKind::Section)
+                {
+                    if(toggle_section_items(cfg, sections[row.section]))
+                        message = "section toggled";
+                    else
+                        sections[row.section].open =
+                            !sections[row.section].open;
                 }
                 else
-                    activate(cfg, item);
+                {
+                    const Item& item = sections[row.section].items[row.item];
+                    if(item.kind == ItemKind::Text && item.text)
+                    {
+                        editingText = true;
+                        editingField = item.text;
+                        textBeforeEdit = cfg.*(item.text);
+                    }
+                    else
+                        activate(cfg, item);
+                }
             }
+            else if(key == 's' || key == 'S')
+                pendingConfirm = PendingConfirm::Save;
         }
-        else if(key == 's' || key == 'S')
-            pendingConfirm = PendingConfirm::Save;
-    }
     } // raw mode off: the dependency phase reads normal input
 
     write_stdout("\x1b[?25h\x1b[0m\n");

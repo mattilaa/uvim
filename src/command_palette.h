@@ -42,12 +42,14 @@ std::vector<Entry> builtinActions();
 // space marks a command taking an argument) that no entry covers yet,
 // titled by their description. Commands sharing a description become one
 // entry. `describe` gets each command as listed.
-void addExCommands(std::vector<Entry>& entries,
-                   const std::vector<std::string>& commands,
-                   const Describe& describe);
+void addExCommands(
+    std::vector<Entry>& entries,
+    const std::vector<std::string>& commands,
+    const Describe& describe);
 
 // Entries matching `query`, best first: exact name, title or name prefix,
 // title word prefixes, title words, fuzzy. Empty query: list order.
-std::vector<Match> rank(const std::vector<Entry>& entries,
-                        const std::string& query);
+std::vector<Match> rank(
+    const std::vector<Entry>& entries,
+    const std::string& query);
 } // namespace command_palette

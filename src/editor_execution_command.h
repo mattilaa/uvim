@@ -17,7 +17,7 @@ class EditorExecutionCommand
 {
 public:
     virtual ~EditorExecutionCommand() = default;
-    virtual bool execute(Editor& editor,
-                         const CommandRequest& request) const = 0;
+    virtual bool execute(Editor& editor, const CommandRequest& request)
+        const = 0;
 };
 } // namespace command::execution

@@ -34,6 +34,7 @@ struct TestContext
 struct TestEvent
 {
     char action;
+
     explicit TestEvent(char a) : action(a) {}
 };
 
@@ -63,6 +64,7 @@ struct StateA
     {
         ctx.append("enter_A");
     }
+
     void on_exit(TestContext& ctx)
     {
         ctx.append("exit_A");
@@ -86,6 +88,7 @@ struct StateB
     {
         ctx.append("enter_B");
     }
+
     void on_exit(TestContext& ctx)
     {
         ctx.append("exit_B");
@@ -106,6 +109,7 @@ struct StateC
     {
         ctx.append("enter_C");
     }
+
     void on_exit(TestContext& ctx)
     {
         ctx.append("exit_C");
@@ -115,8 +119,9 @@ struct StateC
 };
 
 // Now that all states are complete, define the handle methods
-inline std::optional<TestState> StateA::handle(TestContext& ctx,
-                                               const TestEvent& event)
+inline std::optional<TestState> StateA::handle(
+    TestContext& ctx,
+    const TestEvent& event)
 {
     ctx.append(std::string("A_handle_") + event.action);
     if(event.action == 'a')
@@ -128,8 +133,9 @@ inline std::optional<TestState> StateA::handle(TestContext& ctx,
     return std::nullopt;
 }
 
-inline std::optional<TestState> StateB::handle(TestContext& ctx,
-                                               const TestEvent& event)
+inline std::optional<TestState> StateB::handle(
+    TestContext& ctx,
+    const TestEvent& event)
 {
     ctx.append(std::string("B_handle_") + event.action);
     if(event.action == 'a')
@@ -144,8 +150,9 @@ inline std::optional<TestState> StateB::handle(TestContext& ctx,
     return std::nullopt;
 }
 
-inline std::optional<TestState> StateC::handle(TestContext& ctx,
-                                               const TestEvent& event)
+inline std::optional<TestState> StateC::handle(
+    TestContext& ctx,
+    const TestEvent& event)
 {
     ctx.append(std::string("C_handle_") + event.action);
     return std::nullopt; // Never transitions
@@ -363,6 +370,7 @@ namespace nested_test
 struct InnerContext
 {
     std::string innerLog;
+
     void append(const std::string& msg)
     {
         if(!innerLog.empty())
@@ -389,14 +397,17 @@ struct InnerStateX
     {
         return "X";
     }
+
     void on_enter(InnerContext& ctx)
     {
         ctx.append("enter_X");
     }
+
     void on_exit(InnerContext& ctx)
     {
         ctx.append("exit_X");
     }
+
     std::optional<InnerState> handle(InnerContext& ctx, const InnerEvent& e);
 };
 
@@ -406,28 +417,33 @@ struct InnerStateY
     {
         return "Y";
     }
+
     void on_enter(InnerContext& ctx)
     {
         ctx.append("enter_Y");
     }
+
     void on_exit(InnerContext& ctx)
     {
         ctx.append("exit_Y");
     }
+
     std::optional<InnerState> handle(InnerContext& ctx, const InnerEvent& e);
 };
 
 // Define handle methods after all states are complete
-inline std::optional<InnerState> InnerStateX::handle(InnerContext&,
-                                                     const InnerEvent& e)
+inline std::optional<InnerState> InnerStateX::handle(
+    InnerContext&,
+    const InnerEvent& e)
 {
     if(e.value > 0)
         return InnerStateY{};
     return std::nullopt;
 }
 
-inline std::optional<InnerState> InnerStateY::handle(InnerContext&,
-                                                     const InnerEvent& e)
+inline std::optional<InnerState> InnerStateY::handle(
+    InnerContext&,
+    const InnerEvent& e)
 {
     if(e.value < 0)
         return InnerStateX{};
@@ -459,8 +475,11 @@ struct OuterStateNormal
     {
         return "NORMAL";
     }
+
     void on_enter(OuterContext&) {}
+
     void on_exit(OuterContext&) {}
+
     std::optional<OuterState> handle(OuterContext&, const OuterEvent& e);
 };
 
@@ -487,16 +506,18 @@ struct OuterStateWithSub
     std::optional<OuterState> handle(OuterContext&, const OuterEvent& e);
 };
 
-inline std::optional<OuterState> OuterStateNormal::handle(OuterContext&,
-                                                          const OuterEvent& e)
+inline std::optional<OuterState> OuterStateNormal::handle(
+    OuterContext&,
+    const OuterEvent& e)
 {
     if(e.action == 's')
         return OuterStateWithSub{};
     return std::nullopt;
 }
 
-inline std::optional<OuterState> OuterStateWithSub::handle(OuterContext&,
-                                                           const OuterEvent& e)
+inline std::optional<OuterState> OuterStateWithSub::handle(
+    OuterContext&,
+    const OuterEvent& e)
 {
     if(e.action == 'n')
         return OuterStateNormal{};

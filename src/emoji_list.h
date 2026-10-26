@@ -15,573 +15,893 @@ struct EmojiEntry
 consteval auto makeEmojiList()
 {
     return std::array{
-        EmojiEntry{EmojiEnum::GrinningFace, "\xF0\x9F\x98\x80",
-                   "grinning face"},
-        EmojiEntry{EmojiEnum::GrinningFaceWithBigEyes, "\xF0\x9F\x98\x83",
-                   "grinning face with big eyes"},
-        EmojiEntry{EmojiEnum::GrinningFaceWithSmilingEyes, "\xF0\x9F\x98\x84",
-                   "grinning face with smiling eyes"},
-        EmojiEntry{EmojiEnum::BeamingFaceWithSmilingEyes, "\xF0\x9F\x98\x81",
-                   "beaming face with smiling eyes"},
-        EmojiEntry{EmojiEnum::GrinningSquintingFace, "\xF0\x9F\x98\x86",
-                   "grinning squinting face"},
-        EmojiEntry{EmojiEnum::GrinningFaceWithSweat, "\xF0\x9F\x98\x85",
-                   "grinning face with sweat"},
-        EmojiEntry{EmojiEnum::RollingOnTheFloorLaughing, "\xF0\x9F\xA4\xA3",
-                   "rolling on the floor laughing"},
-        EmojiEntry{EmojiEnum::FaceWithTearsOfJoy, "\xF0\x9F\x98\x82",
-                   "face with tears of joy"},
-        EmojiEntry{EmojiEnum::SlightlySmilingFace, "\xF0\x9F\x99\x82",
-                   "slightly smiling face"},
-        EmojiEntry{EmojiEnum::UpsideDownFace, "\xF0\x9F\x99\x83",
-                   "upside-down face"},
+        EmojiEntry{
+            EmojiEnum::GrinningFace,
+            "\xF0\x9F\x98\x80",
+            "grinning face"},
+        EmojiEntry{
+            EmojiEnum::GrinningFaceWithBigEyes,
+            "\xF0\x9F\x98\x83",
+            "grinning face with big eyes"},
+        EmojiEntry{
+            EmojiEnum::GrinningFaceWithSmilingEyes,
+            "\xF0\x9F\x98\x84",
+            "grinning face with smiling eyes"},
+        EmojiEntry{
+            EmojiEnum::BeamingFaceWithSmilingEyes,
+            "\xF0\x9F\x98\x81",
+            "beaming face with smiling eyes"},
+        EmojiEntry{
+            EmojiEnum::GrinningSquintingFace,
+            "\xF0\x9F\x98\x86",
+            "grinning squinting face"},
+        EmojiEntry{
+            EmojiEnum::GrinningFaceWithSweat,
+            "\xF0\x9F\x98\x85",
+            "grinning face with sweat"},
+        EmojiEntry{
+            EmojiEnum::RollingOnTheFloorLaughing,
+            "\xF0\x9F\xA4\xA3",
+            "rolling on the floor laughing"},
+        EmojiEntry{
+            EmojiEnum::FaceWithTearsOfJoy,
+            "\xF0\x9F\x98\x82",
+            "face with tears of joy"},
+        EmojiEntry{
+            EmojiEnum::SlightlySmilingFace,
+            "\xF0\x9F\x99\x82",
+            "slightly smiling face"},
+        EmojiEntry{
+            EmojiEnum::UpsideDownFace,
+            "\xF0\x9F\x99\x83",
+            "upside-down face"},
         EmojiEntry{EmojiEnum::MeltingFace, "\xF0\x9F\xAB\xA0", "melting face"},
         EmojiEntry{EmojiEnum::WinkingFace, "\xF0\x9F\x98\x89", "winking face"},
-        EmojiEntry{EmojiEnum::SmilingFaceWithSmilingEyes, "\xF0\x9F\x98\x8A",
-                   "smiling face with smiling eyes"},
-        EmojiEntry{EmojiEnum::SmilingFaceWithHalo, "\xF0\x9F\x98\x87",
-                   "smiling face with halo"},
-        EmojiEntry{EmojiEnum::SmilingFaceWithHearts, "\xF0\x9F\xA5\xB0",
-                   "smiling face with hearts"},
-        EmojiEntry{EmojiEnum::SmilingFaceWithHeartEyes, "\xF0\x9F\x98\x8D",
-                   "smiling face with heart-eyes"},
+        EmojiEntry{
+            EmojiEnum::SmilingFaceWithSmilingEyes,
+            "\xF0\x9F\x98\x8A",
+            "smiling face with smiling eyes"},
+        EmojiEntry{
+            EmojiEnum::SmilingFaceWithHalo,
+            "\xF0\x9F\x98\x87",
+            "smiling face with halo"},
+        EmojiEntry{
+            EmojiEnum::SmilingFaceWithHearts,
+            "\xF0\x9F\xA5\xB0",
+            "smiling face with hearts"},
+        EmojiEntry{
+            EmojiEnum::SmilingFaceWithHeartEyes,
+            "\xF0\x9F\x98\x8D",
+            "smiling face with heart-eyes"},
         EmojiEntry{EmojiEnum::StarStruck, "\xF0\x9F\xA4\xA9", "star-struck"},
-        EmojiEntry{EmojiEnum::FaceBlowingAKiss, "\xF0\x9F\x98\x98",
-                   "face blowing a kiss"},
+        EmojiEntry{
+            EmojiEnum::FaceBlowingAKiss,
+            "\xF0\x9F\x98\x98",
+            "face blowing a kiss"},
         EmojiEntry{EmojiEnum::KissingFace, "\xF0\x9F\x98\x97", "kissing face"},
-        EmojiEntry{EmojiEnum::SmilingFace, "\xE2\x98\xBA\xEF\xB8\x8F",
-                   "smiling face"},
-        EmojiEntry{EmojiEnum::KissingFaceWithClosedEyes, "\xF0\x9F\x98\x9A",
-                   "kissing face with closed eyes"},
-        EmojiEntry{EmojiEnum::KissingFaceWithSmilingEyes, "\xF0\x9F\x98\x99",
-                   "kissing face with smiling eyes"},
-        EmojiEntry{EmojiEnum::SmilingFaceWithTear, "\xF0\x9F\xA5\xB2",
-                   "smiling face with tear"},
-        EmojiEntry{EmojiEnum::FaceSavoringFood, "\xF0\x9F\x98\x8B",
-                   "face savoring food"},
-        EmojiEntry{EmojiEnum::FaceWithTongue, "\xF0\x9F\x98\x9B",
-                   "face with tongue"},
-        EmojiEntry{EmojiEnum::WinkingFaceWithTongue, "\xF0\x9F\x98\x9C",
-                   "winking face with tongue"},
+        EmojiEntry{
+            EmojiEnum::SmilingFace,
+            "\xE2\x98\xBA\xEF\xB8\x8F",
+            "smiling face"},
+        EmojiEntry{
+            EmojiEnum::KissingFaceWithClosedEyes,
+            "\xF0\x9F\x98\x9A",
+            "kissing face with closed eyes"},
+        EmojiEntry{
+            EmojiEnum::KissingFaceWithSmilingEyes,
+            "\xF0\x9F\x98\x99",
+            "kissing face with smiling eyes"},
+        EmojiEntry{
+            EmojiEnum::SmilingFaceWithTear,
+            "\xF0\x9F\xA5\xB2",
+            "smiling face with tear"},
+        EmojiEntry{
+            EmojiEnum::FaceSavoringFood,
+            "\xF0\x9F\x98\x8B",
+            "face savoring food"},
+        EmojiEntry{
+            EmojiEnum::FaceWithTongue,
+            "\xF0\x9F\x98\x9B",
+            "face with tongue"},
+        EmojiEntry{
+            EmojiEnum::WinkingFaceWithTongue,
+            "\xF0\x9F\x98\x9C",
+            "winking face with tongue"},
         EmojiEntry{EmojiEnum::ZanyFace, "\xF0\x9F\xA4\xAA", "zany face"},
-        EmojiEntry{EmojiEnum::SquintingFaceWithTongue, "\xF0\x9F\x98\x9D",
-                   "squinting face with tongue"},
-        EmojiEntry{EmojiEnum::MoneyMouthFace, "\xF0\x9F\xA4\x91",
-                   "money-mouth face"},
-        EmojiEntry{EmojiEnum::SmilingFaceWithOpenHands, "\xF0\x9F\xA4\x97",
-                   "smiling face with open hands"},
-        EmojiEntry{EmojiEnum::FaceWithHandOverMouth, "\xF0\x9F\xA4\xAD",
-                   "face with hand over mouth"},
-        EmojiEntry{EmojiEnum::FaceWithOpenEyesAndHandOverMouth,
-                   "\xF0\x9F\xAB\xA2",
-                   "face with open eyes and hand over mouth"},
-        EmojiEntry{EmojiEnum::FaceWithPeekingEye, "\xF0\x9F\xAB\xA3",
-                   "face with peeking eye"},
-        EmojiEntry{EmojiEnum::ShushingFace, "\xF0\x9F\xA4\xAB",
-                   "shushing face"},
-        EmojiEntry{EmojiEnum::ThinkingFace, "\xF0\x9F\xA4\x94",
-                   "thinking face"},
-        EmojiEntry{EmojiEnum::SalutingFace, "\xF0\x9F\xAB\xA1",
-                   "saluting face"},
-        EmojiEntry{EmojiEnum::ZipperMouthFace, "\xF0\x9F\xA4\x90",
-                   "zipper-mouth face"},
-        EmojiEntry{EmojiEnum::FaceWithRaisedEyebrow, "\xF0\x9F\xA4\xA8",
-                   "face with raised eyebrow"},
+        EmojiEntry{
+            EmojiEnum::SquintingFaceWithTongue,
+            "\xF0\x9F\x98\x9D",
+            "squinting face with tongue"},
+        EmojiEntry{
+            EmojiEnum::MoneyMouthFace,
+            "\xF0\x9F\xA4\x91",
+            "money-mouth face"},
+        EmojiEntry{
+            EmojiEnum::SmilingFaceWithOpenHands,
+            "\xF0\x9F\xA4\x97",
+            "smiling face with open hands"},
+        EmojiEntry{
+            EmojiEnum::FaceWithHandOverMouth,
+            "\xF0\x9F\xA4\xAD",
+            "face with hand over mouth"},
+        EmojiEntry{
+            EmojiEnum::FaceWithOpenEyesAndHandOverMouth,
+            "\xF0\x9F\xAB\xA2",
+            "face with open eyes and hand over mouth"},
+        EmojiEntry{
+            EmojiEnum::FaceWithPeekingEye,
+            "\xF0\x9F\xAB\xA3",
+            "face with peeking eye"},
+        EmojiEntry{
+            EmojiEnum::ShushingFace,
+            "\xF0\x9F\xA4\xAB",
+            "shushing face"},
+        EmojiEntry{
+            EmojiEnum::ThinkingFace,
+            "\xF0\x9F\xA4\x94",
+            "thinking face"},
+        EmojiEntry{
+            EmojiEnum::SalutingFace,
+            "\xF0\x9F\xAB\xA1",
+            "saluting face"},
+        EmojiEntry{
+            EmojiEnum::ZipperMouthFace,
+            "\xF0\x9F\xA4\x90",
+            "zipper-mouth face"},
+        EmojiEntry{
+            EmojiEnum::FaceWithRaisedEyebrow,
+            "\xF0\x9F\xA4\xA8",
+            "face with raised eyebrow"},
         EmojiEntry{EmojiEnum::NeutralFace, "\xF0\x9F\x98\x90", "neutral face"},
-        EmojiEntry{EmojiEnum::ExpressionlessFace, "\xF0\x9F\x98\x91",
-                   "expressionless face"},
-        EmojiEntry{EmojiEnum::FaceWithoutMouth, "\xF0\x9F\x98\xB6",
-                   "face without mouth"},
-        EmojiEntry{EmojiEnum::DottedLineFace, "\xF0\x9F\xAB\xA5",
-                   "dotted line face"},
-        EmojiEntry{EmojiEnum::FaceInClouds,
-                   "\xF0\x9F\x98\xB6\xE2\x80\x8D\xF0\x9F\x8C\xAB\xEF\xB8\x8F",
-                   "face in clouds"},
-        EmojiEntry{EmojiEnum::SmirkingFace, "\xF0\x9F\x98\x8F",
-                   "smirking face"},
-        EmojiEntry{EmojiEnum::UnamusedFace, "\xF0\x9F\x98\x92",
-                   "unamused face"},
-        EmojiEntry{EmojiEnum::FaceWithRollingEyes, "\xF0\x9F\x99\x84",
-                   "face with rolling eyes"},
-        EmojiEntry{EmojiEnum::GrimacingFace, "\xF0\x9F\x98\xAC",
-                   "grimacing face"},
-        EmojiEntry{EmojiEnum::FaceExhaling,
-                   "\xF0\x9F\x98\xAE\xE2\x80\x8D\xF0\x9F\x92\xA8",
-                   "face exhaling"},
+        EmojiEntry{
+            EmojiEnum::ExpressionlessFace,
+            "\xF0\x9F\x98\x91",
+            "expressionless face"},
+        EmojiEntry{
+            EmojiEnum::FaceWithoutMouth,
+            "\xF0\x9F\x98\xB6",
+            "face without mouth"},
+        EmojiEntry{
+            EmojiEnum::DottedLineFace,
+            "\xF0\x9F\xAB\xA5",
+            "dotted line face"},
+        EmojiEntry{
+            EmojiEnum::FaceInClouds,
+            "\xF0\x9F\x98\xB6\xE2\x80\x8D\xF0\x9F\x8C\xAB\xEF\xB8\x8F",
+            "face in clouds"},
+        EmojiEntry{
+            EmojiEnum::SmirkingFace,
+            "\xF0\x9F\x98\x8F",
+            "smirking face"},
+        EmojiEntry{
+            EmojiEnum::UnamusedFace,
+            "\xF0\x9F\x98\x92",
+            "unamused face"},
+        EmojiEntry{
+            EmojiEnum::FaceWithRollingEyes,
+            "\xF0\x9F\x99\x84",
+            "face with rolling eyes"},
+        EmojiEntry{
+            EmojiEnum::GrimacingFace,
+            "\xF0\x9F\x98\xAC",
+            "grimacing face"},
+        EmojiEntry{
+            EmojiEnum::FaceExhaling,
+            "\xF0\x9F\x98\xAE\xE2\x80\x8D\xF0\x9F\x92\xA8",
+            "face exhaling"},
         EmojiEntry{EmojiEnum::LyingFace, "\xF0\x9F\xA4\xA5", "lying face"},
         EmojiEntry{EmojiEnum::ShakingFace, "\xF0\x9F\xAB\xA8", "shaking face"},
-        EmojiEntry{EmojiEnum::HeadShakingHorizontally,
-                   "\xF0\x9F\x99\x82\xE2\x80\x8D\xE2\x86\x94\xEF\xB8\x8F",
-                   "head shaking horizontally"},
-        EmojiEntry{EmojiEnum::HeadShakingVertically,
-                   "\xF0\x9F\x99\x82\xE2\x80\x8D\xE2\x86\x95\xEF\xB8\x8F",
-                   "head shaking vertically"},
-        EmojiEntry{EmojiEnum::RelievedFace, "\xF0\x9F\x98\x8C",
-                   "relieved face"},
+        EmojiEntry{
+            EmojiEnum::HeadShakingHorizontally,
+            "\xF0\x9F\x99\x82\xE2\x80\x8D\xE2\x86\x94\xEF\xB8\x8F",
+            "head shaking horizontally"},
+        EmojiEntry{
+            EmojiEnum::HeadShakingVertically,
+            "\xF0\x9F\x99\x82\xE2\x80\x8D\xE2\x86\x95\xEF\xB8\x8F",
+            "head shaking vertically"},
+        EmojiEntry{
+            EmojiEnum::RelievedFace,
+            "\xF0\x9F\x98\x8C",
+            "relieved face"},
         EmojiEntry{EmojiEnum::PensiveFace, "\xF0\x9F\x98\x94", "pensive face"},
         EmojiEntry{EmojiEnum::SleepyFace, "\xF0\x9F\x98\xAA", "sleepy face"},
-        EmojiEntry{EmojiEnum::DroolingFace, "\xF0\x9F\xA4\xA4",
-                   "drooling face"},
-        EmojiEntry{EmojiEnum::SleepingFace, "\xF0\x9F\x98\xB4",
-                   "sleeping face"},
-        EmojiEntry{EmojiEnum::FaceWithMedicalMask, "\xF0\x9F\x98\xB7",
-                   "face with medical mask"},
-        EmojiEntry{EmojiEnum::FaceWithThermometer, "\xF0\x9F\xA4\x92",
-                   "face with thermometer"},
-        EmojiEntry{EmojiEnum::FaceWithHeadBandage, "\xF0\x9F\xA4\x95",
-                   "face with head-bandage"},
-        EmojiEntry{EmojiEnum::NauseatedFace, "\xF0\x9F\xA4\xA2",
-                   "nauseated face"},
-        EmojiEntry{EmojiEnum::FaceVomiting, "\xF0\x9F\xA4\xAE",
-                   "face vomiting"},
-        EmojiEntry{EmojiEnum::SneezingFace, "\xF0\x9F\xA4\xA7",
-                   "sneezing face"},
+        EmojiEntry{
+            EmojiEnum::DroolingFace,
+            "\xF0\x9F\xA4\xA4",
+            "drooling face"},
+        EmojiEntry{
+            EmojiEnum::SleepingFace,
+            "\xF0\x9F\x98\xB4",
+            "sleeping face"},
+        EmojiEntry{
+            EmojiEnum::FaceWithMedicalMask,
+            "\xF0\x9F\x98\xB7",
+            "face with medical mask"},
+        EmojiEntry{
+            EmojiEnum::FaceWithThermometer,
+            "\xF0\x9F\xA4\x92",
+            "face with thermometer"},
+        EmojiEntry{
+            EmojiEnum::FaceWithHeadBandage,
+            "\xF0\x9F\xA4\x95",
+            "face with head-bandage"},
+        EmojiEntry{
+            EmojiEnum::NauseatedFace,
+            "\xF0\x9F\xA4\xA2",
+            "nauseated face"},
+        EmojiEntry{
+            EmojiEnum::FaceVomiting,
+            "\xF0\x9F\xA4\xAE",
+            "face vomiting"},
+        EmojiEntry{
+            EmojiEnum::SneezingFace,
+            "\xF0\x9F\xA4\xA7",
+            "sneezing face"},
         EmojiEntry{EmojiEnum::HotFace, "\xF0\x9F\xA5\xB5", "hot face"},
         EmojiEntry{EmojiEnum::ColdFace, "\xF0\x9F\xA5\xB6", "cold face"},
         EmojiEntry{EmojiEnum::WoozyFace, "\xF0\x9F\xA5\xB4", "woozy face"},
-        EmojiEntry{EmojiEnum::FaceWithCrossedOutEyes, "\xF0\x9F\x98\xB5",
-                   "face with crossed-out eyes"},
-        EmojiEntry{EmojiEnum::FaceWithSpiralEyes,
-                   "\xF0\x9F\x98\xB5\xE2\x80\x8D\xF0\x9F\x92\xAB",
-                   "face with spiral eyes"},
-        EmojiEntry{EmojiEnum::ExplodingHead, "\xF0\x9F\xA4\xAF",
-                   "exploding head"},
-        EmojiEntry{EmojiEnum::CowboyHatFace, "\xF0\x9F\xA4\xA0",
-                   "cowboy hat face"},
-        EmojiEntry{EmojiEnum::PartyingFace, "\xF0\x9F\xA5\xB3",
-                   "partying face"},
-        EmojiEntry{EmojiEnum::DisguisedFace, "\xF0\x9F\xA5\xB8",
-                   "disguised face"},
-        EmojiEntry{EmojiEnum::SmilingFaceWithSunglasses, "\xF0\x9F\x98\x8E",
-                   "smiling face with sunglasses"},
+        EmojiEntry{
+            EmojiEnum::FaceWithCrossedOutEyes,
+            "\xF0\x9F\x98\xB5",
+            "face with crossed-out eyes"},
+        EmojiEntry{
+            EmojiEnum::FaceWithSpiralEyes,
+            "\xF0\x9F\x98\xB5\xE2\x80\x8D\xF0\x9F\x92\xAB",
+            "face with spiral eyes"},
+        EmojiEntry{
+            EmojiEnum::ExplodingHead,
+            "\xF0\x9F\xA4\xAF",
+            "exploding head"},
+        EmojiEntry{
+            EmojiEnum::CowboyHatFace,
+            "\xF0\x9F\xA4\xA0",
+            "cowboy hat face"},
+        EmojiEntry{
+            EmojiEnum::PartyingFace,
+            "\xF0\x9F\xA5\xB3",
+            "partying face"},
+        EmojiEntry{
+            EmojiEnum::DisguisedFace,
+            "\xF0\x9F\xA5\xB8",
+            "disguised face"},
+        EmojiEntry{
+            EmojiEnum::SmilingFaceWithSunglasses,
+            "\xF0\x9F\x98\x8E",
+            "smiling face with sunglasses"},
         EmojiEntry{EmojiEnum::NerdFace, "\xF0\x9F\xA4\x93", "nerd face"},
-        EmojiEntry{EmojiEnum::FaceWithMonocle, "\xF0\x9F\xA7\x90",
-                   "face with monocle"},
-        EmojiEntry{EmojiEnum::ConfusedFace, "\xF0\x9F\x98\x95",
-                   "confused face"},
-        EmojiEntry{EmojiEnum::FaceWithDiagonalMouth, "\xF0\x9F\xAB\xA4",
-                   "face with diagonal mouth"},
+        EmojiEntry{
+            EmojiEnum::FaceWithMonocle,
+            "\xF0\x9F\xA7\x90",
+            "face with monocle"},
+        EmojiEntry{
+            EmojiEnum::ConfusedFace,
+            "\xF0\x9F\x98\x95",
+            "confused face"},
+        EmojiEntry{
+            EmojiEnum::FaceWithDiagonalMouth,
+            "\xF0\x9F\xAB\xA4",
+            "face with diagonal mouth"},
         EmojiEntry{EmojiEnum::WorriedFace, "\xF0\x9F\x98\x9F", "worried face"},
-        EmojiEntry{EmojiEnum::SlightlyFrowningFace, "\xF0\x9F\x99\x81",
-                   "slightly frowning face"},
-        EmojiEntry{EmojiEnum::FrowningFace, "\xE2\x98\xB9\xEF\xB8\x8F",
-                   "frowning face"},
-        EmojiEntry{EmojiEnum::FaceWithOpenMouth, "\xF0\x9F\x98\xAE",
-                   "face with open mouth"},
+        EmojiEntry{
+            EmojiEnum::SlightlyFrowningFace,
+            "\xF0\x9F\x99\x81",
+            "slightly frowning face"},
+        EmojiEntry{
+            EmojiEnum::FrowningFace,
+            "\xE2\x98\xB9\xEF\xB8\x8F",
+            "frowning face"},
+        EmojiEntry{
+            EmojiEnum::FaceWithOpenMouth,
+            "\xF0\x9F\x98\xAE",
+            "face with open mouth"},
         EmojiEntry{EmojiEnum::HushedFace, "\xF0\x9F\x98\xAF", "hushed face"},
-        EmojiEntry{EmojiEnum::AstonishedFace, "\xF0\x9F\x98\xB2",
-                   "astonished face"},
+        EmojiEntry{
+            EmojiEnum::AstonishedFace,
+            "\xF0\x9F\x98\xB2",
+            "astonished face"},
         EmojiEntry{EmojiEnum::FlushedFace, "\xF0\x9F\x98\xB3", "flushed face"},
-        EmojiEntry{EmojiEnum::PleadingFace, "\xF0\x9F\xA5\xBA",
-                   "pleading face"},
-        EmojiEntry{EmojiEnum::FaceHoldingBackTears, "\xF0\x9F\xA5\xB9",
-                   "face holding back tears"},
-        EmojiEntry{EmojiEnum::FrowningFaceWithOpenMouth, "\xF0\x9F\x98\xA6",
-                   "frowning face with open mouth"},
-        EmojiEntry{EmojiEnum::AnguishedFace, "\xF0\x9F\x98\xA7",
-                   "anguished face"},
+        EmojiEntry{
+            EmojiEnum::PleadingFace,
+            "\xF0\x9F\xA5\xBA",
+            "pleading face"},
+        EmojiEntry{
+            EmojiEnum::FaceHoldingBackTears,
+            "\xF0\x9F\xA5\xB9",
+            "face holding back tears"},
+        EmojiEntry{
+            EmojiEnum::FrowningFaceWithOpenMouth,
+            "\xF0\x9F\x98\xA6",
+            "frowning face with open mouth"},
+        EmojiEntry{
+            EmojiEnum::AnguishedFace,
+            "\xF0\x9F\x98\xA7",
+            "anguished face"},
         EmojiEntry{EmojiEnum::FearfulFace, "\xF0\x9F\x98\xA8", "fearful face"},
-        EmojiEntry{EmojiEnum::AnxiousFaceWithSweat, "\xF0\x9F\x98\xB0",
-                   "anxious face with sweat"},
-        EmojiEntry{EmojiEnum::SadButRelievedFace, "\xF0\x9F\x98\xA5",
-                   "sad but relieved face"},
+        EmojiEntry{
+            EmojiEnum::AnxiousFaceWithSweat,
+            "\xF0\x9F\x98\xB0",
+            "anxious face with sweat"},
+        EmojiEntry{
+            EmojiEnum::SadButRelievedFace,
+            "\xF0\x9F\x98\xA5",
+            "sad but relieved face"},
         EmojiEntry{EmojiEnum::CryingFace, "\xF0\x9F\x98\xA2", "crying face"},
-        EmojiEntry{EmojiEnum::LoudlyCryingFace, "\xF0\x9F\x98\xAD",
-                   "loudly crying face"},
-        EmojiEntry{EmojiEnum::FaceScreamingInFear, "\xF0\x9F\x98\xB1",
-                   "face screaming in fear"},
-        EmojiEntry{EmojiEnum::ConfoundedFace, "\xF0\x9F\x98\x96",
-                   "confounded face"},
-        EmojiEntry{EmojiEnum::PerseveringFace, "\xF0\x9F\x98\xA3",
-                   "persevering face"},
-        EmojiEntry{EmojiEnum::DisappointedFace, "\xF0\x9F\x98\x9E",
-                   "disappointed face"},
-        EmojiEntry{EmojiEnum::DowncastFaceWithSweat, "\xF0\x9F\x98\x93",
-                   "downcast face with sweat"},
+        EmojiEntry{
+            EmojiEnum::LoudlyCryingFace,
+            "\xF0\x9F\x98\xAD",
+            "loudly crying face"},
+        EmojiEntry{
+            EmojiEnum::FaceScreamingInFear,
+            "\xF0\x9F\x98\xB1",
+            "face screaming in fear"},
+        EmojiEntry{
+            EmojiEnum::ConfoundedFace,
+            "\xF0\x9F\x98\x96",
+            "confounded face"},
+        EmojiEntry{
+            EmojiEnum::PerseveringFace,
+            "\xF0\x9F\x98\xA3",
+            "persevering face"},
+        EmojiEntry{
+            EmojiEnum::DisappointedFace,
+            "\xF0\x9F\x98\x9E",
+            "disappointed face"},
+        EmojiEntry{
+            EmojiEnum::DowncastFaceWithSweat,
+            "\xF0\x9F\x98\x93",
+            "downcast face with sweat"},
         EmojiEntry{EmojiEnum::WearyFace, "\xF0\x9F\x98\xA9", "weary face"},
         EmojiEntry{EmojiEnum::TiredFace, "\xF0\x9F\x98\xAB", "tired face"},
         EmojiEntry{EmojiEnum::YawningFace, "\xF0\x9F\xA5\xB1", "yawning face"},
-        EmojiEntry{EmojiEnum::FaceWithSteamFromNose, "\xF0\x9F\x98\xA4",
-                   "face with steam from nose"},
+        EmojiEntry{
+            EmojiEnum::FaceWithSteamFromNose,
+            "\xF0\x9F\x98\xA4",
+            "face with steam from nose"},
         EmojiEntry{EmojiEnum::EnragedFace, "\xF0\x9F\x98\xA1", "enraged face"},
         EmojiEntry{EmojiEnum::AngryFace, "\xF0\x9F\x98\xA0", "angry face"},
-        EmojiEntry{EmojiEnum::FaceWithSymbolsOnMouth, "\xF0\x9F\xA4\xAC",
-                   "face with symbols on mouth"},
-        EmojiEntry{EmojiEnum::SmilingFaceWithHorns, "\xF0\x9F\x98\x88",
-                   "smiling face with horns"},
-        EmojiEntry{EmojiEnum::AngryFaceWithHorns, "\xF0\x9F\x91\xBF",
-                   "angry face with horns"},
+        EmojiEntry{
+            EmojiEnum::FaceWithSymbolsOnMouth,
+            "\xF0\x9F\xA4\xAC",
+            "face with symbols on mouth"},
+        EmojiEntry{
+            EmojiEnum::SmilingFaceWithHorns,
+            "\xF0\x9F\x98\x88",
+            "smiling face with horns"},
+        EmojiEntry{
+            EmojiEnum::AngryFaceWithHorns,
+            "\xF0\x9F\x91\xBF",
+            "angry face with horns"},
         EmojiEntry{EmojiEnum::Skull, "\xF0\x9F\x92\x80", "skull"},
-        EmojiEntry{EmojiEnum::SkullAndCrossbones, "\xE2\x98\xA0\xEF\xB8\x8F",
-                   "skull and crossbones"},
+        EmojiEntry{
+            EmojiEnum::SkullAndCrossbones,
+            "\xE2\x98\xA0\xEF\xB8\x8F",
+            "skull and crossbones"},
         EmojiEntry{EmojiEnum::PileOfPoo, "\xF0\x9F\x92\xA9", "pile of poo"},
         EmojiEntry{EmojiEnum::ClownFace, "\xF0\x9F\xA4\xA1", "clown face"},
         EmojiEntry{EmojiEnum::Ogre, "\xF0\x9F\x91\xB9", "ogre"},
         EmojiEntry{EmojiEnum::Goblin, "\xF0\x9F\x91\xBA", "goblin"},
         EmojiEntry{EmojiEnum::Ghost, "\xF0\x9F\x91\xBB", "ghost"},
         EmojiEntry{EmojiEnum::Alien, "\xF0\x9F\x91\xBD", "alien"},
-        EmojiEntry{EmojiEnum::AlienMonster, "\xF0\x9F\x91\xBE",
-                   "alien monster"},
+        EmojiEntry{
+            EmojiEnum::AlienMonster,
+            "\xF0\x9F\x91\xBE",
+            "alien monster"},
         EmojiEntry{EmojiEnum::Robot, "\xF0\x9F\xA4\x96", "robot"},
         EmojiEntry{EmojiEnum::GrinningCat, "\xF0\x9F\x98\xBA", "grinning cat"},
-        EmojiEntry{EmojiEnum::GrinningCatWithSmilingEyes, "\xF0\x9F\x98\xB8",
-                   "grinning cat with smiling eyes"},
-        EmojiEntry{EmojiEnum::CatWithTearsOfJoy, "\xF0\x9F\x98\xB9",
-                   "cat with tears of joy"},
-        EmojiEntry{EmojiEnum::SmilingCatWithHeartEyes, "\xF0\x9F\x98\xBB",
-                   "smiling cat with heart-eyes"},
-        EmojiEntry{EmojiEnum::CatWithWrySmile, "\xF0\x9F\x98\xBC",
-                   "cat with wry smile"},
+        EmojiEntry{
+            EmojiEnum::GrinningCatWithSmilingEyes,
+            "\xF0\x9F\x98\xB8",
+            "grinning cat with smiling eyes"},
+        EmojiEntry{
+            EmojiEnum::CatWithTearsOfJoy,
+            "\xF0\x9F\x98\xB9",
+            "cat with tears of joy"},
+        EmojiEntry{
+            EmojiEnum::SmilingCatWithHeartEyes,
+            "\xF0\x9F\x98\xBB",
+            "smiling cat with heart-eyes"},
+        EmojiEntry{
+            EmojiEnum::CatWithWrySmile,
+            "\xF0\x9F\x98\xBC",
+            "cat with wry smile"},
         EmojiEntry{EmojiEnum::KissingCat, "\xF0\x9F\x98\xBD", "kissing cat"},
         EmojiEntry{EmojiEnum::WearyCat, "\xF0\x9F\x99\x80", "weary cat"},
         EmojiEntry{EmojiEnum::CryingCat, "\xF0\x9F\x98\xBF", "crying cat"},
         EmojiEntry{EmojiEnum::PoutingCat, "\xF0\x9F\x98\xBE", "pouting cat"},
-        EmojiEntry{EmojiEnum::SeeNoEvilMonkey, "\xF0\x9F\x99\x88",
-                   "see-no-evil monkey"},
-        EmojiEntry{EmojiEnum::HearNoEvilMonkey, "\xF0\x9F\x99\x89",
-                   "hear-no-evil monkey"},
-        EmojiEntry{EmojiEnum::SpeakNoEvilMonkey, "\xF0\x9F\x99\x8A",
-                   "speak-no-evil monkey"},
+        EmojiEntry{
+            EmojiEnum::SeeNoEvilMonkey,
+            "\xF0\x9F\x99\x88",
+            "see-no-evil monkey"},
+        EmojiEntry{
+            EmojiEnum::HearNoEvilMonkey,
+            "\xF0\x9F\x99\x89",
+            "hear-no-evil monkey"},
+        EmojiEntry{
+            EmojiEnum::SpeakNoEvilMonkey,
+            "\xF0\x9F\x99\x8A",
+            "speak-no-evil monkey"},
         EmojiEntry{EmojiEnum::LoveLetter, "\xF0\x9F\x92\x8C", "love letter"},
-        EmojiEntry{EmojiEnum::HeartWithArrow, "\xF0\x9F\x92\x98",
-                   "heart with arrow"},
-        EmojiEntry{EmojiEnum::HeartWithRibbon, "\xF0\x9F\x92\x9D",
-                   "heart with ribbon"},
-        EmojiEntry{EmojiEnum::SparklingHeart, "\xF0\x9F\x92\x96",
-                   "sparkling heart"},
-        EmojiEntry{EmojiEnum::GrowingHeart, "\xF0\x9F\x92\x97",
-                   "growing heart"},
-        EmojiEntry{EmojiEnum::BeatingHeart, "\xF0\x9F\x92\x93",
-                   "beating heart"},
-        EmojiEntry{EmojiEnum::RevolvingHearts, "\xF0\x9F\x92\x9E",
-                   "revolving hearts"},
+        EmojiEntry{
+            EmojiEnum::HeartWithArrow,
+            "\xF0\x9F\x92\x98",
+            "heart with arrow"},
+        EmojiEntry{
+            EmojiEnum::HeartWithRibbon,
+            "\xF0\x9F\x92\x9D",
+            "heart with ribbon"},
+        EmojiEntry{
+            EmojiEnum::SparklingHeart,
+            "\xF0\x9F\x92\x96",
+            "sparkling heart"},
+        EmojiEntry{
+            EmojiEnum::GrowingHeart,
+            "\xF0\x9F\x92\x97",
+            "growing heart"},
+        EmojiEntry{
+            EmojiEnum::BeatingHeart,
+            "\xF0\x9F\x92\x93",
+            "beating heart"},
+        EmojiEntry{
+            EmojiEnum::RevolvingHearts,
+            "\xF0\x9F\x92\x9E",
+            "revolving hearts"},
         EmojiEntry{EmojiEnum::TwoHearts, "\xF0\x9F\x92\x95", "two hearts"},
-        EmojiEntry{EmojiEnum::HeartDecoration, "\xF0\x9F\x92\x9F",
-                   "heart decoration"},
-        EmojiEntry{EmojiEnum::HeartExclamation, "\xE2\x9D\xA3\xEF\xB8\x8F",
-                   "heart exclamation"},
+        EmojiEntry{
+            EmojiEnum::HeartDecoration,
+            "\xF0\x9F\x92\x9F",
+            "heart decoration"},
+        EmojiEntry{
+            EmojiEnum::HeartExclamation,
+            "\xE2\x9D\xA3\xEF\xB8\x8F",
+            "heart exclamation"},
         EmojiEntry{EmojiEnum::BrokenHeart, "\xF0\x9F\x92\x94", "broken heart"},
-        EmojiEntry{EmojiEnum::HeartOnFire,
-                   "\xE2\x9D\xA4\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x94\xA5",
-                   "heart on fire"},
-        EmojiEntry{EmojiEnum::MendingHeart,
-                   "\xE2\x9D\xA4\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\xA9\xB9",
-                   "mending heart"},
-        EmojiEntry{EmojiEnum::RedHeart, "\xE2\x9D\xA4\xEF\xB8\x8F",
-                   "red heart"},
+        EmojiEntry{
+            EmojiEnum::HeartOnFire,
+            "\xE2\x9D\xA4\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x94\xA5",
+            "heart on fire"},
+        EmojiEntry{
+            EmojiEnum::MendingHeart,
+            "\xE2\x9D\xA4\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\xA9\xB9",
+            "mending heart"},
+        EmojiEntry{
+            EmojiEnum::RedHeart,
+            "\xE2\x9D\xA4\xEF\xB8\x8F",
+            "red heart"},
         EmojiEntry{EmojiEnum::PinkHeart, "\xF0\x9F\xA9\xB7", "pink heart"},
         EmojiEntry{EmojiEnum::OrangeHeart, "\xF0\x9F\xA7\xA1", "orange heart"},
         EmojiEntry{EmojiEnum::YellowHeart, "\xF0\x9F\x92\x9B", "yellow heart"},
         EmojiEntry{EmojiEnum::GreenHeart, "\xF0\x9F\x92\x9A", "green heart"},
         EmojiEntry{EmojiEnum::BlueHeart, "\xF0\x9F\x92\x99", "blue heart"},
-        EmojiEntry{EmojiEnum::LightBlueHeart, "\xF0\x9F\xA9\xB5",
-                   "light blue heart"},
+        EmojiEntry{
+            EmojiEnum::LightBlueHeart,
+            "\xF0\x9F\xA9\xB5",
+            "light blue heart"},
         EmojiEntry{EmojiEnum::PurpleHeart, "\xF0\x9F\x92\x9C", "purple heart"},
         EmojiEntry{EmojiEnum::BrownHeart, "\xF0\x9F\xA4\x8E", "brown heart"},
         EmojiEntry{EmojiEnum::BlackHeart, "\xF0\x9F\x96\xA4", "black heart"},
         EmojiEntry{EmojiEnum::GreyHeart, "\xF0\x9F\xA9\xB6", "grey heart"},
         EmojiEntry{EmojiEnum::WhiteHeart, "\xF0\x9F\xA4\x8D", "white heart"},
         EmojiEntry{EmojiEnum::KissMark, "\xF0\x9F\x92\x8B", "kiss mark"},
-        EmojiEntry{EmojiEnum::HundredPoints, "\xF0\x9F\x92\xAF",
-                   "hundred points"},
+        EmojiEntry{
+            EmojiEnum::HundredPoints,
+            "\xF0\x9F\x92\xAF",
+            "hundred points"},
         EmojiEntry{EmojiEnum::AngerSymbol, "\xF0\x9F\x92\xA2", "anger symbol"},
         EmojiEntry{EmojiEnum::Collision, "\xF0\x9F\x92\xA5", "collision"},
         EmojiEntry{EmojiEnum::Dizzy, "\xF0\x9F\x92\xAB", "dizzy"},
-        EmojiEntry{EmojiEnum::SweatDroplets, "\xF0\x9F\x92\xA6",
-                   "sweat droplets"},
+        EmojiEntry{
+            EmojiEnum::SweatDroplets,
+            "\xF0\x9F\x92\xA6",
+            "sweat droplets"},
         EmojiEntry{EmojiEnum::DashingAway, "\xF0\x9F\x92\xA8", "dashing away"},
         EmojiEntry{EmojiEnum::Hole, "\xF0\x9F\x95\xB3\xEF\xB8\x8F", "hole"},
-        EmojiEntry{EmojiEnum::SpeechBalloon, "\xF0\x9F\x92\xAC",
-                   "speech balloon"},
-        EmojiEntry{EmojiEnum::EyeInSpeechBubble,
-                   "\xF0\x9F\x91\x81\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x97\xA8"
-                   "\xEF\xB8\x8F",
-                   "eye in speech bubble"},
-        EmojiEntry{EmojiEnum::LeftSpeechBubble, "\xF0\x9F\x97\xA8\xEF\xB8\x8F",
-                   "left speech bubble"},
-        EmojiEntry{EmojiEnum::RightAngerBubble, "\xF0\x9F\x97\xAF\xEF\xB8\x8F",
-                   "right anger bubble"},
-        EmojiEntry{EmojiEnum::ThoughtBalloon, "\xF0\x9F\x92\xAD",
-                   "thought balloon"},
+        EmojiEntry{
+            EmojiEnum::SpeechBalloon,
+            "\xF0\x9F\x92\xAC",
+            "speech balloon"},
+        EmojiEntry{
+            EmojiEnum::EyeInSpeechBubble,
+            "\xF0\x9F\x91\x81\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x97\xA8"
+            "\xEF\xB8\x8F",
+            "eye in speech bubble"},
+        EmojiEntry{
+            EmojiEnum::LeftSpeechBubble,
+            "\xF0\x9F\x97\xA8\xEF\xB8\x8F",
+            "left speech bubble"},
+        EmojiEntry{
+            EmojiEnum::RightAngerBubble,
+            "\xF0\x9F\x97\xAF\xEF\xB8\x8F",
+            "right anger bubble"},
+        EmojiEntry{
+            EmojiEnum::ThoughtBalloon,
+            "\xF0\x9F\x92\xAD",
+            "thought balloon"},
         EmojiEntry{EmojiEnum::Zzz, "\xF0\x9F\x92\xA4", "ZZZ"},
         EmojiEntry{EmojiEnum::WavingHand, "\xF0\x9F\x91\x8B", "waving hand"},
-        EmojiEntry{EmojiEnum::WavingHandLightSkinTone,
-                   "\xF0\x9F\x91\x8B\xF0\x9F\x8F\xBB",
-                   "waving hand: light skin tone"},
-        EmojiEntry{EmojiEnum::WavingHandMediumLightSkinTone,
-                   "\xF0\x9F\x91\x8B\xF0\x9F\x8F\xBC",
-                   "waving hand: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::WavingHandMediumSkinTone,
-                   "\xF0\x9F\x91\x8B\xF0\x9F\x8F\xBD",
-                   "waving hand: medium skin tone"},
-        EmojiEntry{EmojiEnum::WavingHandMediumDarkSkinTone,
-                   "\xF0\x9F\x91\x8B\xF0\x9F\x8F\xBE",
-                   "waving hand: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::WavingHandDarkSkinTone,
-                   "\xF0\x9F\x91\x8B\xF0\x9F\x8F\xBF",
-                   "waving hand: dark skin tone"},
-        EmojiEntry{EmojiEnum::RaisedBackOfHand, "\xF0\x9F\xA4\x9A",
-                   "raised back of hand"},
-        EmojiEntry{EmojiEnum::RaisedBackOfHandLightSkinTone,
-                   "\xF0\x9F\xA4\x9A\xF0\x9F\x8F\xBB",
-                   "raised back of hand: light skin tone"},
-        EmojiEntry{EmojiEnum::RaisedBackOfHandMediumLightSkinTone,
-                   "\xF0\x9F\xA4\x9A\xF0\x9F\x8F\xBC",
-                   "raised back of hand: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::RaisedBackOfHandMediumSkinTone,
-                   "\xF0\x9F\xA4\x9A\xF0\x9F\x8F\xBD",
-                   "raised back of hand: medium skin tone"},
-        EmojiEntry{EmojiEnum::RaisedBackOfHandMediumDarkSkinTone,
-                   "\xF0\x9F\xA4\x9A\xF0\x9F\x8F\xBE",
-                   "raised back of hand: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::RaisedBackOfHandDarkSkinTone,
-                   "\xF0\x9F\xA4\x9A\xF0\x9F\x8F\xBF",
-                   "raised back of hand: dark skin tone"},
-        EmojiEntry{EmojiEnum::HandWithFingersSplayed,
-                   "\xF0\x9F\x96\x90\xEF\xB8\x8F", "hand with fingers splayed"},
-        EmojiEntry{EmojiEnum::HandWithFingersSplayedLightSkinTone,
-                   "\xF0\x9F\x96\x90\xF0\x9F\x8F\xBB",
-                   "hand with fingers splayed: light skin tone"},
-        EmojiEntry{EmojiEnum::HandWithFingersSplayedMediumLightSkinTone,
-                   "\xF0\x9F\x96\x90\xF0\x9F\x8F\xBC",
-                   "hand with fingers splayed: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::HandWithFingersSplayedMediumSkinTone,
-                   "\xF0\x9F\x96\x90\xF0\x9F\x8F\xBD",
-                   "hand with fingers splayed: medium skin tone"},
-        EmojiEntry{EmojiEnum::HandWithFingersSplayedMediumDarkSkinTone,
-                   "\xF0\x9F\x96\x90\xF0\x9F\x8F\xBE",
-                   "hand with fingers splayed: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::HandWithFingersSplayedDarkSkinTone,
-                   "\xF0\x9F\x96\x90\xF0\x9F\x8F\xBF",
-                   "hand with fingers splayed: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WavingHandLightSkinTone,
+            "\xF0\x9F\x91\x8B\xF0\x9F\x8F\xBB",
+            "waving hand: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WavingHandMediumLightSkinTone,
+            "\xF0\x9F\x91\x8B\xF0\x9F\x8F\xBC",
+            "waving hand: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WavingHandMediumSkinTone,
+            "\xF0\x9F\x91\x8B\xF0\x9F\x8F\xBD",
+            "waving hand: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::WavingHandMediumDarkSkinTone,
+            "\xF0\x9F\x91\x8B\xF0\x9F\x8F\xBE",
+            "waving hand: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WavingHandDarkSkinTone,
+            "\xF0\x9F\x91\x8B\xF0\x9F\x8F\xBF",
+            "waving hand: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::RaisedBackOfHand,
+            "\xF0\x9F\xA4\x9A",
+            "raised back of hand"},
+        EmojiEntry{
+            EmojiEnum::RaisedBackOfHandLightSkinTone,
+            "\xF0\x9F\xA4\x9A\xF0\x9F\x8F\xBB",
+            "raised back of hand: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::RaisedBackOfHandMediumLightSkinTone,
+            "\xF0\x9F\xA4\x9A\xF0\x9F\x8F\xBC",
+            "raised back of hand: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::RaisedBackOfHandMediumSkinTone,
+            "\xF0\x9F\xA4\x9A\xF0\x9F\x8F\xBD",
+            "raised back of hand: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::RaisedBackOfHandMediumDarkSkinTone,
+            "\xF0\x9F\xA4\x9A\xF0\x9F\x8F\xBE",
+            "raised back of hand: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::RaisedBackOfHandDarkSkinTone,
+            "\xF0\x9F\xA4\x9A\xF0\x9F\x8F\xBF",
+            "raised back of hand: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::HandWithFingersSplayed,
+            "\xF0\x9F\x96\x90\xEF\xB8\x8F",
+            "hand with fingers splayed"},
+        EmojiEntry{
+            EmojiEnum::HandWithFingersSplayedLightSkinTone,
+            "\xF0\x9F\x96\x90\xF0\x9F\x8F\xBB",
+            "hand with fingers splayed: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::HandWithFingersSplayedMediumLightSkinTone,
+            "\xF0\x9F\x96\x90\xF0\x9F\x8F\xBC",
+            "hand with fingers splayed: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::HandWithFingersSplayedMediumSkinTone,
+            "\xF0\x9F\x96\x90\xF0\x9F\x8F\xBD",
+            "hand with fingers splayed: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::HandWithFingersSplayedMediumDarkSkinTone,
+            "\xF0\x9F\x96\x90\xF0\x9F\x8F\xBE",
+            "hand with fingers splayed: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::HandWithFingersSplayedDarkSkinTone,
+            "\xF0\x9F\x96\x90\xF0\x9F\x8F\xBF",
+            "hand with fingers splayed: dark skin tone"},
         EmojiEntry{EmojiEnum::RaisedHand, "\xE2\x9C\x8B", "raised hand"},
-        EmojiEntry{EmojiEnum::RaisedHandLightSkinTone,
-                   "\xE2\x9C\x8B\xF0\x9F\x8F\xBB",
-                   "raised hand: light skin tone"},
-        EmojiEntry{EmojiEnum::RaisedHandMediumLightSkinTone,
-                   "\xE2\x9C\x8B\xF0\x9F\x8F\xBC",
-                   "raised hand: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::RaisedHandMediumSkinTone,
-                   "\xE2\x9C\x8B\xF0\x9F\x8F\xBD",
-                   "raised hand: medium skin tone"},
-        EmojiEntry{EmojiEnum::RaisedHandMediumDarkSkinTone,
-                   "\xE2\x9C\x8B\xF0\x9F\x8F\xBE",
-                   "raised hand: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::RaisedHandDarkSkinTone,
-                   "\xE2\x9C\x8B\xF0\x9F\x8F\xBF",
-                   "raised hand: dark skin tone"},
-        EmojiEntry{EmojiEnum::VulcanSalute, "\xF0\x9F\x96\x96",
-                   "vulcan salute"},
-        EmojiEntry{EmojiEnum::VulcanSaluteLightSkinTone,
-                   "\xF0\x9F\x96\x96\xF0\x9F\x8F\xBB",
-                   "vulcan salute: light skin tone"},
-        EmojiEntry{EmojiEnum::VulcanSaluteMediumLightSkinTone,
-                   "\xF0\x9F\x96\x96\xF0\x9F\x8F\xBC",
-                   "vulcan salute: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::VulcanSaluteMediumSkinTone,
-                   "\xF0\x9F\x96\x96\xF0\x9F\x8F\xBD",
-                   "vulcan salute: medium skin tone"},
-        EmojiEntry{EmojiEnum::VulcanSaluteMediumDarkSkinTone,
-                   "\xF0\x9F\x96\x96\xF0\x9F\x8F\xBE",
-                   "vulcan salute: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::VulcanSaluteDarkSkinTone,
-                   "\xF0\x9F\x96\x96\xF0\x9F\x8F\xBF",
-                   "vulcan salute: dark skin tone"},
-        EmojiEntry{EmojiEnum::RightwardsHand, "\xF0\x9F\xAB\xB1",
-                   "rightwards hand"},
-        EmojiEntry{EmojiEnum::RightwardsHandLightSkinTone,
-                   "\xF0\x9F\xAB\xB1\xF0\x9F\x8F\xBB",
-                   "rightwards hand: light skin tone"},
-        EmojiEntry{EmojiEnum::RightwardsHandMediumLightSkinTone,
-                   "\xF0\x9F\xAB\xB1\xF0\x9F\x8F\xBC",
-                   "rightwards hand: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::RightwardsHandMediumSkinTone,
-                   "\xF0\x9F\xAB\xB1\xF0\x9F\x8F\xBD",
-                   "rightwards hand: medium skin tone"},
-        EmojiEntry{EmojiEnum::RightwardsHandMediumDarkSkinTone,
-                   "\xF0\x9F\xAB\xB1\xF0\x9F\x8F\xBE",
-                   "rightwards hand: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::RightwardsHandDarkSkinTone,
-                   "\xF0\x9F\xAB\xB1\xF0\x9F\x8F\xBF",
-                   "rightwards hand: dark skin tone"},
-        EmojiEntry{EmojiEnum::LeftwardsHand, "\xF0\x9F\xAB\xB2",
-                   "leftwards hand"},
-        EmojiEntry{EmojiEnum::LeftwardsHandLightSkinTone,
-                   "\xF0\x9F\xAB\xB2\xF0\x9F\x8F\xBB",
-                   "leftwards hand: light skin tone"},
-        EmojiEntry{EmojiEnum::LeftwardsHandMediumLightSkinTone,
-                   "\xF0\x9F\xAB\xB2\xF0\x9F\x8F\xBC",
-                   "leftwards hand: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::LeftwardsHandMediumSkinTone,
-                   "\xF0\x9F\xAB\xB2\xF0\x9F\x8F\xBD",
-                   "leftwards hand: medium skin tone"},
-        EmojiEntry{EmojiEnum::LeftwardsHandMediumDarkSkinTone,
-                   "\xF0\x9F\xAB\xB2\xF0\x9F\x8F\xBE",
-                   "leftwards hand: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::LeftwardsHandDarkSkinTone,
-                   "\xF0\x9F\xAB\xB2\xF0\x9F\x8F\xBF",
-                   "leftwards hand: dark skin tone"},
-        EmojiEntry{EmojiEnum::PalmDownHand, "\xF0\x9F\xAB\xB3",
-                   "palm down hand"},
-        EmojiEntry{EmojiEnum::PalmDownHandLightSkinTone,
-                   "\xF0\x9F\xAB\xB3\xF0\x9F\x8F\xBB",
-                   "palm down hand: light skin tone"},
-        EmojiEntry{EmojiEnum::PalmDownHandMediumLightSkinTone,
-                   "\xF0\x9F\xAB\xB3\xF0\x9F\x8F\xBC",
-                   "palm down hand: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::PalmDownHandMediumSkinTone,
-                   "\xF0\x9F\xAB\xB3\xF0\x9F\x8F\xBD",
-                   "palm down hand: medium skin tone"},
-        EmojiEntry{EmojiEnum::PalmDownHandMediumDarkSkinTone,
-                   "\xF0\x9F\xAB\xB3\xF0\x9F\x8F\xBE",
-                   "palm down hand: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::PalmDownHandDarkSkinTone,
-                   "\xF0\x9F\xAB\xB3\xF0\x9F\x8F\xBF",
-                   "palm down hand: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::RaisedHandLightSkinTone,
+            "\xE2\x9C\x8B\xF0\x9F\x8F\xBB",
+            "raised hand: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::RaisedHandMediumLightSkinTone,
+            "\xE2\x9C\x8B\xF0\x9F\x8F\xBC",
+            "raised hand: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::RaisedHandMediumSkinTone,
+            "\xE2\x9C\x8B\xF0\x9F\x8F\xBD",
+            "raised hand: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::RaisedHandMediumDarkSkinTone,
+            "\xE2\x9C\x8B\xF0\x9F\x8F\xBE",
+            "raised hand: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::RaisedHandDarkSkinTone,
+            "\xE2\x9C\x8B\xF0\x9F\x8F\xBF",
+            "raised hand: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::VulcanSalute,
+            "\xF0\x9F\x96\x96",
+            "vulcan salute"},
+        EmojiEntry{
+            EmojiEnum::VulcanSaluteLightSkinTone,
+            "\xF0\x9F\x96\x96\xF0\x9F\x8F\xBB",
+            "vulcan salute: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::VulcanSaluteMediumLightSkinTone,
+            "\xF0\x9F\x96\x96\xF0\x9F\x8F\xBC",
+            "vulcan salute: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::VulcanSaluteMediumSkinTone,
+            "\xF0\x9F\x96\x96\xF0\x9F\x8F\xBD",
+            "vulcan salute: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::VulcanSaluteMediumDarkSkinTone,
+            "\xF0\x9F\x96\x96\xF0\x9F\x8F\xBE",
+            "vulcan salute: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::VulcanSaluteDarkSkinTone,
+            "\xF0\x9F\x96\x96\xF0\x9F\x8F\xBF",
+            "vulcan salute: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::RightwardsHand,
+            "\xF0\x9F\xAB\xB1",
+            "rightwards hand"},
+        EmojiEntry{
+            EmojiEnum::RightwardsHandLightSkinTone,
+            "\xF0\x9F\xAB\xB1\xF0\x9F\x8F\xBB",
+            "rightwards hand: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::RightwardsHandMediumLightSkinTone,
+            "\xF0\x9F\xAB\xB1\xF0\x9F\x8F\xBC",
+            "rightwards hand: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::RightwardsHandMediumSkinTone,
+            "\xF0\x9F\xAB\xB1\xF0\x9F\x8F\xBD",
+            "rightwards hand: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::RightwardsHandMediumDarkSkinTone,
+            "\xF0\x9F\xAB\xB1\xF0\x9F\x8F\xBE",
+            "rightwards hand: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::RightwardsHandDarkSkinTone,
+            "\xF0\x9F\xAB\xB1\xF0\x9F\x8F\xBF",
+            "rightwards hand: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::LeftwardsHand,
+            "\xF0\x9F\xAB\xB2",
+            "leftwards hand"},
+        EmojiEntry{
+            EmojiEnum::LeftwardsHandLightSkinTone,
+            "\xF0\x9F\xAB\xB2\xF0\x9F\x8F\xBB",
+            "leftwards hand: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::LeftwardsHandMediumLightSkinTone,
+            "\xF0\x9F\xAB\xB2\xF0\x9F\x8F\xBC",
+            "leftwards hand: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::LeftwardsHandMediumSkinTone,
+            "\xF0\x9F\xAB\xB2\xF0\x9F\x8F\xBD",
+            "leftwards hand: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::LeftwardsHandMediumDarkSkinTone,
+            "\xF0\x9F\xAB\xB2\xF0\x9F\x8F\xBE",
+            "leftwards hand: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::LeftwardsHandDarkSkinTone,
+            "\xF0\x9F\xAB\xB2\xF0\x9F\x8F\xBF",
+            "leftwards hand: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PalmDownHand,
+            "\xF0\x9F\xAB\xB3",
+            "palm down hand"},
+        EmojiEntry{
+            EmojiEnum::PalmDownHandLightSkinTone,
+            "\xF0\x9F\xAB\xB3\xF0\x9F\x8F\xBB",
+            "palm down hand: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PalmDownHandMediumLightSkinTone,
+            "\xF0\x9F\xAB\xB3\xF0\x9F\x8F\xBC",
+            "palm down hand: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PalmDownHandMediumSkinTone,
+            "\xF0\x9F\xAB\xB3\xF0\x9F\x8F\xBD",
+            "palm down hand: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::PalmDownHandMediumDarkSkinTone,
+            "\xF0\x9F\xAB\xB3\xF0\x9F\x8F\xBE",
+            "palm down hand: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PalmDownHandDarkSkinTone,
+            "\xF0\x9F\xAB\xB3\xF0\x9F\x8F\xBF",
+            "palm down hand: dark skin tone"},
         EmojiEntry{EmojiEnum::PalmUpHand, "\xF0\x9F\xAB\xB4", "palm up hand"},
-        EmojiEntry{EmojiEnum::PalmUpHandLightSkinTone,
-                   "\xF0\x9F\xAB\xB4\xF0\x9F\x8F\xBB",
-                   "palm up hand: light skin tone"},
-        EmojiEntry{EmojiEnum::PalmUpHandMediumLightSkinTone,
-                   "\xF0\x9F\xAB\xB4\xF0\x9F\x8F\xBC",
-                   "palm up hand: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::PalmUpHandMediumSkinTone,
-                   "\xF0\x9F\xAB\xB4\xF0\x9F\x8F\xBD",
-                   "palm up hand: medium skin tone"},
-        EmojiEntry{EmojiEnum::PalmUpHandMediumDarkSkinTone,
-                   "\xF0\x9F\xAB\xB4\xF0\x9F\x8F\xBE",
-                   "palm up hand: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::PalmUpHandDarkSkinTone,
-                   "\xF0\x9F\xAB\xB4\xF0\x9F\x8F\xBF",
-                   "palm up hand: dark skin tone"},
-        EmojiEntry{EmojiEnum::LeftwardsPushingHand, "\xF0\x9F\xAB\xB7",
-                   "leftwards pushing hand"},
-        EmojiEntry{EmojiEnum::LeftwardsPushingHandLightSkinTone,
-                   "\xF0\x9F\xAB\xB7\xF0\x9F\x8F\xBB",
-                   "leftwards pushing hand: light skin tone"},
-        EmojiEntry{EmojiEnum::LeftwardsPushingHandMediumLightSkinTone,
-                   "\xF0\x9F\xAB\xB7\xF0\x9F\x8F\xBC",
-                   "leftwards pushing hand: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::LeftwardsPushingHandMediumSkinTone,
-                   "\xF0\x9F\xAB\xB7\xF0\x9F\x8F\xBD",
-                   "leftwards pushing hand: medium skin tone"},
-        EmojiEntry{EmojiEnum::LeftwardsPushingHandMediumDarkSkinTone,
-                   "\xF0\x9F\xAB\xB7\xF0\x9F\x8F\xBE",
-                   "leftwards pushing hand: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::LeftwardsPushingHandDarkSkinTone,
-                   "\xF0\x9F\xAB\xB7\xF0\x9F\x8F\xBF",
-                   "leftwards pushing hand: dark skin tone"},
-        EmojiEntry{EmojiEnum::RightwardsPushingHand, "\xF0\x9F\xAB\xB8",
-                   "rightwards pushing hand"},
-        EmojiEntry{EmojiEnum::RightwardsPushingHandLightSkinTone,
-                   "\xF0\x9F\xAB\xB8\xF0\x9F\x8F\xBB",
-                   "rightwards pushing hand: light skin tone"},
-        EmojiEntry{EmojiEnum::RightwardsPushingHandMediumLightSkinTone,
-                   "\xF0\x9F\xAB\xB8\xF0\x9F\x8F\xBC",
-                   "rightwards pushing hand: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::RightwardsPushingHandMediumSkinTone,
-                   "\xF0\x9F\xAB\xB8\xF0\x9F\x8F\xBD",
-                   "rightwards pushing hand: medium skin tone"},
-        EmojiEntry{EmojiEnum::RightwardsPushingHandMediumDarkSkinTone,
-                   "\xF0\x9F\xAB\xB8\xF0\x9F\x8F\xBE",
-                   "rightwards pushing hand: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::RightwardsPushingHandDarkSkinTone,
-                   "\xF0\x9F\xAB\xB8\xF0\x9F\x8F\xBF",
-                   "rightwards pushing hand: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PalmUpHandLightSkinTone,
+            "\xF0\x9F\xAB\xB4\xF0\x9F\x8F\xBB",
+            "palm up hand: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PalmUpHandMediumLightSkinTone,
+            "\xF0\x9F\xAB\xB4\xF0\x9F\x8F\xBC",
+            "palm up hand: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PalmUpHandMediumSkinTone,
+            "\xF0\x9F\xAB\xB4\xF0\x9F\x8F\xBD",
+            "palm up hand: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::PalmUpHandMediumDarkSkinTone,
+            "\xF0\x9F\xAB\xB4\xF0\x9F\x8F\xBE",
+            "palm up hand: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PalmUpHandDarkSkinTone,
+            "\xF0\x9F\xAB\xB4\xF0\x9F\x8F\xBF",
+            "palm up hand: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::LeftwardsPushingHand,
+            "\xF0\x9F\xAB\xB7",
+            "leftwards pushing hand"},
+        EmojiEntry{
+            EmojiEnum::LeftwardsPushingHandLightSkinTone,
+            "\xF0\x9F\xAB\xB7\xF0\x9F\x8F\xBB",
+            "leftwards pushing hand: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::LeftwardsPushingHandMediumLightSkinTone,
+            "\xF0\x9F\xAB\xB7\xF0\x9F\x8F\xBC",
+            "leftwards pushing hand: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::LeftwardsPushingHandMediumSkinTone,
+            "\xF0\x9F\xAB\xB7\xF0\x9F\x8F\xBD",
+            "leftwards pushing hand: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::LeftwardsPushingHandMediumDarkSkinTone,
+            "\xF0\x9F\xAB\xB7\xF0\x9F\x8F\xBE",
+            "leftwards pushing hand: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::LeftwardsPushingHandDarkSkinTone,
+            "\xF0\x9F\xAB\xB7\xF0\x9F\x8F\xBF",
+            "leftwards pushing hand: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::RightwardsPushingHand,
+            "\xF0\x9F\xAB\xB8",
+            "rightwards pushing hand"},
+        EmojiEntry{
+            EmojiEnum::RightwardsPushingHandLightSkinTone,
+            "\xF0\x9F\xAB\xB8\xF0\x9F\x8F\xBB",
+            "rightwards pushing hand: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::RightwardsPushingHandMediumLightSkinTone,
+            "\xF0\x9F\xAB\xB8\xF0\x9F\x8F\xBC",
+            "rightwards pushing hand: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::RightwardsPushingHandMediumSkinTone,
+            "\xF0\x9F\xAB\xB8\xF0\x9F\x8F\xBD",
+            "rightwards pushing hand: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::RightwardsPushingHandMediumDarkSkinTone,
+            "\xF0\x9F\xAB\xB8\xF0\x9F\x8F\xBE",
+            "rightwards pushing hand: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::RightwardsPushingHandDarkSkinTone,
+            "\xF0\x9F\xAB\xB8\xF0\x9F\x8F\xBF",
+            "rightwards pushing hand: dark skin tone"},
         EmojiEntry{EmojiEnum::OkHand, "\xF0\x9F\x91\x8C", "OK hand"},
-        EmojiEntry{EmojiEnum::OkHandLightSkinTone,
-                   "\xF0\x9F\x91\x8C\xF0\x9F\x8F\xBB",
-                   "OK hand: light skin tone"},
-        EmojiEntry{EmojiEnum::OkHandMediumLightSkinTone,
-                   "\xF0\x9F\x91\x8C\xF0\x9F\x8F\xBC",
-                   "OK hand: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::OkHandMediumSkinTone,
-                   "\xF0\x9F\x91\x8C\xF0\x9F\x8F\xBD",
-                   "OK hand: medium skin tone"},
-        EmojiEntry{EmojiEnum::OkHandMediumDarkSkinTone,
-                   "\xF0\x9F\x91\x8C\xF0\x9F\x8F\xBE",
-                   "OK hand: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::OkHandDarkSkinTone,
-                   "\xF0\x9F\x91\x8C\xF0\x9F\x8F\xBF",
-                   "OK hand: dark skin tone"},
-        EmojiEntry{EmojiEnum::PinchedFingers, "\xF0\x9F\xA4\x8C",
-                   "pinched fingers"},
-        EmojiEntry{EmojiEnum::PinchedFingersLightSkinTone,
-                   "\xF0\x9F\xA4\x8C\xF0\x9F\x8F\xBB",
-                   "pinched fingers: light skin tone"},
-        EmojiEntry{EmojiEnum::PinchedFingersMediumLightSkinTone,
-                   "\xF0\x9F\xA4\x8C\xF0\x9F\x8F\xBC",
-                   "pinched fingers: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::PinchedFingersMediumSkinTone,
-                   "\xF0\x9F\xA4\x8C\xF0\x9F\x8F\xBD",
-                   "pinched fingers: medium skin tone"},
-        EmojiEntry{EmojiEnum::PinchedFingersMediumDarkSkinTone,
-                   "\xF0\x9F\xA4\x8C\xF0\x9F\x8F\xBE",
-                   "pinched fingers: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::PinchedFingersDarkSkinTone,
-                   "\xF0\x9F\xA4\x8C\xF0\x9F\x8F\xBF",
-                   "pinched fingers: dark skin tone"},
-        EmojiEntry{EmojiEnum::PinchingHand, "\xF0\x9F\xA4\x8F",
-                   "pinching hand"},
-        EmojiEntry{EmojiEnum::PinchingHandLightSkinTone,
-                   "\xF0\x9F\xA4\x8F\xF0\x9F\x8F\xBB",
-                   "pinching hand: light skin tone"},
-        EmojiEntry{EmojiEnum::PinchingHandMediumLightSkinTone,
-                   "\xF0\x9F\xA4\x8F\xF0\x9F\x8F\xBC",
-                   "pinching hand: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::PinchingHandMediumSkinTone,
-                   "\xF0\x9F\xA4\x8F\xF0\x9F\x8F\xBD",
-                   "pinching hand: medium skin tone"},
-        EmojiEntry{EmojiEnum::PinchingHandMediumDarkSkinTone,
-                   "\xF0\x9F\xA4\x8F\xF0\x9F\x8F\xBE",
-                   "pinching hand: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::PinchingHandDarkSkinTone,
-                   "\xF0\x9F\xA4\x8F\xF0\x9F\x8F\xBF",
-                   "pinching hand: dark skin tone"},
-        EmojiEntry{EmojiEnum::VictoryHand, "\xE2\x9C\x8C\xEF\xB8\x8F",
-                   "victory hand"},
-        EmojiEntry{EmojiEnum::VictoryHandLightSkinTone,
-                   "\xE2\x9C\x8C\xF0\x9F\x8F\xBB",
-                   "victory hand: light skin tone"},
-        EmojiEntry{EmojiEnum::VictoryHandMediumLightSkinTone,
-                   "\xE2\x9C\x8C\xF0\x9F\x8F\xBC",
-                   "victory hand: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::VictoryHandMediumSkinTone,
-                   "\xE2\x9C\x8C\xF0\x9F\x8F\xBD",
-                   "victory hand: medium skin tone"},
-        EmojiEntry{EmojiEnum::VictoryHandMediumDarkSkinTone,
-                   "\xE2\x9C\x8C\xF0\x9F\x8F\xBE",
-                   "victory hand: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::VictoryHandDarkSkinTone,
-                   "\xE2\x9C\x8C\xF0\x9F\x8F\xBF",
-                   "victory hand: dark skin tone"},
-        EmojiEntry{EmojiEnum::CrossedFingers, "\xF0\x9F\xA4\x9E",
-                   "crossed fingers"},
-        EmojiEntry{EmojiEnum::CrossedFingersLightSkinTone,
-                   "\xF0\x9F\xA4\x9E\xF0\x9F\x8F\xBB",
-                   "crossed fingers: light skin tone"},
-        EmojiEntry{EmojiEnum::CrossedFingersMediumLightSkinTone,
-                   "\xF0\x9F\xA4\x9E\xF0\x9F\x8F\xBC",
-                   "crossed fingers: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::CrossedFingersMediumSkinTone,
-                   "\xF0\x9F\xA4\x9E\xF0\x9F\x8F\xBD",
-                   "crossed fingers: medium skin tone"},
-        EmojiEntry{EmojiEnum::CrossedFingersMediumDarkSkinTone,
-                   "\xF0\x9F\xA4\x9E\xF0\x9F\x8F\xBE",
-                   "crossed fingers: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::CrossedFingersDarkSkinTone,
-                   "\xF0\x9F\xA4\x9E\xF0\x9F\x8F\xBF",
-                   "crossed fingers: dark skin tone"},
-        EmojiEntry{EmojiEnum::HandWithIndexFingerAndThumbCrossed,
-                   "\xF0\x9F\xAB\xB0",
-                   "hand with index finger and thumb crossed"},
-        EmojiEntry{EmojiEnum::HandWithIndexFingerAndThumbCrossedLightSkinTone,
-                   "\xF0\x9F\xAB\xB0\xF0\x9F\x8F\xBB",
-                   "hand with index finger and thumb crossed: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::OkHandLightSkinTone,
+            "\xF0\x9F\x91\x8C\xF0\x9F\x8F\xBB",
+            "OK hand: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::OkHandMediumLightSkinTone,
+            "\xF0\x9F\x91\x8C\xF0\x9F\x8F\xBC",
+            "OK hand: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::OkHandMediumSkinTone,
+            "\xF0\x9F\x91\x8C\xF0\x9F\x8F\xBD",
+            "OK hand: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::OkHandMediumDarkSkinTone,
+            "\xF0\x9F\x91\x8C\xF0\x9F\x8F\xBE",
+            "OK hand: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::OkHandDarkSkinTone,
+            "\xF0\x9F\x91\x8C\xF0\x9F\x8F\xBF",
+            "OK hand: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PinchedFingers,
+            "\xF0\x9F\xA4\x8C",
+            "pinched fingers"},
+        EmojiEntry{
+            EmojiEnum::PinchedFingersLightSkinTone,
+            "\xF0\x9F\xA4\x8C\xF0\x9F\x8F\xBB",
+            "pinched fingers: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PinchedFingersMediumLightSkinTone,
+            "\xF0\x9F\xA4\x8C\xF0\x9F\x8F\xBC",
+            "pinched fingers: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PinchedFingersMediumSkinTone,
+            "\xF0\x9F\xA4\x8C\xF0\x9F\x8F\xBD",
+            "pinched fingers: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::PinchedFingersMediumDarkSkinTone,
+            "\xF0\x9F\xA4\x8C\xF0\x9F\x8F\xBE",
+            "pinched fingers: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PinchedFingersDarkSkinTone,
+            "\xF0\x9F\xA4\x8C\xF0\x9F\x8F\xBF",
+            "pinched fingers: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PinchingHand,
+            "\xF0\x9F\xA4\x8F",
+            "pinching hand"},
+        EmojiEntry{
+            EmojiEnum::PinchingHandLightSkinTone,
+            "\xF0\x9F\xA4\x8F\xF0\x9F\x8F\xBB",
+            "pinching hand: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PinchingHandMediumLightSkinTone,
+            "\xF0\x9F\xA4\x8F\xF0\x9F\x8F\xBC",
+            "pinching hand: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PinchingHandMediumSkinTone,
+            "\xF0\x9F\xA4\x8F\xF0\x9F\x8F\xBD",
+            "pinching hand: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::PinchingHandMediumDarkSkinTone,
+            "\xF0\x9F\xA4\x8F\xF0\x9F\x8F\xBE",
+            "pinching hand: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PinchingHandDarkSkinTone,
+            "\xF0\x9F\xA4\x8F\xF0\x9F\x8F\xBF",
+            "pinching hand: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::VictoryHand,
+            "\xE2\x9C\x8C\xEF\xB8\x8F",
+            "victory hand"},
+        EmojiEntry{
+            EmojiEnum::VictoryHandLightSkinTone,
+            "\xE2\x9C\x8C\xF0\x9F\x8F\xBB",
+            "victory hand: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::VictoryHandMediumLightSkinTone,
+            "\xE2\x9C\x8C\xF0\x9F\x8F\xBC",
+            "victory hand: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::VictoryHandMediumSkinTone,
+            "\xE2\x9C\x8C\xF0\x9F\x8F\xBD",
+            "victory hand: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::VictoryHandMediumDarkSkinTone,
+            "\xE2\x9C\x8C\xF0\x9F\x8F\xBE",
+            "victory hand: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::VictoryHandDarkSkinTone,
+            "\xE2\x9C\x8C\xF0\x9F\x8F\xBF",
+            "victory hand: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::CrossedFingers,
+            "\xF0\x9F\xA4\x9E",
+            "crossed fingers"},
+        EmojiEntry{
+            EmojiEnum::CrossedFingersLightSkinTone,
+            "\xF0\x9F\xA4\x9E\xF0\x9F\x8F\xBB",
+            "crossed fingers: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::CrossedFingersMediumLightSkinTone,
+            "\xF0\x9F\xA4\x9E\xF0\x9F\x8F\xBC",
+            "crossed fingers: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::CrossedFingersMediumSkinTone,
+            "\xF0\x9F\xA4\x9E\xF0\x9F\x8F\xBD",
+            "crossed fingers: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::CrossedFingersMediumDarkSkinTone,
+            "\xF0\x9F\xA4\x9E\xF0\x9F\x8F\xBE",
+            "crossed fingers: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::CrossedFingersDarkSkinTone,
+            "\xF0\x9F\xA4\x9E\xF0\x9F\x8F\xBF",
+            "crossed fingers: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::HandWithIndexFingerAndThumbCrossed,
+            "\xF0\x9F\xAB\xB0",
+            "hand with index finger and thumb crossed"},
+        EmojiEntry{
+            EmojiEnum::HandWithIndexFingerAndThumbCrossedLightSkinTone,
+            "\xF0\x9F\xAB\xB0\xF0\x9F\x8F\xBB",
+            "hand with index finger and thumb crossed: light skin tone"},
         EmojiEntry{
             EmojiEnum::HandWithIndexFingerAndThumbCrossedMediumLightSkinTone,
             "\xF0\x9F\xAB\xB0\xF0\x9F\x8F\xBC",
-            "hand with index finger and thumb crossed: medium-light skin tone"},
+            "hand with index finger and thumb crossed: medium-light skin "
+            "tone"},
         EmojiEntry{
             EmojiEnum::HandWithIndexFingerAndThumbCrossedMediumSkinTone,
             "\xF0\x9F\xAB\xB0\xF0\x9F\x8F\xBD",
@@ -590,616 +910,849 @@ consteval auto makeEmojiList()
             EmojiEnum::HandWithIndexFingerAndThumbCrossedMediumDarkSkinTone,
             "\xF0\x9F\xAB\xB0\xF0\x9F\x8F\xBE",
             "hand with index finger and thumb crossed: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::HandWithIndexFingerAndThumbCrossedDarkSkinTone,
-                   "\xF0\x9F\xAB\xB0\xF0\x9F\x8F\xBF",
-                   "hand with index finger and thumb crossed: dark skin tone"},
-        EmojiEntry{EmojiEnum::LoveYouGesture, "\xF0\x9F\xA4\x9F",
-                   "love-you gesture"},
-        EmojiEntry{EmojiEnum::LoveYouGestureLightSkinTone,
-                   "\xF0\x9F\xA4\x9F\xF0\x9F\x8F\xBB",
-                   "love-you gesture: light skin tone"},
-        EmojiEntry{EmojiEnum::LoveYouGestureMediumLightSkinTone,
-                   "\xF0\x9F\xA4\x9F\xF0\x9F\x8F\xBC",
-                   "love-you gesture: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::LoveYouGestureMediumSkinTone,
-                   "\xF0\x9F\xA4\x9F\xF0\x9F\x8F\xBD",
-                   "love-you gesture: medium skin tone"},
-        EmojiEntry{EmojiEnum::LoveYouGestureMediumDarkSkinTone,
-                   "\xF0\x9F\xA4\x9F\xF0\x9F\x8F\xBE",
-                   "love-you gesture: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::LoveYouGestureDarkSkinTone,
-                   "\xF0\x9F\xA4\x9F\xF0\x9F\x8F\xBF",
-                   "love-you gesture: dark skin tone"},
-        EmojiEntry{EmojiEnum::SignOfTheHorns, "\xF0\x9F\xA4\x98",
-                   "sign of the horns"},
-        EmojiEntry{EmojiEnum::SignOfTheHornsLightSkinTone,
-                   "\xF0\x9F\xA4\x98\xF0\x9F\x8F\xBB",
-                   "sign of the horns: light skin tone"},
-        EmojiEntry{EmojiEnum::SignOfTheHornsMediumLightSkinTone,
-                   "\xF0\x9F\xA4\x98\xF0\x9F\x8F\xBC",
-                   "sign of the horns: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::SignOfTheHornsMediumSkinTone,
-                   "\xF0\x9F\xA4\x98\xF0\x9F\x8F\xBD",
-                   "sign of the horns: medium skin tone"},
-        EmojiEntry{EmojiEnum::SignOfTheHornsMediumDarkSkinTone,
-                   "\xF0\x9F\xA4\x98\xF0\x9F\x8F\xBE",
-                   "sign of the horns: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::SignOfTheHornsDarkSkinTone,
-                   "\xF0\x9F\xA4\x98\xF0\x9F\x8F\xBF",
-                   "sign of the horns: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::HandWithIndexFingerAndThumbCrossedDarkSkinTone,
+            "\xF0\x9F\xAB\xB0\xF0\x9F\x8F\xBF",
+            "hand with index finger and thumb crossed: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::LoveYouGesture,
+            "\xF0\x9F\xA4\x9F",
+            "love-you gesture"},
+        EmojiEntry{
+            EmojiEnum::LoveYouGestureLightSkinTone,
+            "\xF0\x9F\xA4\x9F\xF0\x9F\x8F\xBB",
+            "love-you gesture: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::LoveYouGestureMediumLightSkinTone,
+            "\xF0\x9F\xA4\x9F\xF0\x9F\x8F\xBC",
+            "love-you gesture: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::LoveYouGestureMediumSkinTone,
+            "\xF0\x9F\xA4\x9F\xF0\x9F\x8F\xBD",
+            "love-you gesture: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::LoveYouGestureMediumDarkSkinTone,
+            "\xF0\x9F\xA4\x9F\xF0\x9F\x8F\xBE",
+            "love-you gesture: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::LoveYouGestureDarkSkinTone,
+            "\xF0\x9F\xA4\x9F\xF0\x9F\x8F\xBF",
+            "love-you gesture: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::SignOfTheHorns,
+            "\xF0\x9F\xA4\x98",
+            "sign of the horns"},
+        EmojiEntry{
+            EmojiEnum::SignOfTheHornsLightSkinTone,
+            "\xF0\x9F\xA4\x98\xF0\x9F\x8F\xBB",
+            "sign of the horns: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::SignOfTheHornsMediumLightSkinTone,
+            "\xF0\x9F\xA4\x98\xF0\x9F\x8F\xBC",
+            "sign of the horns: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::SignOfTheHornsMediumSkinTone,
+            "\xF0\x9F\xA4\x98\xF0\x9F\x8F\xBD",
+            "sign of the horns: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::SignOfTheHornsMediumDarkSkinTone,
+            "\xF0\x9F\xA4\x98\xF0\x9F\x8F\xBE",
+            "sign of the horns: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::SignOfTheHornsDarkSkinTone,
+            "\xF0\x9F\xA4\x98\xF0\x9F\x8F\xBF",
+            "sign of the horns: dark skin tone"},
         EmojiEntry{EmojiEnum::CallMeHand, "\xF0\x9F\xA4\x99", "call me hand"},
-        EmojiEntry{EmojiEnum::CallMeHandLightSkinTone,
-                   "\xF0\x9F\xA4\x99\xF0\x9F\x8F\xBB",
-                   "call me hand: light skin tone"},
-        EmojiEntry{EmojiEnum::CallMeHandMediumLightSkinTone,
-                   "\xF0\x9F\xA4\x99\xF0\x9F\x8F\xBC",
-                   "call me hand: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::CallMeHandMediumSkinTone,
-                   "\xF0\x9F\xA4\x99\xF0\x9F\x8F\xBD",
-                   "call me hand: medium skin tone"},
-        EmojiEntry{EmojiEnum::CallMeHandMediumDarkSkinTone,
-                   "\xF0\x9F\xA4\x99\xF0\x9F\x8F\xBE",
-                   "call me hand: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::CallMeHandDarkSkinTone,
-                   "\xF0\x9F\xA4\x99\xF0\x9F\x8F\xBF",
-                   "call me hand: dark skin tone"},
-        EmojiEntry{EmojiEnum::BackhandIndexPointingLeft, "\xF0\x9F\x91\x88",
-                   "backhand index pointing left"},
-        EmojiEntry{EmojiEnum::BackhandIndexPointingLeftLightSkinTone,
-                   "\xF0\x9F\x91\x88\xF0\x9F\x8F\xBB",
-                   "backhand index pointing left: light skin tone"},
-        EmojiEntry{EmojiEnum::BackhandIndexPointingLeftMediumLightSkinTone,
-                   "\xF0\x9F\x91\x88\xF0\x9F\x8F\xBC",
-                   "backhand index pointing left: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::BackhandIndexPointingLeftMediumSkinTone,
-                   "\xF0\x9F\x91\x88\xF0\x9F\x8F\xBD",
-                   "backhand index pointing left: medium skin tone"},
-        EmojiEntry{EmojiEnum::BackhandIndexPointingLeftMediumDarkSkinTone,
-                   "\xF0\x9F\x91\x88\xF0\x9F\x8F\xBE",
-                   "backhand index pointing left: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::BackhandIndexPointingLeftDarkSkinTone,
-                   "\xF0\x9F\x91\x88\xF0\x9F\x8F\xBF",
-                   "backhand index pointing left: dark skin tone"},
-        EmojiEntry{EmojiEnum::BackhandIndexPointingRight, "\xF0\x9F\x91\x89",
-                   "backhand index pointing right"},
-        EmojiEntry{EmojiEnum::BackhandIndexPointingRightLightSkinTone,
-                   "\xF0\x9F\x91\x89\xF0\x9F\x8F\xBB",
-                   "backhand index pointing right: light skin tone"},
-        EmojiEntry{EmojiEnum::BackhandIndexPointingRightMediumLightSkinTone,
-                   "\xF0\x9F\x91\x89\xF0\x9F\x8F\xBC",
-                   "backhand index pointing right: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::BackhandIndexPointingRightMediumSkinTone,
-                   "\xF0\x9F\x91\x89\xF0\x9F\x8F\xBD",
-                   "backhand index pointing right: medium skin tone"},
-        EmojiEntry{EmojiEnum::BackhandIndexPointingRightMediumDarkSkinTone,
-                   "\xF0\x9F\x91\x89\xF0\x9F\x8F\xBE",
-                   "backhand index pointing right: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::BackhandIndexPointingRightDarkSkinTone,
-                   "\xF0\x9F\x91\x89\xF0\x9F\x8F\xBF",
-                   "backhand index pointing right: dark skin tone"},
-        EmojiEntry{EmojiEnum::BackhandIndexPointingUp, "\xF0\x9F\x91\x86",
-                   "backhand index pointing up"},
-        EmojiEntry{EmojiEnum::BackhandIndexPointingUpLightSkinTone,
-                   "\xF0\x9F\x91\x86\xF0\x9F\x8F\xBB",
-                   "backhand index pointing up: light skin tone"},
-        EmojiEntry{EmojiEnum::BackhandIndexPointingUpMediumLightSkinTone,
-                   "\xF0\x9F\x91\x86\xF0\x9F\x8F\xBC",
-                   "backhand index pointing up: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::BackhandIndexPointingUpMediumSkinTone,
-                   "\xF0\x9F\x91\x86\xF0\x9F\x8F\xBD",
-                   "backhand index pointing up: medium skin tone"},
-        EmojiEntry{EmojiEnum::BackhandIndexPointingUpMediumDarkSkinTone,
-                   "\xF0\x9F\x91\x86\xF0\x9F\x8F\xBE",
-                   "backhand index pointing up: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::BackhandIndexPointingUpDarkSkinTone,
-                   "\xF0\x9F\x91\x86\xF0\x9F\x8F\xBF",
-                   "backhand index pointing up: dark skin tone"},
-        EmojiEntry{EmojiEnum::MiddleFinger, "\xF0\x9F\x96\x95",
-                   "middle finger"},
-        EmojiEntry{EmojiEnum::MiddleFingerLightSkinTone,
-                   "\xF0\x9F\x96\x95\xF0\x9F\x8F\xBB",
-                   "middle finger: light skin tone"},
-        EmojiEntry{EmojiEnum::MiddleFingerMediumLightSkinTone,
-                   "\xF0\x9F\x96\x95\xF0\x9F\x8F\xBC",
-                   "middle finger: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::MiddleFingerMediumSkinTone,
-                   "\xF0\x9F\x96\x95\xF0\x9F\x8F\xBD",
-                   "middle finger: medium skin tone"},
-        EmojiEntry{EmojiEnum::MiddleFingerMediumDarkSkinTone,
-                   "\xF0\x9F\x96\x95\xF0\x9F\x8F\xBE",
-                   "middle finger: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::MiddleFingerDarkSkinTone,
-                   "\xF0\x9F\x96\x95\xF0\x9F\x8F\xBF",
-                   "middle finger: dark skin tone"},
-        EmojiEntry{EmojiEnum::BackhandIndexPointingDown, "\xF0\x9F\x91\x87",
-                   "backhand index pointing down"},
-        EmojiEntry{EmojiEnum::BackhandIndexPointingDownLightSkinTone,
-                   "\xF0\x9F\x91\x87\xF0\x9F\x8F\xBB",
-                   "backhand index pointing down: light skin tone"},
-        EmojiEntry{EmojiEnum::BackhandIndexPointingDownMediumLightSkinTone,
-                   "\xF0\x9F\x91\x87\xF0\x9F\x8F\xBC",
-                   "backhand index pointing down: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::BackhandIndexPointingDownMediumSkinTone,
-                   "\xF0\x9F\x91\x87\xF0\x9F\x8F\xBD",
-                   "backhand index pointing down: medium skin tone"},
-        EmojiEntry{EmojiEnum::BackhandIndexPointingDownMediumDarkSkinTone,
-                   "\xF0\x9F\x91\x87\xF0\x9F\x8F\xBE",
-                   "backhand index pointing down: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::BackhandIndexPointingDownDarkSkinTone,
-                   "\xF0\x9F\x91\x87\xF0\x9F\x8F\xBF",
-                   "backhand index pointing down: dark skin tone"},
-        EmojiEntry{EmojiEnum::IndexPointingUp, "\xE2\x98\x9D\xEF\xB8\x8F",
-                   "index pointing up"},
-        EmojiEntry{EmojiEnum::IndexPointingUpLightSkinTone,
-                   "\xE2\x98\x9D\xF0\x9F\x8F\xBB",
-                   "index pointing up: light skin tone"},
-        EmojiEntry{EmojiEnum::IndexPointingUpMediumLightSkinTone,
-                   "\xE2\x98\x9D\xF0\x9F\x8F\xBC",
-                   "index pointing up: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::IndexPointingUpMediumSkinTone,
-                   "\xE2\x98\x9D\xF0\x9F\x8F\xBD",
-                   "index pointing up: medium skin tone"},
-        EmojiEntry{EmojiEnum::IndexPointingUpMediumDarkSkinTone,
-                   "\xE2\x98\x9D\xF0\x9F\x8F\xBE",
-                   "index pointing up: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::IndexPointingUpDarkSkinTone,
-                   "\xE2\x98\x9D\xF0\x9F\x8F\xBF",
-                   "index pointing up: dark skin tone"},
-        EmojiEntry{EmojiEnum::IndexPointingAtTheViewer, "\xF0\x9F\xAB\xB5",
-                   "index pointing at the viewer"},
-        EmojiEntry{EmojiEnum::IndexPointingAtTheViewerLightSkinTone,
-                   "\xF0\x9F\xAB\xB5\xF0\x9F\x8F\xBB",
-                   "index pointing at the viewer: light skin tone"},
-        EmojiEntry{EmojiEnum::IndexPointingAtTheViewerMediumLightSkinTone,
-                   "\xF0\x9F\xAB\xB5\xF0\x9F\x8F\xBC",
-                   "index pointing at the viewer: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::IndexPointingAtTheViewerMediumSkinTone,
-                   "\xF0\x9F\xAB\xB5\xF0\x9F\x8F\xBD",
-                   "index pointing at the viewer: medium skin tone"},
-        EmojiEntry{EmojiEnum::IndexPointingAtTheViewerMediumDarkSkinTone,
-                   "\xF0\x9F\xAB\xB5\xF0\x9F\x8F\xBE",
-                   "index pointing at the viewer: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::IndexPointingAtTheViewerDarkSkinTone,
-                   "\xF0\x9F\xAB\xB5\xF0\x9F\x8F\xBF",
-                   "index pointing at the viewer: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::CallMeHandLightSkinTone,
+            "\xF0\x9F\xA4\x99\xF0\x9F\x8F\xBB",
+            "call me hand: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::CallMeHandMediumLightSkinTone,
+            "\xF0\x9F\xA4\x99\xF0\x9F\x8F\xBC",
+            "call me hand: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::CallMeHandMediumSkinTone,
+            "\xF0\x9F\xA4\x99\xF0\x9F\x8F\xBD",
+            "call me hand: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::CallMeHandMediumDarkSkinTone,
+            "\xF0\x9F\xA4\x99\xF0\x9F\x8F\xBE",
+            "call me hand: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::CallMeHandDarkSkinTone,
+            "\xF0\x9F\xA4\x99\xF0\x9F\x8F\xBF",
+            "call me hand: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::BackhandIndexPointingLeft,
+            "\xF0\x9F\x91\x88",
+            "backhand index pointing left"},
+        EmojiEntry{
+            EmojiEnum::BackhandIndexPointingLeftLightSkinTone,
+            "\xF0\x9F\x91\x88\xF0\x9F\x8F\xBB",
+            "backhand index pointing left: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::BackhandIndexPointingLeftMediumLightSkinTone,
+            "\xF0\x9F\x91\x88\xF0\x9F\x8F\xBC",
+            "backhand index pointing left: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::BackhandIndexPointingLeftMediumSkinTone,
+            "\xF0\x9F\x91\x88\xF0\x9F\x8F\xBD",
+            "backhand index pointing left: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::BackhandIndexPointingLeftMediumDarkSkinTone,
+            "\xF0\x9F\x91\x88\xF0\x9F\x8F\xBE",
+            "backhand index pointing left: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::BackhandIndexPointingLeftDarkSkinTone,
+            "\xF0\x9F\x91\x88\xF0\x9F\x8F\xBF",
+            "backhand index pointing left: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::BackhandIndexPointingRight,
+            "\xF0\x9F\x91\x89",
+            "backhand index pointing right"},
+        EmojiEntry{
+            EmojiEnum::BackhandIndexPointingRightLightSkinTone,
+            "\xF0\x9F\x91\x89\xF0\x9F\x8F\xBB",
+            "backhand index pointing right: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::BackhandIndexPointingRightMediumLightSkinTone,
+            "\xF0\x9F\x91\x89\xF0\x9F\x8F\xBC",
+            "backhand index pointing right: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::BackhandIndexPointingRightMediumSkinTone,
+            "\xF0\x9F\x91\x89\xF0\x9F\x8F\xBD",
+            "backhand index pointing right: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::BackhandIndexPointingRightMediumDarkSkinTone,
+            "\xF0\x9F\x91\x89\xF0\x9F\x8F\xBE",
+            "backhand index pointing right: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::BackhandIndexPointingRightDarkSkinTone,
+            "\xF0\x9F\x91\x89\xF0\x9F\x8F\xBF",
+            "backhand index pointing right: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::BackhandIndexPointingUp,
+            "\xF0\x9F\x91\x86",
+            "backhand index pointing up"},
+        EmojiEntry{
+            EmojiEnum::BackhandIndexPointingUpLightSkinTone,
+            "\xF0\x9F\x91\x86\xF0\x9F\x8F\xBB",
+            "backhand index pointing up: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::BackhandIndexPointingUpMediumLightSkinTone,
+            "\xF0\x9F\x91\x86\xF0\x9F\x8F\xBC",
+            "backhand index pointing up: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::BackhandIndexPointingUpMediumSkinTone,
+            "\xF0\x9F\x91\x86\xF0\x9F\x8F\xBD",
+            "backhand index pointing up: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::BackhandIndexPointingUpMediumDarkSkinTone,
+            "\xF0\x9F\x91\x86\xF0\x9F\x8F\xBE",
+            "backhand index pointing up: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::BackhandIndexPointingUpDarkSkinTone,
+            "\xF0\x9F\x91\x86\xF0\x9F\x8F\xBF",
+            "backhand index pointing up: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::MiddleFinger,
+            "\xF0\x9F\x96\x95",
+            "middle finger"},
+        EmojiEntry{
+            EmojiEnum::MiddleFingerLightSkinTone,
+            "\xF0\x9F\x96\x95\xF0\x9F\x8F\xBB",
+            "middle finger: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::MiddleFingerMediumLightSkinTone,
+            "\xF0\x9F\x96\x95\xF0\x9F\x8F\xBC",
+            "middle finger: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::MiddleFingerMediumSkinTone,
+            "\xF0\x9F\x96\x95\xF0\x9F\x8F\xBD",
+            "middle finger: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::MiddleFingerMediumDarkSkinTone,
+            "\xF0\x9F\x96\x95\xF0\x9F\x8F\xBE",
+            "middle finger: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::MiddleFingerDarkSkinTone,
+            "\xF0\x9F\x96\x95\xF0\x9F\x8F\xBF",
+            "middle finger: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::BackhandIndexPointingDown,
+            "\xF0\x9F\x91\x87",
+            "backhand index pointing down"},
+        EmojiEntry{
+            EmojiEnum::BackhandIndexPointingDownLightSkinTone,
+            "\xF0\x9F\x91\x87\xF0\x9F\x8F\xBB",
+            "backhand index pointing down: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::BackhandIndexPointingDownMediumLightSkinTone,
+            "\xF0\x9F\x91\x87\xF0\x9F\x8F\xBC",
+            "backhand index pointing down: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::BackhandIndexPointingDownMediumSkinTone,
+            "\xF0\x9F\x91\x87\xF0\x9F\x8F\xBD",
+            "backhand index pointing down: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::BackhandIndexPointingDownMediumDarkSkinTone,
+            "\xF0\x9F\x91\x87\xF0\x9F\x8F\xBE",
+            "backhand index pointing down: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::BackhandIndexPointingDownDarkSkinTone,
+            "\xF0\x9F\x91\x87\xF0\x9F\x8F\xBF",
+            "backhand index pointing down: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::IndexPointingUp,
+            "\xE2\x98\x9D\xEF\xB8\x8F",
+            "index pointing up"},
+        EmojiEntry{
+            EmojiEnum::IndexPointingUpLightSkinTone,
+            "\xE2\x98\x9D\xF0\x9F\x8F\xBB",
+            "index pointing up: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::IndexPointingUpMediumLightSkinTone,
+            "\xE2\x98\x9D\xF0\x9F\x8F\xBC",
+            "index pointing up: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::IndexPointingUpMediumSkinTone,
+            "\xE2\x98\x9D\xF0\x9F\x8F\xBD",
+            "index pointing up: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::IndexPointingUpMediumDarkSkinTone,
+            "\xE2\x98\x9D\xF0\x9F\x8F\xBE",
+            "index pointing up: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::IndexPointingUpDarkSkinTone,
+            "\xE2\x98\x9D\xF0\x9F\x8F\xBF",
+            "index pointing up: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::IndexPointingAtTheViewer,
+            "\xF0\x9F\xAB\xB5",
+            "index pointing at the viewer"},
+        EmojiEntry{
+            EmojiEnum::IndexPointingAtTheViewerLightSkinTone,
+            "\xF0\x9F\xAB\xB5\xF0\x9F\x8F\xBB",
+            "index pointing at the viewer: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::IndexPointingAtTheViewerMediumLightSkinTone,
+            "\xF0\x9F\xAB\xB5\xF0\x9F\x8F\xBC",
+            "index pointing at the viewer: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::IndexPointingAtTheViewerMediumSkinTone,
+            "\xF0\x9F\xAB\xB5\xF0\x9F\x8F\xBD",
+            "index pointing at the viewer: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::IndexPointingAtTheViewerMediumDarkSkinTone,
+            "\xF0\x9F\xAB\xB5\xF0\x9F\x8F\xBE",
+            "index pointing at the viewer: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::IndexPointingAtTheViewerDarkSkinTone,
+            "\xF0\x9F\xAB\xB5\xF0\x9F\x8F\xBF",
+            "index pointing at the viewer: dark skin tone"},
         EmojiEntry{EmojiEnum::ThumbsUp, "\xF0\x9F\x91\x8D", "thumbs up"},
-        EmojiEntry{EmojiEnum::ThumbsUpLightSkinTone,
-                   "\xF0\x9F\x91\x8D\xF0\x9F\x8F\xBB",
-                   "thumbs up: light skin tone"},
-        EmojiEntry{EmojiEnum::ThumbsUpMediumLightSkinTone,
-                   "\xF0\x9F\x91\x8D\xF0\x9F\x8F\xBC",
-                   "thumbs up: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::ThumbsUpMediumSkinTone,
-                   "\xF0\x9F\x91\x8D\xF0\x9F\x8F\xBD",
-                   "thumbs up: medium skin tone"},
-        EmojiEntry{EmojiEnum::ThumbsUpMediumDarkSkinTone,
-                   "\xF0\x9F\x91\x8D\xF0\x9F\x8F\xBE",
-                   "thumbs up: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::ThumbsUpDarkSkinTone,
-                   "\xF0\x9F\x91\x8D\xF0\x9F\x8F\xBF",
-                   "thumbs up: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ThumbsUpLightSkinTone,
+            "\xF0\x9F\x91\x8D\xF0\x9F\x8F\xBB",
+            "thumbs up: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ThumbsUpMediumLightSkinTone,
+            "\xF0\x9F\x91\x8D\xF0\x9F\x8F\xBC",
+            "thumbs up: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ThumbsUpMediumSkinTone,
+            "\xF0\x9F\x91\x8D\xF0\x9F\x8F\xBD",
+            "thumbs up: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::ThumbsUpMediumDarkSkinTone,
+            "\xF0\x9F\x91\x8D\xF0\x9F\x8F\xBE",
+            "thumbs up: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ThumbsUpDarkSkinTone,
+            "\xF0\x9F\x91\x8D\xF0\x9F\x8F\xBF",
+            "thumbs up: dark skin tone"},
         EmojiEntry{EmojiEnum::ThumbsDown, "\xF0\x9F\x91\x8E", "thumbs down"},
-        EmojiEntry{EmojiEnum::ThumbsDownLightSkinTone,
-                   "\xF0\x9F\x91\x8E\xF0\x9F\x8F\xBB",
-                   "thumbs down: light skin tone"},
-        EmojiEntry{EmojiEnum::ThumbsDownMediumLightSkinTone,
-                   "\xF0\x9F\x91\x8E\xF0\x9F\x8F\xBC",
-                   "thumbs down: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::ThumbsDownMediumSkinTone,
-                   "\xF0\x9F\x91\x8E\xF0\x9F\x8F\xBD",
-                   "thumbs down: medium skin tone"},
-        EmojiEntry{EmojiEnum::ThumbsDownMediumDarkSkinTone,
-                   "\xF0\x9F\x91\x8E\xF0\x9F\x8F\xBE",
-                   "thumbs down: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::ThumbsDownDarkSkinTone,
-                   "\xF0\x9F\x91\x8E\xF0\x9F\x8F\xBF",
-                   "thumbs down: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ThumbsDownLightSkinTone,
+            "\xF0\x9F\x91\x8E\xF0\x9F\x8F\xBB",
+            "thumbs down: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ThumbsDownMediumLightSkinTone,
+            "\xF0\x9F\x91\x8E\xF0\x9F\x8F\xBC",
+            "thumbs down: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ThumbsDownMediumSkinTone,
+            "\xF0\x9F\x91\x8E\xF0\x9F\x8F\xBD",
+            "thumbs down: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::ThumbsDownMediumDarkSkinTone,
+            "\xF0\x9F\x91\x8E\xF0\x9F\x8F\xBE",
+            "thumbs down: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ThumbsDownDarkSkinTone,
+            "\xF0\x9F\x91\x8E\xF0\x9F\x8F\xBF",
+            "thumbs down: dark skin tone"},
         EmojiEntry{EmojiEnum::RaisedFist, "\xE2\x9C\x8A", "raised fist"},
-        EmojiEntry{EmojiEnum::RaisedFistLightSkinTone,
-                   "\xE2\x9C\x8A\xF0\x9F\x8F\xBB",
-                   "raised fist: light skin tone"},
-        EmojiEntry{EmojiEnum::RaisedFistMediumLightSkinTone,
-                   "\xE2\x9C\x8A\xF0\x9F\x8F\xBC",
-                   "raised fist: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::RaisedFistMediumSkinTone,
-                   "\xE2\x9C\x8A\xF0\x9F\x8F\xBD",
-                   "raised fist: medium skin tone"},
-        EmojiEntry{EmojiEnum::RaisedFistMediumDarkSkinTone,
-                   "\xE2\x9C\x8A\xF0\x9F\x8F\xBE",
-                   "raised fist: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::RaisedFistDarkSkinTone,
-                   "\xE2\x9C\x8A\xF0\x9F\x8F\xBF",
-                   "raised fist: dark skin tone"},
-        EmojiEntry{EmojiEnum::OncomingFist, "\xF0\x9F\x91\x8A",
-                   "oncoming fist"},
-        EmojiEntry{EmojiEnum::OncomingFistLightSkinTone,
-                   "\xF0\x9F\x91\x8A\xF0\x9F\x8F\xBB",
-                   "oncoming fist: light skin tone"},
-        EmojiEntry{EmojiEnum::OncomingFistMediumLightSkinTone,
-                   "\xF0\x9F\x91\x8A\xF0\x9F\x8F\xBC",
-                   "oncoming fist: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::OncomingFistMediumSkinTone,
-                   "\xF0\x9F\x91\x8A\xF0\x9F\x8F\xBD",
-                   "oncoming fist: medium skin tone"},
-        EmojiEntry{EmojiEnum::OncomingFistMediumDarkSkinTone,
-                   "\xF0\x9F\x91\x8A\xF0\x9F\x8F\xBE",
-                   "oncoming fist: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::OncomingFistDarkSkinTone,
-                   "\xF0\x9F\x91\x8A\xF0\x9F\x8F\xBF",
-                   "oncoming fist: dark skin tone"},
-        EmojiEntry{EmojiEnum::LeftFacingFist, "\xF0\x9F\xA4\x9B",
-                   "left-facing fist"},
-        EmojiEntry{EmojiEnum::LeftFacingFistLightSkinTone,
-                   "\xF0\x9F\xA4\x9B\xF0\x9F\x8F\xBB",
-                   "left-facing fist: light skin tone"},
-        EmojiEntry{EmojiEnum::LeftFacingFistMediumLightSkinTone,
-                   "\xF0\x9F\xA4\x9B\xF0\x9F\x8F\xBC",
-                   "left-facing fist: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::LeftFacingFistMediumSkinTone,
-                   "\xF0\x9F\xA4\x9B\xF0\x9F\x8F\xBD",
-                   "left-facing fist: medium skin tone"},
-        EmojiEntry{EmojiEnum::LeftFacingFistMediumDarkSkinTone,
-                   "\xF0\x9F\xA4\x9B\xF0\x9F\x8F\xBE",
-                   "left-facing fist: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::LeftFacingFistDarkSkinTone,
-                   "\xF0\x9F\xA4\x9B\xF0\x9F\x8F\xBF",
-                   "left-facing fist: dark skin tone"},
-        EmojiEntry{EmojiEnum::RightFacingFist, "\xF0\x9F\xA4\x9C",
-                   "right-facing fist"},
-        EmojiEntry{EmojiEnum::RightFacingFistLightSkinTone,
-                   "\xF0\x9F\xA4\x9C\xF0\x9F\x8F\xBB",
-                   "right-facing fist: light skin tone"},
-        EmojiEntry{EmojiEnum::RightFacingFistMediumLightSkinTone,
-                   "\xF0\x9F\xA4\x9C\xF0\x9F\x8F\xBC",
-                   "right-facing fist: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::RightFacingFistMediumSkinTone,
-                   "\xF0\x9F\xA4\x9C\xF0\x9F\x8F\xBD",
-                   "right-facing fist: medium skin tone"},
-        EmojiEntry{EmojiEnum::RightFacingFistMediumDarkSkinTone,
-                   "\xF0\x9F\xA4\x9C\xF0\x9F\x8F\xBE",
-                   "right-facing fist: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::RightFacingFistDarkSkinTone,
-                   "\xF0\x9F\xA4\x9C\xF0\x9F\x8F\xBF",
-                   "right-facing fist: dark skin tone"},
-        EmojiEntry{EmojiEnum::ClappingHands, "\xF0\x9F\x91\x8F",
-                   "clapping hands"},
-        EmojiEntry{EmojiEnum::ClappingHandsLightSkinTone,
-                   "\xF0\x9F\x91\x8F\xF0\x9F\x8F\xBB",
-                   "clapping hands: light skin tone"},
-        EmojiEntry{EmojiEnum::ClappingHandsMediumLightSkinTone,
-                   "\xF0\x9F\x91\x8F\xF0\x9F\x8F\xBC",
-                   "clapping hands: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::ClappingHandsMediumSkinTone,
-                   "\xF0\x9F\x91\x8F\xF0\x9F\x8F\xBD",
-                   "clapping hands: medium skin tone"},
-        EmojiEntry{EmojiEnum::ClappingHandsMediumDarkSkinTone,
-                   "\xF0\x9F\x91\x8F\xF0\x9F\x8F\xBE",
-                   "clapping hands: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::ClappingHandsDarkSkinTone,
-                   "\xF0\x9F\x91\x8F\xF0\x9F\x8F\xBF",
-                   "clapping hands: dark skin tone"},
-        EmojiEntry{EmojiEnum::RaisingHands, "\xF0\x9F\x99\x8C",
-                   "raising hands"},
-        EmojiEntry{EmojiEnum::RaisingHandsLightSkinTone,
-                   "\xF0\x9F\x99\x8C\xF0\x9F\x8F\xBB",
-                   "raising hands: light skin tone"},
-        EmojiEntry{EmojiEnum::RaisingHandsMediumLightSkinTone,
-                   "\xF0\x9F\x99\x8C\xF0\x9F\x8F\xBC",
-                   "raising hands: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::RaisingHandsMediumSkinTone,
-                   "\xF0\x9F\x99\x8C\xF0\x9F\x8F\xBD",
-                   "raising hands: medium skin tone"},
-        EmojiEntry{EmojiEnum::RaisingHandsMediumDarkSkinTone,
-                   "\xF0\x9F\x99\x8C\xF0\x9F\x8F\xBE",
-                   "raising hands: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::RaisingHandsDarkSkinTone,
-                   "\xF0\x9F\x99\x8C\xF0\x9F\x8F\xBF",
-                   "raising hands: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::RaisedFistLightSkinTone,
+            "\xE2\x9C\x8A\xF0\x9F\x8F\xBB",
+            "raised fist: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::RaisedFistMediumLightSkinTone,
+            "\xE2\x9C\x8A\xF0\x9F\x8F\xBC",
+            "raised fist: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::RaisedFistMediumSkinTone,
+            "\xE2\x9C\x8A\xF0\x9F\x8F\xBD",
+            "raised fist: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::RaisedFistMediumDarkSkinTone,
+            "\xE2\x9C\x8A\xF0\x9F\x8F\xBE",
+            "raised fist: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::RaisedFistDarkSkinTone,
+            "\xE2\x9C\x8A\xF0\x9F\x8F\xBF",
+            "raised fist: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::OncomingFist,
+            "\xF0\x9F\x91\x8A",
+            "oncoming fist"},
+        EmojiEntry{
+            EmojiEnum::OncomingFistLightSkinTone,
+            "\xF0\x9F\x91\x8A\xF0\x9F\x8F\xBB",
+            "oncoming fist: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::OncomingFistMediumLightSkinTone,
+            "\xF0\x9F\x91\x8A\xF0\x9F\x8F\xBC",
+            "oncoming fist: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::OncomingFistMediumSkinTone,
+            "\xF0\x9F\x91\x8A\xF0\x9F\x8F\xBD",
+            "oncoming fist: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::OncomingFistMediumDarkSkinTone,
+            "\xF0\x9F\x91\x8A\xF0\x9F\x8F\xBE",
+            "oncoming fist: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::OncomingFistDarkSkinTone,
+            "\xF0\x9F\x91\x8A\xF0\x9F\x8F\xBF",
+            "oncoming fist: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::LeftFacingFist,
+            "\xF0\x9F\xA4\x9B",
+            "left-facing fist"},
+        EmojiEntry{
+            EmojiEnum::LeftFacingFistLightSkinTone,
+            "\xF0\x9F\xA4\x9B\xF0\x9F\x8F\xBB",
+            "left-facing fist: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::LeftFacingFistMediumLightSkinTone,
+            "\xF0\x9F\xA4\x9B\xF0\x9F\x8F\xBC",
+            "left-facing fist: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::LeftFacingFistMediumSkinTone,
+            "\xF0\x9F\xA4\x9B\xF0\x9F\x8F\xBD",
+            "left-facing fist: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::LeftFacingFistMediumDarkSkinTone,
+            "\xF0\x9F\xA4\x9B\xF0\x9F\x8F\xBE",
+            "left-facing fist: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::LeftFacingFistDarkSkinTone,
+            "\xF0\x9F\xA4\x9B\xF0\x9F\x8F\xBF",
+            "left-facing fist: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::RightFacingFist,
+            "\xF0\x9F\xA4\x9C",
+            "right-facing fist"},
+        EmojiEntry{
+            EmojiEnum::RightFacingFistLightSkinTone,
+            "\xF0\x9F\xA4\x9C\xF0\x9F\x8F\xBB",
+            "right-facing fist: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::RightFacingFistMediumLightSkinTone,
+            "\xF0\x9F\xA4\x9C\xF0\x9F\x8F\xBC",
+            "right-facing fist: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::RightFacingFistMediumSkinTone,
+            "\xF0\x9F\xA4\x9C\xF0\x9F\x8F\xBD",
+            "right-facing fist: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::RightFacingFistMediumDarkSkinTone,
+            "\xF0\x9F\xA4\x9C\xF0\x9F\x8F\xBE",
+            "right-facing fist: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::RightFacingFistDarkSkinTone,
+            "\xF0\x9F\xA4\x9C\xF0\x9F\x8F\xBF",
+            "right-facing fist: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ClappingHands,
+            "\xF0\x9F\x91\x8F",
+            "clapping hands"},
+        EmojiEntry{
+            EmojiEnum::ClappingHandsLightSkinTone,
+            "\xF0\x9F\x91\x8F\xF0\x9F\x8F\xBB",
+            "clapping hands: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ClappingHandsMediumLightSkinTone,
+            "\xF0\x9F\x91\x8F\xF0\x9F\x8F\xBC",
+            "clapping hands: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ClappingHandsMediumSkinTone,
+            "\xF0\x9F\x91\x8F\xF0\x9F\x8F\xBD",
+            "clapping hands: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::ClappingHandsMediumDarkSkinTone,
+            "\xF0\x9F\x91\x8F\xF0\x9F\x8F\xBE",
+            "clapping hands: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ClappingHandsDarkSkinTone,
+            "\xF0\x9F\x91\x8F\xF0\x9F\x8F\xBF",
+            "clapping hands: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::RaisingHands,
+            "\xF0\x9F\x99\x8C",
+            "raising hands"},
+        EmojiEntry{
+            EmojiEnum::RaisingHandsLightSkinTone,
+            "\xF0\x9F\x99\x8C\xF0\x9F\x8F\xBB",
+            "raising hands: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::RaisingHandsMediumLightSkinTone,
+            "\xF0\x9F\x99\x8C\xF0\x9F\x8F\xBC",
+            "raising hands: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::RaisingHandsMediumSkinTone,
+            "\xF0\x9F\x99\x8C\xF0\x9F\x8F\xBD",
+            "raising hands: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::RaisingHandsMediumDarkSkinTone,
+            "\xF0\x9F\x99\x8C\xF0\x9F\x8F\xBE",
+            "raising hands: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::RaisingHandsDarkSkinTone,
+            "\xF0\x9F\x99\x8C\xF0\x9F\x8F\xBF",
+            "raising hands: dark skin tone"},
         EmojiEntry{EmojiEnum::HeartHands, "\xF0\x9F\xAB\xB6", "heart hands"},
-        EmojiEntry{EmojiEnum::HeartHandsLightSkinTone,
-                   "\xF0\x9F\xAB\xB6\xF0\x9F\x8F\xBB",
-                   "heart hands: light skin tone"},
-        EmojiEntry{EmojiEnum::HeartHandsMediumLightSkinTone,
-                   "\xF0\x9F\xAB\xB6\xF0\x9F\x8F\xBC",
-                   "heart hands: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::HeartHandsMediumSkinTone,
-                   "\xF0\x9F\xAB\xB6\xF0\x9F\x8F\xBD",
-                   "heart hands: medium skin tone"},
-        EmojiEntry{EmojiEnum::HeartHandsMediumDarkSkinTone,
-                   "\xF0\x9F\xAB\xB6\xF0\x9F\x8F\xBE",
-                   "heart hands: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::HeartHandsDarkSkinTone,
-                   "\xF0\x9F\xAB\xB6\xF0\x9F\x8F\xBF",
-                   "heart hands: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::HeartHandsLightSkinTone,
+            "\xF0\x9F\xAB\xB6\xF0\x9F\x8F\xBB",
+            "heart hands: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::HeartHandsMediumLightSkinTone,
+            "\xF0\x9F\xAB\xB6\xF0\x9F\x8F\xBC",
+            "heart hands: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::HeartHandsMediumSkinTone,
+            "\xF0\x9F\xAB\xB6\xF0\x9F\x8F\xBD",
+            "heart hands: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::HeartHandsMediumDarkSkinTone,
+            "\xF0\x9F\xAB\xB6\xF0\x9F\x8F\xBE",
+            "heart hands: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::HeartHandsDarkSkinTone,
+            "\xF0\x9F\xAB\xB6\xF0\x9F\x8F\xBF",
+            "heart hands: dark skin tone"},
         EmojiEntry{EmojiEnum::OpenHands, "\xF0\x9F\x91\x90", "open hands"},
-        EmojiEntry{EmojiEnum::OpenHandsLightSkinTone,
-                   "\xF0\x9F\x91\x90\xF0\x9F\x8F\xBB",
-                   "open hands: light skin tone"},
-        EmojiEntry{EmojiEnum::OpenHandsMediumLightSkinTone,
-                   "\xF0\x9F\x91\x90\xF0\x9F\x8F\xBC",
-                   "open hands: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::OpenHandsMediumSkinTone,
-                   "\xF0\x9F\x91\x90\xF0\x9F\x8F\xBD",
-                   "open hands: medium skin tone"},
-        EmojiEntry{EmojiEnum::OpenHandsMediumDarkSkinTone,
-                   "\xF0\x9F\x91\x90\xF0\x9F\x8F\xBE",
-                   "open hands: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::OpenHandsDarkSkinTone,
-                   "\xF0\x9F\x91\x90\xF0\x9F\x8F\xBF",
-                   "open hands: dark skin tone"},
-        EmojiEntry{EmojiEnum::PalmsUpTogether, "\xF0\x9F\xA4\xB2",
-                   "palms up together"},
-        EmojiEntry{EmojiEnum::PalmsUpTogetherLightSkinTone,
-                   "\xF0\x9F\xA4\xB2\xF0\x9F\x8F\xBB",
-                   "palms up together: light skin tone"},
-        EmojiEntry{EmojiEnum::PalmsUpTogetherMediumLightSkinTone,
-                   "\xF0\x9F\xA4\xB2\xF0\x9F\x8F\xBC",
-                   "palms up together: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::PalmsUpTogetherMediumSkinTone,
-                   "\xF0\x9F\xA4\xB2\xF0\x9F\x8F\xBD",
-                   "palms up together: medium skin tone"},
-        EmojiEntry{EmojiEnum::PalmsUpTogetherMediumDarkSkinTone,
-                   "\xF0\x9F\xA4\xB2\xF0\x9F\x8F\xBE",
-                   "palms up together: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::PalmsUpTogetherDarkSkinTone,
-                   "\xF0\x9F\xA4\xB2\xF0\x9F\x8F\xBF",
-                   "palms up together: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::OpenHandsLightSkinTone,
+            "\xF0\x9F\x91\x90\xF0\x9F\x8F\xBB",
+            "open hands: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::OpenHandsMediumLightSkinTone,
+            "\xF0\x9F\x91\x90\xF0\x9F\x8F\xBC",
+            "open hands: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::OpenHandsMediumSkinTone,
+            "\xF0\x9F\x91\x90\xF0\x9F\x8F\xBD",
+            "open hands: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::OpenHandsMediumDarkSkinTone,
+            "\xF0\x9F\x91\x90\xF0\x9F\x8F\xBE",
+            "open hands: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::OpenHandsDarkSkinTone,
+            "\xF0\x9F\x91\x90\xF0\x9F\x8F\xBF",
+            "open hands: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PalmsUpTogether,
+            "\xF0\x9F\xA4\xB2",
+            "palms up together"},
+        EmojiEntry{
+            EmojiEnum::PalmsUpTogetherLightSkinTone,
+            "\xF0\x9F\xA4\xB2\xF0\x9F\x8F\xBB",
+            "palms up together: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PalmsUpTogetherMediumLightSkinTone,
+            "\xF0\x9F\xA4\xB2\xF0\x9F\x8F\xBC",
+            "palms up together: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PalmsUpTogetherMediumSkinTone,
+            "\xF0\x9F\xA4\xB2\xF0\x9F\x8F\xBD",
+            "palms up together: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::PalmsUpTogetherMediumDarkSkinTone,
+            "\xF0\x9F\xA4\xB2\xF0\x9F\x8F\xBE",
+            "palms up together: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PalmsUpTogetherDarkSkinTone,
+            "\xF0\x9F\xA4\xB2\xF0\x9F\x8F\xBF",
+            "palms up together: dark skin tone"},
         EmojiEntry{EmojiEnum::Handshake, "\xF0\x9F\xA4\x9D", "handshake"},
-        EmojiEntry{EmojiEnum::HandshakeLightSkinTone,
-                   "\xF0\x9F\xA4\x9D\xF0\x9F\x8F\xBB",
-                   "handshake: light skin tone"},
-        EmojiEntry{EmojiEnum::HandshakeMediumLightSkinTone,
-                   "\xF0\x9F\xA4\x9D\xF0\x9F\x8F\xBC",
-                   "handshake: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::HandshakeMediumSkinTone,
-                   "\xF0\x9F\xA4\x9D\xF0\x9F\x8F\xBD",
-                   "handshake: medium skin tone"},
-        EmojiEntry{EmojiEnum::HandshakeMediumDarkSkinTone,
-                   "\xF0\x9F\xA4\x9D\xF0\x9F\x8F\xBE",
-                   "handshake: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::HandshakeDarkSkinTone,
-                   "\xF0\x9F\xA4\x9D\xF0\x9F\x8F\xBF",
-                   "handshake: dark skin tone"},
-        EmojiEntry{EmojiEnum::HandshakeLightSkinToneMediumLightSkinTone,
-                   "\xF0\x9F\xAB\xB1\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\xAB"
-                   "\xB2\xF0\x9F\x8F\xBC",
-                   "handshake: light skin tone, medium-light skin tone"},
-        EmojiEntry{EmojiEnum::HandshakeLightSkinToneMediumSkinTone,
-                   "\xF0\x9F\xAB\xB1\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\xAB"
-                   "\xB2\xF0\x9F\x8F\xBD",
-                   "handshake: light skin tone, medium skin tone"},
-        EmojiEntry{EmojiEnum::HandshakeLightSkinToneMediumDarkSkinTone,
-                   "\xF0\x9F\xAB\xB1\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\xAB"
-                   "\xB2\xF0\x9F\x8F\xBE",
-                   "handshake: light skin tone, medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::HandshakeLightSkinToneDarkSkinTone,
-                   "\xF0\x9F\xAB\xB1\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\xAB"
-                   "\xB2\xF0\x9F\x8F\xBF",
-                   "handshake: light skin tone, dark skin tone"},
-        EmojiEntry{EmojiEnum::HandshakeMediumLightSkinToneLightSkinTone,
-                   "\xF0\x9F\xAB\xB1\xF0\x9F\x8F\xBC\xE2\x80\x8D\xF0\x9F\xAB"
-                   "\xB2\xF0\x9F\x8F\xBB",
-                   "handshake: medium-light skin tone, light skin tone"},
-        EmojiEntry{EmojiEnum::HandshakeMediumLightSkinToneMediumSkinTone,
-                   "\xF0\x9F\xAB\xB1\xF0\x9F\x8F\xBC\xE2\x80\x8D\xF0\x9F\xAB"
-                   "\xB2\xF0\x9F\x8F\xBD",
-                   "handshake: medium-light skin tone, medium skin tone"},
-        EmojiEntry{EmojiEnum::HandshakeMediumLightSkinToneMediumDarkSkinTone,
-                   "\xF0\x9F\xAB\xB1\xF0\x9F\x8F\xBC\xE2\x80\x8D\xF0\x9F\xAB"
-                   "\xB2\xF0\x9F\x8F\xBE",
-                   "handshake: medium-light skin tone, medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::HandshakeMediumLightSkinToneDarkSkinTone,
-                   "\xF0\x9F\xAB\xB1\xF0\x9F\x8F\xBC\xE2\x80\x8D\xF0\x9F\xAB"
-                   "\xB2\xF0\x9F\x8F\xBF",
-                   "handshake: medium-light skin tone, dark skin tone"},
-        EmojiEntry{EmojiEnum::HandshakeMediumSkinToneLightSkinTone,
-                   "\xF0\x9F\xAB\xB1\xF0\x9F\x8F\xBD\xE2\x80\x8D\xF0\x9F\xAB"
-                   "\xB2\xF0\x9F\x8F\xBB",
-                   "handshake: medium skin tone, light skin tone"},
-        EmojiEntry{EmojiEnum::HandshakeMediumSkinToneMediumLightSkinTone,
-                   "\xF0\x9F\xAB\xB1\xF0\x9F\x8F\xBD\xE2\x80\x8D\xF0\x9F\xAB"
-                   "\xB2\xF0\x9F\x8F\xBC",
-                   "handshake: medium skin tone, medium-light skin tone"},
-        EmojiEntry{EmojiEnum::HandshakeMediumSkinToneMediumDarkSkinTone,
-                   "\xF0\x9F\xAB\xB1\xF0\x9F\x8F\xBD\xE2\x80\x8D\xF0\x9F\xAB"
-                   "\xB2\xF0\x9F\x8F\xBE",
-                   "handshake: medium skin tone, medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::HandshakeMediumSkinToneDarkSkinTone,
-                   "\xF0\x9F\xAB\xB1\xF0\x9F\x8F\xBD\xE2\x80\x8D\xF0\x9F\xAB"
-                   "\xB2\xF0\x9F\x8F\xBF",
-                   "handshake: medium skin tone, dark skin tone"},
-        EmojiEntry{EmojiEnum::HandshakeMediumDarkSkinToneLightSkinTone,
-                   "\xF0\x9F\xAB\xB1\xF0\x9F\x8F\xBE\xE2\x80\x8D\xF0\x9F\xAB"
-                   "\xB2\xF0\x9F\x8F\xBB",
-                   "handshake: medium-dark skin tone, light skin tone"},
-        EmojiEntry{EmojiEnum::HandshakeMediumDarkSkinToneMediumLightSkinTone,
-                   "\xF0\x9F\xAB\xB1\xF0\x9F\x8F\xBE\xE2\x80\x8D\xF0\x9F\xAB"
-                   "\xB2\xF0\x9F\x8F\xBC",
-                   "handshake: medium-dark skin tone, medium-light skin tone"},
-        EmojiEntry{EmojiEnum::HandshakeMediumDarkSkinToneMediumSkinTone,
-                   "\xF0\x9F\xAB\xB1\xF0\x9F\x8F\xBE\xE2\x80\x8D\xF0\x9F\xAB"
-                   "\xB2\xF0\x9F\x8F\xBD",
-                   "handshake: medium-dark skin tone, medium skin tone"},
-        EmojiEntry{EmojiEnum::HandshakeMediumDarkSkinToneDarkSkinTone,
-                   "\xF0\x9F\xAB\xB1\xF0\x9F\x8F\xBE\xE2\x80\x8D\xF0\x9F\xAB"
-                   "\xB2\xF0\x9F\x8F\xBF",
-                   "handshake: medium-dark skin tone, dark skin tone"},
-        EmojiEntry{EmojiEnum::HandshakeDarkSkinToneLightSkinTone,
-                   "\xF0\x9F\xAB\xB1\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\xAB"
-                   "\xB2\xF0\x9F\x8F\xBB",
-                   "handshake: dark skin tone, light skin tone"},
-        EmojiEntry{EmojiEnum::HandshakeDarkSkinToneMediumLightSkinTone,
-                   "\xF0\x9F\xAB\xB1\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\xAB"
-                   "\xB2\xF0\x9F\x8F\xBC",
-                   "handshake: dark skin tone, medium-light skin tone"},
-        EmojiEntry{EmojiEnum::HandshakeDarkSkinToneMediumSkinTone,
-                   "\xF0\x9F\xAB\xB1\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\xAB"
-                   "\xB2\xF0\x9F\x8F\xBD",
-                   "handshake: dark skin tone, medium skin tone"},
-        EmojiEntry{EmojiEnum::HandshakeDarkSkinToneMediumDarkSkinTone,
-                   "\xF0\x9F\xAB\xB1\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\xAB"
-                   "\xB2\xF0\x9F\x8F\xBE",
-                   "handshake: dark skin tone, medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::HandshakeLightSkinTone,
+            "\xF0\x9F\xA4\x9D\xF0\x9F\x8F\xBB",
+            "handshake: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::HandshakeMediumLightSkinTone,
+            "\xF0\x9F\xA4\x9D\xF0\x9F\x8F\xBC",
+            "handshake: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::HandshakeMediumSkinTone,
+            "\xF0\x9F\xA4\x9D\xF0\x9F\x8F\xBD",
+            "handshake: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::HandshakeMediumDarkSkinTone,
+            "\xF0\x9F\xA4\x9D\xF0\x9F\x8F\xBE",
+            "handshake: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::HandshakeDarkSkinTone,
+            "\xF0\x9F\xA4\x9D\xF0\x9F\x8F\xBF",
+            "handshake: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::HandshakeLightSkinToneMediumLightSkinTone,
+            "\xF0\x9F\xAB\xB1\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\xAB"
+            "\xB2\xF0\x9F\x8F\xBC",
+            "handshake: light skin tone, medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::HandshakeLightSkinToneMediumSkinTone,
+            "\xF0\x9F\xAB\xB1\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\xAB"
+            "\xB2\xF0\x9F\x8F\xBD",
+            "handshake: light skin tone, medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::HandshakeLightSkinToneMediumDarkSkinTone,
+            "\xF0\x9F\xAB\xB1\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\xAB"
+            "\xB2\xF0\x9F\x8F\xBE",
+            "handshake: light skin tone, medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::HandshakeLightSkinToneDarkSkinTone,
+            "\xF0\x9F\xAB\xB1\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\xAB"
+            "\xB2\xF0\x9F\x8F\xBF",
+            "handshake: light skin tone, dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::HandshakeMediumLightSkinToneLightSkinTone,
+            "\xF0\x9F\xAB\xB1\xF0\x9F\x8F\xBC\xE2\x80\x8D\xF0\x9F\xAB"
+            "\xB2\xF0\x9F\x8F\xBB",
+            "handshake: medium-light skin tone, light skin tone"},
+        EmojiEntry{
+            EmojiEnum::HandshakeMediumLightSkinToneMediumSkinTone,
+            "\xF0\x9F\xAB\xB1\xF0\x9F\x8F\xBC\xE2\x80\x8D\xF0\x9F\xAB"
+            "\xB2\xF0\x9F\x8F\xBD",
+            "handshake: medium-light skin tone, medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::HandshakeMediumLightSkinToneMediumDarkSkinTone,
+            "\xF0\x9F\xAB\xB1\xF0\x9F\x8F\xBC\xE2\x80\x8D\xF0\x9F\xAB"
+            "\xB2\xF0\x9F\x8F\xBE",
+            "handshake: medium-light skin tone, medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::HandshakeMediumLightSkinToneDarkSkinTone,
+            "\xF0\x9F\xAB\xB1\xF0\x9F\x8F\xBC\xE2\x80\x8D\xF0\x9F\xAB"
+            "\xB2\xF0\x9F\x8F\xBF",
+            "handshake: medium-light skin tone, dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::HandshakeMediumSkinToneLightSkinTone,
+            "\xF0\x9F\xAB\xB1\xF0\x9F\x8F\xBD\xE2\x80\x8D\xF0\x9F\xAB"
+            "\xB2\xF0\x9F\x8F\xBB",
+            "handshake: medium skin tone, light skin tone"},
+        EmojiEntry{
+            EmojiEnum::HandshakeMediumSkinToneMediumLightSkinTone,
+            "\xF0\x9F\xAB\xB1\xF0\x9F\x8F\xBD\xE2\x80\x8D\xF0\x9F\xAB"
+            "\xB2\xF0\x9F\x8F\xBC",
+            "handshake: medium skin tone, medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::HandshakeMediumSkinToneMediumDarkSkinTone,
+            "\xF0\x9F\xAB\xB1\xF0\x9F\x8F\xBD\xE2\x80\x8D\xF0\x9F\xAB"
+            "\xB2\xF0\x9F\x8F\xBE",
+            "handshake: medium skin tone, medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::HandshakeMediumSkinToneDarkSkinTone,
+            "\xF0\x9F\xAB\xB1\xF0\x9F\x8F\xBD\xE2\x80\x8D\xF0\x9F\xAB"
+            "\xB2\xF0\x9F\x8F\xBF",
+            "handshake: medium skin tone, dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::HandshakeMediumDarkSkinToneLightSkinTone,
+            "\xF0\x9F\xAB\xB1\xF0\x9F\x8F\xBE\xE2\x80\x8D\xF0\x9F\xAB"
+            "\xB2\xF0\x9F\x8F\xBB",
+            "handshake: medium-dark skin tone, light skin tone"},
+        EmojiEntry{
+            EmojiEnum::HandshakeMediumDarkSkinToneMediumLightSkinTone,
+            "\xF0\x9F\xAB\xB1\xF0\x9F\x8F\xBE\xE2\x80\x8D\xF0\x9F\xAB"
+            "\xB2\xF0\x9F\x8F\xBC",
+            "handshake: medium-dark skin tone, medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::HandshakeMediumDarkSkinToneMediumSkinTone,
+            "\xF0\x9F\xAB\xB1\xF0\x9F\x8F\xBE\xE2\x80\x8D\xF0\x9F\xAB"
+            "\xB2\xF0\x9F\x8F\xBD",
+            "handshake: medium-dark skin tone, medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::HandshakeMediumDarkSkinToneDarkSkinTone,
+            "\xF0\x9F\xAB\xB1\xF0\x9F\x8F\xBE\xE2\x80\x8D\xF0\x9F\xAB"
+            "\xB2\xF0\x9F\x8F\xBF",
+            "handshake: medium-dark skin tone, dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::HandshakeDarkSkinToneLightSkinTone,
+            "\xF0\x9F\xAB\xB1\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\xAB"
+            "\xB2\xF0\x9F\x8F\xBB",
+            "handshake: dark skin tone, light skin tone"},
+        EmojiEntry{
+            EmojiEnum::HandshakeDarkSkinToneMediumLightSkinTone,
+            "\xF0\x9F\xAB\xB1\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\xAB"
+            "\xB2\xF0\x9F\x8F\xBC",
+            "handshake: dark skin tone, medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::HandshakeDarkSkinToneMediumSkinTone,
+            "\xF0\x9F\xAB\xB1\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\xAB"
+            "\xB2\xF0\x9F\x8F\xBD",
+            "handshake: dark skin tone, medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::HandshakeDarkSkinToneMediumDarkSkinTone,
+            "\xF0\x9F\xAB\xB1\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\xAB"
+            "\xB2\xF0\x9F\x8F\xBE",
+            "handshake: dark skin tone, medium-dark skin tone"},
         EmojiEntry{EmojiEnum::FoldedHands, "\xF0\x9F\x99\x8F", "folded hands"},
-        EmojiEntry{EmojiEnum::FoldedHandsLightSkinTone,
-                   "\xF0\x9F\x99\x8F\xF0\x9F\x8F\xBB",
-                   "folded hands: light skin tone"},
-        EmojiEntry{EmojiEnum::FoldedHandsMediumLightSkinTone,
-                   "\xF0\x9F\x99\x8F\xF0\x9F\x8F\xBC",
-                   "folded hands: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::FoldedHandsMediumSkinTone,
-                   "\xF0\x9F\x99\x8F\xF0\x9F\x8F\xBD",
-                   "folded hands: medium skin tone"},
-        EmojiEntry{EmojiEnum::FoldedHandsMediumDarkSkinTone,
-                   "\xF0\x9F\x99\x8F\xF0\x9F\x8F\xBE",
-                   "folded hands: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::FoldedHandsDarkSkinTone,
-                   "\xF0\x9F\x99\x8F\xF0\x9F\x8F\xBF",
-                   "folded hands: dark skin tone"},
-        EmojiEntry{EmojiEnum::WritingHand, "\xE2\x9C\x8D\xEF\xB8\x8F",
-                   "writing hand"},
-        EmojiEntry{EmojiEnum::WritingHandLightSkinTone,
-                   "\xE2\x9C\x8D\xF0\x9F\x8F\xBB",
-                   "writing hand: light skin tone"},
-        EmojiEntry{EmojiEnum::WritingHandMediumLightSkinTone,
-                   "\xE2\x9C\x8D\xF0\x9F\x8F\xBC",
-                   "writing hand: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::WritingHandMediumSkinTone,
-                   "\xE2\x9C\x8D\xF0\x9F\x8F\xBD",
-                   "writing hand: medium skin tone"},
-        EmojiEntry{EmojiEnum::WritingHandMediumDarkSkinTone,
-                   "\xE2\x9C\x8D\xF0\x9F\x8F\xBE",
-                   "writing hand: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::WritingHandDarkSkinTone,
-                   "\xE2\x9C\x8D\xF0\x9F\x8F\xBF",
-                   "writing hand: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::FoldedHandsLightSkinTone,
+            "\xF0\x9F\x99\x8F\xF0\x9F\x8F\xBB",
+            "folded hands: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::FoldedHandsMediumLightSkinTone,
+            "\xF0\x9F\x99\x8F\xF0\x9F\x8F\xBC",
+            "folded hands: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::FoldedHandsMediumSkinTone,
+            "\xF0\x9F\x99\x8F\xF0\x9F\x8F\xBD",
+            "folded hands: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::FoldedHandsMediumDarkSkinTone,
+            "\xF0\x9F\x99\x8F\xF0\x9F\x8F\xBE",
+            "folded hands: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::FoldedHandsDarkSkinTone,
+            "\xF0\x9F\x99\x8F\xF0\x9F\x8F\xBF",
+            "folded hands: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WritingHand,
+            "\xE2\x9C\x8D\xEF\xB8\x8F",
+            "writing hand"},
+        EmojiEntry{
+            EmojiEnum::WritingHandLightSkinTone,
+            "\xE2\x9C\x8D\xF0\x9F\x8F\xBB",
+            "writing hand: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WritingHandMediumLightSkinTone,
+            "\xE2\x9C\x8D\xF0\x9F\x8F\xBC",
+            "writing hand: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WritingHandMediumSkinTone,
+            "\xE2\x9C\x8D\xF0\x9F\x8F\xBD",
+            "writing hand: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::WritingHandMediumDarkSkinTone,
+            "\xE2\x9C\x8D\xF0\x9F\x8F\xBE",
+            "writing hand: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WritingHandDarkSkinTone,
+            "\xE2\x9C\x8D\xF0\x9F\x8F\xBF",
+            "writing hand: dark skin tone"},
         EmojiEntry{EmojiEnum::NailPolish, "\xF0\x9F\x92\x85", "nail polish"},
-        EmojiEntry{EmojiEnum::NailPolishLightSkinTone,
-                   "\xF0\x9F\x92\x85\xF0\x9F\x8F\xBB",
-                   "nail polish: light skin tone"},
-        EmojiEntry{EmojiEnum::NailPolishMediumLightSkinTone,
-                   "\xF0\x9F\x92\x85\xF0\x9F\x8F\xBC",
-                   "nail polish: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::NailPolishMediumSkinTone,
-                   "\xF0\x9F\x92\x85\xF0\x9F\x8F\xBD",
-                   "nail polish: medium skin tone"},
-        EmojiEntry{EmojiEnum::NailPolishMediumDarkSkinTone,
-                   "\xF0\x9F\x92\x85\xF0\x9F\x8F\xBE",
-                   "nail polish: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::NailPolishDarkSkinTone,
-                   "\xF0\x9F\x92\x85\xF0\x9F\x8F\xBF",
-                   "nail polish: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::NailPolishLightSkinTone,
+            "\xF0\x9F\x92\x85\xF0\x9F\x8F\xBB",
+            "nail polish: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::NailPolishMediumLightSkinTone,
+            "\xF0\x9F\x92\x85\xF0\x9F\x8F\xBC",
+            "nail polish: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::NailPolishMediumSkinTone,
+            "\xF0\x9F\x92\x85\xF0\x9F\x8F\xBD",
+            "nail polish: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::NailPolishMediumDarkSkinTone,
+            "\xF0\x9F\x92\x85\xF0\x9F\x8F\xBE",
+            "nail polish: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::NailPolishDarkSkinTone,
+            "\xF0\x9F\x92\x85\xF0\x9F\x8F\xBF",
+            "nail polish: dark skin tone"},
         EmojiEntry{EmojiEnum::Selfie, "\xF0\x9F\xA4\xB3", "selfie"},
-        EmojiEntry{EmojiEnum::SelfieLightSkinTone,
-                   "\xF0\x9F\xA4\xB3\xF0\x9F\x8F\xBB",
-                   "selfie: light skin tone"},
-        EmojiEntry{EmojiEnum::SelfieMediumLightSkinTone,
-                   "\xF0\x9F\xA4\xB3\xF0\x9F\x8F\xBC",
-                   "selfie: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::SelfieMediumSkinTone,
-                   "\xF0\x9F\xA4\xB3\xF0\x9F\x8F\xBD",
-                   "selfie: medium skin tone"},
-        EmojiEntry{EmojiEnum::SelfieMediumDarkSkinTone,
-                   "\xF0\x9F\xA4\xB3\xF0\x9F\x8F\xBE",
-                   "selfie: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::SelfieDarkSkinTone,
-                   "\xF0\x9F\xA4\xB3\xF0\x9F\x8F\xBF",
-                   "selfie: dark skin tone"},
-        EmojiEntry{EmojiEnum::FlexedBiceps, "\xF0\x9F\x92\xAA",
-                   "flexed biceps"},
-        EmojiEntry{EmojiEnum::FlexedBicepsLightSkinTone,
-                   "\xF0\x9F\x92\xAA\xF0\x9F\x8F\xBB",
-                   "flexed biceps: light skin tone"},
-        EmojiEntry{EmojiEnum::FlexedBicepsMediumLightSkinTone,
-                   "\xF0\x9F\x92\xAA\xF0\x9F\x8F\xBC",
-                   "flexed biceps: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::FlexedBicepsMediumSkinTone,
-                   "\xF0\x9F\x92\xAA\xF0\x9F\x8F\xBD",
-                   "flexed biceps: medium skin tone"},
-        EmojiEntry{EmojiEnum::FlexedBicepsMediumDarkSkinTone,
-                   "\xF0\x9F\x92\xAA\xF0\x9F\x8F\xBE",
-                   "flexed biceps: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::FlexedBicepsDarkSkinTone,
-                   "\xF0\x9F\x92\xAA\xF0\x9F\x8F\xBF",
-                   "flexed biceps: dark skin tone"},
-        EmojiEntry{EmojiEnum::MechanicalArm, "\xF0\x9F\xA6\xBE",
-                   "mechanical arm"},
-        EmojiEntry{EmojiEnum::MechanicalLeg, "\xF0\x9F\xA6\xBF",
-                   "mechanical leg"},
+        EmojiEntry{
+            EmojiEnum::SelfieLightSkinTone,
+            "\xF0\x9F\xA4\xB3\xF0\x9F\x8F\xBB",
+            "selfie: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::SelfieMediumLightSkinTone,
+            "\xF0\x9F\xA4\xB3\xF0\x9F\x8F\xBC",
+            "selfie: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::SelfieMediumSkinTone,
+            "\xF0\x9F\xA4\xB3\xF0\x9F\x8F\xBD",
+            "selfie: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::SelfieMediumDarkSkinTone,
+            "\xF0\x9F\xA4\xB3\xF0\x9F\x8F\xBE",
+            "selfie: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::SelfieDarkSkinTone,
+            "\xF0\x9F\xA4\xB3\xF0\x9F\x8F\xBF",
+            "selfie: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::FlexedBiceps,
+            "\xF0\x9F\x92\xAA",
+            "flexed biceps"},
+        EmojiEntry{
+            EmojiEnum::FlexedBicepsLightSkinTone,
+            "\xF0\x9F\x92\xAA\xF0\x9F\x8F\xBB",
+            "flexed biceps: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::FlexedBicepsMediumLightSkinTone,
+            "\xF0\x9F\x92\xAA\xF0\x9F\x8F\xBC",
+            "flexed biceps: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::FlexedBicepsMediumSkinTone,
+            "\xF0\x9F\x92\xAA\xF0\x9F\x8F\xBD",
+            "flexed biceps: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::FlexedBicepsMediumDarkSkinTone,
+            "\xF0\x9F\x92\xAA\xF0\x9F\x8F\xBE",
+            "flexed biceps: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::FlexedBicepsDarkSkinTone,
+            "\xF0\x9F\x92\xAA\xF0\x9F\x8F\xBF",
+            "flexed biceps: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::MechanicalArm,
+            "\xF0\x9F\xA6\xBE",
+            "mechanical arm"},
+        EmojiEntry{
+            EmojiEnum::MechanicalLeg,
+            "\xF0\x9F\xA6\xBF",
+            "mechanical leg"},
         EmojiEntry{EmojiEnum::Leg, "\xF0\x9F\xA6\xB5", "leg"},
-        EmojiEntry{EmojiEnum::LegLightSkinTone,
-                   "\xF0\x9F\xA6\xB5\xF0\x9F\x8F\xBB", "leg: light skin tone"},
-        EmojiEntry{EmojiEnum::LegMediumLightSkinTone,
-                   "\xF0\x9F\xA6\xB5\xF0\x9F\x8F\xBC",
-                   "leg: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::LegMediumSkinTone,
-                   "\xF0\x9F\xA6\xB5\xF0\x9F\x8F\xBD", "leg: medium skin tone"},
-        EmojiEntry{EmojiEnum::LegMediumDarkSkinTone,
-                   "\xF0\x9F\xA6\xB5\xF0\x9F\x8F\xBE",
-                   "leg: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::LegDarkSkinTone,
-                   "\xF0\x9F\xA6\xB5\xF0\x9F\x8F\xBF", "leg: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::LegLightSkinTone,
+            "\xF0\x9F\xA6\xB5\xF0\x9F\x8F\xBB",
+            "leg: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::LegMediumLightSkinTone,
+            "\xF0\x9F\xA6\xB5\xF0\x9F\x8F\xBC",
+            "leg: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::LegMediumSkinTone,
+            "\xF0\x9F\xA6\xB5\xF0\x9F\x8F\xBD",
+            "leg: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::LegMediumDarkSkinTone,
+            "\xF0\x9F\xA6\xB5\xF0\x9F\x8F\xBE",
+            "leg: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::LegDarkSkinTone,
+            "\xF0\x9F\xA6\xB5\xF0\x9F\x8F\xBF",
+            "leg: dark skin tone"},
         EmojiEntry{EmojiEnum::Foot, "\xF0\x9F\xA6\xB6", "foot"},
-        EmojiEntry{EmojiEnum::FootLightSkinTone,
-                   "\xF0\x9F\xA6\xB6\xF0\x9F\x8F\xBB", "foot: light skin tone"},
-        EmojiEntry{EmojiEnum::FootMediumLightSkinTone,
-                   "\xF0\x9F\xA6\xB6\xF0\x9F\x8F\xBC",
-                   "foot: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::FootMediumSkinTone,
-                   "\xF0\x9F\xA6\xB6\xF0\x9F\x8F\xBD",
-                   "foot: medium skin tone"},
-        EmojiEntry{EmojiEnum::FootMediumDarkSkinTone,
-                   "\xF0\x9F\xA6\xB6\xF0\x9F\x8F\xBE",
-                   "foot: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::FootDarkSkinTone,
-                   "\xF0\x9F\xA6\xB6\xF0\x9F\x8F\xBF", "foot: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::FootLightSkinTone,
+            "\xF0\x9F\xA6\xB6\xF0\x9F\x8F\xBB",
+            "foot: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::FootMediumLightSkinTone,
+            "\xF0\x9F\xA6\xB6\xF0\x9F\x8F\xBC",
+            "foot: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::FootMediumSkinTone,
+            "\xF0\x9F\xA6\xB6\xF0\x9F\x8F\xBD",
+            "foot: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::FootMediumDarkSkinTone,
+            "\xF0\x9F\xA6\xB6\xF0\x9F\x8F\xBE",
+            "foot: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::FootDarkSkinTone,
+            "\xF0\x9F\xA6\xB6\xF0\x9F\x8F\xBF",
+            "foot: dark skin tone"},
         EmojiEntry{EmojiEnum::Ear, "\xF0\x9F\x91\x82", "ear"},
-        EmojiEntry{EmojiEnum::EarLightSkinTone,
-                   "\xF0\x9F\x91\x82\xF0\x9F\x8F\xBB", "ear: light skin tone"},
-        EmojiEntry{EmojiEnum::EarMediumLightSkinTone,
-                   "\xF0\x9F\x91\x82\xF0\x9F\x8F\xBC",
-                   "ear: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::EarMediumSkinTone,
-                   "\xF0\x9F\x91\x82\xF0\x9F\x8F\xBD", "ear: medium skin tone"},
-        EmojiEntry{EmojiEnum::EarMediumDarkSkinTone,
-                   "\xF0\x9F\x91\x82\xF0\x9F\x8F\xBE",
-                   "ear: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::EarDarkSkinTone,
-                   "\xF0\x9F\x91\x82\xF0\x9F\x8F\xBF", "ear: dark skin tone"},
-        EmojiEntry{EmojiEnum::EarWithHearingAid, "\xF0\x9F\xA6\xBB",
-                   "ear with hearing aid"},
-        EmojiEntry{EmojiEnum::EarWithHearingAidLightSkinTone,
-                   "\xF0\x9F\xA6\xBB\xF0\x9F\x8F\xBB",
-                   "ear with hearing aid: light skin tone"},
-        EmojiEntry{EmojiEnum::EarWithHearingAidMediumLightSkinTone,
-                   "\xF0\x9F\xA6\xBB\xF0\x9F\x8F\xBC",
-                   "ear with hearing aid: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::EarWithHearingAidMediumSkinTone,
-                   "\xF0\x9F\xA6\xBB\xF0\x9F\x8F\xBD",
-                   "ear with hearing aid: medium skin tone"},
-        EmojiEntry{EmojiEnum::EarWithHearingAidMediumDarkSkinTone,
-                   "\xF0\x9F\xA6\xBB\xF0\x9F\x8F\xBE",
-                   "ear with hearing aid: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::EarWithHearingAidDarkSkinTone,
-                   "\xF0\x9F\xA6\xBB\xF0\x9F\x8F\xBF",
-                   "ear with hearing aid: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::EarLightSkinTone,
+            "\xF0\x9F\x91\x82\xF0\x9F\x8F\xBB",
+            "ear: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::EarMediumLightSkinTone,
+            "\xF0\x9F\x91\x82\xF0\x9F\x8F\xBC",
+            "ear: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::EarMediumSkinTone,
+            "\xF0\x9F\x91\x82\xF0\x9F\x8F\xBD",
+            "ear: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::EarMediumDarkSkinTone,
+            "\xF0\x9F\x91\x82\xF0\x9F\x8F\xBE",
+            "ear: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::EarDarkSkinTone,
+            "\xF0\x9F\x91\x82\xF0\x9F\x8F\xBF",
+            "ear: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::EarWithHearingAid,
+            "\xF0\x9F\xA6\xBB",
+            "ear with hearing aid"},
+        EmojiEntry{
+            EmojiEnum::EarWithHearingAidLightSkinTone,
+            "\xF0\x9F\xA6\xBB\xF0\x9F\x8F\xBB",
+            "ear with hearing aid: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::EarWithHearingAidMediumLightSkinTone,
+            "\xF0\x9F\xA6\xBB\xF0\x9F\x8F\xBC",
+            "ear with hearing aid: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::EarWithHearingAidMediumSkinTone,
+            "\xF0\x9F\xA6\xBB\xF0\x9F\x8F\xBD",
+            "ear with hearing aid: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::EarWithHearingAidMediumDarkSkinTone,
+            "\xF0\x9F\xA6\xBB\xF0\x9F\x8F\xBE",
+            "ear with hearing aid: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::EarWithHearingAidDarkSkinTone,
+            "\xF0\x9F\xA6\xBB\xF0\x9F\x8F\xBF",
+            "ear with hearing aid: dark skin tone"},
         EmojiEntry{EmojiEnum::Nose, "\xF0\x9F\x91\x83", "nose"},
-        EmojiEntry{EmojiEnum::NoseLightSkinTone,
-                   "\xF0\x9F\x91\x83\xF0\x9F\x8F\xBB", "nose: light skin tone"},
-        EmojiEntry{EmojiEnum::NoseMediumLightSkinTone,
-                   "\xF0\x9F\x91\x83\xF0\x9F\x8F\xBC",
-                   "nose: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::NoseMediumSkinTone,
-                   "\xF0\x9F\x91\x83\xF0\x9F\x8F\xBD",
-                   "nose: medium skin tone"},
-        EmojiEntry{EmojiEnum::NoseMediumDarkSkinTone,
-                   "\xF0\x9F\x91\x83\xF0\x9F\x8F\xBE",
-                   "nose: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::NoseDarkSkinTone,
-                   "\xF0\x9F\x91\x83\xF0\x9F\x8F\xBF", "nose: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::NoseLightSkinTone,
+            "\xF0\x9F\x91\x83\xF0\x9F\x8F\xBB",
+            "nose: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::NoseMediumLightSkinTone,
+            "\xF0\x9F\x91\x83\xF0\x9F\x8F\xBC",
+            "nose: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::NoseMediumSkinTone,
+            "\xF0\x9F\x91\x83\xF0\x9F\x8F\xBD",
+            "nose: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::NoseMediumDarkSkinTone,
+            "\xF0\x9F\x91\x83\xF0\x9F\x8F\xBE",
+            "nose: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::NoseDarkSkinTone,
+            "\xF0\x9F\x91\x83\xF0\x9F\x8F\xBF",
+            "nose: dark skin tone"},
         EmojiEntry{EmojiEnum::Brain, "\xF0\x9F\xA7\xA0", "brain"},
-        EmojiEntry{EmojiEnum::AnatomicalHeart, "\xF0\x9F\xAB\x80",
-                   "anatomical heart"},
+        EmojiEntry{
+            EmojiEnum::AnatomicalHeart,
+            "\xF0\x9F\xAB\x80",
+            "anatomical heart"},
         EmojiEntry{EmojiEnum::Lungs, "\xF0\x9F\xAB\x81", "lungs"},
         EmojiEntry{EmojiEnum::Tooth, "\xF0\x9F\xA6\xB7", "tooth"},
         EmojiEntry{EmojiEnum::Bone, "\xF0\x9F\xA6\xB4", "bone"},
@@ -1209,172 +1762,238 @@ consteval auto makeEmojiList()
         EmojiEntry{EmojiEnum::Mouth, "\xF0\x9F\x91\x84", "mouth"},
         EmojiEntry{EmojiEnum::BitingLip, "\xF0\x9F\xAB\xA6", "biting lip"},
         EmojiEntry{EmojiEnum::Baby, "\xF0\x9F\x91\xB6", "baby"},
-        EmojiEntry{EmojiEnum::BabyLightSkinTone,
-                   "\xF0\x9F\x91\xB6\xF0\x9F\x8F\xBB", "baby: light skin tone"},
-        EmojiEntry{EmojiEnum::BabyMediumLightSkinTone,
-                   "\xF0\x9F\x91\xB6\xF0\x9F\x8F\xBC",
-                   "baby: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::BabyMediumSkinTone,
-                   "\xF0\x9F\x91\xB6\xF0\x9F\x8F\xBD",
-                   "baby: medium skin tone"},
-        EmojiEntry{EmojiEnum::BabyMediumDarkSkinTone,
-                   "\xF0\x9F\x91\xB6\xF0\x9F\x8F\xBE",
-                   "baby: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::BabyDarkSkinTone,
-                   "\xF0\x9F\x91\xB6\xF0\x9F\x8F\xBF", "baby: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::BabyLightSkinTone,
+            "\xF0\x9F\x91\xB6\xF0\x9F\x8F\xBB",
+            "baby: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::BabyMediumLightSkinTone,
+            "\xF0\x9F\x91\xB6\xF0\x9F\x8F\xBC",
+            "baby: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::BabyMediumSkinTone,
+            "\xF0\x9F\x91\xB6\xF0\x9F\x8F\xBD",
+            "baby: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::BabyMediumDarkSkinTone,
+            "\xF0\x9F\x91\xB6\xF0\x9F\x8F\xBE",
+            "baby: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::BabyDarkSkinTone,
+            "\xF0\x9F\x91\xB6\xF0\x9F\x8F\xBF",
+            "baby: dark skin tone"},
         EmojiEntry{EmojiEnum::Child, "\xF0\x9F\xA7\x92", "child"},
-        EmojiEntry{EmojiEnum::ChildLightSkinTone,
-                   "\xF0\x9F\xA7\x92\xF0\x9F\x8F\xBB",
-                   "child: light skin tone"},
-        EmojiEntry{EmojiEnum::ChildMediumLightSkinTone,
-                   "\xF0\x9F\xA7\x92\xF0\x9F\x8F\xBC",
-                   "child: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::ChildMediumSkinTone,
-                   "\xF0\x9F\xA7\x92\xF0\x9F\x8F\xBD",
-                   "child: medium skin tone"},
-        EmojiEntry{EmojiEnum::ChildMediumDarkSkinTone,
-                   "\xF0\x9F\xA7\x92\xF0\x9F\x8F\xBE",
-                   "child: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::ChildDarkSkinTone,
-                   "\xF0\x9F\xA7\x92\xF0\x9F\x8F\xBF", "child: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ChildLightSkinTone,
+            "\xF0\x9F\xA7\x92\xF0\x9F\x8F\xBB",
+            "child: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ChildMediumLightSkinTone,
+            "\xF0\x9F\xA7\x92\xF0\x9F\x8F\xBC",
+            "child: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ChildMediumSkinTone,
+            "\xF0\x9F\xA7\x92\xF0\x9F\x8F\xBD",
+            "child: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::ChildMediumDarkSkinTone,
+            "\xF0\x9F\xA7\x92\xF0\x9F\x8F\xBE",
+            "child: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ChildDarkSkinTone,
+            "\xF0\x9F\xA7\x92\xF0\x9F\x8F\xBF",
+            "child: dark skin tone"},
         EmojiEntry{EmojiEnum::Boy, "\xF0\x9F\x91\xA6", "boy"},
-        EmojiEntry{EmojiEnum::BoyLightSkinTone,
-                   "\xF0\x9F\x91\xA6\xF0\x9F\x8F\xBB", "boy: light skin tone"},
-        EmojiEntry{EmojiEnum::BoyMediumLightSkinTone,
-                   "\xF0\x9F\x91\xA6\xF0\x9F\x8F\xBC",
-                   "boy: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::BoyMediumSkinTone,
-                   "\xF0\x9F\x91\xA6\xF0\x9F\x8F\xBD", "boy: medium skin tone"},
-        EmojiEntry{EmojiEnum::BoyMediumDarkSkinTone,
-                   "\xF0\x9F\x91\xA6\xF0\x9F\x8F\xBE",
-                   "boy: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::BoyDarkSkinTone,
-                   "\xF0\x9F\x91\xA6\xF0\x9F\x8F\xBF", "boy: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::BoyLightSkinTone,
+            "\xF0\x9F\x91\xA6\xF0\x9F\x8F\xBB",
+            "boy: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::BoyMediumLightSkinTone,
+            "\xF0\x9F\x91\xA6\xF0\x9F\x8F\xBC",
+            "boy: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::BoyMediumSkinTone,
+            "\xF0\x9F\x91\xA6\xF0\x9F\x8F\xBD",
+            "boy: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::BoyMediumDarkSkinTone,
+            "\xF0\x9F\x91\xA6\xF0\x9F\x8F\xBE",
+            "boy: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::BoyDarkSkinTone,
+            "\xF0\x9F\x91\xA6\xF0\x9F\x8F\xBF",
+            "boy: dark skin tone"},
         EmojiEntry{EmojiEnum::Girl, "\xF0\x9F\x91\xA7", "girl"},
-        EmojiEntry{EmojiEnum::GirlLightSkinTone,
-                   "\xF0\x9F\x91\xA7\xF0\x9F\x8F\xBB", "girl: light skin tone"},
-        EmojiEntry{EmojiEnum::GirlMediumLightSkinTone,
-                   "\xF0\x9F\x91\xA7\xF0\x9F\x8F\xBC",
-                   "girl: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::GirlMediumSkinTone,
-                   "\xF0\x9F\x91\xA7\xF0\x9F\x8F\xBD",
-                   "girl: medium skin tone"},
-        EmojiEntry{EmojiEnum::GirlMediumDarkSkinTone,
-                   "\xF0\x9F\x91\xA7\xF0\x9F\x8F\xBE",
-                   "girl: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::GirlDarkSkinTone,
-                   "\xF0\x9F\x91\xA7\xF0\x9F\x8F\xBF", "girl: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::GirlLightSkinTone,
+            "\xF0\x9F\x91\xA7\xF0\x9F\x8F\xBB",
+            "girl: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::GirlMediumLightSkinTone,
+            "\xF0\x9F\x91\xA7\xF0\x9F\x8F\xBC",
+            "girl: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::GirlMediumSkinTone,
+            "\xF0\x9F\x91\xA7\xF0\x9F\x8F\xBD",
+            "girl: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::GirlMediumDarkSkinTone,
+            "\xF0\x9F\x91\xA7\xF0\x9F\x8F\xBE",
+            "girl: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::GirlDarkSkinTone,
+            "\xF0\x9F\x91\xA7\xF0\x9F\x8F\xBF",
+            "girl: dark skin tone"},
         EmojiEntry{EmojiEnum::Person, "\xF0\x9F\xA7\x91", "person"},
-        EmojiEntry{EmojiEnum::PersonLightSkinTone,
-                   "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBB",
-                   "person: light skin tone"},
-        EmojiEntry{EmojiEnum::PersonMediumLightSkinTone,
-                   "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBC",
-                   "person: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::PersonMediumSkinTone,
-                   "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBD",
-                   "person: medium skin tone"},
-        EmojiEntry{EmojiEnum::PersonMediumDarkSkinTone,
-                   "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBE",
-                   "person: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonDarkSkinTone,
-                   "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBF",
-                   "person: dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonBlondHair, "\xF0\x9F\x91\xB1",
-                   "person: blond hair"},
-        EmojiEntry{EmojiEnum::PersonLightSkinToneBlondHair,
-                   "\xF0\x9F\x91\xB1\xF0\x9F\x8F\xBB",
-                   "person: light skin tone, blond hair"},
-        EmojiEntry{EmojiEnum::PersonMediumLightSkinToneBlondHair,
-                   "\xF0\x9F\x91\xB1\xF0\x9F\x8F\xBC",
-                   "person: medium-light skin tone, blond hair"},
-        EmojiEntry{EmojiEnum::PersonMediumSkinToneBlondHair,
-                   "\xF0\x9F\x91\xB1\xF0\x9F\x8F\xBD",
-                   "person: medium skin tone, blond hair"},
-        EmojiEntry{EmojiEnum::PersonMediumDarkSkinToneBlondHair,
-                   "\xF0\x9F\x91\xB1\xF0\x9F\x8F\xBE",
-                   "person: medium-dark skin tone, blond hair"},
-        EmojiEntry{EmojiEnum::PersonDarkSkinToneBlondHair,
-                   "\xF0\x9F\x91\xB1\xF0\x9F\x8F\xBF",
-                   "person: dark skin tone, blond hair"},
+        EmojiEntry{
+            EmojiEnum::PersonLightSkinTone,
+            "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBB",
+            "person: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonMediumLightSkinTone,
+            "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBC",
+            "person: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonMediumSkinTone,
+            "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBD",
+            "person: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonMediumDarkSkinTone,
+            "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBE",
+            "person: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonDarkSkinTone,
+            "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBF",
+            "person: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonBlondHair,
+            "\xF0\x9F\x91\xB1",
+            "person: blond hair"},
+        EmojiEntry{
+            EmojiEnum::PersonLightSkinToneBlondHair,
+            "\xF0\x9F\x91\xB1\xF0\x9F\x8F\xBB",
+            "person: light skin tone, blond hair"},
+        EmojiEntry{
+            EmojiEnum::PersonMediumLightSkinToneBlondHair,
+            "\xF0\x9F\x91\xB1\xF0\x9F\x8F\xBC",
+            "person: medium-light skin tone, blond hair"},
+        EmojiEntry{
+            EmojiEnum::PersonMediumSkinToneBlondHair,
+            "\xF0\x9F\x91\xB1\xF0\x9F\x8F\xBD",
+            "person: medium skin tone, blond hair"},
+        EmojiEntry{
+            EmojiEnum::PersonMediumDarkSkinToneBlondHair,
+            "\xF0\x9F\x91\xB1\xF0\x9F\x8F\xBE",
+            "person: medium-dark skin tone, blond hair"},
+        EmojiEntry{
+            EmojiEnum::PersonDarkSkinToneBlondHair,
+            "\xF0\x9F\x91\xB1\xF0\x9F\x8F\xBF",
+            "person: dark skin tone, blond hair"},
         EmojiEntry{EmojiEnum::Man, "\xF0\x9F\x91\xA8", "man"},
-        EmojiEntry{EmojiEnum::ManLightSkinTone,
-                   "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBB", "man: light skin tone"},
-        EmojiEntry{EmojiEnum::ManMediumLightSkinTone,
-                   "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBC",
-                   "man: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::ManMediumSkinTone,
-                   "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBD", "man: medium skin tone"},
-        EmojiEntry{EmojiEnum::ManMediumDarkSkinTone,
-                   "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBE",
-                   "man: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::ManDarkSkinTone,
-                   "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBF", "man: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManLightSkinTone,
+            "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBB",
+            "man: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManMediumLightSkinTone,
+            "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBC",
+            "man: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManMediumSkinTone,
+            "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBD",
+            "man: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManMediumDarkSkinTone,
+            "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBE",
+            "man: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManDarkSkinTone,
+            "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBF",
+            "man: dark skin tone"},
         EmojiEntry{EmojiEnum::PersonBeard, "\xF0\x9F\xA7\x94", "person: beard"},
-        EmojiEntry{EmojiEnum::PersonLightSkinToneBeard,
-                   "\xF0\x9F\xA7\x94\xF0\x9F\x8F\xBB",
-                   "person: light skin tone, beard"},
-        EmojiEntry{EmojiEnum::PersonMediumLightSkinToneBeard,
-                   "\xF0\x9F\xA7\x94\xF0\x9F\x8F\xBC",
-                   "person: medium-light skin tone, beard"},
-        EmojiEntry{EmojiEnum::PersonMediumSkinToneBeard,
-                   "\xF0\x9F\xA7\x94\xF0\x9F\x8F\xBD",
-                   "person: medium skin tone, beard"},
-        EmojiEntry{EmojiEnum::PersonMediumDarkSkinToneBeard,
-                   "\xF0\x9F\xA7\x94\xF0\x9F\x8F\xBE",
-                   "person: medium-dark skin tone, beard"},
-        EmojiEntry{EmojiEnum::PersonDarkSkinToneBeard,
-                   "\xF0\x9F\xA7\x94\xF0\x9F\x8F\xBF",
-                   "person: dark skin tone, beard"},
-        EmojiEntry{EmojiEnum::ManBeard,
-                   "\xF0\x9F\xA7\x94\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
-                   "man: beard"},
-        EmojiEntry{EmojiEnum::ManLightSkinToneBeard,
-                   "\xF0\x9F\xA7\x94\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man: light skin tone, beard"},
-        EmojiEntry{EmojiEnum::ManMediumLightSkinToneBeard,
-                   "\xF0\x9F\xA7\x94\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man: medium-light skin tone, beard"},
-        EmojiEntry{EmojiEnum::ManMediumSkinToneBeard,
-                   "\xF0\x9F\xA7\x94\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man: medium skin tone, beard"},
-        EmojiEntry{EmojiEnum::ManMediumDarkSkinToneBeard,
-                   "\xF0\x9F\xA7\x94\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man: medium-dark skin tone, beard"},
-        EmojiEntry{EmojiEnum::ManDarkSkinToneBeard,
-                   "\xF0\x9F\xA7\x94\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man: dark skin tone, beard"},
-        EmojiEntry{EmojiEnum::WomanBeard,
-                   "\xF0\x9F\xA7\x94\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
-                   "woman: beard"},
-        EmojiEntry{EmojiEnum::WomanLightSkinToneBeard,
-                   "\xF0\x9F\xA7\x94\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman: light skin tone, beard"},
-        EmojiEntry{EmojiEnum::WomanMediumLightSkinToneBeard,
-                   "\xF0\x9F\xA7\x94\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman: medium-light skin tone, beard"},
-        EmojiEntry{EmojiEnum::WomanMediumSkinToneBeard,
-                   "\xF0\x9F\xA7\x94\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman: medium skin tone, beard"},
-        EmojiEntry{EmojiEnum::WomanMediumDarkSkinToneBeard,
-                   "\xF0\x9F\xA7\x94\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman: medium-dark skin tone, beard"},
-        EmojiEntry{EmojiEnum::WomanDarkSkinToneBeard,
-                   "\xF0\x9F\xA7\x94\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman: dark skin tone, beard"},
-        EmojiEntry{EmojiEnum::ManRedHair,
-                   "\xF0\x9F\x91\xA8\xE2\x80\x8D\xF0\x9F\xA6\xB0",
-                   "man: red hair"},
+        EmojiEntry{
+            EmojiEnum::PersonLightSkinToneBeard,
+            "\xF0\x9F\xA7\x94\xF0\x9F\x8F\xBB",
+            "person: light skin tone, beard"},
+        EmojiEntry{
+            EmojiEnum::PersonMediumLightSkinToneBeard,
+            "\xF0\x9F\xA7\x94\xF0\x9F\x8F\xBC",
+            "person: medium-light skin tone, beard"},
+        EmojiEntry{
+            EmojiEnum::PersonMediumSkinToneBeard,
+            "\xF0\x9F\xA7\x94\xF0\x9F\x8F\xBD",
+            "person: medium skin tone, beard"},
+        EmojiEntry{
+            EmojiEnum::PersonMediumDarkSkinToneBeard,
+            "\xF0\x9F\xA7\x94\xF0\x9F\x8F\xBE",
+            "person: medium-dark skin tone, beard"},
+        EmojiEntry{
+            EmojiEnum::PersonDarkSkinToneBeard,
+            "\xF0\x9F\xA7\x94\xF0\x9F\x8F\xBF",
+            "person: dark skin tone, beard"},
+        EmojiEntry{
+            EmojiEnum::ManBeard,
+            "\xF0\x9F\xA7\x94\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
+            "man: beard"},
+        EmojiEntry{
+            EmojiEnum::ManLightSkinToneBeard,
+            "\xF0\x9F\xA7\x94\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man: light skin tone, beard"},
+        EmojiEntry{
+            EmojiEnum::ManMediumLightSkinToneBeard,
+            "\xF0\x9F\xA7\x94\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man: medium-light skin tone, beard"},
+        EmojiEntry{
+            EmojiEnum::ManMediumSkinToneBeard,
+            "\xF0\x9F\xA7\x94\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man: medium skin tone, beard"},
+        EmojiEntry{
+            EmojiEnum::ManMediumDarkSkinToneBeard,
+            "\xF0\x9F\xA7\x94\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man: medium-dark skin tone, beard"},
+        EmojiEntry{
+            EmojiEnum::ManDarkSkinToneBeard,
+            "\xF0\x9F\xA7\x94\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man: dark skin tone, beard"},
+        EmojiEntry{
+            EmojiEnum::WomanBeard,
+            "\xF0\x9F\xA7\x94\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
+            "woman: beard"},
+        EmojiEntry{
+            EmojiEnum::WomanLightSkinToneBeard,
+            "\xF0\x9F\xA7\x94\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman: light skin tone, beard"},
+        EmojiEntry{
+            EmojiEnum::WomanMediumLightSkinToneBeard,
+            "\xF0\x9F\xA7\x94\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman: medium-light skin tone, beard"},
+        EmojiEntry{
+            EmojiEnum::WomanMediumSkinToneBeard,
+            "\xF0\x9F\xA7\x94\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman: medium skin tone, beard"},
+        EmojiEntry{
+            EmojiEnum::WomanMediumDarkSkinToneBeard,
+            "\xF0\x9F\xA7\x94\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman: medium-dark skin tone, beard"},
+        EmojiEntry{
+            EmojiEnum::WomanDarkSkinToneBeard,
+            "\xF0\x9F\xA7\x94\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman: dark skin tone, beard"},
+        EmojiEntry{
+            EmojiEnum::ManRedHair,
+            "\xF0\x9F\x91\xA8\xE2\x80\x8D\xF0\x9F\xA6\xB0",
+            "man: red hair"},
         EmojiEntry{
             EmojiEnum::ManLightSkinToneRedHair,
             "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\xA6\xB0",
@@ -1395,9 +2014,10 @@ consteval auto makeEmojiList()
             EmojiEnum::ManDarkSkinToneRedHair,
             "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\xA6\xB0",
             "man: dark skin tone, red hair"},
-        EmojiEntry{EmojiEnum::ManCurlyHair,
-                   "\xF0\x9F\x91\xA8\xE2\x80\x8D\xF0\x9F\xA6\xB1",
-                   "man: curly hair"},
+        EmojiEntry{
+            EmojiEnum::ManCurlyHair,
+            "\xF0\x9F\x91\xA8\xE2\x80\x8D\xF0\x9F\xA6\xB1",
+            "man: curly hair"},
         EmojiEntry{
             EmojiEnum::ManLightSkinToneCurlyHair,
             "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\xA6\xB1",
@@ -1418,9 +2038,10 @@ consteval auto makeEmojiList()
             EmojiEnum::ManDarkSkinToneCurlyHair,
             "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\xA6\xB1",
             "man: dark skin tone, curly hair"},
-        EmojiEntry{EmojiEnum::ManWhiteHair,
-                   "\xF0\x9F\x91\xA8\xE2\x80\x8D\xF0\x9F\xA6\xB3",
-                   "man: white hair"},
+        EmojiEntry{
+            EmojiEnum::ManWhiteHair,
+            "\xF0\x9F\x91\xA8\xE2\x80\x8D\xF0\x9F\xA6\xB3",
+            "man: white hair"},
         EmojiEntry{
             EmojiEnum::ManLightSkinToneWhiteHair,
             "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\xA6\xB3",
@@ -1441,8 +2062,10 @@ consteval auto makeEmojiList()
             EmojiEnum::ManDarkSkinToneWhiteHair,
             "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\xA6\xB3",
             "man: dark skin tone, white hair"},
-        EmojiEntry{EmojiEnum::ManBald,
-                   "\xF0\x9F\x91\xA8\xE2\x80\x8D\xF0\x9F\xA6\xB2", "man: bald"},
+        EmojiEntry{
+            EmojiEnum::ManBald,
+            "\xF0\x9F\x91\xA8\xE2\x80\x8D\xF0\x9F\xA6\xB2",
+            "man: bald"},
         EmojiEntry{
             EmojiEnum::ManLightSkinToneBald,
             "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\xA6\xB2",
@@ -1464,23 +2087,30 @@ consteval auto makeEmojiList()
             "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\xA6\xB2",
             "man: dark skin tone, bald"},
         EmojiEntry{EmojiEnum::Woman, "\xF0\x9F\x91\xA9", "woman"},
-        EmojiEntry{EmojiEnum::WomanLightSkinTone,
-                   "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBB",
-                   "woman: light skin tone"},
-        EmojiEntry{EmojiEnum::WomanMediumLightSkinTone,
-                   "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBC",
-                   "woman: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::WomanMediumSkinTone,
-                   "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBD",
-                   "woman: medium skin tone"},
-        EmojiEntry{EmojiEnum::WomanMediumDarkSkinTone,
-                   "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBE",
-                   "woman: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanDarkSkinTone,
-                   "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBF", "woman: dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanRedHair,
-                   "\xF0\x9F\x91\xA9\xE2\x80\x8D\xF0\x9F\xA6\xB0",
-                   "woman: red hair"},
+        EmojiEntry{
+            EmojiEnum::WomanLightSkinTone,
+            "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBB",
+            "woman: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanMediumLightSkinTone,
+            "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBC",
+            "woman: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanMediumSkinTone,
+            "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBD",
+            "woman: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanMediumDarkSkinTone,
+            "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBE",
+            "woman: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanDarkSkinTone,
+            "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBF",
+            "woman: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanRedHair,
+            "\xF0\x9F\x91\xA9\xE2\x80\x8D\xF0\x9F\xA6\xB0",
+            "woman: red hair"},
         EmojiEntry{
             EmojiEnum::WomanLightSkinToneRedHair,
             "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\xA6\xB0",
@@ -1501,9 +2131,10 @@ consteval auto makeEmojiList()
             EmojiEnum::WomanDarkSkinToneRedHair,
             "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\xA6\xB0",
             "woman: dark skin tone, red hair"},
-        EmojiEntry{EmojiEnum::PersonRedHair,
-                   "\xF0\x9F\xA7\x91\xE2\x80\x8D\xF0\x9F\xA6\xB0",
-                   "person: red hair"},
+        EmojiEntry{
+            EmojiEnum::PersonRedHair,
+            "\xF0\x9F\xA7\x91\xE2\x80\x8D\xF0\x9F\xA6\xB0",
+            "person: red hair"},
         EmojiEntry{
             EmojiEnum::PersonLightSkinToneRedHair,
             "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\xA6\xB0",
@@ -1524,9 +2155,10 @@ consteval auto makeEmojiList()
             EmojiEnum::PersonDarkSkinToneRedHair,
             "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\xA6\xB0",
             "person: dark skin tone, red hair"},
-        EmojiEntry{EmojiEnum::WomanCurlyHair,
-                   "\xF0\x9F\x91\xA9\xE2\x80\x8D\xF0\x9F\xA6\xB1",
-                   "woman: curly hair"},
+        EmojiEntry{
+            EmojiEnum::WomanCurlyHair,
+            "\xF0\x9F\x91\xA9\xE2\x80\x8D\xF0\x9F\xA6\xB1",
+            "woman: curly hair"},
         EmojiEntry{
             EmojiEnum::WomanLightSkinToneCurlyHair,
             "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\xA6\xB1",
@@ -1547,9 +2179,10 @@ consteval auto makeEmojiList()
             EmojiEnum::WomanDarkSkinToneCurlyHair,
             "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\xA6\xB1",
             "woman: dark skin tone, curly hair"},
-        EmojiEntry{EmojiEnum::PersonCurlyHair,
-                   "\xF0\x9F\xA7\x91\xE2\x80\x8D\xF0\x9F\xA6\xB1",
-                   "person: curly hair"},
+        EmojiEntry{
+            EmojiEnum::PersonCurlyHair,
+            "\xF0\x9F\xA7\x91\xE2\x80\x8D\xF0\x9F\xA6\xB1",
+            "person: curly hair"},
         EmojiEntry{
             EmojiEnum::PersonLightSkinToneCurlyHair,
             "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\xA6\xB1",
@@ -1570,9 +2203,10 @@ consteval auto makeEmojiList()
             EmojiEnum::PersonDarkSkinToneCurlyHair,
             "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\xA6\xB1",
             "person: dark skin tone, curly hair"},
-        EmojiEntry{EmojiEnum::WomanWhiteHair,
-                   "\xF0\x9F\x91\xA9\xE2\x80\x8D\xF0\x9F\xA6\xB3",
-                   "woman: white hair"},
+        EmojiEntry{
+            EmojiEnum::WomanWhiteHair,
+            "\xF0\x9F\x91\xA9\xE2\x80\x8D\xF0\x9F\xA6\xB3",
+            "woman: white hair"},
         EmojiEntry{
             EmojiEnum::WomanLightSkinToneWhiteHair,
             "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\xA6\xB3",
@@ -1593,9 +2227,10 @@ consteval auto makeEmojiList()
             EmojiEnum::WomanDarkSkinToneWhiteHair,
             "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\xA6\xB3",
             "woman: dark skin tone, white hair"},
-        EmojiEntry{EmojiEnum::PersonWhiteHair,
-                   "\xF0\x9F\xA7\x91\xE2\x80\x8D\xF0\x9F\xA6\xB3",
-                   "person: white hair"},
+        EmojiEntry{
+            EmojiEnum::PersonWhiteHair,
+            "\xF0\x9F\xA7\x91\xE2\x80\x8D\xF0\x9F\xA6\xB3",
+            "person: white hair"},
         EmojiEntry{
             EmojiEnum::PersonLightSkinToneWhiteHair,
             "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\xA6\xB3",
@@ -1616,9 +2251,10 @@ consteval auto makeEmojiList()
             EmojiEnum::PersonDarkSkinToneWhiteHair,
             "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\xA6\xB3",
             "person: dark skin tone, white hair"},
-        EmojiEntry{EmojiEnum::WomanBald,
-                   "\xF0\x9F\x91\xA9\xE2\x80\x8D\xF0\x9F\xA6\xB2",
-                   "woman: bald"},
+        EmojiEntry{
+            EmojiEnum::WomanBald,
+            "\xF0\x9F\x91\xA9\xE2\x80\x8D\xF0\x9F\xA6\xB2",
+            "woman: bald"},
         EmojiEntry{
             EmojiEnum::WomanLightSkinToneBald,
             "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\xA6\xB2",
@@ -1639,9 +2275,10 @@ consteval auto makeEmojiList()
             EmojiEnum::WomanDarkSkinToneBald,
             "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\xA6\xB2",
             "woman: dark skin tone, bald"},
-        EmojiEntry{EmojiEnum::PersonBald,
-                   "\xF0\x9F\xA7\x91\xE2\x80\x8D\xF0\x9F\xA6\xB2",
-                   "person: bald"},
+        EmojiEntry{
+            EmojiEnum::PersonBald,
+            "\xF0\x9F\xA7\x91\xE2\x80\x8D\xF0\x9F\xA6\xB2",
+            "person: bald"},
         EmojiEntry{
             EmojiEnum::PersonLightSkinToneBald,
             "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\xA6\xB2",
@@ -1662,800 +2299,1035 @@ consteval auto makeEmojiList()
             EmojiEnum::PersonDarkSkinToneBald,
             "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\xA6\xB2",
             "person: dark skin tone, bald"},
-        EmojiEntry{EmojiEnum::WomanBlondHair,
-                   "\xF0\x9F\x91\xB1\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
-                   "woman: blond hair"},
-        EmojiEntry{EmojiEnum::WomanLightSkinToneBlondHair,
-                   "\xF0\x9F\x91\xB1\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman: light skin tone, blond hair"},
-        EmojiEntry{EmojiEnum::WomanMediumLightSkinToneBlondHair,
-                   "\xF0\x9F\x91\xB1\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman: medium-light skin tone, blond hair"},
-        EmojiEntry{EmojiEnum::WomanMediumSkinToneBlondHair,
-                   "\xF0\x9F\x91\xB1\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman: medium skin tone, blond hair"},
-        EmojiEntry{EmojiEnum::WomanMediumDarkSkinToneBlondHair,
-                   "\xF0\x9F\x91\xB1\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman: medium-dark skin tone, blond hair"},
-        EmojiEntry{EmojiEnum::WomanDarkSkinToneBlondHair,
-                   "\xF0\x9F\x91\xB1\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman: dark skin tone, blond hair"},
-        EmojiEntry{EmojiEnum::ManBlondHair,
-                   "\xF0\x9F\x91\xB1\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
-                   "man: blond hair"},
-        EmojiEntry{EmojiEnum::ManLightSkinToneBlondHair,
-                   "\xF0\x9F\x91\xB1\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man: light skin tone, blond hair"},
-        EmojiEntry{EmojiEnum::ManMediumLightSkinToneBlondHair,
-                   "\xF0\x9F\x91\xB1\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man: medium-light skin tone, blond hair"},
-        EmojiEntry{EmojiEnum::ManMediumSkinToneBlondHair,
-                   "\xF0\x9F\x91\xB1\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man: medium skin tone, blond hair"},
-        EmojiEntry{EmojiEnum::ManMediumDarkSkinToneBlondHair,
-                   "\xF0\x9F\x91\xB1\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man: medium-dark skin tone, blond hair"},
-        EmojiEntry{EmojiEnum::ManDarkSkinToneBlondHair,
-                   "\xF0\x9F\x91\xB1\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man: dark skin tone, blond hair"},
+        EmojiEntry{
+            EmojiEnum::WomanBlondHair,
+            "\xF0\x9F\x91\xB1\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
+            "woman: blond hair"},
+        EmojiEntry{
+            EmojiEnum::WomanLightSkinToneBlondHair,
+            "\xF0\x9F\x91\xB1\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman: light skin tone, blond hair"},
+        EmojiEntry{
+            EmojiEnum::WomanMediumLightSkinToneBlondHair,
+            "\xF0\x9F\x91\xB1\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman: medium-light skin tone, blond hair"},
+        EmojiEntry{
+            EmojiEnum::WomanMediumSkinToneBlondHair,
+            "\xF0\x9F\x91\xB1\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman: medium skin tone, blond hair"},
+        EmojiEntry{
+            EmojiEnum::WomanMediumDarkSkinToneBlondHair,
+            "\xF0\x9F\x91\xB1\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman: medium-dark skin tone, blond hair"},
+        EmojiEntry{
+            EmojiEnum::WomanDarkSkinToneBlondHair,
+            "\xF0\x9F\x91\xB1\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman: dark skin tone, blond hair"},
+        EmojiEntry{
+            EmojiEnum::ManBlondHair,
+            "\xF0\x9F\x91\xB1\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
+            "man: blond hair"},
+        EmojiEntry{
+            EmojiEnum::ManLightSkinToneBlondHair,
+            "\xF0\x9F\x91\xB1\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man: light skin tone, blond hair"},
+        EmojiEntry{
+            EmojiEnum::ManMediumLightSkinToneBlondHair,
+            "\xF0\x9F\x91\xB1\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man: medium-light skin tone, blond hair"},
+        EmojiEntry{
+            EmojiEnum::ManMediumSkinToneBlondHair,
+            "\xF0\x9F\x91\xB1\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man: medium skin tone, blond hair"},
+        EmojiEntry{
+            EmojiEnum::ManMediumDarkSkinToneBlondHair,
+            "\xF0\x9F\x91\xB1\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man: medium-dark skin tone, blond hair"},
+        EmojiEntry{
+            EmojiEnum::ManDarkSkinToneBlondHair,
+            "\xF0\x9F\x91\xB1\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man: dark skin tone, blond hair"},
         EmojiEntry{EmojiEnum::OlderPerson, "\xF0\x9F\xA7\x93", "older person"},
-        EmojiEntry{EmojiEnum::OlderPersonLightSkinTone,
-                   "\xF0\x9F\xA7\x93\xF0\x9F\x8F\xBB",
-                   "older person: light skin tone"},
-        EmojiEntry{EmojiEnum::OlderPersonMediumLightSkinTone,
-                   "\xF0\x9F\xA7\x93\xF0\x9F\x8F\xBC",
-                   "older person: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::OlderPersonMediumSkinTone,
-                   "\xF0\x9F\xA7\x93\xF0\x9F\x8F\xBD",
-                   "older person: medium skin tone"},
-        EmojiEntry{EmojiEnum::OlderPersonMediumDarkSkinTone,
-                   "\xF0\x9F\xA7\x93\xF0\x9F\x8F\xBE",
-                   "older person: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::OlderPersonDarkSkinTone,
-                   "\xF0\x9F\xA7\x93\xF0\x9F\x8F\xBF",
-                   "older person: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::OlderPersonLightSkinTone,
+            "\xF0\x9F\xA7\x93\xF0\x9F\x8F\xBB",
+            "older person: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::OlderPersonMediumLightSkinTone,
+            "\xF0\x9F\xA7\x93\xF0\x9F\x8F\xBC",
+            "older person: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::OlderPersonMediumSkinTone,
+            "\xF0\x9F\xA7\x93\xF0\x9F\x8F\xBD",
+            "older person: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::OlderPersonMediumDarkSkinTone,
+            "\xF0\x9F\xA7\x93\xF0\x9F\x8F\xBE",
+            "older person: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::OlderPersonDarkSkinTone,
+            "\xF0\x9F\xA7\x93\xF0\x9F\x8F\xBF",
+            "older person: dark skin tone"},
         EmojiEntry{EmojiEnum::OldMan, "\xF0\x9F\x91\xB4", "old man"},
-        EmojiEntry{EmojiEnum::OldManLightSkinTone,
-                   "\xF0\x9F\x91\xB4\xF0\x9F\x8F\xBB",
-                   "old man: light skin tone"},
-        EmojiEntry{EmojiEnum::OldManMediumLightSkinTone,
-                   "\xF0\x9F\x91\xB4\xF0\x9F\x8F\xBC",
-                   "old man: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::OldManMediumSkinTone,
-                   "\xF0\x9F\x91\xB4\xF0\x9F\x8F\xBD",
-                   "old man: medium skin tone"},
-        EmojiEntry{EmojiEnum::OldManMediumDarkSkinTone,
-                   "\xF0\x9F\x91\xB4\xF0\x9F\x8F\xBE",
-                   "old man: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::OldManDarkSkinTone,
-                   "\xF0\x9F\x91\xB4\xF0\x9F\x8F\xBF",
-                   "old man: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::OldManLightSkinTone,
+            "\xF0\x9F\x91\xB4\xF0\x9F\x8F\xBB",
+            "old man: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::OldManMediumLightSkinTone,
+            "\xF0\x9F\x91\xB4\xF0\x9F\x8F\xBC",
+            "old man: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::OldManMediumSkinTone,
+            "\xF0\x9F\x91\xB4\xF0\x9F\x8F\xBD",
+            "old man: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::OldManMediumDarkSkinTone,
+            "\xF0\x9F\x91\xB4\xF0\x9F\x8F\xBE",
+            "old man: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::OldManDarkSkinTone,
+            "\xF0\x9F\x91\xB4\xF0\x9F\x8F\xBF",
+            "old man: dark skin tone"},
         EmojiEntry{EmojiEnum::OldWoman, "\xF0\x9F\x91\xB5", "old woman"},
-        EmojiEntry{EmojiEnum::OldWomanLightSkinTone,
-                   "\xF0\x9F\x91\xB5\xF0\x9F\x8F\xBB",
-                   "old woman: light skin tone"},
-        EmojiEntry{EmojiEnum::OldWomanMediumLightSkinTone,
-                   "\xF0\x9F\x91\xB5\xF0\x9F\x8F\xBC",
-                   "old woman: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::OldWomanMediumSkinTone,
-                   "\xF0\x9F\x91\xB5\xF0\x9F\x8F\xBD",
-                   "old woman: medium skin tone"},
-        EmojiEntry{EmojiEnum::OldWomanMediumDarkSkinTone,
-                   "\xF0\x9F\x91\xB5\xF0\x9F\x8F\xBE",
-                   "old woman: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::OldWomanDarkSkinTone,
-                   "\xF0\x9F\x91\xB5\xF0\x9F\x8F\xBF",
-                   "old woman: dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonFrowning, "\xF0\x9F\x99\x8D",
-                   "person frowning"},
-        EmojiEntry{EmojiEnum::PersonFrowningLightSkinTone,
-                   "\xF0\x9F\x99\x8D\xF0\x9F\x8F\xBB",
-                   "person frowning: light skin tone"},
-        EmojiEntry{EmojiEnum::PersonFrowningMediumLightSkinTone,
-                   "\xF0\x9F\x99\x8D\xF0\x9F\x8F\xBC",
-                   "person frowning: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::PersonFrowningMediumSkinTone,
-                   "\xF0\x9F\x99\x8D\xF0\x9F\x8F\xBD",
-                   "person frowning: medium skin tone"},
-        EmojiEntry{EmojiEnum::PersonFrowningMediumDarkSkinTone,
-                   "\xF0\x9F\x99\x8D\xF0\x9F\x8F\xBE",
-                   "person frowning: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonFrowningDarkSkinTone,
-                   "\xF0\x9F\x99\x8D\xF0\x9F\x8F\xBF",
-                   "person frowning: dark skin tone"},
-        EmojiEntry{EmojiEnum::ManFrowning,
-                   "\xF0\x9F\x99\x8D\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
-                   "man frowning"},
-        EmojiEntry{EmojiEnum::ManFrowningLightSkinTone,
-                   "\xF0\x9F\x99\x8D\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man frowning: light skin tone"},
-        EmojiEntry{EmojiEnum::ManFrowningMediumLightSkinTone,
-                   "\xF0\x9F\x99\x8D\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man frowning: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::ManFrowningMediumSkinTone,
-                   "\xF0\x9F\x99\x8D\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man frowning: medium skin tone"},
-        EmojiEntry{EmojiEnum::ManFrowningMediumDarkSkinTone,
-                   "\xF0\x9F\x99\x8D\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man frowning: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::ManFrowningDarkSkinTone,
-                   "\xF0\x9F\x99\x8D\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man frowning: dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanFrowning,
-                   "\xF0\x9F\x99\x8D\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
-                   "woman frowning"},
-        EmojiEntry{EmojiEnum::WomanFrowningLightSkinTone,
-                   "\xF0\x9F\x99\x8D\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman frowning: light skin tone"},
-        EmojiEntry{EmojiEnum::WomanFrowningMediumLightSkinTone,
-                   "\xF0\x9F\x99\x8D\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman frowning: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::WomanFrowningMediumSkinTone,
-                   "\xF0\x9F\x99\x8D\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman frowning: medium skin tone"},
-        EmojiEntry{EmojiEnum::WomanFrowningMediumDarkSkinTone,
-                   "\xF0\x9F\x99\x8D\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman frowning: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanFrowningDarkSkinTone,
-                   "\xF0\x9F\x99\x8D\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman frowning: dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonPouting, "\xF0\x9F\x99\x8E",
-                   "person pouting"},
-        EmojiEntry{EmojiEnum::PersonPoutingLightSkinTone,
-                   "\xF0\x9F\x99\x8E\xF0\x9F\x8F\xBB",
-                   "person pouting: light skin tone"},
-        EmojiEntry{EmojiEnum::PersonPoutingMediumLightSkinTone,
-                   "\xF0\x9F\x99\x8E\xF0\x9F\x8F\xBC",
-                   "person pouting: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::PersonPoutingMediumSkinTone,
-                   "\xF0\x9F\x99\x8E\xF0\x9F\x8F\xBD",
-                   "person pouting: medium skin tone"},
-        EmojiEntry{EmojiEnum::PersonPoutingMediumDarkSkinTone,
-                   "\xF0\x9F\x99\x8E\xF0\x9F\x8F\xBE",
-                   "person pouting: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonPoutingDarkSkinTone,
-                   "\xF0\x9F\x99\x8E\xF0\x9F\x8F\xBF",
-                   "person pouting: dark skin tone"},
-        EmojiEntry{EmojiEnum::ManPouting,
-                   "\xF0\x9F\x99\x8E\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
-                   "man pouting"},
-        EmojiEntry{EmojiEnum::ManPoutingLightSkinTone,
-                   "\xF0\x9F\x99\x8E\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man pouting: light skin tone"},
-        EmojiEntry{EmojiEnum::ManPoutingMediumLightSkinTone,
-                   "\xF0\x9F\x99\x8E\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man pouting: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::ManPoutingMediumSkinTone,
-                   "\xF0\x9F\x99\x8E\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man pouting: medium skin tone"},
-        EmojiEntry{EmojiEnum::ManPoutingMediumDarkSkinTone,
-                   "\xF0\x9F\x99\x8E\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man pouting: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::ManPoutingDarkSkinTone,
-                   "\xF0\x9F\x99\x8E\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man pouting: dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanPouting,
-                   "\xF0\x9F\x99\x8E\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
-                   "woman pouting"},
-        EmojiEntry{EmojiEnum::WomanPoutingLightSkinTone,
-                   "\xF0\x9F\x99\x8E\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman pouting: light skin tone"},
-        EmojiEntry{EmojiEnum::WomanPoutingMediumLightSkinTone,
-                   "\xF0\x9F\x99\x8E\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman pouting: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::WomanPoutingMediumSkinTone,
-                   "\xF0\x9F\x99\x8E\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman pouting: medium skin tone"},
-        EmojiEntry{EmojiEnum::WomanPoutingMediumDarkSkinTone,
-                   "\xF0\x9F\x99\x8E\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman pouting: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanPoutingDarkSkinTone,
-                   "\xF0\x9F\x99\x8E\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman pouting: dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonGesturingNo, "\xF0\x9F\x99\x85",
-                   "person gesturing NO"},
-        EmojiEntry{EmojiEnum::PersonGesturingNoLightSkinTone,
-                   "\xF0\x9F\x99\x85\xF0\x9F\x8F\xBB",
-                   "person gesturing NO: light skin tone"},
-        EmojiEntry{EmojiEnum::PersonGesturingNoMediumLightSkinTone,
-                   "\xF0\x9F\x99\x85\xF0\x9F\x8F\xBC",
-                   "person gesturing NO: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::PersonGesturingNoMediumSkinTone,
-                   "\xF0\x9F\x99\x85\xF0\x9F\x8F\xBD",
-                   "person gesturing NO: medium skin tone"},
-        EmojiEntry{EmojiEnum::PersonGesturingNoMediumDarkSkinTone,
-                   "\xF0\x9F\x99\x85\xF0\x9F\x8F\xBE",
-                   "person gesturing NO: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonGesturingNoDarkSkinTone,
-                   "\xF0\x9F\x99\x85\xF0\x9F\x8F\xBF",
-                   "person gesturing NO: dark skin tone"},
-        EmojiEntry{EmojiEnum::ManGesturingNo,
-                   "\xF0\x9F\x99\x85\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
-                   "man gesturing NO"},
-        EmojiEntry{EmojiEnum::ManGesturingNoLightSkinTone,
-                   "\xF0\x9F\x99\x85\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man gesturing NO: light skin tone"},
-        EmojiEntry{EmojiEnum::ManGesturingNoMediumLightSkinTone,
-                   "\xF0\x9F\x99\x85\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man gesturing NO: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::ManGesturingNoMediumSkinTone,
-                   "\xF0\x9F\x99\x85\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man gesturing NO: medium skin tone"},
-        EmojiEntry{EmojiEnum::ManGesturingNoMediumDarkSkinTone,
-                   "\xF0\x9F\x99\x85\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man gesturing NO: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::ManGesturingNoDarkSkinTone,
-                   "\xF0\x9F\x99\x85\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man gesturing NO: dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanGesturingNo,
-                   "\xF0\x9F\x99\x85\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
-                   "woman gesturing NO"},
-        EmojiEntry{EmojiEnum::WomanGesturingNoLightSkinTone,
-                   "\xF0\x9F\x99\x85\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman gesturing NO: light skin tone"},
-        EmojiEntry{EmojiEnum::WomanGesturingNoMediumLightSkinTone,
-                   "\xF0\x9F\x99\x85\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman gesturing NO: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::WomanGesturingNoMediumSkinTone,
-                   "\xF0\x9F\x99\x85\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman gesturing NO: medium skin tone"},
-        EmojiEntry{EmojiEnum::WomanGesturingNoMediumDarkSkinTone,
-                   "\xF0\x9F\x99\x85\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman gesturing NO: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanGesturingNoDarkSkinTone,
-                   "\xF0\x9F\x99\x85\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman gesturing NO: dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonGesturingOk, "\xF0\x9F\x99\x86",
-                   "person gesturing OK"},
-        EmojiEntry{EmojiEnum::PersonGesturingOkLightSkinTone,
-                   "\xF0\x9F\x99\x86\xF0\x9F\x8F\xBB",
-                   "person gesturing OK: light skin tone"},
-        EmojiEntry{EmojiEnum::PersonGesturingOkMediumLightSkinTone,
-                   "\xF0\x9F\x99\x86\xF0\x9F\x8F\xBC",
-                   "person gesturing OK: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::PersonGesturingOkMediumSkinTone,
-                   "\xF0\x9F\x99\x86\xF0\x9F\x8F\xBD",
-                   "person gesturing OK: medium skin tone"},
-        EmojiEntry{EmojiEnum::PersonGesturingOkMediumDarkSkinTone,
-                   "\xF0\x9F\x99\x86\xF0\x9F\x8F\xBE",
-                   "person gesturing OK: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonGesturingOkDarkSkinTone,
-                   "\xF0\x9F\x99\x86\xF0\x9F\x8F\xBF",
-                   "person gesturing OK: dark skin tone"},
-        EmojiEntry{EmojiEnum::ManGesturingOk,
-                   "\xF0\x9F\x99\x86\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
-                   "man gesturing OK"},
-        EmojiEntry{EmojiEnum::ManGesturingOkLightSkinTone,
-                   "\xF0\x9F\x99\x86\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man gesturing OK: light skin tone"},
-        EmojiEntry{EmojiEnum::ManGesturingOkMediumLightSkinTone,
-                   "\xF0\x9F\x99\x86\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man gesturing OK: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::ManGesturingOkMediumSkinTone,
-                   "\xF0\x9F\x99\x86\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man gesturing OK: medium skin tone"},
-        EmojiEntry{EmojiEnum::ManGesturingOkMediumDarkSkinTone,
-                   "\xF0\x9F\x99\x86\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man gesturing OK: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::ManGesturingOkDarkSkinTone,
-                   "\xF0\x9F\x99\x86\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man gesturing OK: dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanGesturingOk,
-                   "\xF0\x9F\x99\x86\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
-                   "woman gesturing OK"},
-        EmojiEntry{EmojiEnum::WomanGesturingOkLightSkinTone,
-                   "\xF0\x9F\x99\x86\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman gesturing OK: light skin tone"},
-        EmojiEntry{EmojiEnum::WomanGesturingOkMediumLightSkinTone,
-                   "\xF0\x9F\x99\x86\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman gesturing OK: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::WomanGesturingOkMediumSkinTone,
-                   "\xF0\x9F\x99\x86\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman gesturing OK: medium skin tone"},
-        EmojiEntry{EmojiEnum::WomanGesturingOkMediumDarkSkinTone,
-                   "\xF0\x9F\x99\x86\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman gesturing OK: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanGesturingOkDarkSkinTone,
-                   "\xF0\x9F\x99\x86\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman gesturing OK: dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonTippingHand, "\xF0\x9F\x92\x81",
-                   "person tipping hand"},
-        EmojiEntry{EmojiEnum::PersonTippingHandLightSkinTone,
-                   "\xF0\x9F\x92\x81\xF0\x9F\x8F\xBB",
-                   "person tipping hand: light skin tone"},
-        EmojiEntry{EmojiEnum::PersonTippingHandMediumLightSkinTone,
-                   "\xF0\x9F\x92\x81\xF0\x9F\x8F\xBC",
-                   "person tipping hand: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::PersonTippingHandMediumSkinTone,
-                   "\xF0\x9F\x92\x81\xF0\x9F\x8F\xBD",
-                   "person tipping hand: medium skin tone"},
-        EmojiEntry{EmojiEnum::PersonTippingHandMediumDarkSkinTone,
-                   "\xF0\x9F\x92\x81\xF0\x9F\x8F\xBE",
-                   "person tipping hand: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonTippingHandDarkSkinTone,
-                   "\xF0\x9F\x92\x81\xF0\x9F\x8F\xBF",
-                   "person tipping hand: dark skin tone"},
-        EmojiEntry{EmojiEnum::ManTippingHand,
-                   "\xF0\x9F\x92\x81\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
-                   "man tipping hand"},
-        EmojiEntry{EmojiEnum::ManTippingHandLightSkinTone,
-                   "\xF0\x9F\x92\x81\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man tipping hand: light skin tone"},
-        EmojiEntry{EmojiEnum::ManTippingHandMediumLightSkinTone,
-                   "\xF0\x9F\x92\x81\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man tipping hand: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::ManTippingHandMediumSkinTone,
-                   "\xF0\x9F\x92\x81\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man tipping hand: medium skin tone"},
-        EmojiEntry{EmojiEnum::ManTippingHandMediumDarkSkinTone,
-                   "\xF0\x9F\x92\x81\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man tipping hand: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::ManTippingHandDarkSkinTone,
-                   "\xF0\x9F\x92\x81\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man tipping hand: dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanTippingHand,
-                   "\xF0\x9F\x92\x81\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
-                   "woman tipping hand"},
-        EmojiEntry{EmojiEnum::WomanTippingHandLightSkinTone,
-                   "\xF0\x9F\x92\x81\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman tipping hand: light skin tone"},
-        EmojiEntry{EmojiEnum::WomanTippingHandMediumLightSkinTone,
-                   "\xF0\x9F\x92\x81\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman tipping hand: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::WomanTippingHandMediumSkinTone,
-                   "\xF0\x9F\x92\x81\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman tipping hand: medium skin tone"},
-        EmojiEntry{EmojiEnum::WomanTippingHandMediumDarkSkinTone,
-                   "\xF0\x9F\x92\x81\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman tipping hand: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanTippingHandDarkSkinTone,
-                   "\xF0\x9F\x92\x81\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman tipping hand: dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonRaisingHand, "\xF0\x9F\x99\x8B",
-                   "person raising hand"},
-        EmojiEntry{EmojiEnum::PersonRaisingHandLightSkinTone,
-                   "\xF0\x9F\x99\x8B\xF0\x9F\x8F\xBB",
-                   "person raising hand: light skin tone"},
-        EmojiEntry{EmojiEnum::PersonRaisingHandMediumLightSkinTone,
-                   "\xF0\x9F\x99\x8B\xF0\x9F\x8F\xBC",
-                   "person raising hand: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::PersonRaisingHandMediumSkinTone,
-                   "\xF0\x9F\x99\x8B\xF0\x9F\x8F\xBD",
-                   "person raising hand: medium skin tone"},
-        EmojiEntry{EmojiEnum::PersonRaisingHandMediumDarkSkinTone,
-                   "\xF0\x9F\x99\x8B\xF0\x9F\x8F\xBE",
-                   "person raising hand: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonRaisingHandDarkSkinTone,
-                   "\xF0\x9F\x99\x8B\xF0\x9F\x8F\xBF",
-                   "person raising hand: dark skin tone"},
-        EmojiEntry{EmojiEnum::ManRaisingHand,
-                   "\xF0\x9F\x99\x8B\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
-                   "man raising hand"},
-        EmojiEntry{EmojiEnum::ManRaisingHandLightSkinTone,
-                   "\xF0\x9F\x99\x8B\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man raising hand: light skin tone"},
-        EmojiEntry{EmojiEnum::ManRaisingHandMediumLightSkinTone,
-                   "\xF0\x9F\x99\x8B\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man raising hand: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::ManRaisingHandMediumSkinTone,
-                   "\xF0\x9F\x99\x8B\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man raising hand: medium skin tone"},
-        EmojiEntry{EmojiEnum::ManRaisingHandMediumDarkSkinTone,
-                   "\xF0\x9F\x99\x8B\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man raising hand: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::ManRaisingHandDarkSkinTone,
-                   "\xF0\x9F\x99\x8B\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man raising hand: dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanRaisingHand,
-                   "\xF0\x9F\x99\x8B\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
-                   "woman raising hand"},
-        EmojiEntry{EmojiEnum::WomanRaisingHandLightSkinTone,
-                   "\xF0\x9F\x99\x8B\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman raising hand: light skin tone"},
-        EmojiEntry{EmojiEnum::WomanRaisingHandMediumLightSkinTone,
-                   "\xF0\x9F\x99\x8B\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman raising hand: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::WomanRaisingHandMediumSkinTone,
-                   "\xF0\x9F\x99\x8B\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman raising hand: medium skin tone"},
-        EmojiEntry{EmojiEnum::WomanRaisingHandMediumDarkSkinTone,
-                   "\xF0\x9F\x99\x8B\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman raising hand: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanRaisingHandDarkSkinTone,
-                   "\xF0\x9F\x99\x8B\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman raising hand: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::OldWomanLightSkinTone,
+            "\xF0\x9F\x91\xB5\xF0\x9F\x8F\xBB",
+            "old woman: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::OldWomanMediumLightSkinTone,
+            "\xF0\x9F\x91\xB5\xF0\x9F\x8F\xBC",
+            "old woman: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::OldWomanMediumSkinTone,
+            "\xF0\x9F\x91\xB5\xF0\x9F\x8F\xBD",
+            "old woman: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::OldWomanMediumDarkSkinTone,
+            "\xF0\x9F\x91\xB5\xF0\x9F\x8F\xBE",
+            "old woman: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::OldWomanDarkSkinTone,
+            "\xF0\x9F\x91\xB5\xF0\x9F\x8F\xBF",
+            "old woman: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonFrowning,
+            "\xF0\x9F\x99\x8D",
+            "person frowning"},
+        EmojiEntry{
+            EmojiEnum::PersonFrowningLightSkinTone,
+            "\xF0\x9F\x99\x8D\xF0\x9F\x8F\xBB",
+            "person frowning: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonFrowningMediumLightSkinTone,
+            "\xF0\x9F\x99\x8D\xF0\x9F\x8F\xBC",
+            "person frowning: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonFrowningMediumSkinTone,
+            "\xF0\x9F\x99\x8D\xF0\x9F\x8F\xBD",
+            "person frowning: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonFrowningMediumDarkSkinTone,
+            "\xF0\x9F\x99\x8D\xF0\x9F\x8F\xBE",
+            "person frowning: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonFrowningDarkSkinTone,
+            "\xF0\x9F\x99\x8D\xF0\x9F\x8F\xBF",
+            "person frowning: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManFrowning,
+            "\xF0\x9F\x99\x8D\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
+            "man frowning"},
+        EmojiEntry{
+            EmojiEnum::ManFrowningLightSkinTone,
+            "\xF0\x9F\x99\x8D\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man frowning: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManFrowningMediumLightSkinTone,
+            "\xF0\x9F\x99\x8D\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man frowning: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManFrowningMediumSkinTone,
+            "\xF0\x9F\x99\x8D\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man frowning: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManFrowningMediumDarkSkinTone,
+            "\xF0\x9F\x99\x8D\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man frowning: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManFrowningDarkSkinTone,
+            "\xF0\x9F\x99\x8D\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man frowning: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanFrowning,
+            "\xF0\x9F\x99\x8D\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
+            "woman frowning"},
+        EmojiEntry{
+            EmojiEnum::WomanFrowningLightSkinTone,
+            "\xF0\x9F\x99\x8D\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman frowning: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanFrowningMediumLightSkinTone,
+            "\xF0\x9F\x99\x8D\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman frowning: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanFrowningMediumSkinTone,
+            "\xF0\x9F\x99\x8D\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman frowning: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanFrowningMediumDarkSkinTone,
+            "\xF0\x9F\x99\x8D\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman frowning: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanFrowningDarkSkinTone,
+            "\xF0\x9F\x99\x8D\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman frowning: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonPouting,
+            "\xF0\x9F\x99\x8E",
+            "person pouting"},
+        EmojiEntry{
+            EmojiEnum::PersonPoutingLightSkinTone,
+            "\xF0\x9F\x99\x8E\xF0\x9F\x8F\xBB",
+            "person pouting: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonPoutingMediumLightSkinTone,
+            "\xF0\x9F\x99\x8E\xF0\x9F\x8F\xBC",
+            "person pouting: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonPoutingMediumSkinTone,
+            "\xF0\x9F\x99\x8E\xF0\x9F\x8F\xBD",
+            "person pouting: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonPoutingMediumDarkSkinTone,
+            "\xF0\x9F\x99\x8E\xF0\x9F\x8F\xBE",
+            "person pouting: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonPoutingDarkSkinTone,
+            "\xF0\x9F\x99\x8E\xF0\x9F\x8F\xBF",
+            "person pouting: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManPouting,
+            "\xF0\x9F\x99\x8E\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
+            "man pouting"},
+        EmojiEntry{
+            EmojiEnum::ManPoutingLightSkinTone,
+            "\xF0\x9F\x99\x8E\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man pouting: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManPoutingMediumLightSkinTone,
+            "\xF0\x9F\x99\x8E\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man pouting: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManPoutingMediumSkinTone,
+            "\xF0\x9F\x99\x8E\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man pouting: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManPoutingMediumDarkSkinTone,
+            "\xF0\x9F\x99\x8E\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man pouting: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManPoutingDarkSkinTone,
+            "\xF0\x9F\x99\x8E\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man pouting: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanPouting,
+            "\xF0\x9F\x99\x8E\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
+            "woman pouting"},
+        EmojiEntry{
+            EmojiEnum::WomanPoutingLightSkinTone,
+            "\xF0\x9F\x99\x8E\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman pouting: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanPoutingMediumLightSkinTone,
+            "\xF0\x9F\x99\x8E\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman pouting: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanPoutingMediumSkinTone,
+            "\xF0\x9F\x99\x8E\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman pouting: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanPoutingMediumDarkSkinTone,
+            "\xF0\x9F\x99\x8E\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman pouting: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanPoutingDarkSkinTone,
+            "\xF0\x9F\x99\x8E\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman pouting: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonGesturingNo,
+            "\xF0\x9F\x99\x85",
+            "person gesturing NO"},
+        EmojiEntry{
+            EmojiEnum::PersonGesturingNoLightSkinTone,
+            "\xF0\x9F\x99\x85\xF0\x9F\x8F\xBB",
+            "person gesturing NO: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonGesturingNoMediumLightSkinTone,
+            "\xF0\x9F\x99\x85\xF0\x9F\x8F\xBC",
+            "person gesturing NO: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonGesturingNoMediumSkinTone,
+            "\xF0\x9F\x99\x85\xF0\x9F\x8F\xBD",
+            "person gesturing NO: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonGesturingNoMediumDarkSkinTone,
+            "\xF0\x9F\x99\x85\xF0\x9F\x8F\xBE",
+            "person gesturing NO: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonGesturingNoDarkSkinTone,
+            "\xF0\x9F\x99\x85\xF0\x9F\x8F\xBF",
+            "person gesturing NO: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManGesturingNo,
+            "\xF0\x9F\x99\x85\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
+            "man gesturing NO"},
+        EmojiEntry{
+            EmojiEnum::ManGesturingNoLightSkinTone,
+            "\xF0\x9F\x99\x85\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man gesturing NO: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManGesturingNoMediumLightSkinTone,
+            "\xF0\x9F\x99\x85\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man gesturing NO: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManGesturingNoMediumSkinTone,
+            "\xF0\x9F\x99\x85\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man gesturing NO: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManGesturingNoMediumDarkSkinTone,
+            "\xF0\x9F\x99\x85\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man gesturing NO: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManGesturingNoDarkSkinTone,
+            "\xF0\x9F\x99\x85\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man gesturing NO: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanGesturingNo,
+            "\xF0\x9F\x99\x85\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
+            "woman gesturing NO"},
+        EmojiEntry{
+            EmojiEnum::WomanGesturingNoLightSkinTone,
+            "\xF0\x9F\x99\x85\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman gesturing NO: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanGesturingNoMediumLightSkinTone,
+            "\xF0\x9F\x99\x85\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman gesturing NO: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanGesturingNoMediumSkinTone,
+            "\xF0\x9F\x99\x85\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman gesturing NO: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanGesturingNoMediumDarkSkinTone,
+            "\xF0\x9F\x99\x85\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman gesturing NO: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanGesturingNoDarkSkinTone,
+            "\xF0\x9F\x99\x85\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman gesturing NO: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonGesturingOk,
+            "\xF0\x9F\x99\x86",
+            "person gesturing OK"},
+        EmojiEntry{
+            EmojiEnum::PersonGesturingOkLightSkinTone,
+            "\xF0\x9F\x99\x86\xF0\x9F\x8F\xBB",
+            "person gesturing OK: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonGesturingOkMediumLightSkinTone,
+            "\xF0\x9F\x99\x86\xF0\x9F\x8F\xBC",
+            "person gesturing OK: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonGesturingOkMediumSkinTone,
+            "\xF0\x9F\x99\x86\xF0\x9F\x8F\xBD",
+            "person gesturing OK: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonGesturingOkMediumDarkSkinTone,
+            "\xF0\x9F\x99\x86\xF0\x9F\x8F\xBE",
+            "person gesturing OK: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonGesturingOkDarkSkinTone,
+            "\xF0\x9F\x99\x86\xF0\x9F\x8F\xBF",
+            "person gesturing OK: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManGesturingOk,
+            "\xF0\x9F\x99\x86\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
+            "man gesturing OK"},
+        EmojiEntry{
+            EmojiEnum::ManGesturingOkLightSkinTone,
+            "\xF0\x9F\x99\x86\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man gesturing OK: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManGesturingOkMediumLightSkinTone,
+            "\xF0\x9F\x99\x86\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man gesturing OK: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManGesturingOkMediumSkinTone,
+            "\xF0\x9F\x99\x86\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man gesturing OK: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManGesturingOkMediumDarkSkinTone,
+            "\xF0\x9F\x99\x86\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man gesturing OK: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManGesturingOkDarkSkinTone,
+            "\xF0\x9F\x99\x86\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man gesturing OK: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanGesturingOk,
+            "\xF0\x9F\x99\x86\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
+            "woman gesturing OK"},
+        EmojiEntry{
+            EmojiEnum::WomanGesturingOkLightSkinTone,
+            "\xF0\x9F\x99\x86\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman gesturing OK: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanGesturingOkMediumLightSkinTone,
+            "\xF0\x9F\x99\x86\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman gesturing OK: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanGesturingOkMediumSkinTone,
+            "\xF0\x9F\x99\x86\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman gesturing OK: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanGesturingOkMediumDarkSkinTone,
+            "\xF0\x9F\x99\x86\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman gesturing OK: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanGesturingOkDarkSkinTone,
+            "\xF0\x9F\x99\x86\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman gesturing OK: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonTippingHand,
+            "\xF0\x9F\x92\x81",
+            "person tipping hand"},
+        EmojiEntry{
+            EmojiEnum::PersonTippingHandLightSkinTone,
+            "\xF0\x9F\x92\x81\xF0\x9F\x8F\xBB",
+            "person tipping hand: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonTippingHandMediumLightSkinTone,
+            "\xF0\x9F\x92\x81\xF0\x9F\x8F\xBC",
+            "person tipping hand: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonTippingHandMediumSkinTone,
+            "\xF0\x9F\x92\x81\xF0\x9F\x8F\xBD",
+            "person tipping hand: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonTippingHandMediumDarkSkinTone,
+            "\xF0\x9F\x92\x81\xF0\x9F\x8F\xBE",
+            "person tipping hand: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonTippingHandDarkSkinTone,
+            "\xF0\x9F\x92\x81\xF0\x9F\x8F\xBF",
+            "person tipping hand: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManTippingHand,
+            "\xF0\x9F\x92\x81\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
+            "man tipping hand"},
+        EmojiEntry{
+            EmojiEnum::ManTippingHandLightSkinTone,
+            "\xF0\x9F\x92\x81\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man tipping hand: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManTippingHandMediumLightSkinTone,
+            "\xF0\x9F\x92\x81\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man tipping hand: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManTippingHandMediumSkinTone,
+            "\xF0\x9F\x92\x81\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man tipping hand: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManTippingHandMediumDarkSkinTone,
+            "\xF0\x9F\x92\x81\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man tipping hand: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManTippingHandDarkSkinTone,
+            "\xF0\x9F\x92\x81\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man tipping hand: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanTippingHand,
+            "\xF0\x9F\x92\x81\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
+            "woman tipping hand"},
+        EmojiEntry{
+            EmojiEnum::WomanTippingHandLightSkinTone,
+            "\xF0\x9F\x92\x81\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman tipping hand: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanTippingHandMediumLightSkinTone,
+            "\xF0\x9F\x92\x81\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman tipping hand: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanTippingHandMediumSkinTone,
+            "\xF0\x9F\x92\x81\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman tipping hand: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanTippingHandMediumDarkSkinTone,
+            "\xF0\x9F\x92\x81\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman tipping hand: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanTippingHandDarkSkinTone,
+            "\xF0\x9F\x92\x81\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman tipping hand: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonRaisingHand,
+            "\xF0\x9F\x99\x8B",
+            "person raising hand"},
+        EmojiEntry{
+            EmojiEnum::PersonRaisingHandLightSkinTone,
+            "\xF0\x9F\x99\x8B\xF0\x9F\x8F\xBB",
+            "person raising hand: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonRaisingHandMediumLightSkinTone,
+            "\xF0\x9F\x99\x8B\xF0\x9F\x8F\xBC",
+            "person raising hand: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonRaisingHandMediumSkinTone,
+            "\xF0\x9F\x99\x8B\xF0\x9F\x8F\xBD",
+            "person raising hand: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonRaisingHandMediumDarkSkinTone,
+            "\xF0\x9F\x99\x8B\xF0\x9F\x8F\xBE",
+            "person raising hand: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonRaisingHandDarkSkinTone,
+            "\xF0\x9F\x99\x8B\xF0\x9F\x8F\xBF",
+            "person raising hand: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManRaisingHand,
+            "\xF0\x9F\x99\x8B\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
+            "man raising hand"},
+        EmojiEntry{
+            EmojiEnum::ManRaisingHandLightSkinTone,
+            "\xF0\x9F\x99\x8B\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man raising hand: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManRaisingHandMediumLightSkinTone,
+            "\xF0\x9F\x99\x8B\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man raising hand: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManRaisingHandMediumSkinTone,
+            "\xF0\x9F\x99\x8B\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man raising hand: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManRaisingHandMediumDarkSkinTone,
+            "\xF0\x9F\x99\x8B\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man raising hand: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManRaisingHandDarkSkinTone,
+            "\xF0\x9F\x99\x8B\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man raising hand: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanRaisingHand,
+            "\xF0\x9F\x99\x8B\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
+            "woman raising hand"},
+        EmojiEntry{
+            EmojiEnum::WomanRaisingHandLightSkinTone,
+            "\xF0\x9F\x99\x8B\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman raising hand: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanRaisingHandMediumLightSkinTone,
+            "\xF0\x9F\x99\x8B\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman raising hand: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanRaisingHandMediumSkinTone,
+            "\xF0\x9F\x99\x8B\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman raising hand: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanRaisingHandMediumDarkSkinTone,
+            "\xF0\x9F\x99\x8B\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman raising hand: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanRaisingHandDarkSkinTone,
+            "\xF0\x9F\x99\x8B\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman raising hand: dark skin tone"},
         EmojiEntry{EmojiEnum::DeafPerson, "\xF0\x9F\xA7\x8F", "deaf person"},
-        EmojiEntry{EmojiEnum::DeafPersonLightSkinTone,
-                   "\xF0\x9F\xA7\x8F\xF0\x9F\x8F\xBB",
-                   "deaf person: light skin tone"},
-        EmojiEntry{EmojiEnum::DeafPersonMediumLightSkinTone,
-                   "\xF0\x9F\xA7\x8F\xF0\x9F\x8F\xBC",
-                   "deaf person: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::DeafPersonMediumSkinTone,
-                   "\xF0\x9F\xA7\x8F\xF0\x9F\x8F\xBD",
-                   "deaf person: medium skin tone"},
-        EmojiEntry{EmojiEnum::DeafPersonMediumDarkSkinTone,
-                   "\xF0\x9F\xA7\x8F\xF0\x9F\x8F\xBE",
-                   "deaf person: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::DeafPersonDarkSkinTone,
-                   "\xF0\x9F\xA7\x8F\xF0\x9F\x8F\xBF",
-                   "deaf person: dark skin tone"},
-        EmojiEntry{EmojiEnum::DeafMan,
-                   "\xF0\x9F\xA7\x8F\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
-                   "deaf man"},
-        EmojiEntry{EmojiEnum::DeafManLightSkinTone,
-                   "\xF0\x9F\xA7\x8F\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "deaf man: light skin tone"},
-        EmojiEntry{EmojiEnum::DeafManMediumLightSkinTone,
-                   "\xF0\x9F\xA7\x8F\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "deaf man: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::DeafManMediumSkinTone,
-                   "\xF0\x9F\xA7\x8F\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "deaf man: medium skin tone"},
-        EmojiEntry{EmojiEnum::DeafManMediumDarkSkinTone,
-                   "\xF0\x9F\xA7\x8F\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "deaf man: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::DeafManDarkSkinTone,
-                   "\xF0\x9F\xA7\x8F\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "deaf man: dark skin tone"},
-        EmojiEntry{EmojiEnum::DeafWoman,
-                   "\xF0\x9F\xA7\x8F\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
-                   "deaf woman"},
-        EmojiEntry{EmojiEnum::DeafWomanLightSkinTone,
-                   "\xF0\x9F\xA7\x8F\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "deaf woman: light skin tone"},
-        EmojiEntry{EmojiEnum::DeafWomanMediumLightSkinTone,
-                   "\xF0\x9F\xA7\x8F\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "deaf woman: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::DeafWomanMediumSkinTone,
-                   "\xF0\x9F\xA7\x8F\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "deaf woman: medium skin tone"},
-        EmojiEntry{EmojiEnum::DeafWomanMediumDarkSkinTone,
-                   "\xF0\x9F\xA7\x8F\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "deaf woman: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::DeafWomanDarkSkinTone,
-                   "\xF0\x9F\xA7\x8F\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "deaf woman: dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonBowing, "\xF0\x9F\x99\x87",
-                   "person bowing"},
-        EmojiEntry{EmojiEnum::PersonBowingLightSkinTone,
-                   "\xF0\x9F\x99\x87\xF0\x9F\x8F\xBB",
-                   "person bowing: light skin tone"},
-        EmojiEntry{EmojiEnum::PersonBowingMediumLightSkinTone,
-                   "\xF0\x9F\x99\x87\xF0\x9F\x8F\xBC",
-                   "person bowing: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::PersonBowingMediumSkinTone,
-                   "\xF0\x9F\x99\x87\xF0\x9F\x8F\xBD",
-                   "person bowing: medium skin tone"},
-        EmojiEntry{EmojiEnum::PersonBowingMediumDarkSkinTone,
-                   "\xF0\x9F\x99\x87\xF0\x9F\x8F\xBE",
-                   "person bowing: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonBowingDarkSkinTone,
-                   "\xF0\x9F\x99\x87\xF0\x9F\x8F\xBF",
-                   "person bowing: dark skin tone"},
-        EmojiEntry{EmojiEnum::ManBowing,
-                   "\xF0\x9F\x99\x87\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
-                   "man bowing"},
-        EmojiEntry{EmojiEnum::ManBowingLightSkinTone,
-                   "\xF0\x9F\x99\x87\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man bowing: light skin tone"},
-        EmojiEntry{EmojiEnum::ManBowingMediumLightSkinTone,
-                   "\xF0\x9F\x99\x87\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man bowing: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::ManBowingMediumSkinTone,
-                   "\xF0\x9F\x99\x87\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man bowing: medium skin tone"},
-        EmojiEntry{EmojiEnum::ManBowingMediumDarkSkinTone,
-                   "\xF0\x9F\x99\x87\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man bowing: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::ManBowingDarkSkinTone,
-                   "\xF0\x9F\x99\x87\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man bowing: dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanBowing,
-                   "\xF0\x9F\x99\x87\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
-                   "woman bowing"},
-        EmojiEntry{EmojiEnum::WomanBowingLightSkinTone,
-                   "\xF0\x9F\x99\x87\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman bowing: light skin tone"},
-        EmojiEntry{EmojiEnum::WomanBowingMediumLightSkinTone,
-                   "\xF0\x9F\x99\x87\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman bowing: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::WomanBowingMediumSkinTone,
-                   "\xF0\x9F\x99\x87\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman bowing: medium skin tone"},
-        EmojiEntry{EmojiEnum::WomanBowingMediumDarkSkinTone,
-                   "\xF0\x9F\x99\x87\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman bowing: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanBowingDarkSkinTone,
-                   "\xF0\x9F\x99\x87\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman bowing: dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonFacepalming, "\xF0\x9F\xA4\xA6",
-                   "person facepalming"},
-        EmojiEntry{EmojiEnum::PersonFacepalmingLightSkinTone,
-                   "\xF0\x9F\xA4\xA6\xF0\x9F\x8F\xBB",
-                   "person facepalming: light skin tone"},
-        EmojiEntry{EmojiEnum::PersonFacepalmingMediumLightSkinTone,
-                   "\xF0\x9F\xA4\xA6\xF0\x9F\x8F\xBC",
-                   "person facepalming: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::PersonFacepalmingMediumSkinTone,
-                   "\xF0\x9F\xA4\xA6\xF0\x9F\x8F\xBD",
-                   "person facepalming: medium skin tone"},
-        EmojiEntry{EmojiEnum::PersonFacepalmingMediumDarkSkinTone,
-                   "\xF0\x9F\xA4\xA6\xF0\x9F\x8F\xBE",
-                   "person facepalming: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonFacepalmingDarkSkinTone,
-                   "\xF0\x9F\xA4\xA6\xF0\x9F\x8F\xBF",
-                   "person facepalming: dark skin tone"},
-        EmojiEntry{EmojiEnum::ManFacepalming,
-                   "\xF0\x9F\xA4\xA6\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
-                   "man facepalming"},
-        EmojiEntry{EmojiEnum::ManFacepalmingLightSkinTone,
-                   "\xF0\x9F\xA4\xA6\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man facepalming: light skin tone"},
-        EmojiEntry{EmojiEnum::ManFacepalmingMediumLightSkinTone,
-                   "\xF0\x9F\xA4\xA6\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man facepalming: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::ManFacepalmingMediumSkinTone,
-                   "\xF0\x9F\xA4\xA6\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man facepalming: medium skin tone"},
-        EmojiEntry{EmojiEnum::ManFacepalmingMediumDarkSkinTone,
-                   "\xF0\x9F\xA4\xA6\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man facepalming: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::ManFacepalmingDarkSkinTone,
-                   "\xF0\x9F\xA4\xA6\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man facepalming: dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanFacepalming,
-                   "\xF0\x9F\xA4\xA6\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
-                   "woman facepalming"},
-        EmojiEntry{EmojiEnum::WomanFacepalmingLightSkinTone,
-                   "\xF0\x9F\xA4\xA6\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman facepalming: light skin tone"},
-        EmojiEntry{EmojiEnum::WomanFacepalmingMediumLightSkinTone,
-                   "\xF0\x9F\xA4\xA6\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman facepalming: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::WomanFacepalmingMediumSkinTone,
-                   "\xF0\x9F\xA4\xA6\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman facepalming: medium skin tone"},
-        EmojiEntry{EmojiEnum::WomanFacepalmingMediumDarkSkinTone,
-                   "\xF0\x9F\xA4\xA6\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman facepalming: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanFacepalmingDarkSkinTone,
-                   "\xF0\x9F\xA4\xA6\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman facepalming: dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonShrugging, "\xF0\x9F\xA4\xB7",
-                   "person shrugging"},
-        EmojiEntry{EmojiEnum::PersonShruggingLightSkinTone,
-                   "\xF0\x9F\xA4\xB7\xF0\x9F\x8F\xBB",
-                   "person shrugging: light skin tone"},
-        EmojiEntry{EmojiEnum::PersonShruggingMediumLightSkinTone,
-                   "\xF0\x9F\xA4\xB7\xF0\x9F\x8F\xBC",
-                   "person shrugging: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::PersonShruggingMediumSkinTone,
-                   "\xF0\x9F\xA4\xB7\xF0\x9F\x8F\xBD",
-                   "person shrugging: medium skin tone"},
-        EmojiEntry{EmojiEnum::PersonShruggingMediumDarkSkinTone,
-                   "\xF0\x9F\xA4\xB7\xF0\x9F\x8F\xBE",
-                   "person shrugging: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonShruggingDarkSkinTone,
-                   "\xF0\x9F\xA4\xB7\xF0\x9F\x8F\xBF",
-                   "person shrugging: dark skin tone"},
-        EmojiEntry{EmojiEnum::ManShrugging,
-                   "\xF0\x9F\xA4\xB7\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
-                   "man shrugging"},
-        EmojiEntry{EmojiEnum::ManShruggingLightSkinTone,
-                   "\xF0\x9F\xA4\xB7\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man shrugging: light skin tone"},
-        EmojiEntry{EmojiEnum::ManShruggingMediumLightSkinTone,
-                   "\xF0\x9F\xA4\xB7\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man shrugging: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::ManShruggingMediumSkinTone,
-                   "\xF0\x9F\xA4\xB7\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man shrugging: medium skin tone"},
-        EmojiEntry{EmojiEnum::ManShruggingMediumDarkSkinTone,
-                   "\xF0\x9F\xA4\xB7\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man shrugging: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::ManShruggingDarkSkinTone,
-                   "\xF0\x9F\xA4\xB7\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man shrugging: dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanShrugging,
-                   "\xF0\x9F\xA4\xB7\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
-                   "woman shrugging"},
-        EmojiEntry{EmojiEnum::WomanShruggingLightSkinTone,
-                   "\xF0\x9F\xA4\xB7\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman shrugging: light skin tone"},
-        EmojiEntry{EmojiEnum::WomanShruggingMediumLightSkinTone,
-                   "\xF0\x9F\xA4\xB7\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman shrugging: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::WomanShruggingMediumSkinTone,
-                   "\xF0\x9F\xA4\xB7\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman shrugging: medium skin tone"},
-        EmojiEntry{EmojiEnum::WomanShruggingMediumDarkSkinTone,
-                   "\xF0\x9F\xA4\xB7\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman shrugging: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanShruggingDarkSkinTone,
-                   "\xF0\x9F\xA4\xB7\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman shrugging: dark skin tone"},
-        EmojiEntry{EmojiEnum::HealthWorker,
-                   "\xF0\x9F\xA7\x91\xE2\x80\x8D\xE2\x9A\x95\xEF\xB8\x8F",
-                   "health worker"},
-        EmojiEntry{EmojiEnum::HealthWorkerLightSkinTone,
-                   "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x9A\x95"
-                   "\xEF\xB8\x8F",
-                   "health worker: light skin tone"},
-        EmojiEntry{EmojiEnum::HealthWorkerMediumLightSkinTone,
-                   "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x9A\x95"
-                   "\xEF\xB8\x8F",
-                   "health worker: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::HealthWorkerMediumSkinTone,
-                   "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x9A\x95"
-                   "\xEF\xB8\x8F",
-                   "health worker: medium skin tone"},
-        EmojiEntry{EmojiEnum::HealthWorkerMediumDarkSkinTone,
-                   "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x9A\x95"
-                   "\xEF\xB8\x8F",
-                   "health worker: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::HealthWorkerDarkSkinTone,
-                   "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x9A\x95"
-                   "\xEF\xB8\x8F",
-                   "health worker: dark skin tone"},
-        EmojiEntry{EmojiEnum::ManHealthWorker,
-                   "\xF0\x9F\x91\xA8\xE2\x80\x8D\xE2\x9A\x95\xEF\xB8\x8F",
-                   "man health worker"},
-        EmojiEntry{EmojiEnum::ManHealthWorkerLightSkinTone,
-                   "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x9A\x95"
-                   "\xEF\xB8\x8F",
-                   "man health worker: light skin tone"},
-        EmojiEntry{EmojiEnum::ManHealthWorkerMediumLightSkinTone,
-                   "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x9A\x95"
-                   "\xEF\xB8\x8F",
-                   "man health worker: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::ManHealthWorkerMediumSkinTone,
-                   "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x9A\x95"
-                   "\xEF\xB8\x8F",
-                   "man health worker: medium skin tone"},
-        EmojiEntry{EmojiEnum::ManHealthWorkerMediumDarkSkinTone,
-                   "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x9A\x95"
-                   "\xEF\xB8\x8F",
-                   "man health worker: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::ManHealthWorkerDarkSkinTone,
-                   "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x9A\x95"
-                   "\xEF\xB8\x8F",
-                   "man health worker: dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanHealthWorker,
-                   "\xF0\x9F\x91\xA9\xE2\x80\x8D\xE2\x9A\x95\xEF\xB8\x8F",
-                   "woman health worker"},
-        EmojiEntry{EmojiEnum::WomanHealthWorkerLightSkinTone,
-                   "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x9A\x95"
-                   "\xEF\xB8\x8F",
-                   "woman health worker: light skin tone"},
-        EmojiEntry{EmojiEnum::WomanHealthWorkerMediumLightSkinTone,
-                   "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x9A\x95"
-                   "\xEF\xB8\x8F",
-                   "woman health worker: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::WomanHealthWorkerMediumSkinTone,
-                   "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x9A\x95"
-                   "\xEF\xB8\x8F",
-                   "woman health worker: medium skin tone"},
-        EmojiEntry{EmojiEnum::WomanHealthWorkerMediumDarkSkinTone,
-                   "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x9A\x95"
-                   "\xEF\xB8\x8F",
-                   "woman health worker: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanHealthWorkerDarkSkinTone,
-                   "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x9A\x95"
-                   "\xEF\xB8\x8F",
-                   "woman health worker: dark skin tone"},
-        EmojiEntry{EmojiEnum::Student,
-                   "\xF0\x9F\xA7\x91\xE2\x80\x8D\xF0\x9F\x8E\x93", "student"},
+        EmojiEntry{
+            EmojiEnum::DeafPersonLightSkinTone,
+            "\xF0\x9F\xA7\x8F\xF0\x9F\x8F\xBB",
+            "deaf person: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::DeafPersonMediumLightSkinTone,
+            "\xF0\x9F\xA7\x8F\xF0\x9F\x8F\xBC",
+            "deaf person: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::DeafPersonMediumSkinTone,
+            "\xF0\x9F\xA7\x8F\xF0\x9F\x8F\xBD",
+            "deaf person: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::DeafPersonMediumDarkSkinTone,
+            "\xF0\x9F\xA7\x8F\xF0\x9F\x8F\xBE",
+            "deaf person: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::DeafPersonDarkSkinTone,
+            "\xF0\x9F\xA7\x8F\xF0\x9F\x8F\xBF",
+            "deaf person: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::DeafMan,
+            "\xF0\x9F\xA7\x8F\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
+            "deaf man"},
+        EmojiEntry{
+            EmojiEnum::DeafManLightSkinTone,
+            "\xF0\x9F\xA7\x8F\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "deaf man: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::DeafManMediumLightSkinTone,
+            "\xF0\x9F\xA7\x8F\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "deaf man: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::DeafManMediumSkinTone,
+            "\xF0\x9F\xA7\x8F\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "deaf man: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::DeafManMediumDarkSkinTone,
+            "\xF0\x9F\xA7\x8F\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "deaf man: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::DeafManDarkSkinTone,
+            "\xF0\x9F\xA7\x8F\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "deaf man: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::DeafWoman,
+            "\xF0\x9F\xA7\x8F\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
+            "deaf woman"},
+        EmojiEntry{
+            EmojiEnum::DeafWomanLightSkinTone,
+            "\xF0\x9F\xA7\x8F\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "deaf woman: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::DeafWomanMediumLightSkinTone,
+            "\xF0\x9F\xA7\x8F\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "deaf woman: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::DeafWomanMediumSkinTone,
+            "\xF0\x9F\xA7\x8F\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "deaf woman: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::DeafWomanMediumDarkSkinTone,
+            "\xF0\x9F\xA7\x8F\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "deaf woman: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::DeafWomanDarkSkinTone,
+            "\xF0\x9F\xA7\x8F\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "deaf woman: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonBowing,
+            "\xF0\x9F\x99\x87",
+            "person bowing"},
+        EmojiEntry{
+            EmojiEnum::PersonBowingLightSkinTone,
+            "\xF0\x9F\x99\x87\xF0\x9F\x8F\xBB",
+            "person bowing: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonBowingMediumLightSkinTone,
+            "\xF0\x9F\x99\x87\xF0\x9F\x8F\xBC",
+            "person bowing: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonBowingMediumSkinTone,
+            "\xF0\x9F\x99\x87\xF0\x9F\x8F\xBD",
+            "person bowing: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonBowingMediumDarkSkinTone,
+            "\xF0\x9F\x99\x87\xF0\x9F\x8F\xBE",
+            "person bowing: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonBowingDarkSkinTone,
+            "\xF0\x9F\x99\x87\xF0\x9F\x8F\xBF",
+            "person bowing: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManBowing,
+            "\xF0\x9F\x99\x87\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
+            "man bowing"},
+        EmojiEntry{
+            EmojiEnum::ManBowingLightSkinTone,
+            "\xF0\x9F\x99\x87\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man bowing: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManBowingMediumLightSkinTone,
+            "\xF0\x9F\x99\x87\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man bowing: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManBowingMediumSkinTone,
+            "\xF0\x9F\x99\x87\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man bowing: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManBowingMediumDarkSkinTone,
+            "\xF0\x9F\x99\x87\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man bowing: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManBowingDarkSkinTone,
+            "\xF0\x9F\x99\x87\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man bowing: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanBowing,
+            "\xF0\x9F\x99\x87\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
+            "woman bowing"},
+        EmojiEntry{
+            EmojiEnum::WomanBowingLightSkinTone,
+            "\xF0\x9F\x99\x87\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman bowing: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanBowingMediumLightSkinTone,
+            "\xF0\x9F\x99\x87\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman bowing: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanBowingMediumSkinTone,
+            "\xF0\x9F\x99\x87\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman bowing: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanBowingMediumDarkSkinTone,
+            "\xF0\x9F\x99\x87\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman bowing: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanBowingDarkSkinTone,
+            "\xF0\x9F\x99\x87\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman bowing: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonFacepalming,
+            "\xF0\x9F\xA4\xA6",
+            "person facepalming"},
+        EmojiEntry{
+            EmojiEnum::PersonFacepalmingLightSkinTone,
+            "\xF0\x9F\xA4\xA6\xF0\x9F\x8F\xBB",
+            "person facepalming: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonFacepalmingMediumLightSkinTone,
+            "\xF0\x9F\xA4\xA6\xF0\x9F\x8F\xBC",
+            "person facepalming: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonFacepalmingMediumSkinTone,
+            "\xF0\x9F\xA4\xA6\xF0\x9F\x8F\xBD",
+            "person facepalming: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonFacepalmingMediumDarkSkinTone,
+            "\xF0\x9F\xA4\xA6\xF0\x9F\x8F\xBE",
+            "person facepalming: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonFacepalmingDarkSkinTone,
+            "\xF0\x9F\xA4\xA6\xF0\x9F\x8F\xBF",
+            "person facepalming: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManFacepalming,
+            "\xF0\x9F\xA4\xA6\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
+            "man facepalming"},
+        EmojiEntry{
+            EmojiEnum::ManFacepalmingLightSkinTone,
+            "\xF0\x9F\xA4\xA6\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man facepalming: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManFacepalmingMediumLightSkinTone,
+            "\xF0\x9F\xA4\xA6\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man facepalming: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManFacepalmingMediumSkinTone,
+            "\xF0\x9F\xA4\xA6\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man facepalming: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManFacepalmingMediumDarkSkinTone,
+            "\xF0\x9F\xA4\xA6\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man facepalming: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManFacepalmingDarkSkinTone,
+            "\xF0\x9F\xA4\xA6\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man facepalming: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanFacepalming,
+            "\xF0\x9F\xA4\xA6\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
+            "woman facepalming"},
+        EmojiEntry{
+            EmojiEnum::WomanFacepalmingLightSkinTone,
+            "\xF0\x9F\xA4\xA6\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman facepalming: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanFacepalmingMediumLightSkinTone,
+            "\xF0\x9F\xA4\xA6\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman facepalming: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanFacepalmingMediumSkinTone,
+            "\xF0\x9F\xA4\xA6\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman facepalming: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanFacepalmingMediumDarkSkinTone,
+            "\xF0\x9F\xA4\xA6\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman facepalming: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanFacepalmingDarkSkinTone,
+            "\xF0\x9F\xA4\xA6\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman facepalming: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonShrugging,
+            "\xF0\x9F\xA4\xB7",
+            "person shrugging"},
+        EmojiEntry{
+            EmojiEnum::PersonShruggingLightSkinTone,
+            "\xF0\x9F\xA4\xB7\xF0\x9F\x8F\xBB",
+            "person shrugging: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonShruggingMediumLightSkinTone,
+            "\xF0\x9F\xA4\xB7\xF0\x9F\x8F\xBC",
+            "person shrugging: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonShruggingMediumSkinTone,
+            "\xF0\x9F\xA4\xB7\xF0\x9F\x8F\xBD",
+            "person shrugging: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonShruggingMediumDarkSkinTone,
+            "\xF0\x9F\xA4\xB7\xF0\x9F\x8F\xBE",
+            "person shrugging: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonShruggingDarkSkinTone,
+            "\xF0\x9F\xA4\xB7\xF0\x9F\x8F\xBF",
+            "person shrugging: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManShrugging,
+            "\xF0\x9F\xA4\xB7\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
+            "man shrugging"},
+        EmojiEntry{
+            EmojiEnum::ManShruggingLightSkinTone,
+            "\xF0\x9F\xA4\xB7\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man shrugging: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManShruggingMediumLightSkinTone,
+            "\xF0\x9F\xA4\xB7\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man shrugging: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManShruggingMediumSkinTone,
+            "\xF0\x9F\xA4\xB7\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man shrugging: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManShruggingMediumDarkSkinTone,
+            "\xF0\x9F\xA4\xB7\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man shrugging: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManShruggingDarkSkinTone,
+            "\xF0\x9F\xA4\xB7\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man shrugging: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanShrugging,
+            "\xF0\x9F\xA4\xB7\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
+            "woman shrugging"},
+        EmojiEntry{
+            EmojiEnum::WomanShruggingLightSkinTone,
+            "\xF0\x9F\xA4\xB7\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman shrugging: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanShruggingMediumLightSkinTone,
+            "\xF0\x9F\xA4\xB7\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman shrugging: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanShruggingMediumSkinTone,
+            "\xF0\x9F\xA4\xB7\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman shrugging: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanShruggingMediumDarkSkinTone,
+            "\xF0\x9F\xA4\xB7\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman shrugging: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanShruggingDarkSkinTone,
+            "\xF0\x9F\xA4\xB7\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman shrugging: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::HealthWorker,
+            "\xF0\x9F\xA7\x91\xE2\x80\x8D\xE2\x9A\x95\xEF\xB8\x8F",
+            "health worker"},
+        EmojiEntry{
+            EmojiEnum::HealthWorkerLightSkinTone,
+            "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x9A\x95"
+            "\xEF\xB8\x8F",
+            "health worker: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::HealthWorkerMediumLightSkinTone,
+            "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x9A\x95"
+            "\xEF\xB8\x8F",
+            "health worker: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::HealthWorkerMediumSkinTone,
+            "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x9A\x95"
+            "\xEF\xB8\x8F",
+            "health worker: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::HealthWorkerMediumDarkSkinTone,
+            "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x9A\x95"
+            "\xEF\xB8\x8F",
+            "health worker: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::HealthWorkerDarkSkinTone,
+            "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x9A\x95"
+            "\xEF\xB8\x8F",
+            "health worker: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManHealthWorker,
+            "\xF0\x9F\x91\xA8\xE2\x80\x8D\xE2\x9A\x95\xEF\xB8\x8F",
+            "man health worker"},
+        EmojiEntry{
+            EmojiEnum::ManHealthWorkerLightSkinTone,
+            "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x9A\x95"
+            "\xEF\xB8\x8F",
+            "man health worker: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManHealthWorkerMediumLightSkinTone,
+            "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x9A\x95"
+            "\xEF\xB8\x8F",
+            "man health worker: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManHealthWorkerMediumSkinTone,
+            "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x9A\x95"
+            "\xEF\xB8\x8F",
+            "man health worker: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManHealthWorkerMediumDarkSkinTone,
+            "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x9A\x95"
+            "\xEF\xB8\x8F",
+            "man health worker: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManHealthWorkerDarkSkinTone,
+            "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x9A\x95"
+            "\xEF\xB8\x8F",
+            "man health worker: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanHealthWorker,
+            "\xF0\x9F\x91\xA9\xE2\x80\x8D\xE2\x9A\x95\xEF\xB8\x8F",
+            "woman health worker"},
+        EmojiEntry{
+            EmojiEnum::WomanHealthWorkerLightSkinTone,
+            "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x9A\x95"
+            "\xEF\xB8\x8F",
+            "woman health worker: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanHealthWorkerMediumLightSkinTone,
+            "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x9A\x95"
+            "\xEF\xB8\x8F",
+            "woman health worker: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanHealthWorkerMediumSkinTone,
+            "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x9A\x95"
+            "\xEF\xB8\x8F",
+            "woman health worker: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanHealthWorkerMediumDarkSkinTone,
+            "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x9A\x95"
+            "\xEF\xB8\x8F",
+            "woman health worker: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanHealthWorkerDarkSkinTone,
+            "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x9A\x95"
+            "\xEF\xB8\x8F",
+            "woman health worker: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::Student,
+            "\xF0\x9F\xA7\x91\xE2\x80\x8D\xF0\x9F\x8E\x93",
+            "student"},
         EmojiEntry{
             EmojiEnum::StudentLightSkinTone,
             "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\x8E\x93",
@@ -2476,9 +3348,10 @@ consteval auto makeEmojiList()
             EmojiEnum::StudentDarkSkinTone,
             "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\x8E\x93",
             "student: dark skin tone"},
-        EmojiEntry{EmojiEnum::ManStudent,
-                   "\xF0\x9F\x91\xA8\xE2\x80\x8D\xF0\x9F\x8E\x93",
-                   "man student"},
+        EmojiEntry{
+            EmojiEnum::ManStudent,
+            "\xF0\x9F\x91\xA8\xE2\x80\x8D\xF0\x9F\x8E\x93",
+            "man student"},
         EmojiEntry{
             EmojiEnum::ManStudentLightSkinTone,
             "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\x8E\x93",
@@ -2499,9 +3372,10 @@ consteval auto makeEmojiList()
             EmojiEnum::ManStudentDarkSkinTone,
             "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\x8E\x93",
             "man student: dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanStudent,
-                   "\xF0\x9F\x91\xA9\xE2\x80\x8D\xF0\x9F\x8E\x93",
-                   "woman student"},
+        EmojiEntry{
+            EmojiEnum::WomanStudent,
+            "\xF0\x9F\x91\xA9\xE2\x80\x8D\xF0\x9F\x8E\x93",
+            "woman student"},
         EmojiEntry{
             EmojiEnum::WomanStudentLightSkinTone,
             "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\x8E\x93",
@@ -2522,8 +3396,10 @@ consteval auto makeEmojiList()
             EmojiEnum::WomanStudentDarkSkinTone,
             "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\x8E\x93",
             "woman student: dark skin tone"},
-        EmojiEntry{EmojiEnum::Teacher,
-                   "\xF0\x9F\xA7\x91\xE2\x80\x8D\xF0\x9F\x8F\xAB", "teacher"},
+        EmojiEntry{
+            EmojiEnum::Teacher,
+            "\xF0\x9F\xA7\x91\xE2\x80\x8D\xF0\x9F\x8F\xAB",
+            "teacher"},
         EmojiEntry{
             EmojiEnum::TeacherLightSkinTone,
             "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\x8F\xAB",
@@ -2544,9 +3420,10 @@ consteval auto makeEmojiList()
             EmojiEnum::TeacherDarkSkinTone,
             "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\x8F\xAB",
             "teacher: dark skin tone"},
-        EmojiEntry{EmojiEnum::ManTeacher,
-                   "\xF0\x9F\x91\xA8\xE2\x80\x8D\xF0\x9F\x8F\xAB",
-                   "man teacher"},
+        EmojiEntry{
+            EmojiEnum::ManTeacher,
+            "\xF0\x9F\x91\xA8\xE2\x80\x8D\xF0\x9F\x8F\xAB",
+            "man teacher"},
         EmojiEntry{
             EmojiEnum::ManTeacherLightSkinTone,
             "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\x8F\xAB",
@@ -2567,9 +3444,10 @@ consteval auto makeEmojiList()
             EmojiEnum::ManTeacherDarkSkinTone,
             "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\x8F\xAB",
             "man teacher: dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanTeacher,
-                   "\xF0\x9F\x91\xA9\xE2\x80\x8D\xF0\x9F\x8F\xAB",
-                   "woman teacher"},
+        EmojiEntry{
+            EmojiEnum::WomanTeacher,
+            "\xF0\x9F\x91\xA9\xE2\x80\x8D\xF0\x9F\x8F\xAB",
+            "woman teacher"},
         EmojiEntry{
             EmojiEnum::WomanTeacherLightSkinTone,
             "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\x8F\xAB",
@@ -2590,77 +3468,97 @@ consteval auto makeEmojiList()
             EmojiEnum::WomanTeacherDarkSkinTone,
             "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\x8F\xAB",
             "woman teacher: dark skin tone"},
-        EmojiEntry{EmojiEnum::Judge,
-                   "\xF0\x9F\xA7\x91\xE2\x80\x8D\xE2\x9A\x96\xEF\xB8\x8F",
-                   "judge"},
-        EmojiEntry{EmojiEnum::JudgeLightSkinTone,
-                   "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x9A\x96"
-                   "\xEF\xB8\x8F",
-                   "judge: light skin tone"},
-        EmojiEntry{EmojiEnum::JudgeMediumLightSkinTone,
-                   "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x9A\x96"
-                   "\xEF\xB8\x8F",
-                   "judge: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::JudgeMediumSkinTone,
-                   "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x9A\x96"
-                   "\xEF\xB8\x8F",
-                   "judge: medium skin tone"},
-        EmojiEntry{EmojiEnum::JudgeMediumDarkSkinTone,
-                   "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x9A\x96"
-                   "\xEF\xB8\x8F",
-                   "judge: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::JudgeDarkSkinTone,
-                   "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x9A\x96"
-                   "\xEF\xB8\x8F",
-                   "judge: dark skin tone"},
-        EmojiEntry{EmojiEnum::ManJudge,
-                   "\xF0\x9F\x91\xA8\xE2\x80\x8D\xE2\x9A\x96\xEF\xB8\x8F",
-                   "man judge"},
-        EmojiEntry{EmojiEnum::ManJudgeLightSkinTone,
-                   "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x9A\x96"
-                   "\xEF\xB8\x8F",
-                   "man judge: light skin tone"},
-        EmojiEntry{EmojiEnum::ManJudgeMediumLightSkinTone,
-                   "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x9A\x96"
-                   "\xEF\xB8\x8F",
-                   "man judge: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::ManJudgeMediumSkinTone,
-                   "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x9A\x96"
-                   "\xEF\xB8\x8F",
-                   "man judge: medium skin tone"},
-        EmojiEntry{EmojiEnum::ManJudgeMediumDarkSkinTone,
-                   "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x9A\x96"
-                   "\xEF\xB8\x8F",
-                   "man judge: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::ManJudgeDarkSkinTone,
-                   "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x9A\x96"
-                   "\xEF\xB8\x8F",
-                   "man judge: dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanJudge,
-                   "\xF0\x9F\x91\xA9\xE2\x80\x8D\xE2\x9A\x96\xEF\xB8\x8F",
-                   "woman judge"},
-        EmojiEntry{EmojiEnum::WomanJudgeLightSkinTone,
-                   "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x9A\x96"
-                   "\xEF\xB8\x8F",
-                   "woman judge: light skin tone"},
-        EmojiEntry{EmojiEnum::WomanJudgeMediumLightSkinTone,
-                   "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x9A\x96"
-                   "\xEF\xB8\x8F",
-                   "woman judge: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::WomanJudgeMediumSkinTone,
-                   "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x9A\x96"
-                   "\xEF\xB8\x8F",
-                   "woman judge: medium skin tone"},
-        EmojiEntry{EmojiEnum::WomanJudgeMediumDarkSkinTone,
-                   "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x9A\x96"
-                   "\xEF\xB8\x8F",
-                   "woman judge: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanJudgeDarkSkinTone,
-                   "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x9A\x96"
-                   "\xEF\xB8\x8F",
-                   "woman judge: dark skin tone"},
-        EmojiEntry{EmojiEnum::Farmer,
-                   "\xF0\x9F\xA7\x91\xE2\x80\x8D\xF0\x9F\x8C\xBE", "farmer"},
+        EmojiEntry{
+            EmojiEnum::Judge,
+            "\xF0\x9F\xA7\x91\xE2\x80\x8D\xE2\x9A\x96\xEF\xB8\x8F",
+            "judge"},
+        EmojiEntry{
+            EmojiEnum::JudgeLightSkinTone,
+            "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x9A\x96"
+            "\xEF\xB8\x8F",
+            "judge: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::JudgeMediumLightSkinTone,
+            "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x9A\x96"
+            "\xEF\xB8\x8F",
+            "judge: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::JudgeMediumSkinTone,
+            "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x9A\x96"
+            "\xEF\xB8\x8F",
+            "judge: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::JudgeMediumDarkSkinTone,
+            "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x9A\x96"
+            "\xEF\xB8\x8F",
+            "judge: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::JudgeDarkSkinTone,
+            "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x9A\x96"
+            "\xEF\xB8\x8F",
+            "judge: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManJudge,
+            "\xF0\x9F\x91\xA8\xE2\x80\x8D\xE2\x9A\x96\xEF\xB8\x8F",
+            "man judge"},
+        EmojiEntry{
+            EmojiEnum::ManJudgeLightSkinTone,
+            "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x9A\x96"
+            "\xEF\xB8\x8F",
+            "man judge: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManJudgeMediumLightSkinTone,
+            "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x9A\x96"
+            "\xEF\xB8\x8F",
+            "man judge: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManJudgeMediumSkinTone,
+            "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x9A\x96"
+            "\xEF\xB8\x8F",
+            "man judge: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManJudgeMediumDarkSkinTone,
+            "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x9A\x96"
+            "\xEF\xB8\x8F",
+            "man judge: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManJudgeDarkSkinTone,
+            "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x9A\x96"
+            "\xEF\xB8\x8F",
+            "man judge: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanJudge,
+            "\xF0\x9F\x91\xA9\xE2\x80\x8D\xE2\x9A\x96\xEF\xB8\x8F",
+            "woman judge"},
+        EmojiEntry{
+            EmojiEnum::WomanJudgeLightSkinTone,
+            "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x9A\x96"
+            "\xEF\xB8\x8F",
+            "woman judge: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanJudgeMediumLightSkinTone,
+            "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x9A\x96"
+            "\xEF\xB8\x8F",
+            "woman judge: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanJudgeMediumSkinTone,
+            "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x9A\x96"
+            "\xEF\xB8\x8F",
+            "woman judge: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanJudgeMediumDarkSkinTone,
+            "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x9A\x96"
+            "\xEF\xB8\x8F",
+            "woman judge: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanJudgeDarkSkinTone,
+            "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x9A\x96"
+            "\xEF\xB8\x8F",
+            "woman judge: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::Farmer,
+            "\xF0\x9F\xA7\x91\xE2\x80\x8D\xF0\x9F\x8C\xBE",
+            "farmer"},
         EmojiEntry{
             EmojiEnum::FarmerLightSkinTone,
             "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\x8C\xBE",
@@ -2681,9 +3579,10 @@ consteval auto makeEmojiList()
             EmojiEnum::FarmerDarkSkinTone,
             "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\x8C\xBE",
             "farmer: dark skin tone"},
-        EmojiEntry{EmojiEnum::ManFarmer,
-                   "\xF0\x9F\x91\xA8\xE2\x80\x8D\xF0\x9F\x8C\xBE",
-                   "man farmer"},
+        EmojiEntry{
+            EmojiEnum::ManFarmer,
+            "\xF0\x9F\x91\xA8\xE2\x80\x8D\xF0\x9F\x8C\xBE",
+            "man farmer"},
         EmojiEntry{
             EmojiEnum::ManFarmerLightSkinTone,
             "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\x8C\xBE",
@@ -2704,9 +3603,10 @@ consteval auto makeEmojiList()
             EmojiEnum::ManFarmerDarkSkinTone,
             "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\x8C\xBE",
             "man farmer: dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanFarmer,
-                   "\xF0\x9F\x91\xA9\xE2\x80\x8D\xF0\x9F\x8C\xBE",
-                   "woman farmer"},
+        EmojiEntry{
+            EmojiEnum::WomanFarmer,
+            "\xF0\x9F\x91\xA9\xE2\x80\x8D\xF0\x9F\x8C\xBE",
+            "woman farmer"},
         EmojiEntry{
             EmojiEnum::WomanFarmerLightSkinTone,
             "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\x8C\xBE",
@@ -2727,8 +3627,10 @@ consteval auto makeEmojiList()
             EmojiEnum::WomanFarmerDarkSkinTone,
             "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\x8C\xBE",
             "woman farmer: dark skin tone"},
-        EmojiEntry{EmojiEnum::Cook,
-                   "\xF0\x9F\xA7\x91\xE2\x80\x8D\xF0\x9F\x8D\xB3", "cook"},
+        EmojiEntry{
+            EmojiEnum::Cook,
+            "\xF0\x9F\xA7\x91\xE2\x80\x8D\xF0\x9F\x8D\xB3",
+            "cook"},
         EmojiEntry{
             EmojiEnum::CookLightSkinTone,
             "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\x8D\xB3",
@@ -2749,8 +3651,10 @@ consteval auto makeEmojiList()
             EmojiEnum::CookDarkSkinTone,
             "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\x8D\xB3",
             "cook: dark skin tone"},
-        EmojiEntry{EmojiEnum::ManCook,
-                   "\xF0\x9F\x91\xA8\xE2\x80\x8D\xF0\x9F\x8D\xB3", "man cook"},
+        EmojiEntry{
+            EmojiEnum::ManCook,
+            "\xF0\x9F\x91\xA8\xE2\x80\x8D\xF0\x9F\x8D\xB3",
+            "man cook"},
         EmojiEntry{
             EmojiEnum::ManCookLightSkinTone,
             "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\x8D\xB3",
@@ -2771,9 +3675,10 @@ consteval auto makeEmojiList()
             EmojiEnum::ManCookDarkSkinTone,
             "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\x8D\xB3",
             "man cook: dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanCook,
-                   "\xF0\x9F\x91\xA9\xE2\x80\x8D\xF0\x9F\x8D\xB3",
-                   "woman cook"},
+        EmojiEntry{
+            EmojiEnum::WomanCook,
+            "\xF0\x9F\x91\xA9\xE2\x80\x8D\xF0\x9F\x8D\xB3",
+            "woman cook"},
         EmojiEntry{
             EmojiEnum::WomanCookLightSkinTone,
             "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\x8D\xB3",
@@ -2794,8 +3699,10 @@ consteval auto makeEmojiList()
             EmojiEnum::WomanCookDarkSkinTone,
             "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\x8D\xB3",
             "woman cook: dark skin tone"},
-        EmojiEntry{EmojiEnum::Mechanic,
-                   "\xF0\x9F\xA7\x91\xE2\x80\x8D\xF0\x9F\x94\xA7", "mechanic"},
+        EmojiEntry{
+            EmojiEnum::Mechanic,
+            "\xF0\x9F\xA7\x91\xE2\x80\x8D\xF0\x9F\x94\xA7",
+            "mechanic"},
         EmojiEntry{
             EmojiEnum::MechanicLightSkinTone,
             "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\x94\xA7",
@@ -2816,9 +3723,10 @@ consteval auto makeEmojiList()
             EmojiEnum::MechanicDarkSkinTone,
             "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\x94\xA7",
             "mechanic: dark skin tone"},
-        EmojiEntry{EmojiEnum::ManMechanic,
-                   "\xF0\x9F\x91\xA8\xE2\x80\x8D\xF0\x9F\x94\xA7",
-                   "man mechanic"},
+        EmojiEntry{
+            EmojiEnum::ManMechanic,
+            "\xF0\x9F\x91\xA8\xE2\x80\x8D\xF0\x9F\x94\xA7",
+            "man mechanic"},
         EmojiEntry{
             EmojiEnum::ManMechanicLightSkinTone,
             "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\x94\xA7",
@@ -2839,9 +3747,10 @@ consteval auto makeEmojiList()
             EmojiEnum::ManMechanicDarkSkinTone,
             "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\x94\xA7",
             "man mechanic: dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanMechanic,
-                   "\xF0\x9F\x91\xA9\xE2\x80\x8D\xF0\x9F\x94\xA7",
-                   "woman mechanic"},
+        EmojiEntry{
+            EmojiEnum::WomanMechanic,
+            "\xF0\x9F\x91\xA9\xE2\x80\x8D\xF0\x9F\x94\xA7",
+            "woman mechanic"},
         EmojiEntry{
             EmojiEnum::WomanMechanicLightSkinTone,
             "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\x94\xA7",
@@ -2862,9 +3771,10 @@ consteval auto makeEmojiList()
             EmojiEnum::WomanMechanicDarkSkinTone,
             "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\x94\xA7",
             "woman mechanic: dark skin tone"},
-        EmojiEntry{EmojiEnum::FactoryWorker,
-                   "\xF0\x9F\xA7\x91\xE2\x80\x8D\xF0\x9F\x8F\xAD",
-                   "factory worker"},
+        EmojiEntry{
+            EmojiEnum::FactoryWorker,
+            "\xF0\x9F\xA7\x91\xE2\x80\x8D\xF0\x9F\x8F\xAD",
+            "factory worker"},
         EmojiEntry{
             EmojiEnum::FactoryWorkerLightSkinTone,
             "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\x8F\xAD",
@@ -2885,9 +3795,10 @@ consteval auto makeEmojiList()
             EmojiEnum::FactoryWorkerDarkSkinTone,
             "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\x8F\xAD",
             "factory worker: dark skin tone"},
-        EmojiEntry{EmojiEnum::ManFactoryWorker,
-                   "\xF0\x9F\x91\xA8\xE2\x80\x8D\xF0\x9F\x8F\xAD",
-                   "man factory worker"},
+        EmojiEntry{
+            EmojiEnum::ManFactoryWorker,
+            "\xF0\x9F\x91\xA8\xE2\x80\x8D\xF0\x9F\x8F\xAD",
+            "man factory worker"},
         EmojiEntry{
             EmojiEnum::ManFactoryWorkerLightSkinTone,
             "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\x8F\xAD",
@@ -2908,9 +3819,10 @@ consteval auto makeEmojiList()
             EmojiEnum::ManFactoryWorkerDarkSkinTone,
             "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\x8F\xAD",
             "man factory worker: dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanFactoryWorker,
-                   "\xF0\x9F\x91\xA9\xE2\x80\x8D\xF0\x9F\x8F\xAD",
-                   "woman factory worker"},
+        EmojiEntry{
+            EmojiEnum::WomanFactoryWorker,
+            "\xF0\x9F\x91\xA9\xE2\x80\x8D\xF0\x9F\x8F\xAD",
+            "woman factory worker"},
         EmojiEntry{
             EmojiEnum::WomanFactoryWorkerLightSkinTone,
             "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\x8F\xAD",
@@ -2931,9 +3843,10 @@ consteval auto makeEmojiList()
             EmojiEnum::WomanFactoryWorkerDarkSkinTone,
             "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\x8F\xAD",
             "woman factory worker: dark skin tone"},
-        EmojiEntry{EmojiEnum::OfficeWorker,
-                   "\xF0\x9F\xA7\x91\xE2\x80\x8D\xF0\x9F\x92\xBC",
-                   "office worker"},
+        EmojiEntry{
+            EmojiEnum::OfficeWorker,
+            "\xF0\x9F\xA7\x91\xE2\x80\x8D\xF0\x9F\x92\xBC",
+            "office worker"},
         EmojiEntry{
             EmojiEnum::OfficeWorkerLightSkinTone,
             "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\x92\xBC",
@@ -2954,9 +3867,10 @@ consteval auto makeEmojiList()
             EmojiEnum::OfficeWorkerDarkSkinTone,
             "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\x92\xBC",
             "office worker: dark skin tone"},
-        EmojiEntry{EmojiEnum::ManOfficeWorker,
-                   "\xF0\x9F\x91\xA8\xE2\x80\x8D\xF0\x9F\x92\xBC",
-                   "man office worker"},
+        EmojiEntry{
+            EmojiEnum::ManOfficeWorker,
+            "\xF0\x9F\x91\xA8\xE2\x80\x8D\xF0\x9F\x92\xBC",
+            "man office worker"},
         EmojiEntry{
             EmojiEnum::ManOfficeWorkerLightSkinTone,
             "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\x92\xBC",
@@ -2977,9 +3891,10 @@ consteval auto makeEmojiList()
             EmojiEnum::ManOfficeWorkerDarkSkinTone,
             "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\x92\xBC",
             "man office worker: dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanOfficeWorker,
-                   "\xF0\x9F\x91\xA9\xE2\x80\x8D\xF0\x9F\x92\xBC",
-                   "woman office worker"},
+        EmojiEntry{
+            EmojiEnum::WomanOfficeWorker,
+            "\xF0\x9F\x91\xA9\xE2\x80\x8D\xF0\x9F\x92\xBC",
+            "woman office worker"},
         EmojiEntry{
             EmojiEnum::WomanOfficeWorkerLightSkinTone,
             "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\x92\xBC",
@@ -3000,8 +3915,10 @@ consteval auto makeEmojiList()
             EmojiEnum::WomanOfficeWorkerDarkSkinTone,
             "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\x92\xBC",
             "woman office worker: dark skin tone"},
-        EmojiEntry{EmojiEnum::Scientist,
-                   "\xF0\x9F\xA7\x91\xE2\x80\x8D\xF0\x9F\x94\xAC", "scientist"},
+        EmojiEntry{
+            EmojiEnum::Scientist,
+            "\xF0\x9F\xA7\x91\xE2\x80\x8D\xF0\x9F\x94\xAC",
+            "scientist"},
         EmojiEntry{
             EmojiEnum::ScientistLightSkinTone,
             "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\x94\xAC",
@@ -3022,9 +3939,10 @@ consteval auto makeEmojiList()
             EmojiEnum::ScientistDarkSkinTone,
             "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\x94\xAC",
             "scientist: dark skin tone"},
-        EmojiEntry{EmojiEnum::ManScientist,
-                   "\xF0\x9F\x91\xA8\xE2\x80\x8D\xF0\x9F\x94\xAC",
-                   "man scientist"},
+        EmojiEntry{
+            EmojiEnum::ManScientist,
+            "\xF0\x9F\x91\xA8\xE2\x80\x8D\xF0\x9F\x94\xAC",
+            "man scientist"},
         EmojiEntry{
             EmojiEnum::ManScientistLightSkinTone,
             "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\x94\xAC",
@@ -3045,9 +3963,10 @@ consteval auto makeEmojiList()
             EmojiEnum::ManScientistDarkSkinTone,
             "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\x94\xAC",
             "man scientist: dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanScientist,
-                   "\xF0\x9F\x91\xA9\xE2\x80\x8D\xF0\x9F\x94\xAC",
-                   "woman scientist"},
+        EmojiEntry{
+            EmojiEnum::WomanScientist,
+            "\xF0\x9F\x91\xA9\xE2\x80\x8D\xF0\x9F\x94\xAC",
+            "woman scientist"},
         EmojiEntry{
             EmojiEnum::WomanScientistLightSkinTone,
             "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\x94\xAC",
@@ -3068,9 +3987,10 @@ consteval auto makeEmojiList()
             EmojiEnum::WomanScientistDarkSkinTone,
             "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\x94\xAC",
             "woman scientist: dark skin tone"},
-        EmojiEntry{EmojiEnum::Technologist,
-                   "\xF0\x9F\xA7\x91\xE2\x80\x8D\xF0\x9F\x92\xBB",
-                   "technologist"},
+        EmojiEntry{
+            EmojiEnum::Technologist,
+            "\xF0\x9F\xA7\x91\xE2\x80\x8D\xF0\x9F\x92\xBB",
+            "technologist"},
         EmojiEntry{
             EmojiEnum::TechnologistLightSkinTone,
             "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\x92\xBB",
@@ -3091,9 +4011,10 @@ consteval auto makeEmojiList()
             EmojiEnum::TechnologistDarkSkinTone,
             "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\x92\xBB",
             "technologist: dark skin tone"},
-        EmojiEntry{EmojiEnum::ManTechnologist,
-                   "\xF0\x9F\x91\xA8\xE2\x80\x8D\xF0\x9F\x92\xBB",
-                   "man technologist"},
+        EmojiEntry{
+            EmojiEnum::ManTechnologist,
+            "\xF0\x9F\x91\xA8\xE2\x80\x8D\xF0\x9F\x92\xBB",
+            "man technologist"},
         EmojiEntry{
             EmojiEnum::ManTechnologistLightSkinTone,
             "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\x92\xBB",
@@ -3114,9 +4035,10 @@ consteval auto makeEmojiList()
             EmojiEnum::ManTechnologistDarkSkinTone,
             "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\x92\xBB",
             "man technologist: dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanTechnologist,
-                   "\xF0\x9F\x91\xA9\xE2\x80\x8D\xF0\x9F\x92\xBB",
-                   "woman technologist"},
+        EmojiEntry{
+            EmojiEnum::WomanTechnologist,
+            "\xF0\x9F\x91\xA9\xE2\x80\x8D\xF0\x9F\x92\xBB",
+            "woman technologist"},
         EmojiEntry{
             EmojiEnum::WomanTechnologistLightSkinTone,
             "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\x92\xBB",
@@ -3137,8 +4059,10 @@ consteval auto makeEmojiList()
             EmojiEnum::WomanTechnologistDarkSkinTone,
             "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\x92\xBB",
             "woman technologist: dark skin tone"},
-        EmojiEntry{EmojiEnum::Singer,
-                   "\xF0\x9F\xA7\x91\xE2\x80\x8D\xF0\x9F\x8E\xA4", "singer"},
+        EmojiEntry{
+            EmojiEnum::Singer,
+            "\xF0\x9F\xA7\x91\xE2\x80\x8D\xF0\x9F\x8E\xA4",
+            "singer"},
         EmojiEntry{
             EmojiEnum::SingerLightSkinTone,
             "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\x8E\xA4",
@@ -3159,9 +4083,10 @@ consteval auto makeEmojiList()
             EmojiEnum::SingerDarkSkinTone,
             "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\x8E\xA4",
             "singer: dark skin tone"},
-        EmojiEntry{EmojiEnum::ManSinger,
-                   "\xF0\x9F\x91\xA8\xE2\x80\x8D\xF0\x9F\x8E\xA4",
-                   "man singer"},
+        EmojiEntry{
+            EmojiEnum::ManSinger,
+            "\xF0\x9F\x91\xA8\xE2\x80\x8D\xF0\x9F\x8E\xA4",
+            "man singer"},
         EmojiEntry{
             EmojiEnum::ManSingerLightSkinTone,
             "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\x8E\xA4",
@@ -3182,9 +4107,10 @@ consteval auto makeEmojiList()
             EmojiEnum::ManSingerDarkSkinTone,
             "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\x8E\xA4",
             "man singer: dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanSinger,
-                   "\xF0\x9F\x91\xA9\xE2\x80\x8D\xF0\x9F\x8E\xA4",
-                   "woman singer"},
+        EmojiEntry{
+            EmojiEnum::WomanSinger,
+            "\xF0\x9F\x91\xA9\xE2\x80\x8D\xF0\x9F\x8E\xA4",
+            "woman singer"},
         EmojiEntry{
             EmojiEnum::WomanSingerLightSkinTone,
             "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\x8E\xA4",
@@ -3205,8 +4131,10 @@ consteval auto makeEmojiList()
             EmojiEnum::WomanSingerDarkSkinTone,
             "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\x8E\xA4",
             "woman singer: dark skin tone"},
-        EmojiEntry{EmojiEnum::Artist,
-                   "\xF0\x9F\xA7\x91\xE2\x80\x8D\xF0\x9F\x8E\xA8", "artist"},
+        EmojiEntry{
+            EmojiEnum::Artist,
+            "\xF0\x9F\xA7\x91\xE2\x80\x8D\xF0\x9F\x8E\xA8",
+            "artist"},
         EmojiEntry{
             EmojiEnum::ArtistLightSkinTone,
             "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\x8E\xA8",
@@ -3227,9 +4155,10 @@ consteval auto makeEmojiList()
             EmojiEnum::ArtistDarkSkinTone,
             "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\x8E\xA8",
             "artist: dark skin tone"},
-        EmojiEntry{EmojiEnum::ManArtist,
-                   "\xF0\x9F\x91\xA8\xE2\x80\x8D\xF0\x9F\x8E\xA8",
-                   "man artist"},
+        EmojiEntry{
+            EmojiEnum::ManArtist,
+            "\xF0\x9F\x91\xA8\xE2\x80\x8D\xF0\x9F\x8E\xA8",
+            "man artist"},
         EmojiEntry{
             EmojiEnum::ManArtistLightSkinTone,
             "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\x8E\xA8",
@@ -3250,9 +4179,10 @@ consteval auto makeEmojiList()
             EmojiEnum::ManArtistDarkSkinTone,
             "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\x8E\xA8",
             "man artist: dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanArtist,
-                   "\xF0\x9F\x91\xA9\xE2\x80\x8D\xF0\x9F\x8E\xA8",
-                   "woman artist"},
+        EmojiEntry{
+            EmojiEnum::WomanArtist,
+            "\xF0\x9F\x91\xA9\xE2\x80\x8D\xF0\x9F\x8E\xA8",
+            "woman artist"},
         EmojiEntry{
             EmojiEnum::WomanArtistLightSkinTone,
             "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\x8E\xA8",
@@ -3273,77 +4203,97 @@ consteval auto makeEmojiList()
             EmojiEnum::WomanArtistDarkSkinTone,
             "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\x8E\xA8",
             "woman artist: dark skin tone"},
-        EmojiEntry{EmojiEnum::Pilot,
-                   "\xF0\x9F\xA7\x91\xE2\x80\x8D\xE2\x9C\x88\xEF\xB8\x8F",
-                   "pilot"},
-        EmojiEntry{EmojiEnum::PilotLightSkinTone,
-                   "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x9C\x88"
-                   "\xEF\xB8\x8F",
-                   "pilot: light skin tone"},
-        EmojiEntry{EmojiEnum::PilotMediumLightSkinTone,
-                   "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x9C\x88"
-                   "\xEF\xB8\x8F",
-                   "pilot: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::PilotMediumSkinTone,
-                   "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x9C\x88"
-                   "\xEF\xB8\x8F",
-                   "pilot: medium skin tone"},
-        EmojiEntry{EmojiEnum::PilotMediumDarkSkinTone,
-                   "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x9C\x88"
-                   "\xEF\xB8\x8F",
-                   "pilot: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::PilotDarkSkinTone,
-                   "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x9C\x88"
-                   "\xEF\xB8\x8F",
-                   "pilot: dark skin tone"},
-        EmojiEntry{EmojiEnum::ManPilot,
-                   "\xF0\x9F\x91\xA8\xE2\x80\x8D\xE2\x9C\x88\xEF\xB8\x8F",
-                   "man pilot"},
-        EmojiEntry{EmojiEnum::ManPilotLightSkinTone,
-                   "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x9C\x88"
-                   "\xEF\xB8\x8F",
-                   "man pilot: light skin tone"},
-        EmojiEntry{EmojiEnum::ManPilotMediumLightSkinTone,
-                   "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x9C\x88"
-                   "\xEF\xB8\x8F",
-                   "man pilot: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::ManPilotMediumSkinTone,
-                   "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x9C\x88"
-                   "\xEF\xB8\x8F",
-                   "man pilot: medium skin tone"},
-        EmojiEntry{EmojiEnum::ManPilotMediumDarkSkinTone,
-                   "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x9C\x88"
-                   "\xEF\xB8\x8F",
-                   "man pilot: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::ManPilotDarkSkinTone,
-                   "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x9C\x88"
-                   "\xEF\xB8\x8F",
-                   "man pilot: dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanPilot,
-                   "\xF0\x9F\x91\xA9\xE2\x80\x8D\xE2\x9C\x88\xEF\xB8\x8F",
-                   "woman pilot"},
-        EmojiEntry{EmojiEnum::WomanPilotLightSkinTone,
-                   "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x9C\x88"
-                   "\xEF\xB8\x8F",
-                   "woman pilot: light skin tone"},
-        EmojiEntry{EmojiEnum::WomanPilotMediumLightSkinTone,
-                   "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x9C\x88"
-                   "\xEF\xB8\x8F",
-                   "woman pilot: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::WomanPilotMediumSkinTone,
-                   "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x9C\x88"
-                   "\xEF\xB8\x8F",
-                   "woman pilot: medium skin tone"},
-        EmojiEntry{EmojiEnum::WomanPilotMediumDarkSkinTone,
-                   "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x9C\x88"
-                   "\xEF\xB8\x8F",
-                   "woman pilot: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanPilotDarkSkinTone,
-                   "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x9C\x88"
-                   "\xEF\xB8\x8F",
-                   "woman pilot: dark skin tone"},
-        EmojiEntry{EmojiEnum::Astronaut,
-                   "\xF0\x9F\xA7\x91\xE2\x80\x8D\xF0\x9F\x9A\x80", "astronaut"},
+        EmojiEntry{
+            EmojiEnum::Pilot,
+            "\xF0\x9F\xA7\x91\xE2\x80\x8D\xE2\x9C\x88\xEF\xB8\x8F",
+            "pilot"},
+        EmojiEntry{
+            EmojiEnum::PilotLightSkinTone,
+            "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x9C\x88"
+            "\xEF\xB8\x8F",
+            "pilot: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PilotMediumLightSkinTone,
+            "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x9C\x88"
+            "\xEF\xB8\x8F",
+            "pilot: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PilotMediumSkinTone,
+            "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x9C\x88"
+            "\xEF\xB8\x8F",
+            "pilot: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::PilotMediumDarkSkinTone,
+            "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x9C\x88"
+            "\xEF\xB8\x8F",
+            "pilot: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PilotDarkSkinTone,
+            "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x9C\x88"
+            "\xEF\xB8\x8F",
+            "pilot: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManPilot,
+            "\xF0\x9F\x91\xA8\xE2\x80\x8D\xE2\x9C\x88\xEF\xB8\x8F",
+            "man pilot"},
+        EmojiEntry{
+            EmojiEnum::ManPilotLightSkinTone,
+            "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x9C\x88"
+            "\xEF\xB8\x8F",
+            "man pilot: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManPilotMediumLightSkinTone,
+            "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x9C\x88"
+            "\xEF\xB8\x8F",
+            "man pilot: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManPilotMediumSkinTone,
+            "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x9C\x88"
+            "\xEF\xB8\x8F",
+            "man pilot: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManPilotMediumDarkSkinTone,
+            "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x9C\x88"
+            "\xEF\xB8\x8F",
+            "man pilot: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManPilotDarkSkinTone,
+            "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x9C\x88"
+            "\xEF\xB8\x8F",
+            "man pilot: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanPilot,
+            "\xF0\x9F\x91\xA9\xE2\x80\x8D\xE2\x9C\x88\xEF\xB8\x8F",
+            "woman pilot"},
+        EmojiEntry{
+            EmojiEnum::WomanPilotLightSkinTone,
+            "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x9C\x88"
+            "\xEF\xB8\x8F",
+            "woman pilot: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanPilotMediumLightSkinTone,
+            "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x9C\x88"
+            "\xEF\xB8\x8F",
+            "woman pilot: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanPilotMediumSkinTone,
+            "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x9C\x88"
+            "\xEF\xB8\x8F",
+            "woman pilot: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanPilotMediumDarkSkinTone,
+            "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x9C\x88"
+            "\xEF\xB8\x8F",
+            "woman pilot: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanPilotDarkSkinTone,
+            "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x9C\x88"
+            "\xEF\xB8\x8F",
+            "woman pilot: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::Astronaut,
+            "\xF0\x9F\xA7\x91\xE2\x80\x8D\xF0\x9F\x9A\x80",
+            "astronaut"},
         EmojiEntry{
             EmojiEnum::AstronautLightSkinTone,
             "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\x9A\x80",
@@ -3364,9 +4314,10 @@ consteval auto makeEmojiList()
             EmojiEnum::AstronautDarkSkinTone,
             "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\x9A\x80",
             "astronaut: dark skin tone"},
-        EmojiEntry{EmojiEnum::ManAstronaut,
-                   "\xF0\x9F\x91\xA8\xE2\x80\x8D\xF0\x9F\x9A\x80",
-                   "man astronaut"},
+        EmojiEntry{
+            EmojiEnum::ManAstronaut,
+            "\xF0\x9F\x91\xA8\xE2\x80\x8D\xF0\x9F\x9A\x80",
+            "man astronaut"},
         EmojiEntry{
             EmojiEnum::ManAstronautLightSkinTone,
             "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\x9A\x80",
@@ -3387,9 +4338,10 @@ consteval auto makeEmojiList()
             EmojiEnum::ManAstronautDarkSkinTone,
             "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\x9A\x80",
             "man astronaut: dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanAstronaut,
-                   "\xF0\x9F\x91\xA9\xE2\x80\x8D\xF0\x9F\x9A\x80",
-                   "woman astronaut"},
+        EmojiEntry{
+            EmojiEnum::WomanAstronaut,
+            "\xF0\x9F\x91\xA9\xE2\x80\x8D\xF0\x9F\x9A\x80",
+            "woman astronaut"},
         EmojiEntry{
             EmojiEnum::WomanAstronautLightSkinTone,
             "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\x9A\x80",
@@ -3410,9 +4362,10 @@ consteval auto makeEmojiList()
             EmojiEnum::WomanAstronautDarkSkinTone,
             "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\x9A\x80",
             "woman astronaut: dark skin tone"},
-        EmojiEntry{EmojiEnum::Firefighter,
-                   "\xF0\x9F\xA7\x91\xE2\x80\x8D\xF0\x9F\x9A\x92",
-                   "firefighter"},
+        EmojiEntry{
+            EmojiEnum::Firefighter,
+            "\xF0\x9F\xA7\x91\xE2\x80\x8D\xF0\x9F\x9A\x92",
+            "firefighter"},
         EmojiEntry{
             EmojiEnum::FirefighterLightSkinTone,
             "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\x9A\x92",
@@ -3433,9 +4386,10 @@ consteval auto makeEmojiList()
             EmojiEnum::FirefighterDarkSkinTone,
             "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\x9A\x92",
             "firefighter: dark skin tone"},
-        EmojiEntry{EmojiEnum::ManFirefighter,
-                   "\xF0\x9F\x91\xA8\xE2\x80\x8D\xF0\x9F\x9A\x92",
-                   "man firefighter"},
+        EmojiEntry{
+            EmojiEnum::ManFirefighter,
+            "\xF0\x9F\x91\xA8\xE2\x80\x8D\xF0\x9F\x9A\x92",
+            "man firefighter"},
         EmojiEntry{
             EmojiEnum::ManFirefighterLightSkinTone,
             "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\x9A\x92",
@@ -3456,9 +4410,10 @@ consteval auto makeEmojiList()
             EmojiEnum::ManFirefighterDarkSkinTone,
             "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\x9A\x92",
             "man firefighter: dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanFirefighter,
-                   "\xF0\x9F\x91\xA9\xE2\x80\x8D\xF0\x9F\x9A\x92",
-                   "woman firefighter"},
+        EmojiEntry{
+            EmojiEnum::WomanFirefighter,
+            "\xF0\x9F\x91\xA9\xE2\x80\x8D\xF0\x9F\x9A\x92",
+            "woman firefighter"},
         EmojiEntry{
             EmojiEnum::WomanFirefighterLightSkinTone,
             "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\x9A\x92",
@@ -3479,615 +4434,809 @@ consteval auto makeEmojiList()
             EmojiEnum::WomanFirefighterDarkSkinTone,
             "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\x9A\x92",
             "woman firefighter: dark skin tone"},
-        EmojiEntry{EmojiEnum::PoliceOfficer, "\xF0\x9F\x91\xAE",
-                   "police officer"},
-        EmojiEntry{EmojiEnum::PoliceOfficerLightSkinTone,
-                   "\xF0\x9F\x91\xAE\xF0\x9F\x8F\xBB",
-                   "police officer: light skin tone"},
-        EmojiEntry{EmojiEnum::PoliceOfficerMediumLightSkinTone,
-                   "\xF0\x9F\x91\xAE\xF0\x9F\x8F\xBC",
-                   "police officer: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::PoliceOfficerMediumSkinTone,
-                   "\xF0\x9F\x91\xAE\xF0\x9F\x8F\xBD",
-                   "police officer: medium skin tone"},
-        EmojiEntry{EmojiEnum::PoliceOfficerMediumDarkSkinTone,
-                   "\xF0\x9F\x91\xAE\xF0\x9F\x8F\xBE",
-                   "police officer: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::PoliceOfficerDarkSkinTone,
-                   "\xF0\x9F\x91\xAE\xF0\x9F\x8F\xBF",
-                   "police officer: dark skin tone"},
-        EmojiEntry{EmojiEnum::ManPoliceOfficer,
-                   "\xF0\x9F\x91\xAE\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
-                   "man police officer"},
-        EmojiEntry{EmojiEnum::ManPoliceOfficerLightSkinTone,
-                   "\xF0\x9F\x91\xAE\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man police officer: light skin tone"},
-        EmojiEntry{EmojiEnum::ManPoliceOfficerMediumLightSkinTone,
-                   "\xF0\x9F\x91\xAE\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man police officer: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::ManPoliceOfficerMediumSkinTone,
-                   "\xF0\x9F\x91\xAE\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man police officer: medium skin tone"},
-        EmojiEntry{EmojiEnum::ManPoliceOfficerMediumDarkSkinTone,
-                   "\xF0\x9F\x91\xAE\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man police officer: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::ManPoliceOfficerDarkSkinTone,
-                   "\xF0\x9F\x91\xAE\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man police officer: dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanPoliceOfficer,
-                   "\xF0\x9F\x91\xAE\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
-                   "woman police officer"},
-        EmojiEntry{EmojiEnum::WomanPoliceOfficerLightSkinTone,
-                   "\xF0\x9F\x91\xAE\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman police officer: light skin tone"},
-        EmojiEntry{EmojiEnum::WomanPoliceOfficerMediumLightSkinTone,
-                   "\xF0\x9F\x91\xAE\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman police officer: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::WomanPoliceOfficerMediumSkinTone,
-                   "\xF0\x9F\x91\xAE\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman police officer: medium skin tone"},
-        EmojiEntry{EmojiEnum::WomanPoliceOfficerMediumDarkSkinTone,
-                   "\xF0\x9F\x91\xAE\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman police officer: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanPoliceOfficerDarkSkinTone,
-                   "\xF0\x9F\x91\xAE\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman police officer: dark skin tone"},
-        EmojiEntry{EmojiEnum::Detective, "\xF0\x9F\x95\xB5\xEF\xB8\x8F",
-                   "detective"},
-        EmojiEntry{EmojiEnum::DetectiveLightSkinTone,
-                   "\xF0\x9F\x95\xB5\xF0\x9F\x8F\xBB",
-                   "detective: light skin tone"},
-        EmojiEntry{EmojiEnum::DetectiveMediumLightSkinTone,
-                   "\xF0\x9F\x95\xB5\xF0\x9F\x8F\xBC",
-                   "detective: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::DetectiveMediumSkinTone,
-                   "\xF0\x9F\x95\xB5\xF0\x9F\x8F\xBD",
-                   "detective: medium skin tone"},
-        EmojiEntry{EmojiEnum::DetectiveMediumDarkSkinTone,
-                   "\xF0\x9F\x95\xB5\xF0\x9F\x8F\xBE",
-                   "detective: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::DetectiveDarkSkinTone,
-                   "\xF0\x9F\x95\xB5\xF0\x9F\x8F\xBF",
-                   "detective: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PoliceOfficer,
+            "\xF0\x9F\x91\xAE",
+            "police officer"},
+        EmojiEntry{
+            EmojiEnum::PoliceOfficerLightSkinTone,
+            "\xF0\x9F\x91\xAE\xF0\x9F\x8F\xBB",
+            "police officer: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PoliceOfficerMediumLightSkinTone,
+            "\xF0\x9F\x91\xAE\xF0\x9F\x8F\xBC",
+            "police officer: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PoliceOfficerMediumSkinTone,
+            "\xF0\x9F\x91\xAE\xF0\x9F\x8F\xBD",
+            "police officer: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::PoliceOfficerMediumDarkSkinTone,
+            "\xF0\x9F\x91\xAE\xF0\x9F\x8F\xBE",
+            "police officer: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PoliceOfficerDarkSkinTone,
+            "\xF0\x9F\x91\xAE\xF0\x9F\x8F\xBF",
+            "police officer: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManPoliceOfficer,
+            "\xF0\x9F\x91\xAE\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
+            "man police officer"},
+        EmojiEntry{
+            EmojiEnum::ManPoliceOfficerLightSkinTone,
+            "\xF0\x9F\x91\xAE\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man police officer: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManPoliceOfficerMediumLightSkinTone,
+            "\xF0\x9F\x91\xAE\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man police officer: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManPoliceOfficerMediumSkinTone,
+            "\xF0\x9F\x91\xAE\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man police officer: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManPoliceOfficerMediumDarkSkinTone,
+            "\xF0\x9F\x91\xAE\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man police officer: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManPoliceOfficerDarkSkinTone,
+            "\xF0\x9F\x91\xAE\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man police officer: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanPoliceOfficer,
+            "\xF0\x9F\x91\xAE\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
+            "woman police officer"},
+        EmojiEntry{
+            EmojiEnum::WomanPoliceOfficerLightSkinTone,
+            "\xF0\x9F\x91\xAE\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman police officer: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanPoliceOfficerMediumLightSkinTone,
+            "\xF0\x9F\x91\xAE\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman police officer: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanPoliceOfficerMediumSkinTone,
+            "\xF0\x9F\x91\xAE\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman police officer: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanPoliceOfficerMediumDarkSkinTone,
+            "\xF0\x9F\x91\xAE\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman police officer: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanPoliceOfficerDarkSkinTone,
+            "\xF0\x9F\x91\xAE\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman police officer: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::Detective,
+            "\xF0\x9F\x95\xB5\xEF\xB8\x8F",
+            "detective"},
+        EmojiEntry{
+            EmojiEnum::DetectiveLightSkinTone,
+            "\xF0\x9F\x95\xB5\xF0\x9F\x8F\xBB",
+            "detective: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::DetectiveMediumLightSkinTone,
+            "\xF0\x9F\x95\xB5\xF0\x9F\x8F\xBC",
+            "detective: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::DetectiveMediumSkinTone,
+            "\xF0\x9F\x95\xB5\xF0\x9F\x8F\xBD",
+            "detective: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::DetectiveMediumDarkSkinTone,
+            "\xF0\x9F\x95\xB5\xF0\x9F\x8F\xBE",
+            "detective: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::DetectiveDarkSkinTone,
+            "\xF0\x9F\x95\xB5\xF0\x9F\x8F\xBF",
+            "detective: dark skin tone"},
         EmojiEntry{
             EmojiEnum::ManDetective,
             "\xF0\x9F\x95\xB5\xEF\xB8\x8F\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
             "man detective"},
-        EmojiEntry{EmojiEnum::ManDetectiveLightSkinTone,
-                   "\xF0\x9F\x95\xB5\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man detective: light skin tone"},
-        EmojiEntry{EmojiEnum::ManDetectiveMediumLightSkinTone,
-                   "\xF0\x9F\x95\xB5\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man detective: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::ManDetectiveMediumSkinTone,
-                   "\xF0\x9F\x95\xB5\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man detective: medium skin tone"},
-        EmojiEntry{EmojiEnum::ManDetectiveMediumDarkSkinTone,
-                   "\xF0\x9F\x95\xB5\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man detective: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::ManDetectiveDarkSkinTone,
-                   "\xF0\x9F\x95\xB5\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man detective: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManDetectiveLightSkinTone,
+            "\xF0\x9F\x95\xB5\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man detective: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManDetectiveMediumLightSkinTone,
+            "\xF0\x9F\x95\xB5\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man detective: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManDetectiveMediumSkinTone,
+            "\xF0\x9F\x95\xB5\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man detective: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManDetectiveMediumDarkSkinTone,
+            "\xF0\x9F\x95\xB5\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man detective: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManDetectiveDarkSkinTone,
+            "\xF0\x9F\x95\xB5\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man detective: dark skin tone"},
         EmojiEntry{
             EmojiEnum::WomanDetective,
             "\xF0\x9F\x95\xB5\xEF\xB8\x8F\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
             "woman detective"},
-        EmojiEntry{EmojiEnum::WomanDetectiveLightSkinTone,
-                   "\xF0\x9F\x95\xB5\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman detective: light skin tone"},
-        EmojiEntry{EmojiEnum::WomanDetectiveMediumLightSkinTone,
-                   "\xF0\x9F\x95\xB5\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman detective: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::WomanDetectiveMediumSkinTone,
-                   "\xF0\x9F\x95\xB5\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman detective: medium skin tone"},
-        EmojiEntry{EmojiEnum::WomanDetectiveMediumDarkSkinTone,
-                   "\xF0\x9F\x95\xB5\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman detective: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanDetectiveDarkSkinTone,
-                   "\xF0\x9F\x95\xB5\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman detective: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanDetectiveLightSkinTone,
+            "\xF0\x9F\x95\xB5\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman detective: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanDetectiveMediumLightSkinTone,
+            "\xF0\x9F\x95\xB5\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman detective: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanDetectiveMediumSkinTone,
+            "\xF0\x9F\x95\xB5\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman detective: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanDetectiveMediumDarkSkinTone,
+            "\xF0\x9F\x95\xB5\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman detective: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanDetectiveDarkSkinTone,
+            "\xF0\x9F\x95\xB5\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman detective: dark skin tone"},
         EmojiEntry{EmojiEnum::Guard, "\xF0\x9F\x92\x82", "guard"},
-        EmojiEntry{EmojiEnum::GuardLightSkinTone,
-                   "\xF0\x9F\x92\x82\xF0\x9F\x8F\xBB",
-                   "guard: light skin tone"},
-        EmojiEntry{EmojiEnum::GuardMediumLightSkinTone,
-                   "\xF0\x9F\x92\x82\xF0\x9F\x8F\xBC",
-                   "guard: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::GuardMediumSkinTone,
-                   "\xF0\x9F\x92\x82\xF0\x9F\x8F\xBD",
-                   "guard: medium skin tone"},
-        EmojiEntry{EmojiEnum::GuardMediumDarkSkinTone,
-                   "\xF0\x9F\x92\x82\xF0\x9F\x8F\xBE",
-                   "guard: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::GuardDarkSkinTone,
-                   "\xF0\x9F\x92\x82\xF0\x9F\x8F\xBF", "guard: dark skin tone"},
-        EmojiEntry{EmojiEnum::ManGuard,
-                   "\xF0\x9F\x92\x82\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
-                   "man guard"},
-        EmojiEntry{EmojiEnum::ManGuardLightSkinTone,
-                   "\xF0\x9F\x92\x82\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man guard: light skin tone"},
-        EmojiEntry{EmojiEnum::ManGuardMediumLightSkinTone,
-                   "\xF0\x9F\x92\x82\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man guard: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::ManGuardMediumSkinTone,
-                   "\xF0\x9F\x92\x82\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man guard: medium skin tone"},
-        EmojiEntry{EmojiEnum::ManGuardMediumDarkSkinTone,
-                   "\xF0\x9F\x92\x82\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man guard: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::ManGuardDarkSkinTone,
-                   "\xF0\x9F\x92\x82\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man guard: dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanGuard,
-                   "\xF0\x9F\x92\x82\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
-                   "woman guard"},
-        EmojiEntry{EmojiEnum::WomanGuardLightSkinTone,
-                   "\xF0\x9F\x92\x82\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman guard: light skin tone"},
-        EmojiEntry{EmojiEnum::WomanGuardMediumLightSkinTone,
-                   "\xF0\x9F\x92\x82\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman guard: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::WomanGuardMediumSkinTone,
-                   "\xF0\x9F\x92\x82\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman guard: medium skin tone"},
-        EmojiEntry{EmojiEnum::WomanGuardMediumDarkSkinTone,
-                   "\xF0\x9F\x92\x82\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman guard: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanGuardDarkSkinTone,
-                   "\xF0\x9F\x92\x82\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman guard: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::GuardLightSkinTone,
+            "\xF0\x9F\x92\x82\xF0\x9F\x8F\xBB",
+            "guard: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::GuardMediumLightSkinTone,
+            "\xF0\x9F\x92\x82\xF0\x9F\x8F\xBC",
+            "guard: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::GuardMediumSkinTone,
+            "\xF0\x9F\x92\x82\xF0\x9F\x8F\xBD",
+            "guard: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::GuardMediumDarkSkinTone,
+            "\xF0\x9F\x92\x82\xF0\x9F\x8F\xBE",
+            "guard: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::GuardDarkSkinTone,
+            "\xF0\x9F\x92\x82\xF0\x9F\x8F\xBF",
+            "guard: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManGuard,
+            "\xF0\x9F\x92\x82\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
+            "man guard"},
+        EmojiEntry{
+            EmojiEnum::ManGuardLightSkinTone,
+            "\xF0\x9F\x92\x82\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man guard: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManGuardMediumLightSkinTone,
+            "\xF0\x9F\x92\x82\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man guard: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManGuardMediumSkinTone,
+            "\xF0\x9F\x92\x82\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man guard: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManGuardMediumDarkSkinTone,
+            "\xF0\x9F\x92\x82\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man guard: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManGuardDarkSkinTone,
+            "\xF0\x9F\x92\x82\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man guard: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanGuard,
+            "\xF0\x9F\x92\x82\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
+            "woman guard"},
+        EmojiEntry{
+            EmojiEnum::WomanGuardLightSkinTone,
+            "\xF0\x9F\x92\x82\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman guard: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanGuardMediumLightSkinTone,
+            "\xF0\x9F\x92\x82\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman guard: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanGuardMediumSkinTone,
+            "\xF0\x9F\x92\x82\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman guard: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanGuardMediumDarkSkinTone,
+            "\xF0\x9F\x92\x82\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman guard: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanGuardDarkSkinTone,
+            "\xF0\x9F\x92\x82\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman guard: dark skin tone"},
         EmojiEntry{EmojiEnum::Ninja, "\xF0\x9F\xA5\xB7", "ninja"},
-        EmojiEntry{EmojiEnum::NinjaLightSkinTone,
-                   "\xF0\x9F\xA5\xB7\xF0\x9F\x8F\xBB",
-                   "ninja: light skin tone"},
-        EmojiEntry{EmojiEnum::NinjaMediumLightSkinTone,
-                   "\xF0\x9F\xA5\xB7\xF0\x9F\x8F\xBC",
-                   "ninja: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::NinjaMediumSkinTone,
-                   "\xF0\x9F\xA5\xB7\xF0\x9F\x8F\xBD",
-                   "ninja: medium skin tone"},
-        EmojiEntry{EmojiEnum::NinjaMediumDarkSkinTone,
-                   "\xF0\x9F\xA5\xB7\xF0\x9F\x8F\xBE",
-                   "ninja: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::NinjaDarkSkinTone,
-                   "\xF0\x9F\xA5\xB7\xF0\x9F\x8F\xBF", "ninja: dark skin tone"},
-        EmojiEntry{EmojiEnum::ConstructionWorker, "\xF0\x9F\x91\xB7",
-                   "construction worker"},
-        EmojiEntry{EmojiEnum::ConstructionWorkerLightSkinTone,
-                   "\xF0\x9F\x91\xB7\xF0\x9F\x8F\xBB",
-                   "construction worker: light skin tone"},
-        EmojiEntry{EmojiEnum::ConstructionWorkerMediumLightSkinTone,
-                   "\xF0\x9F\x91\xB7\xF0\x9F\x8F\xBC",
-                   "construction worker: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::ConstructionWorkerMediumSkinTone,
-                   "\xF0\x9F\x91\xB7\xF0\x9F\x8F\xBD",
-                   "construction worker: medium skin tone"},
-        EmojiEntry{EmojiEnum::ConstructionWorkerMediumDarkSkinTone,
-                   "\xF0\x9F\x91\xB7\xF0\x9F\x8F\xBE",
-                   "construction worker: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::ConstructionWorkerDarkSkinTone,
-                   "\xF0\x9F\x91\xB7\xF0\x9F\x8F\xBF",
-                   "construction worker: dark skin tone"},
-        EmojiEntry{EmojiEnum::ManConstructionWorker,
-                   "\xF0\x9F\x91\xB7\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
-                   "man construction worker"},
-        EmojiEntry{EmojiEnum::ManConstructionWorkerLightSkinTone,
-                   "\xF0\x9F\x91\xB7\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man construction worker: light skin tone"},
-        EmojiEntry{EmojiEnum::ManConstructionWorkerMediumLightSkinTone,
-                   "\xF0\x9F\x91\xB7\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man construction worker: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::ManConstructionWorkerMediumSkinTone,
-                   "\xF0\x9F\x91\xB7\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man construction worker: medium skin tone"},
-        EmojiEntry{EmojiEnum::ManConstructionWorkerMediumDarkSkinTone,
-                   "\xF0\x9F\x91\xB7\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man construction worker: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::ManConstructionWorkerDarkSkinTone,
-                   "\xF0\x9F\x91\xB7\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man construction worker: dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanConstructionWorker,
-                   "\xF0\x9F\x91\xB7\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
-                   "woman construction worker"},
-        EmojiEntry{EmojiEnum::WomanConstructionWorkerLightSkinTone,
-                   "\xF0\x9F\x91\xB7\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman construction worker: light skin tone"},
-        EmojiEntry{EmojiEnum::WomanConstructionWorkerMediumLightSkinTone,
-                   "\xF0\x9F\x91\xB7\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman construction worker: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::WomanConstructionWorkerMediumSkinTone,
-                   "\xF0\x9F\x91\xB7\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman construction worker: medium skin tone"},
-        EmojiEntry{EmojiEnum::WomanConstructionWorkerMediumDarkSkinTone,
-                   "\xF0\x9F\x91\xB7\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman construction worker: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanConstructionWorkerDarkSkinTone,
-                   "\xF0\x9F\x91\xB7\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman construction worker: dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonWithCrown, "\xF0\x9F\xAB\x85",
-                   "person with crown"},
-        EmojiEntry{EmojiEnum::PersonWithCrownLightSkinTone,
-                   "\xF0\x9F\xAB\x85\xF0\x9F\x8F\xBB",
-                   "person with crown: light skin tone"},
-        EmojiEntry{EmojiEnum::PersonWithCrownMediumLightSkinTone,
-                   "\xF0\x9F\xAB\x85\xF0\x9F\x8F\xBC",
-                   "person with crown: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::PersonWithCrownMediumSkinTone,
-                   "\xF0\x9F\xAB\x85\xF0\x9F\x8F\xBD",
-                   "person with crown: medium skin tone"},
-        EmojiEntry{EmojiEnum::PersonWithCrownMediumDarkSkinTone,
-                   "\xF0\x9F\xAB\x85\xF0\x9F\x8F\xBE",
-                   "person with crown: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonWithCrownDarkSkinTone,
-                   "\xF0\x9F\xAB\x85\xF0\x9F\x8F\xBF",
-                   "person with crown: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::NinjaLightSkinTone,
+            "\xF0\x9F\xA5\xB7\xF0\x9F\x8F\xBB",
+            "ninja: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::NinjaMediumLightSkinTone,
+            "\xF0\x9F\xA5\xB7\xF0\x9F\x8F\xBC",
+            "ninja: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::NinjaMediumSkinTone,
+            "\xF0\x9F\xA5\xB7\xF0\x9F\x8F\xBD",
+            "ninja: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::NinjaMediumDarkSkinTone,
+            "\xF0\x9F\xA5\xB7\xF0\x9F\x8F\xBE",
+            "ninja: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::NinjaDarkSkinTone,
+            "\xF0\x9F\xA5\xB7\xF0\x9F\x8F\xBF",
+            "ninja: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ConstructionWorker,
+            "\xF0\x9F\x91\xB7",
+            "construction worker"},
+        EmojiEntry{
+            EmojiEnum::ConstructionWorkerLightSkinTone,
+            "\xF0\x9F\x91\xB7\xF0\x9F\x8F\xBB",
+            "construction worker: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ConstructionWorkerMediumLightSkinTone,
+            "\xF0\x9F\x91\xB7\xF0\x9F\x8F\xBC",
+            "construction worker: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ConstructionWorkerMediumSkinTone,
+            "\xF0\x9F\x91\xB7\xF0\x9F\x8F\xBD",
+            "construction worker: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::ConstructionWorkerMediumDarkSkinTone,
+            "\xF0\x9F\x91\xB7\xF0\x9F\x8F\xBE",
+            "construction worker: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ConstructionWorkerDarkSkinTone,
+            "\xF0\x9F\x91\xB7\xF0\x9F\x8F\xBF",
+            "construction worker: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManConstructionWorker,
+            "\xF0\x9F\x91\xB7\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
+            "man construction worker"},
+        EmojiEntry{
+            EmojiEnum::ManConstructionWorkerLightSkinTone,
+            "\xF0\x9F\x91\xB7\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man construction worker: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManConstructionWorkerMediumLightSkinTone,
+            "\xF0\x9F\x91\xB7\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man construction worker: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManConstructionWorkerMediumSkinTone,
+            "\xF0\x9F\x91\xB7\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man construction worker: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManConstructionWorkerMediumDarkSkinTone,
+            "\xF0\x9F\x91\xB7\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man construction worker: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManConstructionWorkerDarkSkinTone,
+            "\xF0\x9F\x91\xB7\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man construction worker: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanConstructionWorker,
+            "\xF0\x9F\x91\xB7\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
+            "woman construction worker"},
+        EmojiEntry{
+            EmojiEnum::WomanConstructionWorkerLightSkinTone,
+            "\xF0\x9F\x91\xB7\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman construction worker: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanConstructionWorkerMediumLightSkinTone,
+            "\xF0\x9F\x91\xB7\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman construction worker: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanConstructionWorkerMediumSkinTone,
+            "\xF0\x9F\x91\xB7\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman construction worker: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanConstructionWorkerMediumDarkSkinTone,
+            "\xF0\x9F\x91\xB7\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman construction worker: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanConstructionWorkerDarkSkinTone,
+            "\xF0\x9F\x91\xB7\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman construction worker: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonWithCrown,
+            "\xF0\x9F\xAB\x85",
+            "person with crown"},
+        EmojiEntry{
+            EmojiEnum::PersonWithCrownLightSkinTone,
+            "\xF0\x9F\xAB\x85\xF0\x9F\x8F\xBB",
+            "person with crown: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonWithCrownMediumLightSkinTone,
+            "\xF0\x9F\xAB\x85\xF0\x9F\x8F\xBC",
+            "person with crown: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonWithCrownMediumSkinTone,
+            "\xF0\x9F\xAB\x85\xF0\x9F\x8F\xBD",
+            "person with crown: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonWithCrownMediumDarkSkinTone,
+            "\xF0\x9F\xAB\x85\xF0\x9F\x8F\xBE",
+            "person with crown: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonWithCrownDarkSkinTone,
+            "\xF0\x9F\xAB\x85\xF0\x9F\x8F\xBF",
+            "person with crown: dark skin tone"},
         EmojiEntry{EmojiEnum::Prince, "\xF0\x9F\xA4\xB4", "prince"},
-        EmojiEntry{EmojiEnum::PrinceLightSkinTone,
-                   "\xF0\x9F\xA4\xB4\xF0\x9F\x8F\xBB",
-                   "prince: light skin tone"},
-        EmojiEntry{EmojiEnum::PrinceMediumLightSkinTone,
-                   "\xF0\x9F\xA4\xB4\xF0\x9F\x8F\xBC",
-                   "prince: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::PrinceMediumSkinTone,
-                   "\xF0\x9F\xA4\xB4\xF0\x9F\x8F\xBD",
-                   "prince: medium skin tone"},
-        EmojiEntry{EmojiEnum::PrinceMediumDarkSkinTone,
-                   "\xF0\x9F\xA4\xB4\xF0\x9F\x8F\xBE",
-                   "prince: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::PrinceDarkSkinTone,
-                   "\xF0\x9F\xA4\xB4\xF0\x9F\x8F\xBF",
-                   "prince: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PrinceLightSkinTone,
+            "\xF0\x9F\xA4\xB4\xF0\x9F\x8F\xBB",
+            "prince: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PrinceMediumLightSkinTone,
+            "\xF0\x9F\xA4\xB4\xF0\x9F\x8F\xBC",
+            "prince: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PrinceMediumSkinTone,
+            "\xF0\x9F\xA4\xB4\xF0\x9F\x8F\xBD",
+            "prince: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::PrinceMediumDarkSkinTone,
+            "\xF0\x9F\xA4\xB4\xF0\x9F\x8F\xBE",
+            "prince: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PrinceDarkSkinTone,
+            "\xF0\x9F\xA4\xB4\xF0\x9F\x8F\xBF",
+            "prince: dark skin tone"},
         EmojiEntry{EmojiEnum::Princess, "\xF0\x9F\x91\xB8", "princess"},
-        EmojiEntry{EmojiEnum::PrincessLightSkinTone,
-                   "\xF0\x9F\x91\xB8\xF0\x9F\x8F\xBB",
-                   "princess: light skin tone"},
-        EmojiEntry{EmojiEnum::PrincessMediumLightSkinTone,
-                   "\xF0\x9F\x91\xB8\xF0\x9F\x8F\xBC",
-                   "princess: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::PrincessMediumSkinTone,
-                   "\xF0\x9F\x91\xB8\xF0\x9F\x8F\xBD",
-                   "princess: medium skin tone"},
-        EmojiEntry{EmojiEnum::PrincessMediumDarkSkinTone,
-                   "\xF0\x9F\x91\xB8\xF0\x9F\x8F\xBE",
-                   "princess: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::PrincessDarkSkinTone,
-                   "\xF0\x9F\x91\xB8\xF0\x9F\x8F\xBF",
-                   "princess: dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonWearingTurban, "\xF0\x9F\x91\xB3",
-                   "person wearing turban"},
-        EmojiEntry{EmojiEnum::PersonWearingTurbanLightSkinTone,
-                   "\xF0\x9F\x91\xB3\xF0\x9F\x8F\xBB",
-                   "person wearing turban: light skin tone"},
-        EmojiEntry{EmojiEnum::PersonWearingTurbanMediumLightSkinTone,
-                   "\xF0\x9F\x91\xB3\xF0\x9F\x8F\xBC",
-                   "person wearing turban: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::PersonWearingTurbanMediumSkinTone,
-                   "\xF0\x9F\x91\xB3\xF0\x9F\x8F\xBD",
-                   "person wearing turban: medium skin tone"},
-        EmojiEntry{EmojiEnum::PersonWearingTurbanMediumDarkSkinTone,
-                   "\xF0\x9F\x91\xB3\xF0\x9F\x8F\xBE",
-                   "person wearing turban: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonWearingTurbanDarkSkinTone,
-                   "\xF0\x9F\x91\xB3\xF0\x9F\x8F\xBF",
-                   "person wearing turban: dark skin tone"},
-        EmojiEntry{EmojiEnum::ManWearingTurban,
-                   "\xF0\x9F\x91\xB3\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
-                   "man wearing turban"},
-        EmojiEntry{EmojiEnum::ManWearingTurbanLightSkinTone,
-                   "\xF0\x9F\x91\xB3\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man wearing turban: light skin tone"},
-        EmojiEntry{EmojiEnum::ManWearingTurbanMediumLightSkinTone,
-                   "\xF0\x9F\x91\xB3\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man wearing turban: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::ManWearingTurbanMediumSkinTone,
-                   "\xF0\x9F\x91\xB3\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man wearing turban: medium skin tone"},
-        EmojiEntry{EmojiEnum::ManWearingTurbanMediumDarkSkinTone,
-                   "\xF0\x9F\x91\xB3\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man wearing turban: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::ManWearingTurbanDarkSkinTone,
-                   "\xF0\x9F\x91\xB3\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man wearing turban: dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanWearingTurban,
-                   "\xF0\x9F\x91\xB3\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
-                   "woman wearing turban"},
-        EmojiEntry{EmojiEnum::WomanWearingTurbanLightSkinTone,
-                   "\xF0\x9F\x91\xB3\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman wearing turban: light skin tone"},
-        EmojiEntry{EmojiEnum::WomanWearingTurbanMediumLightSkinTone,
-                   "\xF0\x9F\x91\xB3\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman wearing turban: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::WomanWearingTurbanMediumSkinTone,
-                   "\xF0\x9F\x91\xB3\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman wearing turban: medium skin tone"},
-        EmojiEntry{EmojiEnum::WomanWearingTurbanMediumDarkSkinTone,
-                   "\xF0\x9F\x91\xB3\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman wearing turban: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanWearingTurbanDarkSkinTone,
-                   "\xF0\x9F\x91\xB3\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman wearing turban: dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonWithSkullcap, "\xF0\x9F\x91\xB2",
-                   "person with skullcap"},
-        EmojiEntry{EmojiEnum::PersonWithSkullcapLightSkinTone,
-                   "\xF0\x9F\x91\xB2\xF0\x9F\x8F\xBB",
-                   "person with skullcap: light skin tone"},
-        EmojiEntry{EmojiEnum::PersonWithSkullcapMediumLightSkinTone,
-                   "\xF0\x9F\x91\xB2\xF0\x9F\x8F\xBC",
-                   "person with skullcap: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::PersonWithSkullcapMediumSkinTone,
-                   "\xF0\x9F\x91\xB2\xF0\x9F\x8F\xBD",
-                   "person with skullcap: medium skin tone"},
-        EmojiEntry{EmojiEnum::PersonWithSkullcapMediumDarkSkinTone,
-                   "\xF0\x9F\x91\xB2\xF0\x9F\x8F\xBE",
-                   "person with skullcap: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonWithSkullcapDarkSkinTone,
-                   "\xF0\x9F\x91\xB2\xF0\x9F\x8F\xBF",
-                   "person with skullcap: dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanWithHeadscarf, "\xF0\x9F\xA7\x95",
-                   "woman with headscarf"},
-        EmojiEntry{EmojiEnum::WomanWithHeadscarfLightSkinTone,
-                   "\xF0\x9F\xA7\x95\xF0\x9F\x8F\xBB",
-                   "woman with headscarf: light skin tone"},
-        EmojiEntry{EmojiEnum::WomanWithHeadscarfMediumLightSkinTone,
-                   "\xF0\x9F\xA7\x95\xF0\x9F\x8F\xBC",
-                   "woman with headscarf: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::WomanWithHeadscarfMediumSkinTone,
-                   "\xF0\x9F\xA7\x95\xF0\x9F\x8F\xBD",
-                   "woman with headscarf: medium skin tone"},
-        EmojiEntry{EmojiEnum::WomanWithHeadscarfMediumDarkSkinTone,
-                   "\xF0\x9F\xA7\x95\xF0\x9F\x8F\xBE",
-                   "woman with headscarf: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanWithHeadscarfDarkSkinTone,
-                   "\xF0\x9F\xA7\x95\xF0\x9F\x8F\xBF",
-                   "woman with headscarf: dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonInTuxedo, "\xF0\x9F\xA4\xB5",
-                   "person in tuxedo"},
-        EmojiEntry{EmojiEnum::PersonInTuxedoLightSkinTone,
-                   "\xF0\x9F\xA4\xB5\xF0\x9F\x8F\xBB",
-                   "person in tuxedo: light skin tone"},
-        EmojiEntry{EmojiEnum::PersonInTuxedoMediumLightSkinTone,
-                   "\xF0\x9F\xA4\xB5\xF0\x9F\x8F\xBC",
-                   "person in tuxedo: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::PersonInTuxedoMediumSkinTone,
-                   "\xF0\x9F\xA4\xB5\xF0\x9F\x8F\xBD",
-                   "person in tuxedo: medium skin tone"},
-        EmojiEntry{EmojiEnum::PersonInTuxedoMediumDarkSkinTone,
-                   "\xF0\x9F\xA4\xB5\xF0\x9F\x8F\xBE",
-                   "person in tuxedo: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonInTuxedoDarkSkinTone,
-                   "\xF0\x9F\xA4\xB5\xF0\x9F\x8F\xBF",
-                   "person in tuxedo: dark skin tone"},
-        EmojiEntry{EmojiEnum::ManInTuxedo,
-                   "\xF0\x9F\xA4\xB5\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
-                   "man in tuxedo"},
-        EmojiEntry{EmojiEnum::ManInTuxedoLightSkinTone,
-                   "\xF0\x9F\xA4\xB5\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man in tuxedo: light skin tone"},
-        EmojiEntry{EmojiEnum::ManInTuxedoMediumLightSkinTone,
-                   "\xF0\x9F\xA4\xB5\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man in tuxedo: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::ManInTuxedoMediumSkinTone,
-                   "\xF0\x9F\xA4\xB5\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man in tuxedo: medium skin tone"},
-        EmojiEntry{EmojiEnum::ManInTuxedoMediumDarkSkinTone,
-                   "\xF0\x9F\xA4\xB5\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man in tuxedo: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::ManInTuxedoDarkSkinTone,
-                   "\xF0\x9F\xA4\xB5\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man in tuxedo: dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanInTuxedo,
-                   "\xF0\x9F\xA4\xB5\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
-                   "woman in tuxedo"},
-        EmojiEntry{EmojiEnum::WomanInTuxedoLightSkinTone,
-                   "\xF0\x9F\xA4\xB5\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman in tuxedo: light skin tone"},
-        EmojiEntry{EmojiEnum::WomanInTuxedoMediumLightSkinTone,
-                   "\xF0\x9F\xA4\xB5\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman in tuxedo: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::WomanInTuxedoMediumSkinTone,
-                   "\xF0\x9F\xA4\xB5\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman in tuxedo: medium skin tone"},
-        EmojiEntry{EmojiEnum::WomanInTuxedoMediumDarkSkinTone,
-                   "\xF0\x9F\xA4\xB5\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman in tuxedo: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanInTuxedoDarkSkinTone,
-                   "\xF0\x9F\xA4\xB5\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman in tuxedo: dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonWithVeil, "\xF0\x9F\x91\xB0",
-                   "person with veil"},
-        EmojiEntry{EmojiEnum::PersonWithVeilLightSkinTone,
-                   "\xF0\x9F\x91\xB0\xF0\x9F\x8F\xBB",
-                   "person with veil: light skin tone"},
-        EmojiEntry{EmojiEnum::PersonWithVeilMediumLightSkinTone,
-                   "\xF0\x9F\x91\xB0\xF0\x9F\x8F\xBC",
-                   "person with veil: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::PersonWithVeilMediumSkinTone,
-                   "\xF0\x9F\x91\xB0\xF0\x9F\x8F\xBD",
-                   "person with veil: medium skin tone"},
-        EmojiEntry{EmojiEnum::PersonWithVeilMediumDarkSkinTone,
-                   "\xF0\x9F\x91\xB0\xF0\x9F\x8F\xBE",
-                   "person with veil: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonWithVeilDarkSkinTone,
-                   "\xF0\x9F\x91\xB0\xF0\x9F\x8F\xBF",
-                   "person with veil: dark skin tone"},
-        EmojiEntry{EmojiEnum::ManWithVeil,
-                   "\xF0\x9F\x91\xB0\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
-                   "man with veil"},
-        EmojiEntry{EmojiEnum::ManWithVeilLightSkinTone,
-                   "\xF0\x9F\x91\xB0\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man with veil: light skin tone"},
-        EmojiEntry{EmojiEnum::ManWithVeilMediumLightSkinTone,
-                   "\xF0\x9F\x91\xB0\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man with veil: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::ManWithVeilMediumSkinTone,
-                   "\xF0\x9F\x91\xB0\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man with veil: medium skin tone"},
-        EmojiEntry{EmojiEnum::ManWithVeilMediumDarkSkinTone,
-                   "\xF0\x9F\x91\xB0\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man with veil: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::ManWithVeilDarkSkinTone,
-                   "\xF0\x9F\x91\xB0\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man with veil: dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanWithVeil,
-                   "\xF0\x9F\x91\xB0\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
-                   "woman with veil"},
-        EmojiEntry{EmojiEnum::WomanWithVeilLightSkinTone,
-                   "\xF0\x9F\x91\xB0\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman with veil: light skin tone"},
-        EmojiEntry{EmojiEnum::WomanWithVeilMediumLightSkinTone,
-                   "\xF0\x9F\x91\xB0\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman with veil: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::WomanWithVeilMediumSkinTone,
-                   "\xF0\x9F\x91\xB0\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman with veil: medium skin tone"},
-        EmojiEntry{EmojiEnum::WomanWithVeilMediumDarkSkinTone,
-                   "\xF0\x9F\x91\xB0\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman with veil: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanWithVeilDarkSkinTone,
-                   "\xF0\x9F\x91\xB0\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman with veil: dark skin tone"},
-        EmojiEntry{EmojiEnum::PregnantWoman, "\xF0\x9F\xA4\xB0",
-                   "pregnant woman"},
-        EmojiEntry{EmojiEnum::PregnantWomanLightSkinTone,
-                   "\xF0\x9F\xA4\xB0\xF0\x9F\x8F\xBB",
-                   "pregnant woman: light skin tone"},
-        EmojiEntry{EmojiEnum::PregnantWomanMediumLightSkinTone,
-                   "\xF0\x9F\xA4\xB0\xF0\x9F\x8F\xBC",
-                   "pregnant woman: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::PregnantWomanMediumSkinTone,
-                   "\xF0\x9F\xA4\xB0\xF0\x9F\x8F\xBD",
-                   "pregnant woman: medium skin tone"},
-        EmojiEntry{EmojiEnum::PregnantWomanMediumDarkSkinTone,
-                   "\xF0\x9F\xA4\xB0\xF0\x9F\x8F\xBE",
-                   "pregnant woman: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::PregnantWomanDarkSkinTone,
-                   "\xF0\x9F\xA4\xB0\xF0\x9F\x8F\xBF",
-                   "pregnant woman: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PrincessLightSkinTone,
+            "\xF0\x9F\x91\xB8\xF0\x9F\x8F\xBB",
+            "princess: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PrincessMediumLightSkinTone,
+            "\xF0\x9F\x91\xB8\xF0\x9F\x8F\xBC",
+            "princess: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PrincessMediumSkinTone,
+            "\xF0\x9F\x91\xB8\xF0\x9F\x8F\xBD",
+            "princess: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::PrincessMediumDarkSkinTone,
+            "\xF0\x9F\x91\xB8\xF0\x9F\x8F\xBE",
+            "princess: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PrincessDarkSkinTone,
+            "\xF0\x9F\x91\xB8\xF0\x9F\x8F\xBF",
+            "princess: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonWearingTurban,
+            "\xF0\x9F\x91\xB3",
+            "person wearing turban"},
+        EmojiEntry{
+            EmojiEnum::PersonWearingTurbanLightSkinTone,
+            "\xF0\x9F\x91\xB3\xF0\x9F\x8F\xBB",
+            "person wearing turban: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonWearingTurbanMediumLightSkinTone,
+            "\xF0\x9F\x91\xB3\xF0\x9F\x8F\xBC",
+            "person wearing turban: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonWearingTurbanMediumSkinTone,
+            "\xF0\x9F\x91\xB3\xF0\x9F\x8F\xBD",
+            "person wearing turban: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonWearingTurbanMediumDarkSkinTone,
+            "\xF0\x9F\x91\xB3\xF0\x9F\x8F\xBE",
+            "person wearing turban: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonWearingTurbanDarkSkinTone,
+            "\xF0\x9F\x91\xB3\xF0\x9F\x8F\xBF",
+            "person wearing turban: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManWearingTurban,
+            "\xF0\x9F\x91\xB3\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
+            "man wearing turban"},
+        EmojiEntry{
+            EmojiEnum::ManWearingTurbanLightSkinTone,
+            "\xF0\x9F\x91\xB3\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man wearing turban: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManWearingTurbanMediumLightSkinTone,
+            "\xF0\x9F\x91\xB3\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man wearing turban: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManWearingTurbanMediumSkinTone,
+            "\xF0\x9F\x91\xB3\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man wearing turban: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManWearingTurbanMediumDarkSkinTone,
+            "\xF0\x9F\x91\xB3\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man wearing turban: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManWearingTurbanDarkSkinTone,
+            "\xF0\x9F\x91\xB3\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man wearing turban: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanWearingTurban,
+            "\xF0\x9F\x91\xB3\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
+            "woman wearing turban"},
+        EmojiEntry{
+            EmojiEnum::WomanWearingTurbanLightSkinTone,
+            "\xF0\x9F\x91\xB3\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman wearing turban: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanWearingTurbanMediumLightSkinTone,
+            "\xF0\x9F\x91\xB3\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman wearing turban: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanWearingTurbanMediumSkinTone,
+            "\xF0\x9F\x91\xB3\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman wearing turban: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanWearingTurbanMediumDarkSkinTone,
+            "\xF0\x9F\x91\xB3\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman wearing turban: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanWearingTurbanDarkSkinTone,
+            "\xF0\x9F\x91\xB3\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman wearing turban: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonWithSkullcap,
+            "\xF0\x9F\x91\xB2",
+            "person with skullcap"},
+        EmojiEntry{
+            EmojiEnum::PersonWithSkullcapLightSkinTone,
+            "\xF0\x9F\x91\xB2\xF0\x9F\x8F\xBB",
+            "person with skullcap: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonWithSkullcapMediumLightSkinTone,
+            "\xF0\x9F\x91\xB2\xF0\x9F\x8F\xBC",
+            "person with skullcap: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonWithSkullcapMediumSkinTone,
+            "\xF0\x9F\x91\xB2\xF0\x9F\x8F\xBD",
+            "person with skullcap: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonWithSkullcapMediumDarkSkinTone,
+            "\xF0\x9F\x91\xB2\xF0\x9F\x8F\xBE",
+            "person with skullcap: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonWithSkullcapDarkSkinTone,
+            "\xF0\x9F\x91\xB2\xF0\x9F\x8F\xBF",
+            "person with skullcap: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanWithHeadscarf,
+            "\xF0\x9F\xA7\x95",
+            "woman with headscarf"},
+        EmojiEntry{
+            EmojiEnum::WomanWithHeadscarfLightSkinTone,
+            "\xF0\x9F\xA7\x95\xF0\x9F\x8F\xBB",
+            "woman with headscarf: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanWithHeadscarfMediumLightSkinTone,
+            "\xF0\x9F\xA7\x95\xF0\x9F\x8F\xBC",
+            "woman with headscarf: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanWithHeadscarfMediumSkinTone,
+            "\xF0\x9F\xA7\x95\xF0\x9F\x8F\xBD",
+            "woman with headscarf: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanWithHeadscarfMediumDarkSkinTone,
+            "\xF0\x9F\xA7\x95\xF0\x9F\x8F\xBE",
+            "woman with headscarf: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanWithHeadscarfDarkSkinTone,
+            "\xF0\x9F\xA7\x95\xF0\x9F\x8F\xBF",
+            "woman with headscarf: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonInTuxedo,
+            "\xF0\x9F\xA4\xB5",
+            "person in tuxedo"},
+        EmojiEntry{
+            EmojiEnum::PersonInTuxedoLightSkinTone,
+            "\xF0\x9F\xA4\xB5\xF0\x9F\x8F\xBB",
+            "person in tuxedo: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonInTuxedoMediumLightSkinTone,
+            "\xF0\x9F\xA4\xB5\xF0\x9F\x8F\xBC",
+            "person in tuxedo: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonInTuxedoMediumSkinTone,
+            "\xF0\x9F\xA4\xB5\xF0\x9F\x8F\xBD",
+            "person in tuxedo: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonInTuxedoMediumDarkSkinTone,
+            "\xF0\x9F\xA4\xB5\xF0\x9F\x8F\xBE",
+            "person in tuxedo: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonInTuxedoDarkSkinTone,
+            "\xF0\x9F\xA4\xB5\xF0\x9F\x8F\xBF",
+            "person in tuxedo: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManInTuxedo,
+            "\xF0\x9F\xA4\xB5\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
+            "man in tuxedo"},
+        EmojiEntry{
+            EmojiEnum::ManInTuxedoLightSkinTone,
+            "\xF0\x9F\xA4\xB5\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man in tuxedo: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManInTuxedoMediumLightSkinTone,
+            "\xF0\x9F\xA4\xB5\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man in tuxedo: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManInTuxedoMediumSkinTone,
+            "\xF0\x9F\xA4\xB5\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man in tuxedo: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManInTuxedoMediumDarkSkinTone,
+            "\xF0\x9F\xA4\xB5\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man in tuxedo: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManInTuxedoDarkSkinTone,
+            "\xF0\x9F\xA4\xB5\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man in tuxedo: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanInTuxedo,
+            "\xF0\x9F\xA4\xB5\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
+            "woman in tuxedo"},
+        EmojiEntry{
+            EmojiEnum::WomanInTuxedoLightSkinTone,
+            "\xF0\x9F\xA4\xB5\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman in tuxedo: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanInTuxedoMediumLightSkinTone,
+            "\xF0\x9F\xA4\xB5\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman in tuxedo: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanInTuxedoMediumSkinTone,
+            "\xF0\x9F\xA4\xB5\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman in tuxedo: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanInTuxedoMediumDarkSkinTone,
+            "\xF0\x9F\xA4\xB5\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman in tuxedo: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanInTuxedoDarkSkinTone,
+            "\xF0\x9F\xA4\xB5\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman in tuxedo: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonWithVeil,
+            "\xF0\x9F\x91\xB0",
+            "person with veil"},
+        EmojiEntry{
+            EmojiEnum::PersonWithVeilLightSkinTone,
+            "\xF0\x9F\x91\xB0\xF0\x9F\x8F\xBB",
+            "person with veil: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonWithVeilMediumLightSkinTone,
+            "\xF0\x9F\x91\xB0\xF0\x9F\x8F\xBC",
+            "person with veil: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonWithVeilMediumSkinTone,
+            "\xF0\x9F\x91\xB0\xF0\x9F\x8F\xBD",
+            "person with veil: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonWithVeilMediumDarkSkinTone,
+            "\xF0\x9F\x91\xB0\xF0\x9F\x8F\xBE",
+            "person with veil: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonWithVeilDarkSkinTone,
+            "\xF0\x9F\x91\xB0\xF0\x9F\x8F\xBF",
+            "person with veil: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManWithVeil,
+            "\xF0\x9F\x91\xB0\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
+            "man with veil"},
+        EmojiEntry{
+            EmojiEnum::ManWithVeilLightSkinTone,
+            "\xF0\x9F\x91\xB0\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man with veil: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManWithVeilMediumLightSkinTone,
+            "\xF0\x9F\x91\xB0\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man with veil: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManWithVeilMediumSkinTone,
+            "\xF0\x9F\x91\xB0\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man with veil: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManWithVeilMediumDarkSkinTone,
+            "\xF0\x9F\x91\xB0\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man with veil: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManWithVeilDarkSkinTone,
+            "\xF0\x9F\x91\xB0\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man with veil: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanWithVeil,
+            "\xF0\x9F\x91\xB0\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
+            "woman with veil"},
+        EmojiEntry{
+            EmojiEnum::WomanWithVeilLightSkinTone,
+            "\xF0\x9F\x91\xB0\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman with veil: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanWithVeilMediumLightSkinTone,
+            "\xF0\x9F\x91\xB0\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman with veil: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanWithVeilMediumSkinTone,
+            "\xF0\x9F\x91\xB0\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman with veil: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanWithVeilMediumDarkSkinTone,
+            "\xF0\x9F\x91\xB0\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman with veil: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanWithVeilDarkSkinTone,
+            "\xF0\x9F\x91\xB0\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman with veil: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PregnantWoman,
+            "\xF0\x9F\xA4\xB0",
+            "pregnant woman"},
+        EmojiEntry{
+            EmojiEnum::PregnantWomanLightSkinTone,
+            "\xF0\x9F\xA4\xB0\xF0\x9F\x8F\xBB",
+            "pregnant woman: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PregnantWomanMediumLightSkinTone,
+            "\xF0\x9F\xA4\xB0\xF0\x9F\x8F\xBC",
+            "pregnant woman: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PregnantWomanMediumSkinTone,
+            "\xF0\x9F\xA4\xB0\xF0\x9F\x8F\xBD",
+            "pregnant woman: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::PregnantWomanMediumDarkSkinTone,
+            "\xF0\x9F\xA4\xB0\xF0\x9F\x8F\xBE",
+            "pregnant woman: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PregnantWomanDarkSkinTone,
+            "\xF0\x9F\xA4\xB0\xF0\x9F\x8F\xBF",
+            "pregnant woman: dark skin tone"},
         EmojiEntry{EmojiEnum::PregnantMan, "\xF0\x9F\xAB\x83", "pregnant man"},
-        EmojiEntry{EmojiEnum::PregnantManLightSkinTone,
-                   "\xF0\x9F\xAB\x83\xF0\x9F\x8F\xBB",
-                   "pregnant man: light skin tone"},
-        EmojiEntry{EmojiEnum::PregnantManMediumLightSkinTone,
-                   "\xF0\x9F\xAB\x83\xF0\x9F\x8F\xBC",
-                   "pregnant man: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::PregnantManMediumSkinTone,
-                   "\xF0\x9F\xAB\x83\xF0\x9F\x8F\xBD",
-                   "pregnant man: medium skin tone"},
-        EmojiEntry{EmojiEnum::PregnantManMediumDarkSkinTone,
-                   "\xF0\x9F\xAB\x83\xF0\x9F\x8F\xBE",
-                   "pregnant man: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::PregnantManDarkSkinTone,
-                   "\xF0\x9F\xAB\x83\xF0\x9F\x8F\xBF",
-                   "pregnant man: dark skin tone"},
-        EmojiEntry{EmojiEnum::PregnantPerson, "\xF0\x9F\xAB\x84",
-                   "pregnant person"},
-        EmojiEntry{EmojiEnum::PregnantPersonLightSkinTone,
-                   "\xF0\x9F\xAB\x84\xF0\x9F\x8F\xBB",
-                   "pregnant person: light skin tone"},
-        EmojiEntry{EmojiEnum::PregnantPersonMediumLightSkinTone,
-                   "\xF0\x9F\xAB\x84\xF0\x9F\x8F\xBC",
-                   "pregnant person: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::PregnantPersonMediumSkinTone,
-                   "\xF0\x9F\xAB\x84\xF0\x9F\x8F\xBD",
-                   "pregnant person: medium skin tone"},
-        EmojiEntry{EmojiEnum::PregnantPersonMediumDarkSkinTone,
-                   "\xF0\x9F\xAB\x84\xF0\x9F\x8F\xBE",
-                   "pregnant person: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::PregnantPersonDarkSkinTone,
-                   "\xF0\x9F\xAB\x84\xF0\x9F\x8F\xBF",
-                   "pregnant person: dark skin tone"},
-        EmojiEntry{EmojiEnum::BreastFeeding, "\xF0\x9F\xA4\xB1",
-                   "breast-feeding"},
-        EmojiEntry{EmojiEnum::BreastFeedingLightSkinTone,
-                   "\xF0\x9F\xA4\xB1\xF0\x9F\x8F\xBB",
-                   "breast-feeding: light skin tone"},
-        EmojiEntry{EmojiEnum::BreastFeedingMediumLightSkinTone,
-                   "\xF0\x9F\xA4\xB1\xF0\x9F\x8F\xBC",
-                   "breast-feeding: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::BreastFeedingMediumSkinTone,
-                   "\xF0\x9F\xA4\xB1\xF0\x9F\x8F\xBD",
-                   "breast-feeding: medium skin tone"},
-        EmojiEntry{EmojiEnum::BreastFeedingMediumDarkSkinTone,
-                   "\xF0\x9F\xA4\xB1\xF0\x9F\x8F\xBE",
-                   "breast-feeding: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::BreastFeedingDarkSkinTone,
-                   "\xF0\x9F\xA4\xB1\xF0\x9F\x8F\xBF",
-                   "breast-feeding: dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanFeedingBaby,
-                   "\xF0\x9F\x91\xA9\xE2\x80\x8D\xF0\x9F\x8D\xBC",
-                   "woman feeding baby"},
+        EmojiEntry{
+            EmojiEnum::PregnantManLightSkinTone,
+            "\xF0\x9F\xAB\x83\xF0\x9F\x8F\xBB",
+            "pregnant man: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PregnantManMediumLightSkinTone,
+            "\xF0\x9F\xAB\x83\xF0\x9F\x8F\xBC",
+            "pregnant man: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PregnantManMediumSkinTone,
+            "\xF0\x9F\xAB\x83\xF0\x9F\x8F\xBD",
+            "pregnant man: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::PregnantManMediumDarkSkinTone,
+            "\xF0\x9F\xAB\x83\xF0\x9F\x8F\xBE",
+            "pregnant man: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PregnantManDarkSkinTone,
+            "\xF0\x9F\xAB\x83\xF0\x9F\x8F\xBF",
+            "pregnant man: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PregnantPerson,
+            "\xF0\x9F\xAB\x84",
+            "pregnant person"},
+        EmojiEntry{
+            EmojiEnum::PregnantPersonLightSkinTone,
+            "\xF0\x9F\xAB\x84\xF0\x9F\x8F\xBB",
+            "pregnant person: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PregnantPersonMediumLightSkinTone,
+            "\xF0\x9F\xAB\x84\xF0\x9F\x8F\xBC",
+            "pregnant person: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PregnantPersonMediumSkinTone,
+            "\xF0\x9F\xAB\x84\xF0\x9F\x8F\xBD",
+            "pregnant person: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::PregnantPersonMediumDarkSkinTone,
+            "\xF0\x9F\xAB\x84\xF0\x9F\x8F\xBE",
+            "pregnant person: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PregnantPersonDarkSkinTone,
+            "\xF0\x9F\xAB\x84\xF0\x9F\x8F\xBF",
+            "pregnant person: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::BreastFeeding,
+            "\xF0\x9F\xA4\xB1",
+            "breast-feeding"},
+        EmojiEntry{
+            EmojiEnum::BreastFeedingLightSkinTone,
+            "\xF0\x9F\xA4\xB1\xF0\x9F\x8F\xBB",
+            "breast-feeding: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::BreastFeedingMediumLightSkinTone,
+            "\xF0\x9F\xA4\xB1\xF0\x9F\x8F\xBC",
+            "breast-feeding: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::BreastFeedingMediumSkinTone,
+            "\xF0\x9F\xA4\xB1\xF0\x9F\x8F\xBD",
+            "breast-feeding: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::BreastFeedingMediumDarkSkinTone,
+            "\xF0\x9F\xA4\xB1\xF0\x9F\x8F\xBE",
+            "breast-feeding: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::BreastFeedingDarkSkinTone,
+            "\xF0\x9F\xA4\xB1\xF0\x9F\x8F\xBF",
+            "breast-feeding: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanFeedingBaby,
+            "\xF0\x9F\x91\xA9\xE2\x80\x8D\xF0\x9F\x8D\xBC",
+            "woman feeding baby"},
         EmojiEntry{
             EmojiEnum::WomanFeedingBabyLightSkinTone,
             "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\x8D\xBC",
@@ -4108,9 +5257,10 @@ consteval auto makeEmojiList()
             EmojiEnum::WomanFeedingBabyDarkSkinTone,
             "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\x8D\xBC",
             "woman feeding baby: dark skin tone"},
-        EmojiEntry{EmojiEnum::ManFeedingBaby,
-                   "\xF0\x9F\x91\xA8\xE2\x80\x8D\xF0\x9F\x8D\xBC",
-                   "man feeding baby"},
+        EmojiEntry{
+            EmojiEnum::ManFeedingBaby,
+            "\xF0\x9F\x91\xA8\xE2\x80\x8D\xF0\x9F\x8D\xBC",
+            "man feeding baby"},
         EmojiEntry{
             EmojiEnum::ManFeedingBabyLightSkinTone,
             "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\x8D\xBC",
@@ -4131,9 +5281,10 @@ consteval auto makeEmojiList()
             EmojiEnum::ManFeedingBabyDarkSkinTone,
             "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\x8D\xBC",
             "man feeding baby: dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonFeedingBaby,
-                   "\xF0\x9F\xA7\x91\xE2\x80\x8D\xF0\x9F\x8D\xBC",
-                   "person feeding baby"},
+        EmojiEntry{
+            EmojiEnum::PersonFeedingBaby,
+            "\xF0\x9F\xA7\x91\xE2\x80\x8D\xF0\x9F\x8D\xBC",
+            "person feeding baby"},
         EmojiEntry{
             EmojiEnum::PersonFeedingBabyLightSkinTone,
             "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\x8D\xBC",
@@ -4155,55 +5306,72 @@ consteval auto makeEmojiList()
             "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\x8D\xBC",
             "person feeding baby: dark skin tone"},
         EmojiEntry{EmojiEnum::BabyAngel, "\xF0\x9F\x91\xBC", "baby angel"},
-        EmojiEntry{EmojiEnum::BabyAngelLightSkinTone,
-                   "\xF0\x9F\x91\xBC\xF0\x9F\x8F\xBB",
-                   "baby angel: light skin tone"},
-        EmojiEntry{EmojiEnum::BabyAngelMediumLightSkinTone,
-                   "\xF0\x9F\x91\xBC\xF0\x9F\x8F\xBC",
-                   "baby angel: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::BabyAngelMediumSkinTone,
-                   "\xF0\x9F\x91\xBC\xF0\x9F\x8F\xBD",
-                   "baby angel: medium skin tone"},
-        EmojiEntry{EmojiEnum::BabyAngelMediumDarkSkinTone,
-                   "\xF0\x9F\x91\xBC\xF0\x9F\x8F\xBE",
-                   "baby angel: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::BabyAngelDarkSkinTone,
-                   "\xF0\x9F\x91\xBC\xF0\x9F\x8F\xBF",
-                   "baby angel: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::BabyAngelLightSkinTone,
+            "\xF0\x9F\x91\xBC\xF0\x9F\x8F\xBB",
+            "baby angel: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::BabyAngelMediumLightSkinTone,
+            "\xF0\x9F\x91\xBC\xF0\x9F\x8F\xBC",
+            "baby angel: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::BabyAngelMediumSkinTone,
+            "\xF0\x9F\x91\xBC\xF0\x9F\x8F\xBD",
+            "baby angel: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::BabyAngelMediumDarkSkinTone,
+            "\xF0\x9F\x91\xBC\xF0\x9F\x8F\xBE",
+            "baby angel: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::BabyAngelDarkSkinTone,
+            "\xF0\x9F\x91\xBC\xF0\x9F\x8F\xBF",
+            "baby angel: dark skin tone"},
         EmojiEntry{EmojiEnum::SantaClaus, "\xF0\x9F\x8E\x85", "Santa Claus"},
-        EmojiEntry{EmojiEnum::SantaClausLightSkinTone,
-                   "\xF0\x9F\x8E\x85\xF0\x9F\x8F\xBB",
-                   "Santa Claus: light skin tone"},
-        EmojiEntry{EmojiEnum::SantaClausMediumLightSkinTone,
-                   "\xF0\x9F\x8E\x85\xF0\x9F\x8F\xBC",
-                   "Santa Claus: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::SantaClausMediumSkinTone,
-                   "\xF0\x9F\x8E\x85\xF0\x9F\x8F\xBD",
-                   "Santa Claus: medium skin tone"},
-        EmojiEntry{EmojiEnum::SantaClausMediumDarkSkinTone,
-                   "\xF0\x9F\x8E\x85\xF0\x9F\x8F\xBE",
-                   "Santa Claus: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::SantaClausDarkSkinTone,
-                   "\xF0\x9F\x8E\x85\xF0\x9F\x8F\xBF",
-                   "Santa Claus: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::SantaClausLightSkinTone,
+            "\xF0\x9F\x8E\x85\xF0\x9F\x8F\xBB",
+            "Santa Claus: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::SantaClausMediumLightSkinTone,
+            "\xF0\x9F\x8E\x85\xF0\x9F\x8F\xBC",
+            "Santa Claus: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::SantaClausMediumSkinTone,
+            "\xF0\x9F\x8E\x85\xF0\x9F\x8F\xBD",
+            "Santa Claus: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::SantaClausMediumDarkSkinTone,
+            "\xF0\x9F\x8E\x85\xF0\x9F\x8F\xBE",
+            "Santa Claus: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::SantaClausDarkSkinTone,
+            "\xF0\x9F\x8E\x85\xF0\x9F\x8F\xBF",
+            "Santa Claus: dark skin tone"},
         EmojiEntry{EmojiEnum::MrsClaus, "\xF0\x9F\xA4\xB6", "Mrs. Claus"},
-        EmojiEntry{EmojiEnum::MrsClausLightSkinTone,
-                   "\xF0\x9F\xA4\xB6\xF0\x9F\x8F\xBB",
-                   "Mrs. Claus: light skin tone"},
-        EmojiEntry{EmojiEnum::MrsClausMediumLightSkinTone,
-                   "\xF0\x9F\xA4\xB6\xF0\x9F\x8F\xBC",
-                   "Mrs. Claus: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::MrsClausMediumSkinTone,
-                   "\xF0\x9F\xA4\xB6\xF0\x9F\x8F\xBD",
-                   "Mrs. Claus: medium skin tone"},
-        EmojiEntry{EmojiEnum::MrsClausMediumDarkSkinTone,
-                   "\xF0\x9F\xA4\xB6\xF0\x9F\x8F\xBE",
-                   "Mrs. Claus: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::MrsClausDarkSkinTone,
-                   "\xF0\x9F\xA4\xB6\xF0\x9F\x8F\xBF",
-                   "Mrs. Claus: dark skin tone"},
-        EmojiEntry{EmojiEnum::MxClaus,
-                   "\xF0\x9F\xA7\x91\xE2\x80\x8D\xF0\x9F\x8E\x84", "mx claus"},
+        EmojiEntry{
+            EmojiEnum::MrsClausLightSkinTone,
+            "\xF0\x9F\xA4\xB6\xF0\x9F\x8F\xBB",
+            "Mrs. Claus: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::MrsClausMediumLightSkinTone,
+            "\xF0\x9F\xA4\xB6\xF0\x9F\x8F\xBC",
+            "Mrs. Claus: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::MrsClausMediumSkinTone,
+            "\xF0\x9F\xA4\xB6\xF0\x9F\x8F\xBD",
+            "Mrs. Claus: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::MrsClausMediumDarkSkinTone,
+            "\xF0\x9F\xA4\xB6\xF0\x9F\x8F\xBE",
+            "Mrs. Claus: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::MrsClausDarkSkinTone,
+            "\xF0\x9F\xA4\xB6\xF0\x9F\x8F\xBF",
+            "Mrs. Claus: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::MxClaus,
+            "\xF0\x9F\xA7\x91\xE2\x80\x8D\xF0\x9F\x8E\x84",
+            "mx claus"},
         EmojiEntry{
             EmojiEnum::MxClausLightSkinTone,
             "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\x8E\x84",
@@ -4225,908 +5393,1169 @@ consteval auto makeEmojiList()
             "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\x8E\x84",
             "mx claus: dark skin tone"},
         EmojiEntry{EmojiEnum::Superhero, "\xF0\x9F\xA6\xB8", "superhero"},
-        EmojiEntry{EmojiEnum::SuperheroLightSkinTone,
-                   "\xF0\x9F\xA6\xB8\xF0\x9F\x8F\xBB",
-                   "superhero: light skin tone"},
-        EmojiEntry{EmojiEnum::SuperheroMediumLightSkinTone,
-                   "\xF0\x9F\xA6\xB8\xF0\x9F\x8F\xBC",
-                   "superhero: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::SuperheroMediumSkinTone,
-                   "\xF0\x9F\xA6\xB8\xF0\x9F\x8F\xBD",
-                   "superhero: medium skin tone"},
-        EmojiEntry{EmojiEnum::SuperheroMediumDarkSkinTone,
-                   "\xF0\x9F\xA6\xB8\xF0\x9F\x8F\xBE",
-                   "superhero: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::SuperheroDarkSkinTone,
-                   "\xF0\x9F\xA6\xB8\xF0\x9F\x8F\xBF",
-                   "superhero: dark skin tone"},
-        EmojiEntry{EmojiEnum::ManSuperhero,
-                   "\xF0\x9F\xA6\xB8\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
-                   "man superhero"},
-        EmojiEntry{EmojiEnum::ManSuperheroLightSkinTone,
-                   "\xF0\x9F\xA6\xB8\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man superhero: light skin tone"},
-        EmojiEntry{EmojiEnum::ManSuperheroMediumLightSkinTone,
-                   "\xF0\x9F\xA6\xB8\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man superhero: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::ManSuperheroMediumSkinTone,
-                   "\xF0\x9F\xA6\xB8\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man superhero: medium skin tone"},
-        EmojiEntry{EmojiEnum::ManSuperheroMediumDarkSkinTone,
-                   "\xF0\x9F\xA6\xB8\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man superhero: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::ManSuperheroDarkSkinTone,
-                   "\xF0\x9F\xA6\xB8\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man superhero: dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanSuperhero,
-                   "\xF0\x9F\xA6\xB8\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
-                   "woman superhero"},
-        EmojiEntry{EmojiEnum::WomanSuperheroLightSkinTone,
-                   "\xF0\x9F\xA6\xB8\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman superhero: light skin tone"},
-        EmojiEntry{EmojiEnum::WomanSuperheroMediumLightSkinTone,
-                   "\xF0\x9F\xA6\xB8\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman superhero: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::WomanSuperheroMediumSkinTone,
-                   "\xF0\x9F\xA6\xB8\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman superhero: medium skin tone"},
-        EmojiEntry{EmojiEnum::WomanSuperheroMediumDarkSkinTone,
-                   "\xF0\x9F\xA6\xB8\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman superhero: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanSuperheroDarkSkinTone,
-                   "\xF0\x9F\xA6\xB8\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman superhero: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::SuperheroLightSkinTone,
+            "\xF0\x9F\xA6\xB8\xF0\x9F\x8F\xBB",
+            "superhero: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::SuperheroMediumLightSkinTone,
+            "\xF0\x9F\xA6\xB8\xF0\x9F\x8F\xBC",
+            "superhero: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::SuperheroMediumSkinTone,
+            "\xF0\x9F\xA6\xB8\xF0\x9F\x8F\xBD",
+            "superhero: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::SuperheroMediumDarkSkinTone,
+            "\xF0\x9F\xA6\xB8\xF0\x9F\x8F\xBE",
+            "superhero: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::SuperheroDarkSkinTone,
+            "\xF0\x9F\xA6\xB8\xF0\x9F\x8F\xBF",
+            "superhero: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManSuperhero,
+            "\xF0\x9F\xA6\xB8\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
+            "man superhero"},
+        EmojiEntry{
+            EmojiEnum::ManSuperheroLightSkinTone,
+            "\xF0\x9F\xA6\xB8\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man superhero: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManSuperheroMediumLightSkinTone,
+            "\xF0\x9F\xA6\xB8\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man superhero: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManSuperheroMediumSkinTone,
+            "\xF0\x9F\xA6\xB8\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man superhero: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManSuperheroMediumDarkSkinTone,
+            "\xF0\x9F\xA6\xB8\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man superhero: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManSuperheroDarkSkinTone,
+            "\xF0\x9F\xA6\xB8\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man superhero: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanSuperhero,
+            "\xF0\x9F\xA6\xB8\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
+            "woman superhero"},
+        EmojiEntry{
+            EmojiEnum::WomanSuperheroLightSkinTone,
+            "\xF0\x9F\xA6\xB8\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman superhero: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanSuperheroMediumLightSkinTone,
+            "\xF0\x9F\xA6\xB8\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman superhero: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanSuperheroMediumSkinTone,
+            "\xF0\x9F\xA6\xB8\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman superhero: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanSuperheroMediumDarkSkinTone,
+            "\xF0\x9F\xA6\xB8\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman superhero: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanSuperheroDarkSkinTone,
+            "\xF0\x9F\xA6\xB8\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman superhero: dark skin tone"},
         EmojiEntry{EmojiEnum::Supervillain, "\xF0\x9F\xA6\xB9", "supervillain"},
-        EmojiEntry{EmojiEnum::SupervillainLightSkinTone,
-                   "\xF0\x9F\xA6\xB9\xF0\x9F\x8F\xBB",
-                   "supervillain: light skin tone"},
-        EmojiEntry{EmojiEnum::SupervillainMediumLightSkinTone,
-                   "\xF0\x9F\xA6\xB9\xF0\x9F\x8F\xBC",
-                   "supervillain: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::SupervillainMediumSkinTone,
-                   "\xF0\x9F\xA6\xB9\xF0\x9F\x8F\xBD",
-                   "supervillain: medium skin tone"},
-        EmojiEntry{EmojiEnum::SupervillainMediumDarkSkinTone,
-                   "\xF0\x9F\xA6\xB9\xF0\x9F\x8F\xBE",
-                   "supervillain: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::SupervillainDarkSkinTone,
-                   "\xF0\x9F\xA6\xB9\xF0\x9F\x8F\xBF",
-                   "supervillain: dark skin tone"},
-        EmojiEntry{EmojiEnum::ManSupervillain,
-                   "\xF0\x9F\xA6\xB9\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
-                   "man supervillain"},
-        EmojiEntry{EmojiEnum::ManSupervillainLightSkinTone,
-                   "\xF0\x9F\xA6\xB9\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man supervillain: light skin tone"},
-        EmojiEntry{EmojiEnum::ManSupervillainMediumLightSkinTone,
-                   "\xF0\x9F\xA6\xB9\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man supervillain: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::ManSupervillainMediumSkinTone,
-                   "\xF0\x9F\xA6\xB9\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man supervillain: medium skin tone"},
-        EmojiEntry{EmojiEnum::ManSupervillainMediumDarkSkinTone,
-                   "\xF0\x9F\xA6\xB9\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man supervillain: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::ManSupervillainDarkSkinTone,
-                   "\xF0\x9F\xA6\xB9\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man supervillain: dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanSupervillain,
-                   "\xF0\x9F\xA6\xB9\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
-                   "woman supervillain"},
-        EmojiEntry{EmojiEnum::WomanSupervillainLightSkinTone,
-                   "\xF0\x9F\xA6\xB9\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman supervillain: light skin tone"},
-        EmojiEntry{EmojiEnum::WomanSupervillainMediumLightSkinTone,
-                   "\xF0\x9F\xA6\xB9\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman supervillain: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::WomanSupervillainMediumSkinTone,
-                   "\xF0\x9F\xA6\xB9\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman supervillain: medium skin tone"},
-        EmojiEntry{EmojiEnum::WomanSupervillainMediumDarkSkinTone,
-                   "\xF0\x9F\xA6\xB9\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman supervillain: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanSupervillainDarkSkinTone,
-                   "\xF0\x9F\xA6\xB9\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman supervillain: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::SupervillainLightSkinTone,
+            "\xF0\x9F\xA6\xB9\xF0\x9F\x8F\xBB",
+            "supervillain: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::SupervillainMediumLightSkinTone,
+            "\xF0\x9F\xA6\xB9\xF0\x9F\x8F\xBC",
+            "supervillain: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::SupervillainMediumSkinTone,
+            "\xF0\x9F\xA6\xB9\xF0\x9F\x8F\xBD",
+            "supervillain: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::SupervillainMediumDarkSkinTone,
+            "\xF0\x9F\xA6\xB9\xF0\x9F\x8F\xBE",
+            "supervillain: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::SupervillainDarkSkinTone,
+            "\xF0\x9F\xA6\xB9\xF0\x9F\x8F\xBF",
+            "supervillain: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManSupervillain,
+            "\xF0\x9F\xA6\xB9\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
+            "man supervillain"},
+        EmojiEntry{
+            EmojiEnum::ManSupervillainLightSkinTone,
+            "\xF0\x9F\xA6\xB9\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man supervillain: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManSupervillainMediumLightSkinTone,
+            "\xF0\x9F\xA6\xB9\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man supervillain: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManSupervillainMediumSkinTone,
+            "\xF0\x9F\xA6\xB9\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man supervillain: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManSupervillainMediumDarkSkinTone,
+            "\xF0\x9F\xA6\xB9\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man supervillain: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManSupervillainDarkSkinTone,
+            "\xF0\x9F\xA6\xB9\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man supervillain: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanSupervillain,
+            "\xF0\x9F\xA6\xB9\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
+            "woman supervillain"},
+        EmojiEntry{
+            EmojiEnum::WomanSupervillainLightSkinTone,
+            "\xF0\x9F\xA6\xB9\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman supervillain: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanSupervillainMediumLightSkinTone,
+            "\xF0\x9F\xA6\xB9\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman supervillain: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanSupervillainMediumSkinTone,
+            "\xF0\x9F\xA6\xB9\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman supervillain: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanSupervillainMediumDarkSkinTone,
+            "\xF0\x9F\xA6\xB9\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman supervillain: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanSupervillainDarkSkinTone,
+            "\xF0\x9F\xA6\xB9\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman supervillain: dark skin tone"},
         EmojiEntry{EmojiEnum::Mage, "\xF0\x9F\xA7\x99", "mage"},
-        EmojiEntry{EmojiEnum::MageLightSkinTone,
-                   "\xF0\x9F\xA7\x99\xF0\x9F\x8F\xBB", "mage: light skin tone"},
-        EmojiEntry{EmojiEnum::MageMediumLightSkinTone,
-                   "\xF0\x9F\xA7\x99\xF0\x9F\x8F\xBC",
-                   "mage: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::MageMediumSkinTone,
-                   "\xF0\x9F\xA7\x99\xF0\x9F\x8F\xBD",
-                   "mage: medium skin tone"},
-        EmojiEntry{EmojiEnum::MageMediumDarkSkinTone,
-                   "\xF0\x9F\xA7\x99\xF0\x9F\x8F\xBE",
-                   "mage: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::MageDarkSkinTone,
-                   "\xF0\x9F\xA7\x99\xF0\x9F\x8F\xBF", "mage: dark skin tone"},
-        EmojiEntry{EmojiEnum::ManMage,
-                   "\xF0\x9F\xA7\x99\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
-                   "man mage"},
-        EmojiEntry{EmojiEnum::ManMageLightSkinTone,
-                   "\xF0\x9F\xA7\x99\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man mage: light skin tone"},
-        EmojiEntry{EmojiEnum::ManMageMediumLightSkinTone,
-                   "\xF0\x9F\xA7\x99\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man mage: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::ManMageMediumSkinTone,
-                   "\xF0\x9F\xA7\x99\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man mage: medium skin tone"},
-        EmojiEntry{EmojiEnum::ManMageMediumDarkSkinTone,
-                   "\xF0\x9F\xA7\x99\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man mage: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::ManMageDarkSkinTone,
-                   "\xF0\x9F\xA7\x99\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man mage: dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanMage,
-                   "\xF0\x9F\xA7\x99\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
-                   "woman mage"},
-        EmojiEntry{EmojiEnum::WomanMageLightSkinTone,
-                   "\xF0\x9F\xA7\x99\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman mage: light skin tone"},
-        EmojiEntry{EmojiEnum::WomanMageMediumLightSkinTone,
-                   "\xF0\x9F\xA7\x99\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman mage: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::WomanMageMediumSkinTone,
-                   "\xF0\x9F\xA7\x99\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman mage: medium skin tone"},
-        EmojiEntry{EmojiEnum::WomanMageMediumDarkSkinTone,
-                   "\xF0\x9F\xA7\x99\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman mage: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanMageDarkSkinTone,
-                   "\xF0\x9F\xA7\x99\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman mage: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::MageLightSkinTone,
+            "\xF0\x9F\xA7\x99\xF0\x9F\x8F\xBB",
+            "mage: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::MageMediumLightSkinTone,
+            "\xF0\x9F\xA7\x99\xF0\x9F\x8F\xBC",
+            "mage: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::MageMediumSkinTone,
+            "\xF0\x9F\xA7\x99\xF0\x9F\x8F\xBD",
+            "mage: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::MageMediumDarkSkinTone,
+            "\xF0\x9F\xA7\x99\xF0\x9F\x8F\xBE",
+            "mage: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::MageDarkSkinTone,
+            "\xF0\x9F\xA7\x99\xF0\x9F\x8F\xBF",
+            "mage: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManMage,
+            "\xF0\x9F\xA7\x99\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
+            "man mage"},
+        EmojiEntry{
+            EmojiEnum::ManMageLightSkinTone,
+            "\xF0\x9F\xA7\x99\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man mage: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManMageMediumLightSkinTone,
+            "\xF0\x9F\xA7\x99\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man mage: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManMageMediumSkinTone,
+            "\xF0\x9F\xA7\x99\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man mage: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManMageMediumDarkSkinTone,
+            "\xF0\x9F\xA7\x99\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man mage: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManMageDarkSkinTone,
+            "\xF0\x9F\xA7\x99\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man mage: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanMage,
+            "\xF0\x9F\xA7\x99\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
+            "woman mage"},
+        EmojiEntry{
+            EmojiEnum::WomanMageLightSkinTone,
+            "\xF0\x9F\xA7\x99\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman mage: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanMageMediumLightSkinTone,
+            "\xF0\x9F\xA7\x99\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman mage: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanMageMediumSkinTone,
+            "\xF0\x9F\xA7\x99\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman mage: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanMageMediumDarkSkinTone,
+            "\xF0\x9F\xA7\x99\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman mage: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanMageDarkSkinTone,
+            "\xF0\x9F\xA7\x99\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman mage: dark skin tone"},
         EmojiEntry{EmojiEnum::Fairy, "\xF0\x9F\xA7\x9A", "fairy"},
-        EmojiEntry{EmojiEnum::FairyLightSkinTone,
-                   "\xF0\x9F\xA7\x9A\xF0\x9F\x8F\xBB",
-                   "fairy: light skin tone"},
-        EmojiEntry{EmojiEnum::FairyMediumLightSkinTone,
-                   "\xF0\x9F\xA7\x9A\xF0\x9F\x8F\xBC",
-                   "fairy: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::FairyMediumSkinTone,
-                   "\xF0\x9F\xA7\x9A\xF0\x9F\x8F\xBD",
-                   "fairy: medium skin tone"},
-        EmojiEntry{EmojiEnum::FairyMediumDarkSkinTone,
-                   "\xF0\x9F\xA7\x9A\xF0\x9F\x8F\xBE",
-                   "fairy: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::FairyDarkSkinTone,
-                   "\xF0\x9F\xA7\x9A\xF0\x9F\x8F\xBF", "fairy: dark skin tone"},
-        EmojiEntry{EmojiEnum::ManFairy,
-                   "\xF0\x9F\xA7\x9A\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
-                   "man fairy"},
-        EmojiEntry{EmojiEnum::ManFairyLightSkinTone,
-                   "\xF0\x9F\xA7\x9A\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man fairy: light skin tone"},
-        EmojiEntry{EmojiEnum::ManFairyMediumLightSkinTone,
-                   "\xF0\x9F\xA7\x9A\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man fairy: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::ManFairyMediumSkinTone,
-                   "\xF0\x9F\xA7\x9A\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man fairy: medium skin tone"},
-        EmojiEntry{EmojiEnum::ManFairyMediumDarkSkinTone,
-                   "\xF0\x9F\xA7\x9A\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man fairy: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::ManFairyDarkSkinTone,
-                   "\xF0\x9F\xA7\x9A\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man fairy: dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanFairy,
-                   "\xF0\x9F\xA7\x9A\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
-                   "woman fairy"},
-        EmojiEntry{EmojiEnum::WomanFairyLightSkinTone,
-                   "\xF0\x9F\xA7\x9A\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman fairy: light skin tone"},
-        EmojiEntry{EmojiEnum::WomanFairyMediumLightSkinTone,
-                   "\xF0\x9F\xA7\x9A\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman fairy: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::WomanFairyMediumSkinTone,
-                   "\xF0\x9F\xA7\x9A\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman fairy: medium skin tone"},
-        EmojiEntry{EmojiEnum::WomanFairyMediumDarkSkinTone,
-                   "\xF0\x9F\xA7\x9A\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman fairy: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanFairyDarkSkinTone,
-                   "\xF0\x9F\xA7\x9A\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman fairy: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::FairyLightSkinTone,
+            "\xF0\x9F\xA7\x9A\xF0\x9F\x8F\xBB",
+            "fairy: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::FairyMediumLightSkinTone,
+            "\xF0\x9F\xA7\x9A\xF0\x9F\x8F\xBC",
+            "fairy: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::FairyMediumSkinTone,
+            "\xF0\x9F\xA7\x9A\xF0\x9F\x8F\xBD",
+            "fairy: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::FairyMediumDarkSkinTone,
+            "\xF0\x9F\xA7\x9A\xF0\x9F\x8F\xBE",
+            "fairy: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::FairyDarkSkinTone,
+            "\xF0\x9F\xA7\x9A\xF0\x9F\x8F\xBF",
+            "fairy: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManFairy,
+            "\xF0\x9F\xA7\x9A\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
+            "man fairy"},
+        EmojiEntry{
+            EmojiEnum::ManFairyLightSkinTone,
+            "\xF0\x9F\xA7\x9A\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man fairy: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManFairyMediumLightSkinTone,
+            "\xF0\x9F\xA7\x9A\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man fairy: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManFairyMediumSkinTone,
+            "\xF0\x9F\xA7\x9A\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man fairy: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManFairyMediumDarkSkinTone,
+            "\xF0\x9F\xA7\x9A\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man fairy: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManFairyDarkSkinTone,
+            "\xF0\x9F\xA7\x9A\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man fairy: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanFairy,
+            "\xF0\x9F\xA7\x9A\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
+            "woman fairy"},
+        EmojiEntry{
+            EmojiEnum::WomanFairyLightSkinTone,
+            "\xF0\x9F\xA7\x9A\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman fairy: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanFairyMediumLightSkinTone,
+            "\xF0\x9F\xA7\x9A\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman fairy: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanFairyMediumSkinTone,
+            "\xF0\x9F\xA7\x9A\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman fairy: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanFairyMediumDarkSkinTone,
+            "\xF0\x9F\xA7\x9A\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman fairy: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanFairyDarkSkinTone,
+            "\xF0\x9F\xA7\x9A\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman fairy: dark skin tone"},
         EmojiEntry{EmojiEnum::Vampire, "\xF0\x9F\xA7\x9B", "vampire"},
-        EmojiEntry{EmojiEnum::VampireLightSkinTone,
-                   "\xF0\x9F\xA7\x9B\xF0\x9F\x8F\xBB",
-                   "vampire: light skin tone"},
-        EmojiEntry{EmojiEnum::VampireMediumLightSkinTone,
-                   "\xF0\x9F\xA7\x9B\xF0\x9F\x8F\xBC",
-                   "vampire: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::VampireMediumSkinTone,
-                   "\xF0\x9F\xA7\x9B\xF0\x9F\x8F\xBD",
-                   "vampire: medium skin tone"},
-        EmojiEntry{EmojiEnum::VampireMediumDarkSkinTone,
-                   "\xF0\x9F\xA7\x9B\xF0\x9F\x8F\xBE",
-                   "vampire: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::VampireDarkSkinTone,
-                   "\xF0\x9F\xA7\x9B\xF0\x9F\x8F\xBF",
-                   "vampire: dark skin tone"},
-        EmojiEntry{EmojiEnum::ManVampire,
-                   "\xF0\x9F\xA7\x9B\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
-                   "man vampire"},
-        EmojiEntry{EmojiEnum::ManVampireLightSkinTone,
-                   "\xF0\x9F\xA7\x9B\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man vampire: light skin tone"},
-        EmojiEntry{EmojiEnum::ManVampireMediumLightSkinTone,
-                   "\xF0\x9F\xA7\x9B\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man vampire: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::ManVampireMediumSkinTone,
-                   "\xF0\x9F\xA7\x9B\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man vampire: medium skin tone"},
-        EmojiEntry{EmojiEnum::ManVampireMediumDarkSkinTone,
-                   "\xF0\x9F\xA7\x9B\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man vampire: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::ManVampireDarkSkinTone,
-                   "\xF0\x9F\xA7\x9B\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man vampire: dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanVampire,
-                   "\xF0\x9F\xA7\x9B\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
-                   "woman vampire"},
-        EmojiEntry{EmojiEnum::WomanVampireLightSkinTone,
-                   "\xF0\x9F\xA7\x9B\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman vampire: light skin tone"},
-        EmojiEntry{EmojiEnum::WomanVampireMediumLightSkinTone,
-                   "\xF0\x9F\xA7\x9B\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman vampire: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::WomanVampireMediumSkinTone,
-                   "\xF0\x9F\xA7\x9B\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman vampire: medium skin tone"},
-        EmojiEntry{EmojiEnum::WomanVampireMediumDarkSkinTone,
-                   "\xF0\x9F\xA7\x9B\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman vampire: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanVampireDarkSkinTone,
-                   "\xF0\x9F\xA7\x9B\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman vampire: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::VampireLightSkinTone,
+            "\xF0\x9F\xA7\x9B\xF0\x9F\x8F\xBB",
+            "vampire: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::VampireMediumLightSkinTone,
+            "\xF0\x9F\xA7\x9B\xF0\x9F\x8F\xBC",
+            "vampire: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::VampireMediumSkinTone,
+            "\xF0\x9F\xA7\x9B\xF0\x9F\x8F\xBD",
+            "vampire: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::VampireMediumDarkSkinTone,
+            "\xF0\x9F\xA7\x9B\xF0\x9F\x8F\xBE",
+            "vampire: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::VampireDarkSkinTone,
+            "\xF0\x9F\xA7\x9B\xF0\x9F\x8F\xBF",
+            "vampire: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManVampire,
+            "\xF0\x9F\xA7\x9B\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
+            "man vampire"},
+        EmojiEntry{
+            EmojiEnum::ManVampireLightSkinTone,
+            "\xF0\x9F\xA7\x9B\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man vampire: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManVampireMediumLightSkinTone,
+            "\xF0\x9F\xA7\x9B\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man vampire: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManVampireMediumSkinTone,
+            "\xF0\x9F\xA7\x9B\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man vampire: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManVampireMediumDarkSkinTone,
+            "\xF0\x9F\xA7\x9B\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man vampire: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManVampireDarkSkinTone,
+            "\xF0\x9F\xA7\x9B\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man vampire: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanVampire,
+            "\xF0\x9F\xA7\x9B\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
+            "woman vampire"},
+        EmojiEntry{
+            EmojiEnum::WomanVampireLightSkinTone,
+            "\xF0\x9F\xA7\x9B\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman vampire: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanVampireMediumLightSkinTone,
+            "\xF0\x9F\xA7\x9B\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman vampire: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanVampireMediumSkinTone,
+            "\xF0\x9F\xA7\x9B\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman vampire: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanVampireMediumDarkSkinTone,
+            "\xF0\x9F\xA7\x9B\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman vampire: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanVampireDarkSkinTone,
+            "\xF0\x9F\xA7\x9B\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman vampire: dark skin tone"},
         EmojiEntry{EmojiEnum::Merperson, "\xF0\x9F\xA7\x9C", "merperson"},
-        EmojiEntry{EmojiEnum::MerpersonLightSkinTone,
-                   "\xF0\x9F\xA7\x9C\xF0\x9F\x8F\xBB",
-                   "merperson: light skin tone"},
-        EmojiEntry{EmojiEnum::MerpersonMediumLightSkinTone,
-                   "\xF0\x9F\xA7\x9C\xF0\x9F\x8F\xBC",
-                   "merperson: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::MerpersonMediumSkinTone,
-                   "\xF0\x9F\xA7\x9C\xF0\x9F\x8F\xBD",
-                   "merperson: medium skin tone"},
-        EmojiEntry{EmojiEnum::MerpersonMediumDarkSkinTone,
-                   "\xF0\x9F\xA7\x9C\xF0\x9F\x8F\xBE",
-                   "merperson: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::MerpersonDarkSkinTone,
-                   "\xF0\x9F\xA7\x9C\xF0\x9F\x8F\xBF",
-                   "merperson: dark skin tone"},
-        EmojiEntry{EmojiEnum::Merman,
-                   "\xF0\x9F\xA7\x9C\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
-                   "merman"},
-        EmojiEntry{EmojiEnum::MermanLightSkinTone,
-                   "\xF0\x9F\xA7\x9C\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "merman: light skin tone"},
-        EmojiEntry{EmojiEnum::MermanMediumLightSkinTone,
-                   "\xF0\x9F\xA7\x9C\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "merman: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::MermanMediumSkinTone,
-                   "\xF0\x9F\xA7\x9C\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "merman: medium skin tone"},
-        EmojiEntry{EmojiEnum::MermanMediumDarkSkinTone,
-                   "\xF0\x9F\xA7\x9C\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "merman: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::MermanDarkSkinTone,
-                   "\xF0\x9F\xA7\x9C\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "merman: dark skin tone"},
-        EmojiEntry{EmojiEnum::Mermaid,
-                   "\xF0\x9F\xA7\x9C\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
-                   "mermaid"},
-        EmojiEntry{EmojiEnum::MermaidLightSkinTone,
-                   "\xF0\x9F\xA7\x9C\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "mermaid: light skin tone"},
-        EmojiEntry{EmojiEnum::MermaidMediumLightSkinTone,
-                   "\xF0\x9F\xA7\x9C\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "mermaid: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::MermaidMediumSkinTone,
-                   "\xF0\x9F\xA7\x9C\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "mermaid: medium skin tone"},
-        EmojiEntry{EmojiEnum::MermaidMediumDarkSkinTone,
-                   "\xF0\x9F\xA7\x9C\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "mermaid: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::MermaidDarkSkinTone,
-                   "\xF0\x9F\xA7\x9C\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "mermaid: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::MerpersonLightSkinTone,
+            "\xF0\x9F\xA7\x9C\xF0\x9F\x8F\xBB",
+            "merperson: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::MerpersonMediumLightSkinTone,
+            "\xF0\x9F\xA7\x9C\xF0\x9F\x8F\xBC",
+            "merperson: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::MerpersonMediumSkinTone,
+            "\xF0\x9F\xA7\x9C\xF0\x9F\x8F\xBD",
+            "merperson: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::MerpersonMediumDarkSkinTone,
+            "\xF0\x9F\xA7\x9C\xF0\x9F\x8F\xBE",
+            "merperson: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::MerpersonDarkSkinTone,
+            "\xF0\x9F\xA7\x9C\xF0\x9F\x8F\xBF",
+            "merperson: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::Merman,
+            "\xF0\x9F\xA7\x9C\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
+            "merman"},
+        EmojiEntry{
+            EmojiEnum::MermanLightSkinTone,
+            "\xF0\x9F\xA7\x9C\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "merman: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::MermanMediumLightSkinTone,
+            "\xF0\x9F\xA7\x9C\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "merman: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::MermanMediumSkinTone,
+            "\xF0\x9F\xA7\x9C\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "merman: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::MermanMediumDarkSkinTone,
+            "\xF0\x9F\xA7\x9C\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "merman: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::MermanDarkSkinTone,
+            "\xF0\x9F\xA7\x9C\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "merman: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::Mermaid,
+            "\xF0\x9F\xA7\x9C\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
+            "mermaid"},
+        EmojiEntry{
+            EmojiEnum::MermaidLightSkinTone,
+            "\xF0\x9F\xA7\x9C\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "mermaid: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::MermaidMediumLightSkinTone,
+            "\xF0\x9F\xA7\x9C\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "mermaid: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::MermaidMediumSkinTone,
+            "\xF0\x9F\xA7\x9C\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "mermaid: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::MermaidMediumDarkSkinTone,
+            "\xF0\x9F\xA7\x9C\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "mermaid: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::MermaidDarkSkinTone,
+            "\xF0\x9F\xA7\x9C\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "mermaid: dark skin tone"},
         EmojiEntry{EmojiEnum::Elf, "\xF0\x9F\xA7\x9D", "elf"},
-        EmojiEntry{EmojiEnum::ElfLightSkinTone,
-                   "\xF0\x9F\xA7\x9D\xF0\x9F\x8F\xBB", "elf: light skin tone"},
-        EmojiEntry{EmojiEnum::ElfMediumLightSkinTone,
-                   "\xF0\x9F\xA7\x9D\xF0\x9F\x8F\xBC",
-                   "elf: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::ElfMediumSkinTone,
-                   "\xF0\x9F\xA7\x9D\xF0\x9F\x8F\xBD", "elf: medium skin tone"},
-        EmojiEntry{EmojiEnum::ElfMediumDarkSkinTone,
-                   "\xF0\x9F\xA7\x9D\xF0\x9F\x8F\xBE",
-                   "elf: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::ElfDarkSkinTone,
-                   "\xF0\x9F\xA7\x9D\xF0\x9F\x8F\xBF", "elf: dark skin tone"},
-        EmojiEntry{EmojiEnum::ManElf,
-                   "\xF0\x9F\xA7\x9D\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
-                   "man elf"},
-        EmojiEntry{EmojiEnum::ManElfLightSkinTone,
-                   "\xF0\x9F\xA7\x9D\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man elf: light skin tone"},
-        EmojiEntry{EmojiEnum::ManElfMediumLightSkinTone,
-                   "\xF0\x9F\xA7\x9D\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man elf: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::ManElfMediumSkinTone,
-                   "\xF0\x9F\xA7\x9D\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man elf: medium skin tone"},
-        EmojiEntry{EmojiEnum::ManElfMediumDarkSkinTone,
-                   "\xF0\x9F\xA7\x9D\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man elf: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::ManElfDarkSkinTone,
-                   "\xF0\x9F\xA7\x9D\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man elf: dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanElf,
-                   "\xF0\x9F\xA7\x9D\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
-                   "woman elf"},
-        EmojiEntry{EmojiEnum::WomanElfLightSkinTone,
-                   "\xF0\x9F\xA7\x9D\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman elf: light skin tone"},
-        EmojiEntry{EmojiEnum::WomanElfMediumLightSkinTone,
-                   "\xF0\x9F\xA7\x9D\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman elf: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::WomanElfMediumSkinTone,
-                   "\xF0\x9F\xA7\x9D\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman elf: medium skin tone"},
-        EmojiEntry{EmojiEnum::WomanElfMediumDarkSkinTone,
-                   "\xF0\x9F\xA7\x9D\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman elf: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanElfDarkSkinTone,
-                   "\xF0\x9F\xA7\x9D\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman elf: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ElfLightSkinTone,
+            "\xF0\x9F\xA7\x9D\xF0\x9F\x8F\xBB",
+            "elf: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ElfMediumLightSkinTone,
+            "\xF0\x9F\xA7\x9D\xF0\x9F\x8F\xBC",
+            "elf: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ElfMediumSkinTone,
+            "\xF0\x9F\xA7\x9D\xF0\x9F\x8F\xBD",
+            "elf: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::ElfMediumDarkSkinTone,
+            "\xF0\x9F\xA7\x9D\xF0\x9F\x8F\xBE",
+            "elf: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ElfDarkSkinTone,
+            "\xF0\x9F\xA7\x9D\xF0\x9F\x8F\xBF",
+            "elf: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManElf,
+            "\xF0\x9F\xA7\x9D\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
+            "man elf"},
+        EmojiEntry{
+            EmojiEnum::ManElfLightSkinTone,
+            "\xF0\x9F\xA7\x9D\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man elf: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManElfMediumLightSkinTone,
+            "\xF0\x9F\xA7\x9D\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man elf: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManElfMediumSkinTone,
+            "\xF0\x9F\xA7\x9D\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man elf: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManElfMediumDarkSkinTone,
+            "\xF0\x9F\xA7\x9D\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man elf: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManElfDarkSkinTone,
+            "\xF0\x9F\xA7\x9D\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man elf: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanElf,
+            "\xF0\x9F\xA7\x9D\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
+            "woman elf"},
+        EmojiEntry{
+            EmojiEnum::WomanElfLightSkinTone,
+            "\xF0\x9F\xA7\x9D\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman elf: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanElfMediumLightSkinTone,
+            "\xF0\x9F\xA7\x9D\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman elf: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanElfMediumSkinTone,
+            "\xF0\x9F\xA7\x9D\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman elf: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanElfMediumDarkSkinTone,
+            "\xF0\x9F\xA7\x9D\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman elf: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanElfDarkSkinTone,
+            "\xF0\x9F\xA7\x9D\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman elf: dark skin tone"},
         EmojiEntry{EmojiEnum::Genie, "\xF0\x9F\xA7\x9E", "genie"},
-        EmojiEntry{EmojiEnum::ManGenie,
-                   "\xF0\x9F\xA7\x9E\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
-                   "man genie"},
-        EmojiEntry{EmojiEnum::WomanGenie,
-                   "\xF0\x9F\xA7\x9E\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
-                   "woman genie"},
+        EmojiEntry{
+            EmojiEnum::ManGenie,
+            "\xF0\x9F\xA7\x9E\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
+            "man genie"},
+        EmojiEntry{
+            EmojiEnum::WomanGenie,
+            "\xF0\x9F\xA7\x9E\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
+            "woman genie"},
         EmojiEntry{EmojiEnum::Zombie, "\xF0\x9F\xA7\x9F", "zombie"},
-        EmojiEntry{EmojiEnum::ManZombie,
-                   "\xF0\x9F\xA7\x9F\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
-                   "man zombie"},
-        EmojiEntry{EmojiEnum::WomanZombie,
-                   "\xF0\x9F\xA7\x9F\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
-                   "woman zombie"},
+        EmojiEntry{
+            EmojiEnum::ManZombie,
+            "\xF0\x9F\xA7\x9F\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
+            "man zombie"},
+        EmojiEntry{
+            EmojiEnum::WomanZombie,
+            "\xF0\x9F\xA7\x9F\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
+            "woman zombie"},
         EmojiEntry{EmojiEnum::Troll, "\xF0\x9F\xA7\x8C", "troll"},
-        EmojiEntry{EmojiEnum::PersonGettingMassage, "\xF0\x9F\x92\x86",
-                   "person getting massage"},
-        EmojiEntry{EmojiEnum::PersonGettingMassageLightSkinTone,
-                   "\xF0\x9F\x92\x86\xF0\x9F\x8F\xBB",
-                   "person getting massage: light skin tone"},
-        EmojiEntry{EmojiEnum::PersonGettingMassageMediumLightSkinTone,
-                   "\xF0\x9F\x92\x86\xF0\x9F\x8F\xBC",
-                   "person getting massage: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::PersonGettingMassageMediumSkinTone,
-                   "\xF0\x9F\x92\x86\xF0\x9F\x8F\xBD",
-                   "person getting massage: medium skin tone"},
-        EmojiEntry{EmojiEnum::PersonGettingMassageMediumDarkSkinTone,
-                   "\xF0\x9F\x92\x86\xF0\x9F\x8F\xBE",
-                   "person getting massage: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonGettingMassageDarkSkinTone,
-                   "\xF0\x9F\x92\x86\xF0\x9F\x8F\xBF",
-                   "person getting massage: dark skin tone"},
-        EmojiEntry{EmojiEnum::ManGettingMassage,
-                   "\xF0\x9F\x92\x86\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
-                   "man getting massage"},
-        EmojiEntry{EmojiEnum::ManGettingMassageLightSkinTone,
-                   "\xF0\x9F\x92\x86\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man getting massage: light skin tone"},
-        EmojiEntry{EmojiEnum::ManGettingMassageMediumLightSkinTone,
-                   "\xF0\x9F\x92\x86\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man getting massage: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::ManGettingMassageMediumSkinTone,
-                   "\xF0\x9F\x92\x86\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man getting massage: medium skin tone"},
-        EmojiEntry{EmojiEnum::ManGettingMassageMediumDarkSkinTone,
-                   "\xF0\x9F\x92\x86\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man getting massage: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::ManGettingMassageDarkSkinTone,
-                   "\xF0\x9F\x92\x86\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man getting massage: dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanGettingMassage,
-                   "\xF0\x9F\x92\x86\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
-                   "woman getting massage"},
-        EmojiEntry{EmojiEnum::WomanGettingMassageLightSkinTone,
-                   "\xF0\x9F\x92\x86\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman getting massage: light skin tone"},
-        EmojiEntry{EmojiEnum::WomanGettingMassageMediumLightSkinTone,
-                   "\xF0\x9F\x92\x86\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman getting massage: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::WomanGettingMassageMediumSkinTone,
-                   "\xF0\x9F\x92\x86\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman getting massage: medium skin tone"},
-        EmojiEntry{EmojiEnum::WomanGettingMassageMediumDarkSkinTone,
-                   "\xF0\x9F\x92\x86\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman getting massage: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanGettingMassageDarkSkinTone,
-                   "\xF0\x9F\x92\x86\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman getting massage: dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonGettingHaircut, "\xF0\x9F\x92\x87",
-                   "person getting haircut"},
-        EmojiEntry{EmojiEnum::PersonGettingHaircutLightSkinTone,
-                   "\xF0\x9F\x92\x87\xF0\x9F\x8F\xBB",
-                   "person getting haircut: light skin tone"},
-        EmojiEntry{EmojiEnum::PersonGettingHaircutMediumLightSkinTone,
-                   "\xF0\x9F\x92\x87\xF0\x9F\x8F\xBC",
-                   "person getting haircut: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::PersonGettingHaircutMediumSkinTone,
-                   "\xF0\x9F\x92\x87\xF0\x9F\x8F\xBD",
-                   "person getting haircut: medium skin tone"},
-        EmojiEntry{EmojiEnum::PersonGettingHaircutMediumDarkSkinTone,
-                   "\xF0\x9F\x92\x87\xF0\x9F\x8F\xBE",
-                   "person getting haircut: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonGettingHaircutDarkSkinTone,
-                   "\xF0\x9F\x92\x87\xF0\x9F\x8F\xBF",
-                   "person getting haircut: dark skin tone"},
-        EmojiEntry{EmojiEnum::ManGettingHaircut,
-                   "\xF0\x9F\x92\x87\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
-                   "man getting haircut"},
-        EmojiEntry{EmojiEnum::ManGettingHaircutLightSkinTone,
-                   "\xF0\x9F\x92\x87\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man getting haircut: light skin tone"},
-        EmojiEntry{EmojiEnum::ManGettingHaircutMediumLightSkinTone,
-                   "\xF0\x9F\x92\x87\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man getting haircut: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::ManGettingHaircutMediumSkinTone,
-                   "\xF0\x9F\x92\x87\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man getting haircut: medium skin tone"},
-        EmojiEntry{EmojiEnum::ManGettingHaircutMediumDarkSkinTone,
-                   "\xF0\x9F\x92\x87\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man getting haircut: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::ManGettingHaircutDarkSkinTone,
-                   "\xF0\x9F\x92\x87\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man getting haircut: dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanGettingHaircut,
-                   "\xF0\x9F\x92\x87\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
-                   "woman getting haircut"},
-        EmojiEntry{EmojiEnum::WomanGettingHaircutLightSkinTone,
-                   "\xF0\x9F\x92\x87\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman getting haircut: light skin tone"},
-        EmojiEntry{EmojiEnum::WomanGettingHaircutMediumLightSkinTone,
-                   "\xF0\x9F\x92\x87\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman getting haircut: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::WomanGettingHaircutMediumSkinTone,
-                   "\xF0\x9F\x92\x87\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman getting haircut: medium skin tone"},
-        EmojiEntry{EmojiEnum::WomanGettingHaircutMediumDarkSkinTone,
-                   "\xF0\x9F\x92\x87\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman getting haircut: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanGettingHaircutDarkSkinTone,
-                   "\xF0\x9F\x92\x87\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman getting haircut: dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonWalking, "\xF0\x9F\x9A\xB6",
-                   "person walking"},
-        EmojiEntry{EmojiEnum::PersonWalkingLightSkinTone,
-                   "\xF0\x9F\x9A\xB6\xF0\x9F\x8F\xBB",
-                   "person walking: light skin tone"},
-        EmojiEntry{EmojiEnum::PersonWalkingMediumLightSkinTone,
-                   "\xF0\x9F\x9A\xB6\xF0\x9F\x8F\xBC",
-                   "person walking: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::PersonWalkingMediumSkinTone,
-                   "\xF0\x9F\x9A\xB6\xF0\x9F\x8F\xBD",
-                   "person walking: medium skin tone"},
-        EmojiEntry{EmojiEnum::PersonWalkingMediumDarkSkinTone,
-                   "\xF0\x9F\x9A\xB6\xF0\x9F\x8F\xBE",
-                   "person walking: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonWalkingDarkSkinTone,
-                   "\xF0\x9F\x9A\xB6\xF0\x9F\x8F\xBF",
-                   "person walking: dark skin tone"},
-        EmojiEntry{EmojiEnum::ManWalking,
-                   "\xF0\x9F\x9A\xB6\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
-                   "man walking"},
-        EmojiEntry{EmojiEnum::ManWalkingLightSkinTone,
-                   "\xF0\x9F\x9A\xB6\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man walking: light skin tone"},
-        EmojiEntry{EmojiEnum::ManWalkingMediumLightSkinTone,
-                   "\xF0\x9F\x9A\xB6\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man walking: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::ManWalkingMediumSkinTone,
-                   "\xF0\x9F\x9A\xB6\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man walking: medium skin tone"},
-        EmojiEntry{EmojiEnum::ManWalkingMediumDarkSkinTone,
-                   "\xF0\x9F\x9A\xB6\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man walking: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::ManWalkingDarkSkinTone,
-                   "\xF0\x9F\x9A\xB6\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man walking: dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanWalking,
-                   "\xF0\x9F\x9A\xB6\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
-                   "woman walking"},
-        EmojiEntry{EmojiEnum::WomanWalkingLightSkinTone,
-                   "\xF0\x9F\x9A\xB6\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman walking: light skin tone"},
-        EmojiEntry{EmojiEnum::WomanWalkingMediumLightSkinTone,
-                   "\xF0\x9F\x9A\xB6\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman walking: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::WomanWalkingMediumSkinTone,
-                   "\xF0\x9F\x9A\xB6\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman walking: medium skin tone"},
-        EmojiEntry{EmojiEnum::WomanWalkingMediumDarkSkinTone,
-                   "\xF0\x9F\x9A\xB6\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman walking: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanWalkingDarkSkinTone,
-                   "\xF0\x9F\x9A\xB6\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman walking: dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonWalkingFacingRight,
-                   "\xF0\x9F\x9A\xB6\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
-                   "person walking facing right"},
-        EmojiEntry{EmojiEnum::PersonWalkingFacingRightLightSkinTone,
-                   "\xF0\x9F\x9A\xB6\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x9E\xA1"
-                   "\xEF\xB8\x8F",
-                   "person walking facing right: light skin tone"},
-        EmojiEntry{EmojiEnum::PersonWalkingFacingRightMediumLightSkinTone,
-                   "\xF0\x9F\x9A\xB6\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x9E\xA1"
-                   "\xEF\xB8\x8F",
-                   "person walking facing right: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::PersonWalkingFacingRightMediumSkinTone,
-                   "\xF0\x9F\x9A\xB6\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x9E\xA1"
-                   "\xEF\xB8\x8F",
-                   "person walking facing right: medium skin tone"},
-        EmojiEntry{EmojiEnum::PersonWalkingFacingRightMediumDarkSkinTone,
-                   "\xF0\x9F\x9A\xB6\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x9E\xA1"
-                   "\xEF\xB8\x8F",
-                   "person walking facing right: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonWalkingFacingRightDarkSkinTone,
-                   "\xF0\x9F\x9A\xB6\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x9E\xA1"
-                   "\xEF\xB8\x8F",
-                   "person walking facing right: dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanWalkingFacingRight,
-                   "\xF0\x9F\x9A\xB6\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F\xE2"
-                   "\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
-                   "woman walking facing right"},
-        EmojiEntry{EmojiEnum::WomanWalkingFacingRightLightSkinTone,
-                   "\xF0\x9F\x9A\xB6\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
-                   "woman walking facing right: light skin tone"},
-        EmojiEntry{EmojiEnum::WomanWalkingFacingRightMediumLightSkinTone,
-                   "\xF0\x9F\x9A\xB6\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
-                   "woman walking facing right: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::WomanWalkingFacingRightMediumSkinTone,
-                   "\xF0\x9F\x9A\xB6\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
-                   "woman walking facing right: medium skin tone"},
-        EmojiEntry{EmojiEnum::WomanWalkingFacingRightMediumDarkSkinTone,
-                   "\xF0\x9F\x9A\xB6\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
-                   "woman walking facing right: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanWalkingFacingRightDarkSkinTone,
-                   "\xF0\x9F\x9A\xB6\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
-                   "woman walking facing right: dark skin tone"},
-        EmojiEntry{EmojiEnum::ManWalkingFacingRight,
-                   "\xF0\x9F\x9A\xB6\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F\xE2"
-                   "\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
-                   "man walking facing right"},
-        EmojiEntry{EmojiEnum::ManWalkingFacingRightLightSkinTone,
-                   "\xF0\x9F\x9A\xB6\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
-                   "man walking facing right: light skin tone"},
-        EmojiEntry{EmojiEnum::ManWalkingFacingRightMediumLightSkinTone,
-                   "\xF0\x9F\x9A\xB6\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
-                   "man walking facing right: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::ManWalkingFacingRightMediumSkinTone,
-                   "\xF0\x9F\x9A\xB6\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
-                   "man walking facing right: medium skin tone"},
-        EmojiEntry{EmojiEnum::ManWalkingFacingRightMediumDarkSkinTone,
-                   "\xF0\x9F\x9A\xB6\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
-                   "man walking facing right: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::ManWalkingFacingRightDarkSkinTone,
-                   "\xF0\x9F\x9A\xB6\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
-                   "man walking facing right: dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonStanding, "\xF0\x9F\xA7\x8D",
-                   "person standing"},
-        EmojiEntry{EmojiEnum::PersonStandingLightSkinTone,
-                   "\xF0\x9F\xA7\x8D\xF0\x9F\x8F\xBB",
-                   "person standing: light skin tone"},
-        EmojiEntry{EmojiEnum::PersonStandingMediumLightSkinTone,
-                   "\xF0\x9F\xA7\x8D\xF0\x9F\x8F\xBC",
-                   "person standing: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::PersonStandingMediumSkinTone,
-                   "\xF0\x9F\xA7\x8D\xF0\x9F\x8F\xBD",
-                   "person standing: medium skin tone"},
-        EmojiEntry{EmojiEnum::PersonStandingMediumDarkSkinTone,
-                   "\xF0\x9F\xA7\x8D\xF0\x9F\x8F\xBE",
-                   "person standing: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonStandingDarkSkinTone,
-                   "\xF0\x9F\xA7\x8D\xF0\x9F\x8F\xBF",
-                   "person standing: dark skin tone"},
-        EmojiEntry{EmojiEnum::ManStanding,
-                   "\xF0\x9F\xA7\x8D\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
-                   "man standing"},
-        EmojiEntry{EmojiEnum::ManStandingLightSkinTone,
-                   "\xF0\x9F\xA7\x8D\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man standing: light skin tone"},
-        EmojiEntry{EmojiEnum::ManStandingMediumLightSkinTone,
-                   "\xF0\x9F\xA7\x8D\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man standing: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::ManStandingMediumSkinTone,
-                   "\xF0\x9F\xA7\x8D\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man standing: medium skin tone"},
-        EmojiEntry{EmojiEnum::ManStandingMediumDarkSkinTone,
-                   "\xF0\x9F\xA7\x8D\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man standing: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::ManStandingDarkSkinTone,
-                   "\xF0\x9F\xA7\x8D\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man standing: dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanStanding,
-                   "\xF0\x9F\xA7\x8D\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
-                   "woman standing"},
-        EmojiEntry{EmojiEnum::WomanStandingLightSkinTone,
-                   "\xF0\x9F\xA7\x8D\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman standing: light skin tone"},
-        EmojiEntry{EmojiEnum::WomanStandingMediumLightSkinTone,
-                   "\xF0\x9F\xA7\x8D\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman standing: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::WomanStandingMediumSkinTone,
-                   "\xF0\x9F\xA7\x8D\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman standing: medium skin tone"},
-        EmojiEntry{EmojiEnum::WomanStandingMediumDarkSkinTone,
-                   "\xF0\x9F\xA7\x8D\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman standing: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanStandingDarkSkinTone,
-                   "\xF0\x9F\xA7\x8D\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman standing: dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonKneeling, "\xF0\x9F\xA7\x8E",
-                   "person kneeling"},
-        EmojiEntry{EmojiEnum::PersonKneelingLightSkinTone,
-                   "\xF0\x9F\xA7\x8E\xF0\x9F\x8F\xBB",
-                   "person kneeling: light skin tone"},
-        EmojiEntry{EmojiEnum::PersonKneelingMediumLightSkinTone,
-                   "\xF0\x9F\xA7\x8E\xF0\x9F\x8F\xBC",
-                   "person kneeling: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::PersonKneelingMediumSkinTone,
-                   "\xF0\x9F\xA7\x8E\xF0\x9F\x8F\xBD",
-                   "person kneeling: medium skin tone"},
-        EmojiEntry{EmojiEnum::PersonKneelingMediumDarkSkinTone,
-                   "\xF0\x9F\xA7\x8E\xF0\x9F\x8F\xBE",
-                   "person kneeling: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonKneelingDarkSkinTone,
-                   "\xF0\x9F\xA7\x8E\xF0\x9F\x8F\xBF",
-                   "person kneeling: dark skin tone"},
-        EmojiEntry{EmojiEnum::ManKneeling,
-                   "\xF0\x9F\xA7\x8E\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
-                   "man kneeling"},
-        EmojiEntry{EmojiEnum::ManKneelingLightSkinTone,
-                   "\xF0\x9F\xA7\x8E\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man kneeling: light skin tone"},
-        EmojiEntry{EmojiEnum::ManKneelingMediumLightSkinTone,
-                   "\xF0\x9F\xA7\x8E\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man kneeling: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::ManKneelingMediumSkinTone,
-                   "\xF0\x9F\xA7\x8E\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man kneeling: medium skin tone"},
-        EmojiEntry{EmojiEnum::ManKneelingMediumDarkSkinTone,
-                   "\xF0\x9F\xA7\x8E\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man kneeling: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::ManKneelingDarkSkinTone,
-                   "\xF0\x9F\xA7\x8E\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man kneeling: dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanKneeling,
-                   "\xF0\x9F\xA7\x8E\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
-                   "woman kneeling"},
-        EmojiEntry{EmojiEnum::WomanKneelingLightSkinTone,
-                   "\xF0\x9F\xA7\x8E\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman kneeling: light skin tone"},
-        EmojiEntry{EmojiEnum::WomanKneelingMediumLightSkinTone,
-                   "\xF0\x9F\xA7\x8E\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman kneeling: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::WomanKneelingMediumSkinTone,
-                   "\xF0\x9F\xA7\x8E\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman kneeling: medium skin tone"},
-        EmojiEntry{EmojiEnum::WomanKneelingMediumDarkSkinTone,
-                   "\xF0\x9F\xA7\x8E\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman kneeling: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanKneelingDarkSkinTone,
-                   "\xF0\x9F\xA7\x8E\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman kneeling: dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonKneelingFacingRight,
-                   "\xF0\x9F\xA7\x8E\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
-                   "person kneeling facing right"},
-        EmojiEntry{EmojiEnum::PersonKneelingFacingRightLightSkinTone,
-                   "\xF0\x9F\xA7\x8E\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x9E\xA1"
-                   "\xEF\xB8\x8F",
-                   "person kneeling facing right: light skin tone"},
-        EmojiEntry{EmojiEnum::PersonKneelingFacingRightMediumLightSkinTone,
-                   "\xF0\x9F\xA7\x8E\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x9E\xA1"
-                   "\xEF\xB8\x8F",
-                   "person kneeling facing right: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::PersonKneelingFacingRightMediumSkinTone,
-                   "\xF0\x9F\xA7\x8E\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x9E\xA1"
-                   "\xEF\xB8\x8F",
-                   "person kneeling facing right: medium skin tone"},
-        EmojiEntry{EmojiEnum::PersonKneelingFacingRightMediumDarkSkinTone,
-                   "\xF0\x9F\xA7\x8E\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x9E\xA1"
-                   "\xEF\xB8\x8F",
-                   "person kneeling facing right: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonKneelingFacingRightDarkSkinTone,
-                   "\xF0\x9F\xA7\x8E\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x9E\xA1"
-                   "\xEF\xB8\x8F",
-                   "person kneeling facing right: dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanKneelingFacingRight,
-                   "\xF0\x9F\xA7\x8E\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F\xE2"
-                   "\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
-                   "woman kneeling facing right"},
-        EmojiEntry{EmojiEnum::WomanKneelingFacingRightLightSkinTone,
-                   "\xF0\x9F\xA7\x8E\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
-                   "woman kneeling facing right: light skin tone"},
-        EmojiEntry{EmojiEnum::WomanKneelingFacingRightMediumLightSkinTone,
-                   "\xF0\x9F\xA7\x8E\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
-                   "woman kneeling facing right: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::WomanKneelingFacingRightMediumSkinTone,
-                   "\xF0\x9F\xA7\x8E\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
-                   "woman kneeling facing right: medium skin tone"},
-        EmojiEntry{EmojiEnum::WomanKneelingFacingRightMediumDarkSkinTone,
-                   "\xF0\x9F\xA7\x8E\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
-                   "woman kneeling facing right: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanKneelingFacingRightDarkSkinTone,
-                   "\xF0\x9F\xA7\x8E\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
-                   "woman kneeling facing right: dark skin tone"},
-        EmojiEntry{EmojiEnum::ManKneelingFacingRight,
-                   "\xF0\x9F\xA7\x8E\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F\xE2"
-                   "\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
-                   "man kneeling facing right"},
-        EmojiEntry{EmojiEnum::ManKneelingFacingRightLightSkinTone,
-                   "\xF0\x9F\xA7\x8E\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
-                   "man kneeling facing right: light skin tone"},
-        EmojiEntry{EmojiEnum::ManKneelingFacingRightMediumLightSkinTone,
-                   "\xF0\x9F\xA7\x8E\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
-                   "man kneeling facing right: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::ManKneelingFacingRightMediumSkinTone,
-                   "\xF0\x9F\xA7\x8E\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
-                   "man kneeling facing right: medium skin tone"},
-        EmojiEntry{EmojiEnum::ManKneelingFacingRightMediumDarkSkinTone,
-                   "\xF0\x9F\xA7\x8E\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
-                   "man kneeling facing right: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::ManKneelingFacingRightDarkSkinTone,
-                   "\xF0\x9F\xA7\x8E\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
-                   "man kneeling facing right: dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonWithWhiteCane,
-                   "\xF0\x9F\xA7\x91\xE2\x80\x8D\xF0\x9F\xA6\xAF",
-                   "person with white cane"},
+        EmojiEntry{
+            EmojiEnum::PersonGettingMassage,
+            "\xF0\x9F\x92\x86",
+            "person getting massage"},
+        EmojiEntry{
+            EmojiEnum::PersonGettingMassageLightSkinTone,
+            "\xF0\x9F\x92\x86\xF0\x9F\x8F\xBB",
+            "person getting massage: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonGettingMassageMediumLightSkinTone,
+            "\xF0\x9F\x92\x86\xF0\x9F\x8F\xBC",
+            "person getting massage: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonGettingMassageMediumSkinTone,
+            "\xF0\x9F\x92\x86\xF0\x9F\x8F\xBD",
+            "person getting massage: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonGettingMassageMediumDarkSkinTone,
+            "\xF0\x9F\x92\x86\xF0\x9F\x8F\xBE",
+            "person getting massage: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonGettingMassageDarkSkinTone,
+            "\xF0\x9F\x92\x86\xF0\x9F\x8F\xBF",
+            "person getting massage: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManGettingMassage,
+            "\xF0\x9F\x92\x86\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
+            "man getting massage"},
+        EmojiEntry{
+            EmojiEnum::ManGettingMassageLightSkinTone,
+            "\xF0\x9F\x92\x86\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man getting massage: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManGettingMassageMediumLightSkinTone,
+            "\xF0\x9F\x92\x86\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man getting massage: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManGettingMassageMediumSkinTone,
+            "\xF0\x9F\x92\x86\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man getting massage: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManGettingMassageMediumDarkSkinTone,
+            "\xF0\x9F\x92\x86\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man getting massage: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManGettingMassageDarkSkinTone,
+            "\xF0\x9F\x92\x86\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man getting massage: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanGettingMassage,
+            "\xF0\x9F\x92\x86\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
+            "woman getting massage"},
+        EmojiEntry{
+            EmojiEnum::WomanGettingMassageLightSkinTone,
+            "\xF0\x9F\x92\x86\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman getting massage: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanGettingMassageMediumLightSkinTone,
+            "\xF0\x9F\x92\x86\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman getting massage: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanGettingMassageMediumSkinTone,
+            "\xF0\x9F\x92\x86\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman getting massage: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanGettingMassageMediumDarkSkinTone,
+            "\xF0\x9F\x92\x86\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman getting massage: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanGettingMassageDarkSkinTone,
+            "\xF0\x9F\x92\x86\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman getting massage: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonGettingHaircut,
+            "\xF0\x9F\x92\x87",
+            "person getting haircut"},
+        EmojiEntry{
+            EmojiEnum::PersonGettingHaircutLightSkinTone,
+            "\xF0\x9F\x92\x87\xF0\x9F\x8F\xBB",
+            "person getting haircut: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonGettingHaircutMediumLightSkinTone,
+            "\xF0\x9F\x92\x87\xF0\x9F\x8F\xBC",
+            "person getting haircut: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonGettingHaircutMediumSkinTone,
+            "\xF0\x9F\x92\x87\xF0\x9F\x8F\xBD",
+            "person getting haircut: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonGettingHaircutMediumDarkSkinTone,
+            "\xF0\x9F\x92\x87\xF0\x9F\x8F\xBE",
+            "person getting haircut: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonGettingHaircutDarkSkinTone,
+            "\xF0\x9F\x92\x87\xF0\x9F\x8F\xBF",
+            "person getting haircut: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManGettingHaircut,
+            "\xF0\x9F\x92\x87\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
+            "man getting haircut"},
+        EmojiEntry{
+            EmojiEnum::ManGettingHaircutLightSkinTone,
+            "\xF0\x9F\x92\x87\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man getting haircut: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManGettingHaircutMediumLightSkinTone,
+            "\xF0\x9F\x92\x87\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man getting haircut: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManGettingHaircutMediumSkinTone,
+            "\xF0\x9F\x92\x87\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man getting haircut: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManGettingHaircutMediumDarkSkinTone,
+            "\xF0\x9F\x92\x87\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man getting haircut: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManGettingHaircutDarkSkinTone,
+            "\xF0\x9F\x92\x87\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man getting haircut: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanGettingHaircut,
+            "\xF0\x9F\x92\x87\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
+            "woman getting haircut"},
+        EmojiEntry{
+            EmojiEnum::WomanGettingHaircutLightSkinTone,
+            "\xF0\x9F\x92\x87\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman getting haircut: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanGettingHaircutMediumLightSkinTone,
+            "\xF0\x9F\x92\x87\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman getting haircut: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanGettingHaircutMediumSkinTone,
+            "\xF0\x9F\x92\x87\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman getting haircut: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanGettingHaircutMediumDarkSkinTone,
+            "\xF0\x9F\x92\x87\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman getting haircut: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanGettingHaircutDarkSkinTone,
+            "\xF0\x9F\x92\x87\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman getting haircut: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonWalking,
+            "\xF0\x9F\x9A\xB6",
+            "person walking"},
+        EmojiEntry{
+            EmojiEnum::PersonWalkingLightSkinTone,
+            "\xF0\x9F\x9A\xB6\xF0\x9F\x8F\xBB",
+            "person walking: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonWalkingMediumLightSkinTone,
+            "\xF0\x9F\x9A\xB6\xF0\x9F\x8F\xBC",
+            "person walking: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonWalkingMediumSkinTone,
+            "\xF0\x9F\x9A\xB6\xF0\x9F\x8F\xBD",
+            "person walking: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonWalkingMediumDarkSkinTone,
+            "\xF0\x9F\x9A\xB6\xF0\x9F\x8F\xBE",
+            "person walking: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonWalkingDarkSkinTone,
+            "\xF0\x9F\x9A\xB6\xF0\x9F\x8F\xBF",
+            "person walking: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManWalking,
+            "\xF0\x9F\x9A\xB6\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
+            "man walking"},
+        EmojiEntry{
+            EmojiEnum::ManWalkingLightSkinTone,
+            "\xF0\x9F\x9A\xB6\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man walking: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManWalkingMediumLightSkinTone,
+            "\xF0\x9F\x9A\xB6\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man walking: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManWalkingMediumSkinTone,
+            "\xF0\x9F\x9A\xB6\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man walking: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManWalkingMediumDarkSkinTone,
+            "\xF0\x9F\x9A\xB6\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man walking: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManWalkingDarkSkinTone,
+            "\xF0\x9F\x9A\xB6\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man walking: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanWalking,
+            "\xF0\x9F\x9A\xB6\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
+            "woman walking"},
+        EmojiEntry{
+            EmojiEnum::WomanWalkingLightSkinTone,
+            "\xF0\x9F\x9A\xB6\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman walking: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanWalkingMediumLightSkinTone,
+            "\xF0\x9F\x9A\xB6\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman walking: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanWalkingMediumSkinTone,
+            "\xF0\x9F\x9A\xB6\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman walking: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanWalkingMediumDarkSkinTone,
+            "\xF0\x9F\x9A\xB6\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman walking: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanWalkingDarkSkinTone,
+            "\xF0\x9F\x9A\xB6\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman walking: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonWalkingFacingRight,
+            "\xF0\x9F\x9A\xB6\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
+            "person walking facing right"},
+        EmojiEntry{
+            EmojiEnum::PersonWalkingFacingRightLightSkinTone,
+            "\xF0\x9F\x9A\xB6\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x9E\xA1"
+            "\xEF\xB8\x8F",
+            "person walking facing right: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonWalkingFacingRightMediumLightSkinTone,
+            "\xF0\x9F\x9A\xB6\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x9E\xA1"
+            "\xEF\xB8\x8F",
+            "person walking facing right: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonWalkingFacingRightMediumSkinTone,
+            "\xF0\x9F\x9A\xB6\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x9E\xA1"
+            "\xEF\xB8\x8F",
+            "person walking facing right: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonWalkingFacingRightMediumDarkSkinTone,
+            "\xF0\x9F\x9A\xB6\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x9E\xA1"
+            "\xEF\xB8\x8F",
+            "person walking facing right: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonWalkingFacingRightDarkSkinTone,
+            "\xF0\x9F\x9A\xB6\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x9E\xA1"
+            "\xEF\xB8\x8F",
+            "person walking facing right: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanWalkingFacingRight,
+            "\xF0\x9F\x9A\xB6\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F\xE2"
+            "\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
+            "woman walking facing right"},
+        EmojiEntry{
+            EmojiEnum::WomanWalkingFacingRightLightSkinTone,
+            "\xF0\x9F\x9A\xB6\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
+            "woman walking facing right: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanWalkingFacingRightMediumLightSkinTone,
+            "\xF0\x9F\x9A\xB6\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
+            "woman walking facing right: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanWalkingFacingRightMediumSkinTone,
+            "\xF0\x9F\x9A\xB6\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
+            "woman walking facing right: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanWalkingFacingRightMediumDarkSkinTone,
+            "\xF0\x9F\x9A\xB6\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
+            "woman walking facing right: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanWalkingFacingRightDarkSkinTone,
+            "\xF0\x9F\x9A\xB6\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
+            "woman walking facing right: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManWalkingFacingRight,
+            "\xF0\x9F\x9A\xB6\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F\xE2"
+            "\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
+            "man walking facing right"},
+        EmojiEntry{
+            EmojiEnum::ManWalkingFacingRightLightSkinTone,
+            "\xF0\x9F\x9A\xB6\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
+            "man walking facing right: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManWalkingFacingRightMediumLightSkinTone,
+            "\xF0\x9F\x9A\xB6\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
+            "man walking facing right: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManWalkingFacingRightMediumSkinTone,
+            "\xF0\x9F\x9A\xB6\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
+            "man walking facing right: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManWalkingFacingRightMediumDarkSkinTone,
+            "\xF0\x9F\x9A\xB6\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
+            "man walking facing right: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManWalkingFacingRightDarkSkinTone,
+            "\xF0\x9F\x9A\xB6\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
+            "man walking facing right: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonStanding,
+            "\xF0\x9F\xA7\x8D",
+            "person standing"},
+        EmojiEntry{
+            EmojiEnum::PersonStandingLightSkinTone,
+            "\xF0\x9F\xA7\x8D\xF0\x9F\x8F\xBB",
+            "person standing: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonStandingMediumLightSkinTone,
+            "\xF0\x9F\xA7\x8D\xF0\x9F\x8F\xBC",
+            "person standing: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonStandingMediumSkinTone,
+            "\xF0\x9F\xA7\x8D\xF0\x9F\x8F\xBD",
+            "person standing: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonStandingMediumDarkSkinTone,
+            "\xF0\x9F\xA7\x8D\xF0\x9F\x8F\xBE",
+            "person standing: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonStandingDarkSkinTone,
+            "\xF0\x9F\xA7\x8D\xF0\x9F\x8F\xBF",
+            "person standing: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManStanding,
+            "\xF0\x9F\xA7\x8D\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
+            "man standing"},
+        EmojiEntry{
+            EmojiEnum::ManStandingLightSkinTone,
+            "\xF0\x9F\xA7\x8D\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man standing: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManStandingMediumLightSkinTone,
+            "\xF0\x9F\xA7\x8D\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man standing: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManStandingMediumSkinTone,
+            "\xF0\x9F\xA7\x8D\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man standing: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManStandingMediumDarkSkinTone,
+            "\xF0\x9F\xA7\x8D\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man standing: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManStandingDarkSkinTone,
+            "\xF0\x9F\xA7\x8D\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man standing: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanStanding,
+            "\xF0\x9F\xA7\x8D\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
+            "woman standing"},
+        EmojiEntry{
+            EmojiEnum::WomanStandingLightSkinTone,
+            "\xF0\x9F\xA7\x8D\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman standing: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanStandingMediumLightSkinTone,
+            "\xF0\x9F\xA7\x8D\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman standing: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanStandingMediumSkinTone,
+            "\xF0\x9F\xA7\x8D\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman standing: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanStandingMediumDarkSkinTone,
+            "\xF0\x9F\xA7\x8D\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman standing: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanStandingDarkSkinTone,
+            "\xF0\x9F\xA7\x8D\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman standing: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonKneeling,
+            "\xF0\x9F\xA7\x8E",
+            "person kneeling"},
+        EmojiEntry{
+            EmojiEnum::PersonKneelingLightSkinTone,
+            "\xF0\x9F\xA7\x8E\xF0\x9F\x8F\xBB",
+            "person kneeling: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonKneelingMediumLightSkinTone,
+            "\xF0\x9F\xA7\x8E\xF0\x9F\x8F\xBC",
+            "person kneeling: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonKneelingMediumSkinTone,
+            "\xF0\x9F\xA7\x8E\xF0\x9F\x8F\xBD",
+            "person kneeling: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonKneelingMediumDarkSkinTone,
+            "\xF0\x9F\xA7\x8E\xF0\x9F\x8F\xBE",
+            "person kneeling: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonKneelingDarkSkinTone,
+            "\xF0\x9F\xA7\x8E\xF0\x9F\x8F\xBF",
+            "person kneeling: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManKneeling,
+            "\xF0\x9F\xA7\x8E\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
+            "man kneeling"},
+        EmojiEntry{
+            EmojiEnum::ManKneelingLightSkinTone,
+            "\xF0\x9F\xA7\x8E\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man kneeling: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManKneelingMediumLightSkinTone,
+            "\xF0\x9F\xA7\x8E\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man kneeling: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManKneelingMediumSkinTone,
+            "\xF0\x9F\xA7\x8E\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man kneeling: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManKneelingMediumDarkSkinTone,
+            "\xF0\x9F\xA7\x8E\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man kneeling: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManKneelingDarkSkinTone,
+            "\xF0\x9F\xA7\x8E\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man kneeling: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanKneeling,
+            "\xF0\x9F\xA7\x8E\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
+            "woman kneeling"},
+        EmojiEntry{
+            EmojiEnum::WomanKneelingLightSkinTone,
+            "\xF0\x9F\xA7\x8E\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman kneeling: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanKneelingMediumLightSkinTone,
+            "\xF0\x9F\xA7\x8E\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman kneeling: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanKneelingMediumSkinTone,
+            "\xF0\x9F\xA7\x8E\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman kneeling: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanKneelingMediumDarkSkinTone,
+            "\xF0\x9F\xA7\x8E\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman kneeling: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanKneelingDarkSkinTone,
+            "\xF0\x9F\xA7\x8E\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman kneeling: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonKneelingFacingRight,
+            "\xF0\x9F\xA7\x8E\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
+            "person kneeling facing right"},
+        EmojiEntry{
+            EmojiEnum::PersonKneelingFacingRightLightSkinTone,
+            "\xF0\x9F\xA7\x8E\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x9E\xA1"
+            "\xEF\xB8\x8F",
+            "person kneeling facing right: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonKneelingFacingRightMediumLightSkinTone,
+            "\xF0\x9F\xA7\x8E\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x9E\xA1"
+            "\xEF\xB8\x8F",
+            "person kneeling facing right: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonKneelingFacingRightMediumSkinTone,
+            "\xF0\x9F\xA7\x8E\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x9E\xA1"
+            "\xEF\xB8\x8F",
+            "person kneeling facing right: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonKneelingFacingRightMediumDarkSkinTone,
+            "\xF0\x9F\xA7\x8E\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x9E\xA1"
+            "\xEF\xB8\x8F",
+            "person kneeling facing right: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonKneelingFacingRightDarkSkinTone,
+            "\xF0\x9F\xA7\x8E\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x9E\xA1"
+            "\xEF\xB8\x8F",
+            "person kneeling facing right: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanKneelingFacingRight,
+            "\xF0\x9F\xA7\x8E\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F\xE2"
+            "\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
+            "woman kneeling facing right"},
+        EmojiEntry{
+            EmojiEnum::WomanKneelingFacingRightLightSkinTone,
+            "\xF0\x9F\xA7\x8E\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
+            "woman kneeling facing right: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanKneelingFacingRightMediumLightSkinTone,
+            "\xF0\x9F\xA7\x8E\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
+            "woman kneeling facing right: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanKneelingFacingRightMediumSkinTone,
+            "\xF0\x9F\xA7\x8E\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
+            "woman kneeling facing right: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanKneelingFacingRightMediumDarkSkinTone,
+            "\xF0\x9F\xA7\x8E\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
+            "woman kneeling facing right: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanKneelingFacingRightDarkSkinTone,
+            "\xF0\x9F\xA7\x8E\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
+            "woman kneeling facing right: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManKneelingFacingRight,
+            "\xF0\x9F\xA7\x8E\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F\xE2"
+            "\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
+            "man kneeling facing right"},
+        EmojiEntry{
+            EmojiEnum::ManKneelingFacingRightLightSkinTone,
+            "\xF0\x9F\xA7\x8E\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
+            "man kneeling facing right: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManKneelingFacingRightMediumLightSkinTone,
+            "\xF0\x9F\xA7\x8E\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
+            "man kneeling facing right: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManKneelingFacingRightMediumSkinTone,
+            "\xF0\x9F\xA7\x8E\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
+            "man kneeling facing right: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManKneelingFacingRightMediumDarkSkinTone,
+            "\xF0\x9F\xA7\x8E\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
+            "man kneeling facing right: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManKneelingFacingRightDarkSkinTone,
+            "\xF0\x9F\xA7\x8E\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
+            "man kneeling facing right: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonWithWhiteCane,
+            "\xF0\x9F\xA7\x91\xE2\x80\x8D\xF0\x9F\xA6\xAF",
+            "person with white cane"},
         EmojiEntry{
             EmojiEnum::PersonWithWhiteCaneLightSkinTone,
             "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\xA6\xAF",
@@ -5147,35 +6576,40 @@ consteval auto makeEmojiList()
             EmojiEnum::PersonWithWhiteCaneDarkSkinTone,
             "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\xA6\xAF",
             "person with white cane: dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonWithWhiteCaneFacingRight,
-                   "\xF0\x9F\xA7\x91\xE2\x80\x8D\xF0\x9F\xA6\xAF\xE2\x80\x8D"
-                   "\xE2\x9E\xA1\xEF\xB8\x8F",
-                   "person with white cane facing right"},
-        EmojiEntry{EmojiEnum::PersonWithWhiteCaneFacingRightLightSkinTone,
-                   "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\xA6"
-                   "\xAF\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
-                   "person with white cane facing right: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonWithWhiteCaneFacingRight,
+            "\xF0\x9F\xA7\x91\xE2\x80\x8D\xF0\x9F\xA6\xAF\xE2\x80\x8D"
+            "\xE2\x9E\xA1\xEF\xB8\x8F",
+            "person with white cane facing right"},
+        EmojiEntry{
+            EmojiEnum::PersonWithWhiteCaneFacingRightLightSkinTone,
+            "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\xA6"
+            "\xAF\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
+            "person with white cane facing right: light skin tone"},
         EmojiEntry{
             EmojiEnum::PersonWithWhiteCaneFacingRightMediumLightSkinTone,
             "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBC\xE2\x80\x8D\xF0\x9F\xA6\xAF\xE2"
             "\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
             "person with white cane facing right: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::PersonWithWhiteCaneFacingRightMediumSkinTone,
-                   "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBD\xE2\x80\x8D\xF0\x9F\xA6"
-                   "\xAF\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
-                   "person with white cane facing right: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonWithWhiteCaneFacingRightMediumSkinTone,
+            "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBD\xE2\x80\x8D\xF0\x9F\xA6"
+            "\xAF\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
+            "person with white cane facing right: medium skin tone"},
         EmojiEntry{
             EmojiEnum::PersonWithWhiteCaneFacingRightMediumDarkSkinTone,
             "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBE\xE2\x80\x8D\xF0\x9F\xA6\xAF\xE2"
             "\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
             "person with white cane facing right: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonWithWhiteCaneFacingRightDarkSkinTone,
-                   "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\xA6"
-                   "\xAF\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
-                   "person with white cane facing right: dark skin tone"},
-        EmojiEntry{EmojiEnum::ManWithWhiteCane,
-                   "\xF0\x9F\x91\xA8\xE2\x80\x8D\xF0\x9F\xA6\xAF",
-                   "man with white cane"},
+        EmojiEntry{
+            EmojiEnum::PersonWithWhiteCaneFacingRightDarkSkinTone,
+            "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\xA6"
+            "\xAF\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
+            "person with white cane facing right: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManWithWhiteCane,
+            "\xF0\x9F\x91\xA8\xE2\x80\x8D\xF0\x9F\xA6\xAF",
+            "man with white cane"},
         EmojiEntry{
             EmojiEnum::ManWithWhiteCaneLightSkinTone,
             "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\xA6\xAF",
@@ -5196,33 +6630,40 @@ consteval auto makeEmojiList()
             EmojiEnum::ManWithWhiteCaneDarkSkinTone,
             "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\xA6\xAF",
             "man with white cane: dark skin tone"},
-        EmojiEntry{EmojiEnum::ManWithWhiteCaneFacingRight,
-                   "\xF0\x9F\x91\xA8\xE2\x80\x8D\xF0\x9F\xA6\xAF\xE2\x80\x8D"
-                   "\xE2\x9E\xA1\xEF\xB8\x8F",
-                   "man with white cane facing right"},
-        EmojiEntry{EmojiEnum::ManWithWhiteCaneFacingRightLightSkinTone,
-                   "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\xA6"
-                   "\xAF\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
-                   "man with white cane facing right: light skin tone"},
-        EmojiEntry{EmojiEnum::ManWithWhiteCaneFacingRightMediumLightSkinTone,
-                   "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBC\xE2\x80\x8D\xF0\x9F\xA6"
-                   "\xAF\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
-                   "man with white cane facing right: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::ManWithWhiteCaneFacingRightMediumSkinTone,
-                   "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBD\xE2\x80\x8D\xF0\x9F\xA6"
-                   "\xAF\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
-                   "man with white cane facing right: medium skin tone"},
-        EmojiEntry{EmojiEnum::ManWithWhiteCaneFacingRightMediumDarkSkinTone,
-                   "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBE\xE2\x80\x8D\xF0\x9F\xA6"
-                   "\xAF\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
-                   "man with white cane facing right: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::ManWithWhiteCaneFacingRightDarkSkinTone,
-                   "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\xA6"
-                   "\xAF\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
-                   "man with white cane facing right: dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanWithWhiteCane,
-                   "\xF0\x9F\x91\xA9\xE2\x80\x8D\xF0\x9F\xA6\xAF",
-                   "woman with white cane"},
+        EmojiEntry{
+            EmojiEnum::ManWithWhiteCaneFacingRight,
+            "\xF0\x9F\x91\xA8\xE2\x80\x8D\xF0\x9F\xA6\xAF\xE2\x80\x8D"
+            "\xE2\x9E\xA1\xEF\xB8\x8F",
+            "man with white cane facing right"},
+        EmojiEntry{
+            EmojiEnum::ManWithWhiteCaneFacingRightLightSkinTone,
+            "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\xA6"
+            "\xAF\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
+            "man with white cane facing right: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManWithWhiteCaneFacingRightMediumLightSkinTone,
+            "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBC\xE2\x80\x8D\xF0\x9F\xA6"
+            "\xAF\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
+            "man with white cane facing right: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManWithWhiteCaneFacingRightMediumSkinTone,
+            "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBD\xE2\x80\x8D\xF0\x9F\xA6"
+            "\xAF\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
+            "man with white cane facing right: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManWithWhiteCaneFacingRightMediumDarkSkinTone,
+            "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBE\xE2\x80\x8D\xF0\x9F\xA6"
+            "\xAF\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
+            "man with white cane facing right: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManWithWhiteCaneFacingRightDarkSkinTone,
+            "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\xA6"
+            "\xAF\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
+            "man with white cane facing right: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanWithWhiteCane,
+            "\xF0\x9F\x91\xA9\xE2\x80\x8D\xF0\x9F\xA6\xAF",
+            "woman with white cane"},
         EmojiEntry{
             EmojiEnum::WomanWithWhiteCaneLightSkinTone,
             "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\xA6\xAF",
@@ -5243,34 +6684,40 @@ consteval auto makeEmojiList()
             EmojiEnum::WomanWithWhiteCaneDarkSkinTone,
             "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\xA6\xAF",
             "woman with white cane: dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanWithWhiteCaneFacingRight,
-                   "\xF0\x9F\x91\xA9\xE2\x80\x8D\xF0\x9F\xA6\xAF\xE2\x80\x8D"
-                   "\xE2\x9E\xA1\xEF\xB8\x8F",
-                   "woman with white cane facing right"},
-        EmojiEntry{EmojiEnum::WomanWithWhiteCaneFacingRightLightSkinTone,
-                   "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\xA6"
-                   "\xAF\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
-                   "woman with white cane facing right: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanWithWhiteCaneFacingRight,
+            "\xF0\x9F\x91\xA9\xE2\x80\x8D\xF0\x9F\xA6\xAF\xE2\x80\x8D"
+            "\xE2\x9E\xA1\xEF\xB8\x8F",
+            "woman with white cane facing right"},
+        EmojiEntry{
+            EmojiEnum::WomanWithWhiteCaneFacingRightLightSkinTone,
+            "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\xA6"
+            "\xAF\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
+            "woman with white cane facing right: light skin tone"},
         EmojiEntry{
             EmojiEnum::WomanWithWhiteCaneFacingRightMediumLightSkinTone,
             "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBC\xE2\x80\x8D\xF0\x9F\xA6\xAF\xE2"
             "\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
             "woman with white cane facing right: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::WomanWithWhiteCaneFacingRightMediumSkinTone,
-                   "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBD\xE2\x80\x8D\xF0\x9F\xA6"
-                   "\xAF\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
-                   "woman with white cane facing right: medium skin tone"},
-        EmojiEntry{EmojiEnum::WomanWithWhiteCaneFacingRightMediumDarkSkinTone,
-                   "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBE\xE2\x80\x8D\xF0\x9F\xA6"
-                   "\xAF\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
-                   "woman with white cane facing right: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanWithWhiteCaneFacingRightDarkSkinTone,
-                   "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\xA6"
-                   "\xAF\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
-                   "woman with white cane facing right: dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonInMotorizedWheelchair,
-                   "\xF0\x9F\xA7\x91\xE2\x80\x8D\xF0\x9F\xA6\xBC",
-                   "person in motorized wheelchair"},
+        EmojiEntry{
+            EmojiEnum::WomanWithWhiteCaneFacingRightMediumSkinTone,
+            "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBD\xE2\x80\x8D\xF0\x9F\xA6"
+            "\xAF\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
+            "woman with white cane facing right: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanWithWhiteCaneFacingRightMediumDarkSkinTone,
+            "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBE\xE2\x80\x8D\xF0\x9F\xA6"
+            "\xAF\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
+            "woman with white cane facing right: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanWithWhiteCaneFacingRightDarkSkinTone,
+            "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\xA6"
+            "\xAF\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
+            "woman with white cane facing right: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonInMotorizedWheelchair,
+            "\xF0\x9F\xA7\x91\xE2\x80\x8D\xF0\x9F\xA6\xBC",
+            "person in motorized wheelchair"},
         EmojiEntry{
             EmojiEnum::PersonInMotorizedWheelchairLightSkinTone,
             "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\xA6\xBC",
@@ -5291,10 +6738,11 @@ consteval auto makeEmojiList()
             EmojiEnum::PersonInMotorizedWheelchairDarkSkinTone,
             "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\xA6\xBC",
             "person in motorized wheelchair: dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonInMotorizedWheelchairFacingRight,
-                   "\xF0\x9F\xA7\x91\xE2\x80\x8D\xF0\x9F\xA6\xBC\xE2\x80\x8D"
-                   "\xE2\x9E\xA1\xEF\xB8\x8F",
-                   "person in motorized wheelchair facing right"},
+        EmojiEntry{
+            EmojiEnum::PersonInMotorizedWheelchairFacingRight,
+            "\xF0\x9F\xA7\x91\xE2\x80\x8D\xF0\x9F\xA6\xBC\xE2\x80\x8D"
+            "\xE2\x9E\xA1\xEF\xB8\x8F",
+            "person in motorized wheelchair facing right"},
         EmojiEntry{
             EmojiEnum::PersonInMotorizedWheelchairFacingRightLightSkinTone,
             "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\xA6\xBC\xE2"
@@ -5323,9 +6771,10 @@ consteval auto makeEmojiList()
             "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\xA6\xBC\xE2"
             "\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
             "person in motorized wheelchair facing right: dark skin tone"},
-        EmojiEntry{EmojiEnum::ManInMotorizedWheelchair,
-                   "\xF0\x9F\x91\xA8\xE2\x80\x8D\xF0\x9F\xA6\xBC",
-                   "man in motorized wheelchair"},
+        EmojiEntry{
+            EmojiEnum::ManInMotorizedWheelchair,
+            "\xF0\x9F\x91\xA8\xE2\x80\x8D\xF0\x9F\xA6\xBC",
+            "man in motorized wheelchair"},
         EmojiEntry{
             EmojiEnum::ManInMotorizedWheelchairLightSkinTone,
             "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\xA6\xBC",
@@ -5346,19 +6795,22 @@ consteval auto makeEmojiList()
             EmojiEnum::ManInMotorizedWheelchairDarkSkinTone,
             "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\xA6\xBC",
             "man in motorized wheelchair: dark skin tone"},
-        EmojiEntry{EmojiEnum::ManInMotorizedWheelchairFacingRight,
-                   "\xF0\x9F\x91\xA8\xE2\x80\x8D\xF0\x9F\xA6\xBC\xE2\x80\x8D"
-                   "\xE2\x9E\xA1\xEF\xB8\x8F",
-                   "man in motorized wheelchair facing right"},
-        EmojiEntry{EmojiEnum::ManInMotorizedWheelchairFacingRightLightSkinTone,
-                   "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\xA6"
-                   "\xBC\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
-                   "man in motorized wheelchair facing right: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManInMotorizedWheelchairFacingRight,
+            "\xF0\x9F\x91\xA8\xE2\x80\x8D\xF0\x9F\xA6\xBC\xE2\x80\x8D"
+            "\xE2\x9E\xA1\xEF\xB8\x8F",
+            "man in motorized wheelchair facing right"},
+        EmojiEntry{
+            EmojiEnum::ManInMotorizedWheelchairFacingRightLightSkinTone,
+            "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\xA6"
+            "\xBC\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
+            "man in motorized wheelchair facing right: light skin tone"},
         EmojiEntry{
             EmojiEnum::ManInMotorizedWheelchairFacingRightMediumLightSkinTone,
             "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBC\xE2\x80\x8D\xF0\x9F\xA6\xBC\xE2"
             "\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
-            "man in motorized wheelchair facing right: medium-light skin tone"},
+            "man in motorized wheelchair facing right: medium-light skin "
+            "tone"},
         EmojiEntry{
             EmojiEnum::ManInMotorizedWheelchairFacingRightMediumSkinTone,
             "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBD\xE2\x80\x8D\xF0\x9F\xA6\xBC\xE2"
@@ -5369,13 +6821,15 @@ consteval auto makeEmojiList()
             "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBE\xE2\x80\x8D\xF0\x9F\xA6\xBC\xE2"
             "\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
             "man in motorized wheelchair facing right: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::ManInMotorizedWheelchairFacingRightDarkSkinTone,
-                   "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\xA6"
-                   "\xBC\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
-                   "man in motorized wheelchair facing right: dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanInMotorizedWheelchair,
-                   "\xF0\x9F\x91\xA9\xE2\x80\x8D\xF0\x9F\xA6\xBC",
-                   "woman in motorized wheelchair"},
+        EmojiEntry{
+            EmojiEnum::ManInMotorizedWheelchairFacingRightDarkSkinTone,
+            "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\xA6"
+            "\xBC\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
+            "man in motorized wheelchair facing right: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanInMotorizedWheelchair,
+            "\xF0\x9F\x91\xA9\xE2\x80\x8D\xF0\x9F\xA6\xBC",
+            "woman in motorized wheelchair"},
         EmojiEntry{
             EmojiEnum::WomanInMotorizedWheelchairLightSkinTone,
             "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\xA6\xBC",
@@ -5396,10 +6850,11 @@ consteval auto makeEmojiList()
             EmojiEnum::WomanInMotorizedWheelchairDarkSkinTone,
             "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\xA6\xBC",
             "woman in motorized wheelchair: dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanInMotorizedWheelchairFacingRight,
-                   "\xF0\x9F\x91\xA9\xE2\x80\x8D\xF0\x9F\xA6\xBC\xE2\x80\x8D"
-                   "\xE2\x9E\xA1\xEF\xB8\x8F",
-                   "woman in motorized wheelchair facing right"},
+        EmojiEntry{
+            EmojiEnum::WomanInMotorizedWheelchairFacingRight,
+            "\xF0\x9F\x91\xA9\xE2\x80\x8D\xF0\x9F\xA6\xBC\xE2\x80\x8D"
+            "\xE2\x9E\xA1\xEF\xB8\x8F",
+            "woman in motorized wheelchair facing right"},
         EmojiEntry{
             EmojiEnum::WomanInMotorizedWheelchairFacingRightLightSkinTone,
             "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\xA6\xBC\xE2"
@@ -5427,9 +6882,10 @@ consteval auto makeEmojiList()
             "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\xA6\xBC\xE2"
             "\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
             "woman in motorized wheelchair facing right: dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonInManualWheelchair,
-                   "\xF0\x9F\xA7\x91\xE2\x80\x8D\xF0\x9F\xA6\xBD",
-                   "person in manual wheelchair"},
+        EmojiEntry{
+            EmojiEnum::PersonInManualWheelchair,
+            "\xF0\x9F\xA7\x91\xE2\x80\x8D\xF0\x9F\xA6\xBD",
+            "person in manual wheelchair"},
         EmojiEntry{
             EmojiEnum::PersonInManualWheelchairLightSkinTone,
             "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\xA6\xBD",
@@ -5450,19 +6906,22 @@ consteval auto makeEmojiList()
             EmojiEnum::PersonInManualWheelchairDarkSkinTone,
             "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\xA6\xBD",
             "person in manual wheelchair: dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonInManualWheelchairFacingRight,
-                   "\xF0\x9F\xA7\x91\xE2\x80\x8D\xF0\x9F\xA6\xBD\xE2\x80\x8D"
-                   "\xE2\x9E\xA1\xEF\xB8\x8F",
-                   "person in manual wheelchair facing right"},
-        EmojiEntry{EmojiEnum::PersonInManualWheelchairFacingRightLightSkinTone,
-                   "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\xA6"
-                   "\xBD\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
-                   "person in manual wheelchair facing right: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonInManualWheelchairFacingRight,
+            "\xF0\x9F\xA7\x91\xE2\x80\x8D\xF0\x9F\xA6\xBD\xE2\x80\x8D"
+            "\xE2\x9E\xA1\xEF\xB8\x8F",
+            "person in manual wheelchair facing right"},
+        EmojiEntry{
+            EmojiEnum::PersonInManualWheelchairFacingRightLightSkinTone,
+            "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\xA6"
+            "\xBD\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
+            "person in manual wheelchair facing right: light skin tone"},
         EmojiEntry{
             EmojiEnum::PersonInManualWheelchairFacingRightMediumLightSkinTone,
             "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBC\xE2\x80\x8D\xF0\x9F\xA6\xBD\xE2"
             "\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
-            "person in manual wheelchair facing right: medium-light skin tone"},
+            "person in manual wheelchair facing right: medium-light skin "
+            "tone"},
         EmojiEntry{
             EmojiEnum::PersonInManualWheelchairFacingRightMediumSkinTone,
             "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBD\xE2\x80\x8D\xF0\x9F\xA6\xBD\xE2"
@@ -5473,13 +6932,15 @@ consteval auto makeEmojiList()
             "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBE\xE2\x80\x8D\xF0\x9F\xA6\xBD\xE2"
             "\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
             "person in manual wheelchair facing right: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonInManualWheelchairFacingRightDarkSkinTone,
-                   "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\xA6"
-                   "\xBD\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
-                   "person in manual wheelchair facing right: dark skin tone"},
-        EmojiEntry{EmojiEnum::ManInManualWheelchair,
-                   "\xF0\x9F\x91\xA8\xE2\x80\x8D\xF0\x9F\xA6\xBD",
-                   "man in manual wheelchair"},
+        EmojiEntry{
+            EmojiEnum::PersonInManualWheelchairFacingRightDarkSkinTone,
+            "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\xA6"
+            "\xBD\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
+            "person in manual wheelchair facing right: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManInManualWheelchair,
+            "\xF0\x9F\x91\xA8\xE2\x80\x8D\xF0\x9F\xA6\xBD",
+            "man in manual wheelchair"},
         EmojiEntry{
             EmojiEnum::ManInManualWheelchairLightSkinTone,
             "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\xA6\xBD",
@@ -5500,35 +6961,40 @@ consteval auto makeEmojiList()
             EmojiEnum::ManInManualWheelchairDarkSkinTone,
             "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\xA6\xBD",
             "man in manual wheelchair: dark skin tone"},
-        EmojiEntry{EmojiEnum::ManInManualWheelchairFacingRight,
-                   "\xF0\x9F\x91\xA8\xE2\x80\x8D\xF0\x9F\xA6\xBD\xE2\x80\x8D"
-                   "\xE2\x9E\xA1\xEF\xB8\x8F",
-                   "man in manual wheelchair facing right"},
-        EmojiEntry{EmojiEnum::ManInManualWheelchairFacingRightLightSkinTone,
-                   "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\xA6"
-                   "\xBD\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
-                   "man in manual wheelchair facing right: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManInManualWheelchairFacingRight,
+            "\xF0\x9F\x91\xA8\xE2\x80\x8D\xF0\x9F\xA6\xBD\xE2\x80\x8D"
+            "\xE2\x9E\xA1\xEF\xB8\x8F",
+            "man in manual wheelchair facing right"},
+        EmojiEntry{
+            EmojiEnum::ManInManualWheelchairFacingRightLightSkinTone,
+            "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\xA6"
+            "\xBD\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
+            "man in manual wheelchair facing right: light skin tone"},
         EmojiEntry{
             EmojiEnum::ManInManualWheelchairFacingRightMediumLightSkinTone,
             "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBC\xE2\x80\x8D\xF0\x9F\xA6\xBD\xE2"
             "\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
             "man in manual wheelchair facing right: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::ManInManualWheelchairFacingRightMediumSkinTone,
-                   "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBD\xE2\x80\x8D\xF0\x9F\xA6"
-                   "\xBD\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
-                   "man in manual wheelchair facing right: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManInManualWheelchairFacingRightMediumSkinTone,
+            "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBD\xE2\x80\x8D\xF0\x9F\xA6"
+            "\xBD\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
+            "man in manual wheelchair facing right: medium skin tone"},
         EmojiEntry{
             EmojiEnum::ManInManualWheelchairFacingRightMediumDarkSkinTone,
             "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBE\xE2\x80\x8D\xF0\x9F\xA6\xBD\xE2"
             "\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
             "man in manual wheelchair facing right: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::ManInManualWheelchairFacingRightDarkSkinTone,
-                   "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\xA6"
-                   "\xBD\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
-                   "man in manual wheelchair facing right: dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanInManualWheelchair,
-                   "\xF0\x9F\x91\xA9\xE2\x80\x8D\xF0\x9F\xA6\xBD",
-                   "woman in manual wheelchair"},
+        EmojiEntry{
+            EmojiEnum::ManInManualWheelchairFacingRightDarkSkinTone,
+            "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\xA6"
+            "\xBD\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
+            "man in manual wheelchair facing right: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanInManualWheelchair,
+            "\xF0\x9F\x91\xA9\xE2\x80\x8D\xF0\x9F\xA6\xBD",
+            "woman in manual wheelchair"},
         EmojiEntry{
             EmojiEnum::WomanInManualWheelchairLightSkinTone,
             "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\xA6\xBD",
@@ -5549,656 +7015,851 @@ consteval auto makeEmojiList()
             EmojiEnum::WomanInManualWheelchairDarkSkinTone,
             "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\xA6\xBD",
             "woman in manual wheelchair: dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanInManualWheelchairFacingRight,
-                   "\xF0\x9F\x91\xA9\xE2\x80\x8D\xF0\x9F\xA6\xBD\xE2\x80\x8D"
-                   "\xE2\x9E\xA1\xEF\xB8\x8F",
-                   "woman in manual wheelchair facing right"},
-        EmojiEntry{EmojiEnum::WomanInManualWheelchairFacingRightLightSkinTone,
-                   "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\xA6"
-                   "\xBD\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
-                   "woman in manual wheelchair facing right: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanInManualWheelchairFacingRight,
+            "\xF0\x9F\x91\xA9\xE2\x80\x8D\xF0\x9F\xA6\xBD\xE2\x80\x8D"
+            "\xE2\x9E\xA1\xEF\xB8\x8F",
+            "woman in manual wheelchair facing right"},
+        EmojiEntry{
+            EmojiEnum::WomanInManualWheelchairFacingRightLightSkinTone,
+            "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\xA6"
+            "\xBD\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
+            "woman in manual wheelchair facing right: light skin tone"},
         EmojiEntry{
             EmojiEnum::WomanInManualWheelchairFacingRightMediumLightSkinTone,
             "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBC\xE2\x80\x8D\xF0\x9F\xA6\xBD\xE2"
             "\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
             "woman in manual wheelchair facing right: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::WomanInManualWheelchairFacingRightMediumSkinTone,
-                   "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBD\xE2\x80\x8D\xF0\x9F\xA6"
-                   "\xBD\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
-                   "woman in manual wheelchair facing right: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanInManualWheelchairFacingRightMediumSkinTone,
+            "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBD\xE2\x80\x8D\xF0\x9F\xA6"
+            "\xBD\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
+            "woman in manual wheelchair facing right: medium skin tone"},
         EmojiEntry{
             EmojiEnum::WomanInManualWheelchairFacingRightMediumDarkSkinTone,
             "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBE\xE2\x80\x8D\xF0\x9F\xA6\xBD\xE2"
             "\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
             "woman in manual wheelchair facing right: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanInManualWheelchairFacingRightDarkSkinTone,
-                   "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\xA6"
-                   "\xBD\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
-                   "woman in manual wheelchair facing right: dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonRunning, "\xF0\x9F\x8F\x83",
-                   "person running"},
-        EmojiEntry{EmojiEnum::PersonRunningLightSkinTone,
-                   "\xF0\x9F\x8F\x83\xF0\x9F\x8F\xBB",
-                   "person running: light skin tone"},
-        EmojiEntry{EmojiEnum::PersonRunningMediumLightSkinTone,
-                   "\xF0\x9F\x8F\x83\xF0\x9F\x8F\xBC",
-                   "person running: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::PersonRunningMediumSkinTone,
-                   "\xF0\x9F\x8F\x83\xF0\x9F\x8F\xBD",
-                   "person running: medium skin tone"},
-        EmojiEntry{EmojiEnum::PersonRunningMediumDarkSkinTone,
-                   "\xF0\x9F\x8F\x83\xF0\x9F\x8F\xBE",
-                   "person running: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonRunningDarkSkinTone,
-                   "\xF0\x9F\x8F\x83\xF0\x9F\x8F\xBF",
-                   "person running: dark skin tone"},
-        EmojiEntry{EmojiEnum::ManRunning,
-                   "\xF0\x9F\x8F\x83\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
-                   "man running"},
-        EmojiEntry{EmojiEnum::ManRunningLightSkinTone,
-                   "\xF0\x9F\x8F\x83\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man running: light skin tone"},
-        EmojiEntry{EmojiEnum::ManRunningMediumLightSkinTone,
-                   "\xF0\x9F\x8F\x83\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man running: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::ManRunningMediumSkinTone,
-                   "\xF0\x9F\x8F\x83\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man running: medium skin tone"},
-        EmojiEntry{EmojiEnum::ManRunningMediumDarkSkinTone,
-                   "\xF0\x9F\x8F\x83\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man running: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::ManRunningDarkSkinTone,
-                   "\xF0\x9F\x8F\x83\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man running: dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanRunning,
-                   "\xF0\x9F\x8F\x83\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
-                   "woman running"},
-        EmojiEntry{EmojiEnum::WomanRunningLightSkinTone,
-                   "\xF0\x9F\x8F\x83\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman running: light skin tone"},
-        EmojiEntry{EmojiEnum::WomanRunningMediumLightSkinTone,
-                   "\xF0\x9F\x8F\x83\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman running: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::WomanRunningMediumSkinTone,
-                   "\xF0\x9F\x8F\x83\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman running: medium skin tone"},
-        EmojiEntry{EmojiEnum::WomanRunningMediumDarkSkinTone,
-                   "\xF0\x9F\x8F\x83\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman running: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanRunningDarkSkinTone,
-                   "\xF0\x9F\x8F\x83\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman running: dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonRunningFacingRight,
-                   "\xF0\x9F\x8F\x83\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
-                   "person running facing right"},
-        EmojiEntry{EmojiEnum::PersonRunningFacingRightLightSkinTone,
-                   "\xF0\x9F\x8F\x83\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x9E\xA1"
-                   "\xEF\xB8\x8F",
-                   "person running facing right: light skin tone"},
-        EmojiEntry{EmojiEnum::PersonRunningFacingRightMediumLightSkinTone,
-                   "\xF0\x9F\x8F\x83\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x9E\xA1"
-                   "\xEF\xB8\x8F",
-                   "person running facing right: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::PersonRunningFacingRightMediumSkinTone,
-                   "\xF0\x9F\x8F\x83\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x9E\xA1"
-                   "\xEF\xB8\x8F",
-                   "person running facing right: medium skin tone"},
-        EmojiEntry{EmojiEnum::PersonRunningFacingRightMediumDarkSkinTone,
-                   "\xF0\x9F\x8F\x83\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x9E\xA1"
-                   "\xEF\xB8\x8F",
-                   "person running facing right: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonRunningFacingRightDarkSkinTone,
-                   "\xF0\x9F\x8F\x83\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x9E\xA1"
-                   "\xEF\xB8\x8F",
-                   "person running facing right: dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanRunningFacingRight,
-                   "\xF0\x9F\x8F\x83\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F\xE2"
-                   "\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
-                   "woman running facing right"},
-        EmojiEntry{EmojiEnum::WomanRunningFacingRightLightSkinTone,
-                   "\xF0\x9F\x8F\x83\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
-                   "woman running facing right: light skin tone"},
-        EmojiEntry{EmojiEnum::WomanRunningFacingRightMediumLightSkinTone,
-                   "\xF0\x9F\x8F\x83\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
-                   "woman running facing right: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::WomanRunningFacingRightMediumSkinTone,
-                   "\xF0\x9F\x8F\x83\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
-                   "woman running facing right: medium skin tone"},
-        EmojiEntry{EmojiEnum::WomanRunningFacingRightMediumDarkSkinTone,
-                   "\xF0\x9F\x8F\x83\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
-                   "woman running facing right: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanRunningFacingRightDarkSkinTone,
-                   "\xF0\x9F\x8F\x83\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
-                   "woman running facing right: dark skin tone"},
-        EmojiEntry{EmojiEnum::ManRunningFacingRight,
-                   "\xF0\x9F\x8F\x83\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F\xE2"
-                   "\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
-                   "man running facing right"},
-        EmojiEntry{EmojiEnum::ManRunningFacingRightLightSkinTone,
-                   "\xF0\x9F\x8F\x83\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
-                   "man running facing right: light skin tone"},
-        EmojiEntry{EmojiEnum::ManRunningFacingRightMediumLightSkinTone,
-                   "\xF0\x9F\x8F\x83\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
-                   "man running facing right: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::ManRunningFacingRightMediumSkinTone,
-                   "\xF0\x9F\x8F\x83\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
-                   "man running facing right: medium skin tone"},
-        EmojiEntry{EmojiEnum::ManRunningFacingRightMediumDarkSkinTone,
-                   "\xF0\x9F\x8F\x83\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
-                   "man running facing right: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::ManRunningFacingRightDarkSkinTone,
-                   "\xF0\x9F\x8F\x83\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
-                   "man running facing right: dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanDancing, "\xF0\x9F\x92\x83",
-                   "woman dancing"},
-        EmojiEntry{EmojiEnum::WomanDancingLightSkinTone,
-                   "\xF0\x9F\x92\x83\xF0\x9F\x8F\xBB",
-                   "woman dancing: light skin tone"},
-        EmojiEntry{EmojiEnum::WomanDancingMediumLightSkinTone,
-                   "\xF0\x9F\x92\x83\xF0\x9F\x8F\xBC",
-                   "woman dancing: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::WomanDancingMediumSkinTone,
-                   "\xF0\x9F\x92\x83\xF0\x9F\x8F\xBD",
-                   "woman dancing: medium skin tone"},
-        EmojiEntry{EmojiEnum::WomanDancingMediumDarkSkinTone,
-                   "\xF0\x9F\x92\x83\xF0\x9F\x8F\xBE",
-                   "woman dancing: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanDancingDarkSkinTone,
-                   "\xF0\x9F\x92\x83\xF0\x9F\x8F\xBF",
-                   "woman dancing: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanInManualWheelchairFacingRightDarkSkinTone,
+            "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\xA6"
+            "\xBD\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
+            "woman in manual wheelchair facing right: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonRunning,
+            "\xF0\x9F\x8F\x83",
+            "person running"},
+        EmojiEntry{
+            EmojiEnum::PersonRunningLightSkinTone,
+            "\xF0\x9F\x8F\x83\xF0\x9F\x8F\xBB",
+            "person running: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonRunningMediumLightSkinTone,
+            "\xF0\x9F\x8F\x83\xF0\x9F\x8F\xBC",
+            "person running: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonRunningMediumSkinTone,
+            "\xF0\x9F\x8F\x83\xF0\x9F\x8F\xBD",
+            "person running: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonRunningMediumDarkSkinTone,
+            "\xF0\x9F\x8F\x83\xF0\x9F\x8F\xBE",
+            "person running: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonRunningDarkSkinTone,
+            "\xF0\x9F\x8F\x83\xF0\x9F\x8F\xBF",
+            "person running: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManRunning,
+            "\xF0\x9F\x8F\x83\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
+            "man running"},
+        EmojiEntry{
+            EmojiEnum::ManRunningLightSkinTone,
+            "\xF0\x9F\x8F\x83\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man running: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManRunningMediumLightSkinTone,
+            "\xF0\x9F\x8F\x83\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man running: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManRunningMediumSkinTone,
+            "\xF0\x9F\x8F\x83\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man running: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManRunningMediumDarkSkinTone,
+            "\xF0\x9F\x8F\x83\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man running: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManRunningDarkSkinTone,
+            "\xF0\x9F\x8F\x83\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man running: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanRunning,
+            "\xF0\x9F\x8F\x83\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
+            "woman running"},
+        EmojiEntry{
+            EmojiEnum::WomanRunningLightSkinTone,
+            "\xF0\x9F\x8F\x83\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman running: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanRunningMediumLightSkinTone,
+            "\xF0\x9F\x8F\x83\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman running: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanRunningMediumSkinTone,
+            "\xF0\x9F\x8F\x83\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman running: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanRunningMediumDarkSkinTone,
+            "\xF0\x9F\x8F\x83\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman running: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanRunningDarkSkinTone,
+            "\xF0\x9F\x8F\x83\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman running: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonRunningFacingRight,
+            "\xF0\x9F\x8F\x83\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
+            "person running facing right"},
+        EmojiEntry{
+            EmojiEnum::PersonRunningFacingRightLightSkinTone,
+            "\xF0\x9F\x8F\x83\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x9E\xA1"
+            "\xEF\xB8\x8F",
+            "person running facing right: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonRunningFacingRightMediumLightSkinTone,
+            "\xF0\x9F\x8F\x83\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x9E\xA1"
+            "\xEF\xB8\x8F",
+            "person running facing right: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonRunningFacingRightMediumSkinTone,
+            "\xF0\x9F\x8F\x83\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x9E\xA1"
+            "\xEF\xB8\x8F",
+            "person running facing right: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonRunningFacingRightMediumDarkSkinTone,
+            "\xF0\x9F\x8F\x83\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x9E\xA1"
+            "\xEF\xB8\x8F",
+            "person running facing right: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonRunningFacingRightDarkSkinTone,
+            "\xF0\x9F\x8F\x83\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x9E\xA1"
+            "\xEF\xB8\x8F",
+            "person running facing right: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanRunningFacingRight,
+            "\xF0\x9F\x8F\x83\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F\xE2"
+            "\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
+            "woman running facing right"},
+        EmojiEntry{
+            EmojiEnum::WomanRunningFacingRightLightSkinTone,
+            "\xF0\x9F\x8F\x83\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
+            "woman running facing right: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanRunningFacingRightMediumLightSkinTone,
+            "\xF0\x9F\x8F\x83\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
+            "woman running facing right: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanRunningFacingRightMediumSkinTone,
+            "\xF0\x9F\x8F\x83\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
+            "woman running facing right: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanRunningFacingRightMediumDarkSkinTone,
+            "\xF0\x9F\x8F\x83\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
+            "woman running facing right: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanRunningFacingRightDarkSkinTone,
+            "\xF0\x9F\x8F\x83\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
+            "woman running facing right: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManRunningFacingRight,
+            "\xF0\x9F\x8F\x83\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F\xE2"
+            "\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
+            "man running facing right"},
+        EmojiEntry{
+            EmojiEnum::ManRunningFacingRightLightSkinTone,
+            "\xF0\x9F\x8F\x83\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
+            "man running facing right: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManRunningFacingRightMediumLightSkinTone,
+            "\xF0\x9F\x8F\x83\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
+            "man running facing right: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManRunningFacingRightMediumSkinTone,
+            "\xF0\x9F\x8F\x83\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
+            "man running facing right: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManRunningFacingRightMediumDarkSkinTone,
+            "\xF0\x9F\x8F\x83\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
+            "man running facing right: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManRunningFacingRightDarkSkinTone,
+            "\xF0\x9F\x8F\x83\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xE2\x9E\xA1\xEF\xB8\x8F",
+            "man running facing right: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanDancing,
+            "\xF0\x9F\x92\x83",
+            "woman dancing"},
+        EmojiEntry{
+            EmojiEnum::WomanDancingLightSkinTone,
+            "\xF0\x9F\x92\x83\xF0\x9F\x8F\xBB",
+            "woman dancing: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanDancingMediumLightSkinTone,
+            "\xF0\x9F\x92\x83\xF0\x9F\x8F\xBC",
+            "woman dancing: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanDancingMediumSkinTone,
+            "\xF0\x9F\x92\x83\xF0\x9F\x8F\xBD",
+            "woman dancing: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanDancingMediumDarkSkinTone,
+            "\xF0\x9F\x92\x83\xF0\x9F\x8F\xBE",
+            "woman dancing: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanDancingDarkSkinTone,
+            "\xF0\x9F\x92\x83\xF0\x9F\x8F\xBF",
+            "woman dancing: dark skin tone"},
         EmojiEntry{EmojiEnum::ManDancing, "\xF0\x9F\x95\xBA", "man dancing"},
-        EmojiEntry{EmojiEnum::ManDancingLightSkinTone,
-                   "\xF0\x9F\x95\xBA\xF0\x9F\x8F\xBB",
-                   "man dancing: light skin tone"},
-        EmojiEntry{EmojiEnum::ManDancingMediumLightSkinTone,
-                   "\xF0\x9F\x95\xBA\xF0\x9F\x8F\xBC",
-                   "man dancing: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::ManDancingMediumSkinTone,
-                   "\xF0\x9F\x95\xBA\xF0\x9F\x8F\xBD",
-                   "man dancing: medium skin tone"},
-        EmojiEntry{EmojiEnum::ManDancingMediumDarkSkinTone,
-                   "\xF0\x9F\x95\xBA\xF0\x9F\x8F\xBE",
-                   "man dancing: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::ManDancingDarkSkinTone,
-                   "\xF0\x9F\x95\xBA\xF0\x9F\x8F\xBF",
-                   "man dancing: dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonInSuitLevitating,
-                   "\xF0\x9F\x95\xB4\xEF\xB8\x8F", "person in suit levitating"},
-        EmojiEntry{EmojiEnum::PersonInSuitLevitatingLightSkinTone,
-                   "\xF0\x9F\x95\xB4\xF0\x9F\x8F\xBB",
-                   "person in suit levitating: light skin tone"},
-        EmojiEntry{EmojiEnum::PersonInSuitLevitatingMediumLightSkinTone,
-                   "\xF0\x9F\x95\xB4\xF0\x9F\x8F\xBC",
-                   "person in suit levitating: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::PersonInSuitLevitatingMediumSkinTone,
-                   "\xF0\x9F\x95\xB4\xF0\x9F\x8F\xBD",
-                   "person in suit levitating: medium skin tone"},
-        EmojiEntry{EmojiEnum::PersonInSuitLevitatingMediumDarkSkinTone,
-                   "\xF0\x9F\x95\xB4\xF0\x9F\x8F\xBE",
-                   "person in suit levitating: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonInSuitLevitatingDarkSkinTone,
-                   "\xF0\x9F\x95\xB4\xF0\x9F\x8F\xBF",
-                   "person in suit levitating: dark skin tone"},
-        EmojiEntry{EmojiEnum::PeopleWithBunnyEars, "\xF0\x9F\x91\xAF",
-                   "people with bunny ears"},
-        EmojiEntry{EmojiEnum::MenWithBunnyEars,
-                   "\xF0\x9F\x91\xAF\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
-                   "men with bunny ears"},
-        EmojiEntry{EmojiEnum::WomenWithBunnyEars,
-                   "\xF0\x9F\x91\xAF\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
-                   "women with bunny ears"},
-        EmojiEntry{EmojiEnum::PersonInSteamyRoom, "\xF0\x9F\xA7\x96",
-                   "person in steamy room"},
-        EmojiEntry{EmojiEnum::PersonInSteamyRoomLightSkinTone,
-                   "\xF0\x9F\xA7\x96\xF0\x9F\x8F\xBB",
-                   "person in steamy room: light skin tone"},
-        EmojiEntry{EmojiEnum::PersonInSteamyRoomMediumLightSkinTone,
-                   "\xF0\x9F\xA7\x96\xF0\x9F\x8F\xBC",
-                   "person in steamy room: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::PersonInSteamyRoomMediumSkinTone,
-                   "\xF0\x9F\xA7\x96\xF0\x9F\x8F\xBD",
-                   "person in steamy room: medium skin tone"},
-        EmojiEntry{EmojiEnum::PersonInSteamyRoomMediumDarkSkinTone,
-                   "\xF0\x9F\xA7\x96\xF0\x9F\x8F\xBE",
-                   "person in steamy room: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonInSteamyRoomDarkSkinTone,
-                   "\xF0\x9F\xA7\x96\xF0\x9F\x8F\xBF",
-                   "person in steamy room: dark skin tone"},
-        EmojiEntry{EmojiEnum::ManInSteamyRoom,
-                   "\xF0\x9F\xA7\x96\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
-                   "man in steamy room"},
-        EmojiEntry{EmojiEnum::ManInSteamyRoomLightSkinTone,
-                   "\xF0\x9F\xA7\x96\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man in steamy room: light skin tone"},
-        EmojiEntry{EmojiEnum::ManInSteamyRoomMediumLightSkinTone,
-                   "\xF0\x9F\xA7\x96\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man in steamy room: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::ManInSteamyRoomMediumSkinTone,
-                   "\xF0\x9F\xA7\x96\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man in steamy room: medium skin tone"},
-        EmojiEntry{EmojiEnum::ManInSteamyRoomMediumDarkSkinTone,
-                   "\xF0\x9F\xA7\x96\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man in steamy room: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::ManInSteamyRoomDarkSkinTone,
-                   "\xF0\x9F\xA7\x96\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man in steamy room: dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanInSteamyRoom,
-                   "\xF0\x9F\xA7\x96\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
-                   "woman in steamy room"},
-        EmojiEntry{EmojiEnum::WomanInSteamyRoomLightSkinTone,
-                   "\xF0\x9F\xA7\x96\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman in steamy room: light skin tone"},
-        EmojiEntry{EmojiEnum::WomanInSteamyRoomMediumLightSkinTone,
-                   "\xF0\x9F\xA7\x96\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman in steamy room: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::WomanInSteamyRoomMediumSkinTone,
-                   "\xF0\x9F\xA7\x96\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman in steamy room: medium skin tone"},
-        EmojiEntry{EmojiEnum::WomanInSteamyRoomMediumDarkSkinTone,
-                   "\xF0\x9F\xA7\x96\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman in steamy room: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanInSteamyRoomDarkSkinTone,
-                   "\xF0\x9F\xA7\x96\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman in steamy room: dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonClimbing, "\xF0\x9F\xA7\x97",
-                   "person climbing"},
-        EmojiEntry{EmojiEnum::PersonClimbingLightSkinTone,
-                   "\xF0\x9F\xA7\x97\xF0\x9F\x8F\xBB",
-                   "person climbing: light skin tone"},
-        EmojiEntry{EmojiEnum::PersonClimbingMediumLightSkinTone,
-                   "\xF0\x9F\xA7\x97\xF0\x9F\x8F\xBC",
-                   "person climbing: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::PersonClimbingMediumSkinTone,
-                   "\xF0\x9F\xA7\x97\xF0\x9F\x8F\xBD",
-                   "person climbing: medium skin tone"},
-        EmojiEntry{EmojiEnum::PersonClimbingMediumDarkSkinTone,
-                   "\xF0\x9F\xA7\x97\xF0\x9F\x8F\xBE",
-                   "person climbing: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonClimbingDarkSkinTone,
-                   "\xF0\x9F\xA7\x97\xF0\x9F\x8F\xBF",
-                   "person climbing: dark skin tone"},
-        EmojiEntry{EmojiEnum::ManClimbing,
-                   "\xF0\x9F\xA7\x97\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
-                   "man climbing"},
-        EmojiEntry{EmojiEnum::ManClimbingLightSkinTone,
-                   "\xF0\x9F\xA7\x97\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man climbing: light skin tone"},
-        EmojiEntry{EmojiEnum::ManClimbingMediumLightSkinTone,
-                   "\xF0\x9F\xA7\x97\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man climbing: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::ManClimbingMediumSkinTone,
-                   "\xF0\x9F\xA7\x97\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man climbing: medium skin tone"},
-        EmojiEntry{EmojiEnum::ManClimbingMediumDarkSkinTone,
-                   "\xF0\x9F\xA7\x97\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man climbing: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::ManClimbingDarkSkinTone,
-                   "\xF0\x9F\xA7\x97\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man climbing: dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanClimbing,
-                   "\xF0\x9F\xA7\x97\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
-                   "woman climbing"},
-        EmojiEntry{EmojiEnum::WomanClimbingLightSkinTone,
-                   "\xF0\x9F\xA7\x97\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman climbing: light skin tone"},
-        EmojiEntry{EmojiEnum::WomanClimbingMediumLightSkinTone,
-                   "\xF0\x9F\xA7\x97\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman climbing: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::WomanClimbingMediumSkinTone,
-                   "\xF0\x9F\xA7\x97\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman climbing: medium skin tone"},
-        EmojiEntry{EmojiEnum::WomanClimbingMediumDarkSkinTone,
-                   "\xF0\x9F\xA7\x97\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman climbing: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanClimbingDarkSkinTone,
-                   "\xF0\x9F\xA7\x97\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman climbing: dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonFencing, "\xF0\x9F\xA4\xBA",
-                   "person fencing"},
+        EmojiEntry{
+            EmojiEnum::ManDancingLightSkinTone,
+            "\xF0\x9F\x95\xBA\xF0\x9F\x8F\xBB",
+            "man dancing: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManDancingMediumLightSkinTone,
+            "\xF0\x9F\x95\xBA\xF0\x9F\x8F\xBC",
+            "man dancing: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManDancingMediumSkinTone,
+            "\xF0\x9F\x95\xBA\xF0\x9F\x8F\xBD",
+            "man dancing: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManDancingMediumDarkSkinTone,
+            "\xF0\x9F\x95\xBA\xF0\x9F\x8F\xBE",
+            "man dancing: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManDancingDarkSkinTone,
+            "\xF0\x9F\x95\xBA\xF0\x9F\x8F\xBF",
+            "man dancing: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonInSuitLevitating,
+            "\xF0\x9F\x95\xB4\xEF\xB8\x8F",
+            "person in suit levitating"},
+        EmojiEntry{
+            EmojiEnum::PersonInSuitLevitatingLightSkinTone,
+            "\xF0\x9F\x95\xB4\xF0\x9F\x8F\xBB",
+            "person in suit levitating: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonInSuitLevitatingMediumLightSkinTone,
+            "\xF0\x9F\x95\xB4\xF0\x9F\x8F\xBC",
+            "person in suit levitating: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonInSuitLevitatingMediumSkinTone,
+            "\xF0\x9F\x95\xB4\xF0\x9F\x8F\xBD",
+            "person in suit levitating: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonInSuitLevitatingMediumDarkSkinTone,
+            "\xF0\x9F\x95\xB4\xF0\x9F\x8F\xBE",
+            "person in suit levitating: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonInSuitLevitatingDarkSkinTone,
+            "\xF0\x9F\x95\xB4\xF0\x9F\x8F\xBF",
+            "person in suit levitating: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PeopleWithBunnyEars,
+            "\xF0\x9F\x91\xAF",
+            "people with bunny ears"},
+        EmojiEntry{
+            EmojiEnum::MenWithBunnyEars,
+            "\xF0\x9F\x91\xAF\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
+            "men with bunny ears"},
+        EmojiEntry{
+            EmojiEnum::WomenWithBunnyEars,
+            "\xF0\x9F\x91\xAF\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
+            "women with bunny ears"},
+        EmojiEntry{
+            EmojiEnum::PersonInSteamyRoom,
+            "\xF0\x9F\xA7\x96",
+            "person in steamy room"},
+        EmojiEntry{
+            EmojiEnum::PersonInSteamyRoomLightSkinTone,
+            "\xF0\x9F\xA7\x96\xF0\x9F\x8F\xBB",
+            "person in steamy room: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonInSteamyRoomMediumLightSkinTone,
+            "\xF0\x9F\xA7\x96\xF0\x9F\x8F\xBC",
+            "person in steamy room: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonInSteamyRoomMediumSkinTone,
+            "\xF0\x9F\xA7\x96\xF0\x9F\x8F\xBD",
+            "person in steamy room: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonInSteamyRoomMediumDarkSkinTone,
+            "\xF0\x9F\xA7\x96\xF0\x9F\x8F\xBE",
+            "person in steamy room: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonInSteamyRoomDarkSkinTone,
+            "\xF0\x9F\xA7\x96\xF0\x9F\x8F\xBF",
+            "person in steamy room: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManInSteamyRoom,
+            "\xF0\x9F\xA7\x96\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
+            "man in steamy room"},
+        EmojiEntry{
+            EmojiEnum::ManInSteamyRoomLightSkinTone,
+            "\xF0\x9F\xA7\x96\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man in steamy room: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManInSteamyRoomMediumLightSkinTone,
+            "\xF0\x9F\xA7\x96\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man in steamy room: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManInSteamyRoomMediumSkinTone,
+            "\xF0\x9F\xA7\x96\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man in steamy room: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManInSteamyRoomMediumDarkSkinTone,
+            "\xF0\x9F\xA7\x96\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man in steamy room: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManInSteamyRoomDarkSkinTone,
+            "\xF0\x9F\xA7\x96\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man in steamy room: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanInSteamyRoom,
+            "\xF0\x9F\xA7\x96\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
+            "woman in steamy room"},
+        EmojiEntry{
+            EmojiEnum::WomanInSteamyRoomLightSkinTone,
+            "\xF0\x9F\xA7\x96\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman in steamy room: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanInSteamyRoomMediumLightSkinTone,
+            "\xF0\x9F\xA7\x96\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman in steamy room: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanInSteamyRoomMediumSkinTone,
+            "\xF0\x9F\xA7\x96\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman in steamy room: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanInSteamyRoomMediumDarkSkinTone,
+            "\xF0\x9F\xA7\x96\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman in steamy room: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanInSteamyRoomDarkSkinTone,
+            "\xF0\x9F\xA7\x96\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman in steamy room: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonClimbing,
+            "\xF0\x9F\xA7\x97",
+            "person climbing"},
+        EmojiEntry{
+            EmojiEnum::PersonClimbingLightSkinTone,
+            "\xF0\x9F\xA7\x97\xF0\x9F\x8F\xBB",
+            "person climbing: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonClimbingMediumLightSkinTone,
+            "\xF0\x9F\xA7\x97\xF0\x9F\x8F\xBC",
+            "person climbing: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonClimbingMediumSkinTone,
+            "\xF0\x9F\xA7\x97\xF0\x9F\x8F\xBD",
+            "person climbing: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonClimbingMediumDarkSkinTone,
+            "\xF0\x9F\xA7\x97\xF0\x9F\x8F\xBE",
+            "person climbing: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonClimbingDarkSkinTone,
+            "\xF0\x9F\xA7\x97\xF0\x9F\x8F\xBF",
+            "person climbing: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManClimbing,
+            "\xF0\x9F\xA7\x97\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
+            "man climbing"},
+        EmojiEntry{
+            EmojiEnum::ManClimbingLightSkinTone,
+            "\xF0\x9F\xA7\x97\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man climbing: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManClimbingMediumLightSkinTone,
+            "\xF0\x9F\xA7\x97\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man climbing: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManClimbingMediumSkinTone,
+            "\xF0\x9F\xA7\x97\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man climbing: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManClimbingMediumDarkSkinTone,
+            "\xF0\x9F\xA7\x97\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man climbing: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManClimbingDarkSkinTone,
+            "\xF0\x9F\xA7\x97\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man climbing: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanClimbing,
+            "\xF0\x9F\xA7\x97\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
+            "woman climbing"},
+        EmojiEntry{
+            EmojiEnum::WomanClimbingLightSkinTone,
+            "\xF0\x9F\xA7\x97\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman climbing: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanClimbingMediumLightSkinTone,
+            "\xF0\x9F\xA7\x97\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman climbing: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanClimbingMediumSkinTone,
+            "\xF0\x9F\xA7\x97\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman climbing: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanClimbingMediumDarkSkinTone,
+            "\xF0\x9F\xA7\x97\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman climbing: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanClimbingDarkSkinTone,
+            "\xF0\x9F\xA7\x97\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman climbing: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonFencing,
+            "\xF0\x9F\xA4\xBA",
+            "person fencing"},
         EmojiEntry{EmojiEnum::HorseRacing, "\xF0\x9F\x8F\x87", "horse racing"},
-        EmojiEntry{EmojiEnum::HorseRacingLightSkinTone,
-                   "\xF0\x9F\x8F\x87\xF0\x9F\x8F\xBB",
-                   "horse racing: light skin tone"},
-        EmojiEntry{EmojiEnum::HorseRacingMediumLightSkinTone,
-                   "\xF0\x9F\x8F\x87\xF0\x9F\x8F\xBC",
-                   "horse racing: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::HorseRacingMediumSkinTone,
-                   "\xF0\x9F\x8F\x87\xF0\x9F\x8F\xBD",
-                   "horse racing: medium skin tone"},
-        EmojiEntry{EmojiEnum::HorseRacingMediumDarkSkinTone,
-                   "\xF0\x9F\x8F\x87\xF0\x9F\x8F\xBE",
-                   "horse racing: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::HorseRacingDarkSkinTone,
-                   "\xF0\x9F\x8F\x87\xF0\x9F\x8F\xBF",
-                   "horse racing: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::HorseRacingLightSkinTone,
+            "\xF0\x9F\x8F\x87\xF0\x9F\x8F\xBB",
+            "horse racing: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::HorseRacingMediumLightSkinTone,
+            "\xF0\x9F\x8F\x87\xF0\x9F\x8F\xBC",
+            "horse racing: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::HorseRacingMediumSkinTone,
+            "\xF0\x9F\x8F\x87\xF0\x9F\x8F\xBD",
+            "horse racing: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::HorseRacingMediumDarkSkinTone,
+            "\xF0\x9F\x8F\x87\xF0\x9F\x8F\xBE",
+            "horse racing: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::HorseRacingDarkSkinTone,
+            "\xF0\x9F\x8F\x87\xF0\x9F\x8F\xBF",
+            "horse racing: dark skin tone"},
         EmojiEntry{EmojiEnum::Skier, "\xE2\x9B\xB7\xEF\xB8\x8F", "skier"},
         EmojiEntry{EmojiEnum::Snowboarder, "\xF0\x9F\x8F\x82", "snowboarder"},
-        EmojiEntry{EmojiEnum::SnowboarderLightSkinTone,
-                   "\xF0\x9F\x8F\x82\xF0\x9F\x8F\xBB",
-                   "snowboarder: light skin tone"},
-        EmojiEntry{EmojiEnum::SnowboarderMediumLightSkinTone,
-                   "\xF0\x9F\x8F\x82\xF0\x9F\x8F\xBC",
-                   "snowboarder: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::SnowboarderMediumSkinTone,
-                   "\xF0\x9F\x8F\x82\xF0\x9F\x8F\xBD",
-                   "snowboarder: medium skin tone"},
-        EmojiEntry{EmojiEnum::SnowboarderMediumDarkSkinTone,
-                   "\xF0\x9F\x8F\x82\xF0\x9F\x8F\xBE",
-                   "snowboarder: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::SnowboarderDarkSkinTone,
-                   "\xF0\x9F\x8F\x82\xF0\x9F\x8F\xBF",
-                   "snowboarder: dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonGolfing, "\xF0\x9F\x8F\x8C\xEF\xB8\x8F",
-                   "person golfing"},
-        EmojiEntry{EmojiEnum::PersonGolfingLightSkinTone,
-                   "\xF0\x9F\x8F\x8C\xF0\x9F\x8F\xBB",
-                   "person golfing: light skin tone"},
-        EmojiEntry{EmojiEnum::PersonGolfingMediumLightSkinTone,
-                   "\xF0\x9F\x8F\x8C\xF0\x9F\x8F\xBC",
-                   "person golfing: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::PersonGolfingMediumSkinTone,
-                   "\xF0\x9F\x8F\x8C\xF0\x9F\x8F\xBD",
-                   "person golfing: medium skin tone"},
-        EmojiEntry{EmojiEnum::PersonGolfingMediumDarkSkinTone,
-                   "\xF0\x9F\x8F\x8C\xF0\x9F\x8F\xBE",
-                   "person golfing: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonGolfingDarkSkinTone,
-                   "\xF0\x9F\x8F\x8C\xF0\x9F\x8F\xBF",
-                   "person golfing: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::SnowboarderLightSkinTone,
+            "\xF0\x9F\x8F\x82\xF0\x9F\x8F\xBB",
+            "snowboarder: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::SnowboarderMediumLightSkinTone,
+            "\xF0\x9F\x8F\x82\xF0\x9F\x8F\xBC",
+            "snowboarder: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::SnowboarderMediumSkinTone,
+            "\xF0\x9F\x8F\x82\xF0\x9F\x8F\xBD",
+            "snowboarder: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::SnowboarderMediumDarkSkinTone,
+            "\xF0\x9F\x8F\x82\xF0\x9F\x8F\xBE",
+            "snowboarder: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::SnowboarderDarkSkinTone,
+            "\xF0\x9F\x8F\x82\xF0\x9F\x8F\xBF",
+            "snowboarder: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonGolfing,
+            "\xF0\x9F\x8F\x8C\xEF\xB8\x8F",
+            "person golfing"},
+        EmojiEntry{
+            EmojiEnum::PersonGolfingLightSkinTone,
+            "\xF0\x9F\x8F\x8C\xF0\x9F\x8F\xBB",
+            "person golfing: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonGolfingMediumLightSkinTone,
+            "\xF0\x9F\x8F\x8C\xF0\x9F\x8F\xBC",
+            "person golfing: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonGolfingMediumSkinTone,
+            "\xF0\x9F\x8F\x8C\xF0\x9F\x8F\xBD",
+            "person golfing: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonGolfingMediumDarkSkinTone,
+            "\xF0\x9F\x8F\x8C\xF0\x9F\x8F\xBE",
+            "person golfing: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonGolfingDarkSkinTone,
+            "\xF0\x9F\x8F\x8C\xF0\x9F\x8F\xBF",
+            "person golfing: dark skin tone"},
         EmojiEntry{
             EmojiEnum::ManGolfing,
             "\xF0\x9F\x8F\x8C\xEF\xB8\x8F\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
             "man golfing"},
-        EmojiEntry{EmojiEnum::ManGolfingLightSkinTone,
-                   "\xF0\x9F\x8F\x8C\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man golfing: light skin tone"},
-        EmojiEntry{EmojiEnum::ManGolfingMediumLightSkinTone,
-                   "\xF0\x9F\x8F\x8C\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man golfing: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::ManGolfingMediumSkinTone,
-                   "\xF0\x9F\x8F\x8C\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man golfing: medium skin tone"},
-        EmojiEntry{EmojiEnum::ManGolfingMediumDarkSkinTone,
-                   "\xF0\x9F\x8F\x8C\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man golfing: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::ManGolfingDarkSkinTone,
-                   "\xF0\x9F\x8F\x8C\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man golfing: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManGolfingLightSkinTone,
+            "\xF0\x9F\x8F\x8C\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man golfing: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManGolfingMediumLightSkinTone,
+            "\xF0\x9F\x8F\x8C\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man golfing: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManGolfingMediumSkinTone,
+            "\xF0\x9F\x8F\x8C\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man golfing: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManGolfingMediumDarkSkinTone,
+            "\xF0\x9F\x8F\x8C\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man golfing: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManGolfingDarkSkinTone,
+            "\xF0\x9F\x8F\x8C\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man golfing: dark skin tone"},
         EmojiEntry{
             EmojiEnum::WomanGolfing,
             "\xF0\x9F\x8F\x8C\xEF\xB8\x8F\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
             "woman golfing"},
-        EmojiEntry{EmojiEnum::WomanGolfingLightSkinTone,
-                   "\xF0\x9F\x8F\x8C\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman golfing: light skin tone"},
-        EmojiEntry{EmojiEnum::WomanGolfingMediumLightSkinTone,
-                   "\xF0\x9F\x8F\x8C\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman golfing: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::WomanGolfingMediumSkinTone,
-                   "\xF0\x9F\x8F\x8C\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman golfing: medium skin tone"},
-        EmojiEntry{EmojiEnum::WomanGolfingMediumDarkSkinTone,
-                   "\xF0\x9F\x8F\x8C\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman golfing: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanGolfingDarkSkinTone,
-                   "\xF0\x9F\x8F\x8C\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman golfing: dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonSurfing, "\xF0\x9F\x8F\x84",
-                   "person surfing"},
-        EmojiEntry{EmojiEnum::PersonSurfingLightSkinTone,
-                   "\xF0\x9F\x8F\x84\xF0\x9F\x8F\xBB",
-                   "person surfing: light skin tone"},
-        EmojiEntry{EmojiEnum::PersonSurfingMediumLightSkinTone,
-                   "\xF0\x9F\x8F\x84\xF0\x9F\x8F\xBC",
-                   "person surfing: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::PersonSurfingMediumSkinTone,
-                   "\xF0\x9F\x8F\x84\xF0\x9F\x8F\xBD",
-                   "person surfing: medium skin tone"},
-        EmojiEntry{EmojiEnum::PersonSurfingMediumDarkSkinTone,
-                   "\xF0\x9F\x8F\x84\xF0\x9F\x8F\xBE",
-                   "person surfing: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonSurfingDarkSkinTone,
-                   "\xF0\x9F\x8F\x84\xF0\x9F\x8F\xBF",
-                   "person surfing: dark skin tone"},
-        EmojiEntry{EmojiEnum::ManSurfing,
-                   "\xF0\x9F\x8F\x84\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
-                   "man surfing"},
-        EmojiEntry{EmojiEnum::ManSurfingLightSkinTone,
-                   "\xF0\x9F\x8F\x84\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man surfing: light skin tone"},
-        EmojiEntry{EmojiEnum::ManSurfingMediumLightSkinTone,
-                   "\xF0\x9F\x8F\x84\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man surfing: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::ManSurfingMediumSkinTone,
-                   "\xF0\x9F\x8F\x84\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man surfing: medium skin tone"},
-        EmojiEntry{EmojiEnum::ManSurfingMediumDarkSkinTone,
-                   "\xF0\x9F\x8F\x84\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man surfing: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::ManSurfingDarkSkinTone,
-                   "\xF0\x9F\x8F\x84\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man surfing: dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanSurfing,
-                   "\xF0\x9F\x8F\x84\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
-                   "woman surfing"},
-        EmojiEntry{EmojiEnum::WomanSurfingLightSkinTone,
-                   "\xF0\x9F\x8F\x84\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman surfing: light skin tone"},
-        EmojiEntry{EmojiEnum::WomanSurfingMediumLightSkinTone,
-                   "\xF0\x9F\x8F\x84\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman surfing: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::WomanSurfingMediumSkinTone,
-                   "\xF0\x9F\x8F\x84\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman surfing: medium skin tone"},
-        EmojiEntry{EmojiEnum::WomanSurfingMediumDarkSkinTone,
-                   "\xF0\x9F\x8F\x84\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman surfing: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanSurfingDarkSkinTone,
-                   "\xF0\x9F\x8F\x84\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman surfing: dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonRowingBoat, "\xF0\x9F\x9A\xA3",
-                   "person rowing boat"},
-        EmojiEntry{EmojiEnum::PersonRowingBoatLightSkinTone,
-                   "\xF0\x9F\x9A\xA3\xF0\x9F\x8F\xBB",
-                   "person rowing boat: light skin tone"},
-        EmojiEntry{EmojiEnum::PersonRowingBoatMediumLightSkinTone,
-                   "\xF0\x9F\x9A\xA3\xF0\x9F\x8F\xBC",
-                   "person rowing boat: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::PersonRowingBoatMediumSkinTone,
-                   "\xF0\x9F\x9A\xA3\xF0\x9F\x8F\xBD",
-                   "person rowing boat: medium skin tone"},
-        EmojiEntry{EmojiEnum::PersonRowingBoatMediumDarkSkinTone,
-                   "\xF0\x9F\x9A\xA3\xF0\x9F\x8F\xBE",
-                   "person rowing boat: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonRowingBoatDarkSkinTone,
-                   "\xF0\x9F\x9A\xA3\xF0\x9F\x8F\xBF",
-                   "person rowing boat: dark skin tone"},
-        EmojiEntry{EmojiEnum::ManRowingBoat,
-                   "\xF0\x9F\x9A\xA3\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
-                   "man rowing boat"},
-        EmojiEntry{EmojiEnum::ManRowingBoatLightSkinTone,
-                   "\xF0\x9F\x9A\xA3\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man rowing boat: light skin tone"},
-        EmojiEntry{EmojiEnum::ManRowingBoatMediumLightSkinTone,
-                   "\xF0\x9F\x9A\xA3\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man rowing boat: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::ManRowingBoatMediumSkinTone,
-                   "\xF0\x9F\x9A\xA3\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man rowing boat: medium skin tone"},
-        EmojiEntry{EmojiEnum::ManRowingBoatMediumDarkSkinTone,
-                   "\xF0\x9F\x9A\xA3\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man rowing boat: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::ManRowingBoatDarkSkinTone,
-                   "\xF0\x9F\x9A\xA3\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man rowing boat: dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanRowingBoat,
-                   "\xF0\x9F\x9A\xA3\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
-                   "woman rowing boat"},
-        EmojiEntry{EmojiEnum::WomanRowingBoatLightSkinTone,
-                   "\xF0\x9F\x9A\xA3\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman rowing boat: light skin tone"},
-        EmojiEntry{EmojiEnum::WomanRowingBoatMediumLightSkinTone,
-                   "\xF0\x9F\x9A\xA3\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman rowing boat: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::WomanRowingBoatMediumSkinTone,
-                   "\xF0\x9F\x9A\xA3\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman rowing boat: medium skin tone"},
-        EmojiEntry{EmojiEnum::WomanRowingBoatMediumDarkSkinTone,
-                   "\xF0\x9F\x9A\xA3\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman rowing boat: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanRowingBoatDarkSkinTone,
-                   "\xF0\x9F\x9A\xA3\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman rowing boat: dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonSwimming, "\xF0\x9F\x8F\x8A",
-                   "person swimming"},
-        EmojiEntry{EmojiEnum::PersonSwimmingLightSkinTone,
-                   "\xF0\x9F\x8F\x8A\xF0\x9F\x8F\xBB",
-                   "person swimming: light skin tone"},
-        EmojiEntry{EmojiEnum::PersonSwimmingMediumLightSkinTone,
-                   "\xF0\x9F\x8F\x8A\xF0\x9F\x8F\xBC",
-                   "person swimming: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::PersonSwimmingMediumSkinTone,
-                   "\xF0\x9F\x8F\x8A\xF0\x9F\x8F\xBD",
-                   "person swimming: medium skin tone"},
-        EmojiEntry{EmojiEnum::PersonSwimmingMediumDarkSkinTone,
-                   "\xF0\x9F\x8F\x8A\xF0\x9F\x8F\xBE",
-                   "person swimming: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonSwimmingDarkSkinTone,
-                   "\xF0\x9F\x8F\x8A\xF0\x9F\x8F\xBF",
-                   "person swimming: dark skin tone"},
-        EmojiEntry{EmojiEnum::ManSwimming,
-                   "\xF0\x9F\x8F\x8A\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
-                   "man swimming"},
-        EmojiEntry{EmojiEnum::ManSwimmingLightSkinTone,
-                   "\xF0\x9F\x8F\x8A\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man swimming: light skin tone"},
-        EmojiEntry{EmojiEnum::ManSwimmingMediumLightSkinTone,
-                   "\xF0\x9F\x8F\x8A\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man swimming: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::ManSwimmingMediumSkinTone,
-                   "\xF0\x9F\x8F\x8A\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man swimming: medium skin tone"},
-        EmojiEntry{EmojiEnum::ManSwimmingMediumDarkSkinTone,
-                   "\xF0\x9F\x8F\x8A\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man swimming: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::ManSwimmingDarkSkinTone,
-                   "\xF0\x9F\x8F\x8A\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man swimming: dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanSwimming,
-                   "\xF0\x9F\x8F\x8A\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
-                   "woman swimming"},
-        EmojiEntry{EmojiEnum::WomanSwimmingLightSkinTone,
-                   "\xF0\x9F\x8F\x8A\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman swimming: light skin tone"},
-        EmojiEntry{EmojiEnum::WomanSwimmingMediumLightSkinTone,
-                   "\xF0\x9F\x8F\x8A\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman swimming: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::WomanSwimmingMediumSkinTone,
-                   "\xF0\x9F\x8F\x8A\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman swimming: medium skin tone"},
-        EmojiEntry{EmojiEnum::WomanSwimmingMediumDarkSkinTone,
-                   "\xF0\x9F\x8F\x8A\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman swimming: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanSwimmingDarkSkinTone,
-                   "\xF0\x9F\x8F\x8A\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman swimming: dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonBouncingBall, "\xE2\x9B\xB9\xEF\xB8\x8F",
-                   "person bouncing ball"},
-        EmojiEntry{EmojiEnum::PersonBouncingBallLightSkinTone,
-                   "\xE2\x9B\xB9\xF0\x9F\x8F\xBB",
-                   "person bouncing ball: light skin tone"},
-        EmojiEntry{EmojiEnum::PersonBouncingBallMediumLightSkinTone,
-                   "\xE2\x9B\xB9\xF0\x9F\x8F\xBC",
-                   "person bouncing ball: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::PersonBouncingBallMediumSkinTone,
-                   "\xE2\x9B\xB9\xF0\x9F\x8F\xBD",
-                   "person bouncing ball: medium skin tone"},
-        EmojiEntry{EmojiEnum::PersonBouncingBallMediumDarkSkinTone,
-                   "\xE2\x9B\xB9\xF0\x9F\x8F\xBE",
-                   "person bouncing ball: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonBouncingBallDarkSkinTone,
-                   "\xE2\x9B\xB9\xF0\x9F\x8F\xBF",
-                   "person bouncing ball: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanGolfingLightSkinTone,
+            "\xF0\x9F\x8F\x8C\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman golfing: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanGolfingMediumLightSkinTone,
+            "\xF0\x9F\x8F\x8C\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman golfing: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanGolfingMediumSkinTone,
+            "\xF0\x9F\x8F\x8C\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman golfing: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanGolfingMediumDarkSkinTone,
+            "\xF0\x9F\x8F\x8C\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman golfing: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanGolfingDarkSkinTone,
+            "\xF0\x9F\x8F\x8C\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman golfing: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonSurfing,
+            "\xF0\x9F\x8F\x84",
+            "person surfing"},
+        EmojiEntry{
+            EmojiEnum::PersonSurfingLightSkinTone,
+            "\xF0\x9F\x8F\x84\xF0\x9F\x8F\xBB",
+            "person surfing: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonSurfingMediumLightSkinTone,
+            "\xF0\x9F\x8F\x84\xF0\x9F\x8F\xBC",
+            "person surfing: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonSurfingMediumSkinTone,
+            "\xF0\x9F\x8F\x84\xF0\x9F\x8F\xBD",
+            "person surfing: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonSurfingMediumDarkSkinTone,
+            "\xF0\x9F\x8F\x84\xF0\x9F\x8F\xBE",
+            "person surfing: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonSurfingDarkSkinTone,
+            "\xF0\x9F\x8F\x84\xF0\x9F\x8F\xBF",
+            "person surfing: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManSurfing,
+            "\xF0\x9F\x8F\x84\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
+            "man surfing"},
+        EmojiEntry{
+            EmojiEnum::ManSurfingLightSkinTone,
+            "\xF0\x9F\x8F\x84\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man surfing: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManSurfingMediumLightSkinTone,
+            "\xF0\x9F\x8F\x84\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man surfing: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManSurfingMediumSkinTone,
+            "\xF0\x9F\x8F\x84\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man surfing: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManSurfingMediumDarkSkinTone,
+            "\xF0\x9F\x8F\x84\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man surfing: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManSurfingDarkSkinTone,
+            "\xF0\x9F\x8F\x84\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man surfing: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanSurfing,
+            "\xF0\x9F\x8F\x84\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
+            "woman surfing"},
+        EmojiEntry{
+            EmojiEnum::WomanSurfingLightSkinTone,
+            "\xF0\x9F\x8F\x84\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman surfing: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanSurfingMediumLightSkinTone,
+            "\xF0\x9F\x8F\x84\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman surfing: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanSurfingMediumSkinTone,
+            "\xF0\x9F\x8F\x84\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman surfing: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanSurfingMediumDarkSkinTone,
+            "\xF0\x9F\x8F\x84\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman surfing: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanSurfingDarkSkinTone,
+            "\xF0\x9F\x8F\x84\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman surfing: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonRowingBoat,
+            "\xF0\x9F\x9A\xA3",
+            "person rowing boat"},
+        EmojiEntry{
+            EmojiEnum::PersonRowingBoatLightSkinTone,
+            "\xF0\x9F\x9A\xA3\xF0\x9F\x8F\xBB",
+            "person rowing boat: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonRowingBoatMediumLightSkinTone,
+            "\xF0\x9F\x9A\xA3\xF0\x9F\x8F\xBC",
+            "person rowing boat: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonRowingBoatMediumSkinTone,
+            "\xF0\x9F\x9A\xA3\xF0\x9F\x8F\xBD",
+            "person rowing boat: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonRowingBoatMediumDarkSkinTone,
+            "\xF0\x9F\x9A\xA3\xF0\x9F\x8F\xBE",
+            "person rowing boat: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonRowingBoatDarkSkinTone,
+            "\xF0\x9F\x9A\xA3\xF0\x9F\x8F\xBF",
+            "person rowing boat: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManRowingBoat,
+            "\xF0\x9F\x9A\xA3\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
+            "man rowing boat"},
+        EmojiEntry{
+            EmojiEnum::ManRowingBoatLightSkinTone,
+            "\xF0\x9F\x9A\xA3\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man rowing boat: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManRowingBoatMediumLightSkinTone,
+            "\xF0\x9F\x9A\xA3\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man rowing boat: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManRowingBoatMediumSkinTone,
+            "\xF0\x9F\x9A\xA3\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man rowing boat: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManRowingBoatMediumDarkSkinTone,
+            "\xF0\x9F\x9A\xA3\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man rowing boat: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManRowingBoatDarkSkinTone,
+            "\xF0\x9F\x9A\xA3\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man rowing boat: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanRowingBoat,
+            "\xF0\x9F\x9A\xA3\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
+            "woman rowing boat"},
+        EmojiEntry{
+            EmojiEnum::WomanRowingBoatLightSkinTone,
+            "\xF0\x9F\x9A\xA3\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman rowing boat: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanRowingBoatMediumLightSkinTone,
+            "\xF0\x9F\x9A\xA3\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman rowing boat: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanRowingBoatMediumSkinTone,
+            "\xF0\x9F\x9A\xA3\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman rowing boat: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanRowingBoatMediumDarkSkinTone,
+            "\xF0\x9F\x9A\xA3\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman rowing boat: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanRowingBoatDarkSkinTone,
+            "\xF0\x9F\x9A\xA3\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman rowing boat: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonSwimming,
+            "\xF0\x9F\x8F\x8A",
+            "person swimming"},
+        EmojiEntry{
+            EmojiEnum::PersonSwimmingLightSkinTone,
+            "\xF0\x9F\x8F\x8A\xF0\x9F\x8F\xBB",
+            "person swimming: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonSwimmingMediumLightSkinTone,
+            "\xF0\x9F\x8F\x8A\xF0\x9F\x8F\xBC",
+            "person swimming: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonSwimmingMediumSkinTone,
+            "\xF0\x9F\x8F\x8A\xF0\x9F\x8F\xBD",
+            "person swimming: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonSwimmingMediumDarkSkinTone,
+            "\xF0\x9F\x8F\x8A\xF0\x9F\x8F\xBE",
+            "person swimming: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonSwimmingDarkSkinTone,
+            "\xF0\x9F\x8F\x8A\xF0\x9F\x8F\xBF",
+            "person swimming: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManSwimming,
+            "\xF0\x9F\x8F\x8A\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
+            "man swimming"},
+        EmojiEntry{
+            EmojiEnum::ManSwimmingLightSkinTone,
+            "\xF0\x9F\x8F\x8A\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man swimming: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManSwimmingMediumLightSkinTone,
+            "\xF0\x9F\x8F\x8A\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man swimming: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManSwimmingMediumSkinTone,
+            "\xF0\x9F\x8F\x8A\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man swimming: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManSwimmingMediumDarkSkinTone,
+            "\xF0\x9F\x8F\x8A\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man swimming: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManSwimmingDarkSkinTone,
+            "\xF0\x9F\x8F\x8A\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man swimming: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanSwimming,
+            "\xF0\x9F\x8F\x8A\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
+            "woman swimming"},
+        EmojiEntry{
+            EmojiEnum::WomanSwimmingLightSkinTone,
+            "\xF0\x9F\x8F\x8A\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman swimming: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanSwimmingMediumLightSkinTone,
+            "\xF0\x9F\x8F\x8A\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman swimming: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanSwimmingMediumSkinTone,
+            "\xF0\x9F\x8F\x8A\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman swimming: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanSwimmingMediumDarkSkinTone,
+            "\xF0\x9F\x8F\x8A\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman swimming: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanSwimmingDarkSkinTone,
+            "\xF0\x9F\x8F\x8A\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman swimming: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonBouncingBall,
+            "\xE2\x9B\xB9\xEF\xB8\x8F",
+            "person bouncing ball"},
+        EmojiEntry{
+            EmojiEnum::PersonBouncingBallLightSkinTone,
+            "\xE2\x9B\xB9\xF0\x9F\x8F\xBB",
+            "person bouncing ball: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonBouncingBallMediumLightSkinTone,
+            "\xE2\x9B\xB9\xF0\x9F\x8F\xBC",
+            "person bouncing ball: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonBouncingBallMediumSkinTone,
+            "\xE2\x9B\xB9\xF0\x9F\x8F\xBD",
+            "person bouncing ball: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonBouncingBallMediumDarkSkinTone,
+            "\xE2\x9B\xB9\xF0\x9F\x8F\xBE",
+            "person bouncing ball: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonBouncingBallDarkSkinTone,
+            "\xE2\x9B\xB9\xF0\x9F\x8F\xBF",
+            "person bouncing ball: dark skin tone"},
         EmojiEntry{
             EmojiEnum::ManBouncingBall,
             "\xE2\x9B\xB9\xEF\xB8\x8F\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
@@ -6247,588 +7908,759 @@ consteval auto makeEmojiList()
             EmojiEnum::WomanBouncingBallDarkSkinTone,
             "\xE2\x9B\xB9\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
             "woman bouncing ball: dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonLiftingWeights,
-                   "\xF0\x9F\x8F\x8B\xEF\xB8\x8F", "person lifting weights"},
-        EmojiEntry{EmojiEnum::PersonLiftingWeightsLightSkinTone,
-                   "\xF0\x9F\x8F\x8B\xF0\x9F\x8F\xBB",
-                   "person lifting weights: light skin tone"},
-        EmojiEntry{EmojiEnum::PersonLiftingWeightsMediumLightSkinTone,
-                   "\xF0\x9F\x8F\x8B\xF0\x9F\x8F\xBC",
-                   "person lifting weights: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::PersonLiftingWeightsMediumSkinTone,
-                   "\xF0\x9F\x8F\x8B\xF0\x9F\x8F\xBD",
-                   "person lifting weights: medium skin tone"},
-        EmojiEntry{EmojiEnum::PersonLiftingWeightsMediumDarkSkinTone,
-                   "\xF0\x9F\x8F\x8B\xF0\x9F\x8F\xBE",
-                   "person lifting weights: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonLiftingWeightsDarkSkinTone,
-                   "\xF0\x9F\x8F\x8B\xF0\x9F\x8F\xBF",
-                   "person lifting weights: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonLiftingWeights,
+            "\xF0\x9F\x8F\x8B\xEF\xB8\x8F",
+            "person lifting weights"},
+        EmojiEntry{
+            EmojiEnum::PersonLiftingWeightsLightSkinTone,
+            "\xF0\x9F\x8F\x8B\xF0\x9F\x8F\xBB",
+            "person lifting weights: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonLiftingWeightsMediumLightSkinTone,
+            "\xF0\x9F\x8F\x8B\xF0\x9F\x8F\xBC",
+            "person lifting weights: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonLiftingWeightsMediumSkinTone,
+            "\xF0\x9F\x8F\x8B\xF0\x9F\x8F\xBD",
+            "person lifting weights: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonLiftingWeightsMediumDarkSkinTone,
+            "\xF0\x9F\x8F\x8B\xF0\x9F\x8F\xBE",
+            "person lifting weights: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonLiftingWeightsDarkSkinTone,
+            "\xF0\x9F\x8F\x8B\xF0\x9F\x8F\xBF",
+            "person lifting weights: dark skin tone"},
         EmojiEntry{
             EmojiEnum::ManLiftingWeights,
             "\xF0\x9F\x8F\x8B\xEF\xB8\x8F\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
             "man lifting weights"},
-        EmojiEntry{EmojiEnum::ManLiftingWeightsLightSkinTone,
-                   "\xF0\x9F\x8F\x8B\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man lifting weights: light skin tone"},
-        EmojiEntry{EmojiEnum::ManLiftingWeightsMediumLightSkinTone,
-                   "\xF0\x9F\x8F\x8B\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man lifting weights: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::ManLiftingWeightsMediumSkinTone,
-                   "\xF0\x9F\x8F\x8B\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man lifting weights: medium skin tone"},
-        EmojiEntry{EmojiEnum::ManLiftingWeightsMediumDarkSkinTone,
-                   "\xF0\x9F\x8F\x8B\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man lifting weights: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::ManLiftingWeightsDarkSkinTone,
-                   "\xF0\x9F\x8F\x8B\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man lifting weights: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManLiftingWeightsLightSkinTone,
+            "\xF0\x9F\x8F\x8B\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man lifting weights: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManLiftingWeightsMediumLightSkinTone,
+            "\xF0\x9F\x8F\x8B\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man lifting weights: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManLiftingWeightsMediumSkinTone,
+            "\xF0\x9F\x8F\x8B\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man lifting weights: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManLiftingWeightsMediumDarkSkinTone,
+            "\xF0\x9F\x8F\x8B\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man lifting weights: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManLiftingWeightsDarkSkinTone,
+            "\xF0\x9F\x8F\x8B\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man lifting weights: dark skin tone"},
         EmojiEntry{
             EmojiEnum::WomanLiftingWeights,
             "\xF0\x9F\x8F\x8B\xEF\xB8\x8F\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
             "woman lifting weights"},
-        EmojiEntry{EmojiEnum::WomanLiftingWeightsLightSkinTone,
-                   "\xF0\x9F\x8F\x8B\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman lifting weights: light skin tone"},
-        EmojiEntry{EmojiEnum::WomanLiftingWeightsMediumLightSkinTone,
-                   "\xF0\x9F\x8F\x8B\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman lifting weights: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::WomanLiftingWeightsMediumSkinTone,
-                   "\xF0\x9F\x8F\x8B\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman lifting weights: medium skin tone"},
-        EmojiEntry{EmojiEnum::WomanLiftingWeightsMediumDarkSkinTone,
-                   "\xF0\x9F\x8F\x8B\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman lifting weights: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanLiftingWeightsDarkSkinTone,
-                   "\xF0\x9F\x8F\x8B\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman lifting weights: dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonBiking, "\xF0\x9F\x9A\xB4",
-                   "person biking"},
-        EmojiEntry{EmojiEnum::PersonBikingLightSkinTone,
-                   "\xF0\x9F\x9A\xB4\xF0\x9F\x8F\xBB",
-                   "person biking: light skin tone"},
-        EmojiEntry{EmojiEnum::PersonBikingMediumLightSkinTone,
-                   "\xF0\x9F\x9A\xB4\xF0\x9F\x8F\xBC",
-                   "person biking: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::PersonBikingMediumSkinTone,
-                   "\xF0\x9F\x9A\xB4\xF0\x9F\x8F\xBD",
-                   "person biking: medium skin tone"},
-        EmojiEntry{EmojiEnum::PersonBikingMediumDarkSkinTone,
-                   "\xF0\x9F\x9A\xB4\xF0\x9F\x8F\xBE",
-                   "person biking: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonBikingDarkSkinTone,
-                   "\xF0\x9F\x9A\xB4\xF0\x9F\x8F\xBF",
-                   "person biking: dark skin tone"},
-        EmojiEntry{EmojiEnum::ManBiking,
-                   "\xF0\x9F\x9A\xB4\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
-                   "man biking"},
-        EmojiEntry{EmojiEnum::ManBikingLightSkinTone,
-                   "\xF0\x9F\x9A\xB4\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man biking: light skin tone"},
-        EmojiEntry{EmojiEnum::ManBikingMediumLightSkinTone,
-                   "\xF0\x9F\x9A\xB4\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man biking: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::ManBikingMediumSkinTone,
-                   "\xF0\x9F\x9A\xB4\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man biking: medium skin tone"},
-        EmojiEntry{EmojiEnum::ManBikingMediumDarkSkinTone,
-                   "\xF0\x9F\x9A\xB4\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man biking: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::ManBikingDarkSkinTone,
-                   "\xF0\x9F\x9A\xB4\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man biking: dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanBiking,
-                   "\xF0\x9F\x9A\xB4\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
-                   "woman biking"},
-        EmojiEntry{EmojiEnum::WomanBikingLightSkinTone,
-                   "\xF0\x9F\x9A\xB4\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman biking: light skin tone"},
-        EmojiEntry{EmojiEnum::WomanBikingMediumLightSkinTone,
-                   "\xF0\x9F\x9A\xB4\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman biking: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::WomanBikingMediumSkinTone,
-                   "\xF0\x9F\x9A\xB4\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman biking: medium skin tone"},
-        EmojiEntry{EmojiEnum::WomanBikingMediumDarkSkinTone,
-                   "\xF0\x9F\x9A\xB4\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman biking: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanBikingDarkSkinTone,
-                   "\xF0\x9F\x9A\xB4\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman biking: dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonMountainBiking, "\xF0\x9F\x9A\xB5",
-                   "person mountain biking"},
-        EmojiEntry{EmojiEnum::PersonMountainBikingLightSkinTone,
-                   "\xF0\x9F\x9A\xB5\xF0\x9F\x8F\xBB",
-                   "person mountain biking: light skin tone"},
-        EmojiEntry{EmojiEnum::PersonMountainBikingMediumLightSkinTone,
-                   "\xF0\x9F\x9A\xB5\xF0\x9F\x8F\xBC",
-                   "person mountain biking: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::PersonMountainBikingMediumSkinTone,
-                   "\xF0\x9F\x9A\xB5\xF0\x9F\x8F\xBD",
-                   "person mountain biking: medium skin tone"},
-        EmojiEntry{EmojiEnum::PersonMountainBikingMediumDarkSkinTone,
-                   "\xF0\x9F\x9A\xB5\xF0\x9F\x8F\xBE",
-                   "person mountain biking: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonMountainBikingDarkSkinTone,
-                   "\xF0\x9F\x9A\xB5\xF0\x9F\x8F\xBF",
-                   "person mountain biking: dark skin tone"},
-        EmojiEntry{EmojiEnum::ManMountainBiking,
-                   "\xF0\x9F\x9A\xB5\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
-                   "man mountain biking"},
-        EmojiEntry{EmojiEnum::ManMountainBikingLightSkinTone,
-                   "\xF0\x9F\x9A\xB5\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man mountain biking: light skin tone"},
-        EmojiEntry{EmojiEnum::ManMountainBikingMediumLightSkinTone,
-                   "\xF0\x9F\x9A\xB5\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man mountain biking: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::ManMountainBikingMediumSkinTone,
-                   "\xF0\x9F\x9A\xB5\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man mountain biking: medium skin tone"},
-        EmojiEntry{EmojiEnum::ManMountainBikingMediumDarkSkinTone,
-                   "\xF0\x9F\x9A\xB5\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man mountain biking: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::ManMountainBikingDarkSkinTone,
-                   "\xF0\x9F\x9A\xB5\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man mountain biking: dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanMountainBiking,
-                   "\xF0\x9F\x9A\xB5\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
-                   "woman mountain biking"},
-        EmojiEntry{EmojiEnum::WomanMountainBikingLightSkinTone,
-                   "\xF0\x9F\x9A\xB5\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman mountain biking: light skin tone"},
-        EmojiEntry{EmojiEnum::WomanMountainBikingMediumLightSkinTone,
-                   "\xF0\x9F\x9A\xB5\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman mountain biking: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::WomanMountainBikingMediumSkinTone,
-                   "\xF0\x9F\x9A\xB5\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman mountain biking: medium skin tone"},
-        EmojiEntry{EmojiEnum::WomanMountainBikingMediumDarkSkinTone,
-                   "\xF0\x9F\x9A\xB5\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman mountain biking: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanMountainBikingDarkSkinTone,
-                   "\xF0\x9F\x9A\xB5\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman mountain biking: dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonCartwheeling, "\xF0\x9F\xA4\xB8",
-                   "person cartwheeling"},
-        EmojiEntry{EmojiEnum::PersonCartwheelingLightSkinTone,
-                   "\xF0\x9F\xA4\xB8\xF0\x9F\x8F\xBB",
-                   "person cartwheeling: light skin tone"},
-        EmojiEntry{EmojiEnum::PersonCartwheelingMediumLightSkinTone,
-                   "\xF0\x9F\xA4\xB8\xF0\x9F\x8F\xBC",
-                   "person cartwheeling: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::PersonCartwheelingMediumSkinTone,
-                   "\xF0\x9F\xA4\xB8\xF0\x9F\x8F\xBD",
-                   "person cartwheeling: medium skin tone"},
-        EmojiEntry{EmojiEnum::PersonCartwheelingMediumDarkSkinTone,
-                   "\xF0\x9F\xA4\xB8\xF0\x9F\x8F\xBE",
-                   "person cartwheeling: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonCartwheelingDarkSkinTone,
-                   "\xF0\x9F\xA4\xB8\xF0\x9F\x8F\xBF",
-                   "person cartwheeling: dark skin tone"},
-        EmojiEntry{EmojiEnum::ManCartwheeling,
-                   "\xF0\x9F\xA4\xB8\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
-                   "man cartwheeling"},
-        EmojiEntry{EmojiEnum::ManCartwheelingLightSkinTone,
-                   "\xF0\x9F\xA4\xB8\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man cartwheeling: light skin tone"},
-        EmojiEntry{EmojiEnum::ManCartwheelingMediumLightSkinTone,
-                   "\xF0\x9F\xA4\xB8\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man cartwheeling: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::ManCartwheelingMediumSkinTone,
-                   "\xF0\x9F\xA4\xB8\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man cartwheeling: medium skin tone"},
-        EmojiEntry{EmojiEnum::ManCartwheelingMediumDarkSkinTone,
-                   "\xF0\x9F\xA4\xB8\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man cartwheeling: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::ManCartwheelingDarkSkinTone,
-                   "\xF0\x9F\xA4\xB8\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man cartwheeling: dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanCartwheeling,
-                   "\xF0\x9F\xA4\xB8\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
-                   "woman cartwheeling"},
-        EmojiEntry{EmojiEnum::WomanCartwheelingLightSkinTone,
-                   "\xF0\x9F\xA4\xB8\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman cartwheeling: light skin tone"},
-        EmojiEntry{EmojiEnum::WomanCartwheelingMediumLightSkinTone,
-                   "\xF0\x9F\xA4\xB8\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman cartwheeling: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::WomanCartwheelingMediumSkinTone,
-                   "\xF0\x9F\xA4\xB8\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman cartwheeling: medium skin tone"},
-        EmojiEntry{EmojiEnum::WomanCartwheelingMediumDarkSkinTone,
-                   "\xF0\x9F\xA4\xB8\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman cartwheeling: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanCartwheelingDarkSkinTone,
-                   "\xF0\x9F\xA4\xB8\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman cartwheeling: dark skin tone"},
-        EmojiEntry{EmojiEnum::PeopleWrestling, "\xF0\x9F\xA4\xBC",
-                   "people wrestling"},
-        EmojiEntry{EmojiEnum::MenWrestling,
-                   "\xF0\x9F\xA4\xBC\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
-                   "men wrestling"},
-        EmojiEntry{EmojiEnum::WomenWrestling,
-                   "\xF0\x9F\xA4\xBC\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
-                   "women wrestling"},
-        EmojiEntry{EmojiEnum::PersonPlayingWaterPolo, "\xF0\x9F\xA4\xBD",
-                   "person playing water polo"},
-        EmojiEntry{EmojiEnum::PersonPlayingWaterPoloLightSkinTone,
-                   "\xF0\x9F\xA4\xBD\xF0\x9F\x8F\xBB",
-                   "person playing water polo: light skin tone"},
-        EmojiEntry{EmojiEnum::PersonPlayingWaterPoloMediumLightSkinTone,
-                   "\xF0\x9F\xA4\xBD\xF0\x9F\x8F\xBC",
-                   "person playing water polo: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::PersonPlayingWaterPoloMediumSkinTone,
-                   "\xF0\x9F\xA4\xBD\xF0\x9F\x8F\xBD",
-                   "person playing water polo: medium skin tone"},
-        EmojiEntry{EmojiEnum::PersonPlayingWaterPoloMediumDarkSkinTone,
-                   "\xF0\x9F\xA4\xBD\xF0\x9F\x8F\xBE",
-                   "person playing water polo: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonPlayingWaterPoloDarkSkinTone,
-                   "\xF0\x9F\xA4\xBD\xF0\x9F\x8F\xBF",
-                   "person playing water polo: dark skin tone"},
-        EmojiEntry{EmojiEnum::ManPlayingWaterPolo,
-                   "\xF0\x9F\xA4\xBD\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
-                   "man playing water polo"},
-        EmojiEntry{EmojiEnum::ManPlayingWaterPoloLightSkinTone,
-                   "\xF0\x9F\xA4\xBD\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man playing water polo: light skin tone"},
-        EmojiEntry{EmojiEnum::ManPlayingWaterPoloMediumLightSkinTone,
-                   "\xF0\x9F\xA4\xBD\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man playing water polo: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::ManPlayingWaterPoloMediumSkinTone,
-                   "\xF0\x9F\xA4\xBD\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man playing water polo: medium skin tone"},
-        EmojiEntry{EmojiEnum::ManPlayingWaterPoloMediumDarkSkinTone,
-                   "\xF0\x9F\xA4\xBD\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man playing water polo: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::ManPlayingWaterPoloDarkSkinTone,
-                   "\xF0\x9F\xA4\xBD\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man playing water polo: dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanPlayingWaterPolo,
-                   "\xF0\x9F\xA4\xBD\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
-                   "woman playing water polo"},
-        EmojiEntry{EmojiEnum::WomanPlayingWaterPoloLightSkinTone,
-                   "\xF0\x9F\xA4\xBD\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman playing water polo: light skin tone"},
-        EmojiEntry{EmojiEnum::WomanPlayingWaterPoloMediumLightSkinTone,
-                   "\xF0\x9F\xA4\xBD\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman playing water polo: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::WomanPlayingWaterPoloMediumSkinTone,
-                   "\xF0\x9F\xA4\xBD\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman playing water polo: medium skin tone"},
-        EmojiEntry{EmojiEnum::WomanPlayingWaterPoloMediumDarkSkinTone,
-                   "\xF0\x9F\xA4\xBD\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman playing water polo: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanPlayingWaterPoloDarkSkinTone,
-                   "\xF0\x9F\xA4\xBD\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman playing water polo: dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonPlayingHandball, "\xF0\x9F\xA4\xBE",
-                   "person playing handball"},
-        EmojiEntry{EmojiEnum::PersonPlayingHandballLightSkinTone,
-                   "\xF0\x9F\xA4\xBE\xF0\x9F\x8F\xBB",
-                   "person playing handball: light skin tone"},
-        EmojiEntry{EmojiEnum::PersonPlayingHandballMediumLightSkinTone,
-                   "\xF0\x9F\xA4\xBE\xF0\x9F\x8F\xBC",
-                   "person playing handball: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::PersonPlayingHandballMediumSkinTone,
-                   "\xF0\x9F\xA4\xBE\xF0\x9F\x8F\xBD",
-                   "person playing handball: medium skin tone"},
-        EmojiEntry{EmojiEnum::PersonPlayingHandballMediumDarkSkinTone,
-                   "\xF0\x9F\xA4\xBE\xF0\x9F\x8F\xBE",
-                   "person playing handball: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonPlayingHandballDarkSkinTone,
-                   "\xF0\x9F\xA4\xBE\xF0\x9F\x8F\xBF",
-                   "person playing handball: dark skin tone"},
-        EmojiEntry{EmojiEnum::ManPlayingHandball,
-                   "\xF0\x9F\xA4\xBE\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
-                   "man playing handball"},
-        EmojiEntry{EmojiEnum::ManPlayingHandballLightSkinTone,
-                   "\xF0\x9F\xA4\xBE\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man playing handball: light skin tone"},
-        EmojiEntry{EmojiEnum::ManPlayingHandballMediumLightSkinTone,
-                   "\xF0\x9F\xA4\xBE\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man playing handball: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::ManPlayingHandballMediumSkinTone,
-                   "\xF0\x9F\xA4\xBE\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man playing handball: medium skin tone"},
-        EmojiEntry{EmojiEnum::ManPlayingHandballMediumDarkSkinTone,
-                   "\xF0\x9F\xA4\xBE\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man playing handball: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::ManPlayingHandballDarkSkinTone,
-                   "\xF0\x9F\xA4\xBE\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man playing handball: dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanPlayingHandball,
-                   "\xF0\x9F\xA4\xBE\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
-                   "woman playing handball"},
-        EmojiEntry{EmojiEnum::WomanPlayingHandballLightSkinTone,
-                   "\xF0\x9F\xA4\xBE\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman playing handball: light skin tone"},
-        EmojiEntry{EmojiEnum::WomanPlayingHandballMediumLightSkinTone,
-                   "\xF0\x9F\xA4\xBE\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman playing handball: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::WomanPlayingHandballMediumSkinTone,
-                   "\xF0\x9F\xA4\xBE\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman playing handball: medium skin tone"},
-        EmojiEntry{EmojiEnum::WomanPlayingHandballMediumDarkSkinTone,
-                   "\xF0\x9F\xA4\xBE\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman playing handball: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanPlayingHandballDarkSkinTone,
-                   "\xF0\x9F\xA4\xBE\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman playing handball: dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonJuggling, "\xF0\x9F\xA4\xB9",
-                   "person juggling"},
-        EmojiEntry{EmojiEnum::PersonJugglingLightSkinTone,
-                   "\xF0\x9F\xA4\xB9\xF0\x9F\x8F\xBB",
-                   "person juggling: light skin tone"},
-        EmojiEntry{EmojiEnum::PersonJugglingMediumLightSkinTone,
-                   "\xF0\x9F\xA4\xB9\xF0\x9F\x8F\xBC",
-                   "person juggling: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::PersonJugglingMediumSkinTone,
-                   "\xF0\x9F\xA4\xB9\xF0\x9F\x8F\xBD",
-                   "person juggling: medium skin tone"},
-        EmojiEntry{EmojiEnum::PersonJugglingMediumDarkSkinTone,
-                   "\xF0\x9F\xA4\xB9\xF0\x9F\x8F\xBE",
-                   "person juggling: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonJugglingDarkSkinTone,
-                   "\xF0\x9F\xA4\xB9\xF0\x9F\x8F\xBF",
-                   "person juggling: dark skin tone"},
-        EmojiEntry{EmojiEnum::ManJuggling,
-                   "\xF0\x9F\xA4\xB9\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
-                   "man juggling"},
-        EmojiEntry{EmojiEnum::ManJugglingLightSkinTone,
-                   "\xF0\x9F\xA4\xB9\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man juggling: light skin tone"},
-        EmojiEntry{EmojiEnum::ManJugglingMediumLightSkinTone,
-                   "\xF0\x9F\xA4\xB9\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man juggling: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::ManJugglingMediumSkinTone,
-                   "\xF0\x9F\xA4\xB9\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man juggling: medium skin tone"},
-        EmojiEntry{EmojiEnum::ManJugglingMediumDarkSkinTone,
-                   "\xF0\x9F\xA4\xB9\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man juggling: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::ManJugglingDarkSkinTone,
-                   "\xF0\x9F\xA4\xB9\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man juggling: dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanJuggling,
-                   "\xF0\x9F\xA4\xB9\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
-                   "woman juggling"},
-        EmojiEntry{EmojiEnum::WomanJugglingLightSkinTone,
-                   "\xF0\x9F\xA4\xB9\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman juggling: light skin tone"},
-        EmojiEntry{EmojiEnum::WomanJugglingMediumLightSkinTone,
-                   "\xF0\x9F\xA4\xB9\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman juggling: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::WomanJugglingMediumSkinTone,
-                   "\xF0\x9F\xA4\xB9\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman juggling: medium skin tone"},
-        EmojiEntry{EmojiEnum::WomanJugglingMediumDarkSkinTone,
-                   "\xF0\x9F\xA4\xB9\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman juggling: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanJugglingDarkSkinTone,
-                   "\xF0\x9F\xA4\xB9\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman juggling: dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonInLotusPosition, "\xF0\x9F\xA7\x98",
-                   "person in lotus position"},
-        EmojiEntry{EmojiEnum::PersonInLotusPositionLightSkinTone,
-                   "\xF0\x9F\xA7\x98\xF0\x9F\x8F\xBB",
-                   "person in lotus position: light skin tone"},
-        EmojiEntry{EmojiEnum::PersonInLotusPositionMediumLightSkinTone,
-                   "\xF0\x9F\xA7\x98\xF0\x9F\x8F\xBC",
-                   "person in lotus position: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::PersonInLotusPositionMediumSkinTone,
-                   "\xF0\x9F\xA7\x98\xF0\x9F\x8F\xBD",
-                   "person in lotus position: medium skin tone"},
-        EmojiEntry{EmojiEnum::PersonInLotusPositionMediumDarkSkinTone,
-                   "\xF0\x9F\xA7\x98\xF0\x9F\x8F\xBE",
-                   "person in lotus position: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonInLotusPositionDarkSkinTone,
-                   "\xF0\x9F\xA7\x98\xF0\x9F\x8F\xBF",
-                   "person in lotus position: dark skin tone"},
-        EmojiEntry{EmojiEnum::ManInLotusPosition,
-                   "\xF0\x9F\xA7\x98\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
-                   "man in lotus position"},
-        EmojiEntry{EmojiEnum::ManInLotusPositionLightSkinTone,
-                   "\xF0\x9F\xA7\x98\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man in lotus position: light skin tone"},
-        EmojiEntry{EmojiEnum::ManInLotusPositionMediumLightSkinTone,
-                   "\xF0\x9F\xA7\x98\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man in lotus position: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::ManInLotusPositionMediumSkinTone,
-                   "\xF0\x9F\xA7\x98\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man in lotus position: medium skin tone"},
-        EmojiEntry{EmojiEnum::ManInLotusPositionMediumDarkSkinTone,
-                   "\xF0\x9F\xA7\x98\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man in lotus position: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::ManInLotusPositionDarkSkinTone,
-                   "\xF0\x9F\xA7\x98\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
-                   "\xEF\xB8\x8F",
-                   "man in lotus position: dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanInLotusPosition,
-                   "\xF0\x9F\xA7\x98\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
-                   "woman in lotus position"},
-        EmojiEntry{EmojiEnum::WomanInLotusPositionLightSkinTone,
-                   "\xF0\x9F\xA7\x98\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman in lotus position: light skin tone"},
-        EmojiEntry{EmojiEnum::WomanInLotusPositionMediumLightSkinTone,
-                   "\xF0\x9F\xA7\x98\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman in lotus position: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::WomanInLotusPositionMediumSkinTone,
-                   "\xF0\x9F\xA7\x98\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman in lotus position: medium skin tone"},
-        EmojiEntry{EmojiEnum::WomanInLotusPositionMediumDarkSkinTone,
-                   "\xF0\x9F\xA7\x98\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman in lotus position: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanInLotusPositionDarkSkinTone,
-                   "\xF0\x9F\xA7\x98\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
-                   "\xEF\xB8\x8F",
-                   "woman in lotus position: dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonTakingBath, "\xF0\x9F\x9B\x80",
-                   "person taking bath"},
-        EmojiEntry{EmojiEnum::PersonTakingBathLightSkinTone,
-                   "\xF0\x9F\x9B\x80\xF0\x9F\x8F\xBB",
-                   "person taking bath: light skin tone"},
-        EmojiEntry{EmojiEnum::PersonTakingBathMediumLightSkinTone,
-                   "\xF0\x9F\x9B\x80\xF0\x9F\x8F\xBC",
-                   "person taking bath: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::PersonTakingBathMediumSkinTone,
-                   "\xF0\x9F\x9B\x80\xF0\x9F\x8F\xBD",
-                   "person taking bath: medium skin tone"},
-        EmojiEntry{EmojiEnum::PersonTakingBathMediumDarkSkinTone,
-                   "\xF0\x9F\x9B\x80\xF0\x9F\x8F\xBE",
-                   "person taking bath: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonTakingBathDarkSkinTone,
-                   "\xF0\x9F\x9B\x80\xF0\x9F\x8F\xBF",
-                   "person taking bath: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanLiftingWeightsLightSkinTone,
+            "\xF0\x9F\x8F\x8B\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman lifting weights: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanLiftingWeightsMediumLightSkinTone,
+            "\xF0\x9F\x8F\x8B\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman lifting weights: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanLiftingWeightsMediumSkinTone,
+            "\xF0\x9F\x8F\x8B\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman lifting weights: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanLiftingWeightsMediumDarkSkinTone,
+            "\xF0\x9F\x8F\x8B\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman lifting weights: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanLiftingWeightsDarkSkinTone,
+            "\xF0\x9F\x8F\x8B\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman lifting weights: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonBiking,
+            "\xF0\x9F\x9A\xB4",
+            "person biking"},
+        EmojiEntry{
+            EmojiEnum::PersonBikingLightSkinTone,
+            "\xF0\x9F\x9A\xB4\xF0\x9F\x8F\xBB",
+            "person biking: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonBikingMediumLightSkinTone,
+            "\xF0\x9F\x9A\xB4\xF0\x9F\x8F\xBC",
+            "person biking: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonBikingMediumSkinTone,
+            "\xF0\x9F\x9A\xB4\xF0\x9F\x8F\xBD",
+            "person biking: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonBikingMediumDarkSkinTone,
+            "\xF0\x9F\x9A\xB4\xF0\x9F\x8F\xBE",
+            "person biking: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonBikingDarkSkinTone,
+            "\xF0\x9F\x9A\xB4\xF0\x9F\x8F\xBF",
+            "person biking: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManBiking,
+            "\xF0\x9F\x9A\xB4\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
+            "man biking"},
+        EmojiEntry{
+            EmojiEnum::ManBikingLightSkinTone,
+            "\xF0\x9F\x9A\xB4\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man biking: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManBikingMediumLightSkinTone,
+            "\xF0\x9F\x9A\xB4\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man biking: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManBikingMediumSkinTone,
+            "\xF0\x9F\x9A\xB4\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man biking: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManBikingMediumDarkSkinTone,
+            "\xF0\x9F\x9A\xB4\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man biking: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManBikingDarkSkinTone,
+            "\xF0\x9F\x9A\xB4\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man biking: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanBiking,
+            "\xF0\x9F\x9A\xB4\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
+            "woman biking"},
+        EmojiEntry{
+            EmojiEnum::WomanBikingLightSkinTone,
+            "\xF0\x9F\x9A\xB4\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman biking: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanBikingMediumLightSkinTone,
+            "\xF0\x9F\x9A\xB4\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman biking: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanBikingMediumSkinTone,
+            "\xF0\x9F\x9A\xB4\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman biking: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanBikingMediumDarkSkinTone,
+            "\xF0\x9F\x9A\xB4\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman biking: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanBikingDarkSkinTone,
+            "\xF0\x9F\x9A\xB4\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman biking: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonMountainBiking,
+            "\xF0\x9F\x9A\xB5",
+            "person mountain biking"},
+        EmojiEntry{
+            EmojiEnum::PersonMountainBikingLightSkinTone,
+            "\xF0\x9F\x9A\xB5\xF0\x9F\x8F\xBB",
+            "person mountain biking: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonMountainBikingMediumLightSkinTone,
+            "\xF0\x9F\x9A\xB5\xF0\x9F\x8F\xBC",
+            "person mountain biking: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonMountainBikingMediumSkinTone,
+            "\xF0\x9F\x9A\xB5\xF0\x9F\x8F\xBD",
+            "person mountain biking: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonMountainBikingMediumDarkSkinTone,
+            "\xF0\x9F\x9A\xB5\xF0\x9F\x8F\xBE",
+            "person mountain biking: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonMountainBikingDarkSkinTone,
+            "\xF0\x9F\x9A\xB5\xF0\x9F\x8F\xBF",
+            "person mountain biking: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManMountainBiking,
+            "\xF0\x9F\x9A\xB5\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
+            "man mountain biking"},
+        EmojiEntry{
+            EmojiEnum::ManMountainBikingLightSkinTone,
+            "\xF0\x9F\x9A\xB5\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man mountain biking: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManMountainBikingMediumLightSkinTone,
+            "\xF0\x9F\x9A\xB5\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man mountain biking: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManMountainBikingMediumSkinTone,
+            "\xF0\x9F\x9A\xB5\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man mountain biking: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManMountainBikingMediumDarkSkinTone,
+            "\xF0\x9F\x9A\xB5\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man mountain biking: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManMountainBikingDarkSkinTone,
+            "\xF0\x9F\x9A\xB5\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man mountain biking: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanMountainBiking,
+            "\xF0\x9F\x9A\xB5\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
+            "woman mountain biking"},
+        EmojiEntry{
+            EmojiEnum::WomanMountainBikingLightSkinTone,
+            "\xF0\x9F\x9A\xB5\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman mountain biking: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanMountainBikingMediumLightSkinTone,
+            "\xF0\x9F\x9A\xB5\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman mountain biking: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanMountainBikingMediumSkinTone,
+            "\xF0\x9F\x9A\xB5\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman mountain biking: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanMountainBikingMediumDarkSkinTone,
+            "\xF0\x9F\x9A\xB5\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman mountain biking: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanMountainBikingDarkSkinTone,
+            "\xF0\x9F\x9A\xB5\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman mountain biking: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonCartwheeling,
+            "\xF0\x9F\xA4\xB8",
+            "person cartwheeling"},
+        EmojiEntry{
+            EmojiEnum::PersonCartwheelingLightSkinTone,
+            "\xF0\x9F\xA4\xB8\xF0\x9F\x8F\xBB",
+            "person cartwheeling: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonCartwheelingMediumLightSkinTone,
+            "\xF0\x9F\xA4\xB8\xF0\x9F\x8F\xBC",
+            "person cartwheeling: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonCartwheelingMediumSkinTone,
+            "\xF0\x9F\xA4\xB8\xF0\x9F\x8F\xBD",
+            "person cartwheeling: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonCartwheelingMediumDarkSkinTone,
+            "\xF0\x9F\xA4\xB8\xF0\x9F\x8F\xBE",
+            "person cartwheeling: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonCartwheelingDarkSkinTone,
+            "\xF0\x9F\xA4\xB8\xF0\x9F\x8F\xBF",
+            "person cartwheeling: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManCartwheeling,
+            "\xF0\x9F\xA4\xB8\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
+            "man cartwheeling"},
+        EmojiEntry{
+            EmojiEnum::ManCartwheelingLightSkinTone,
+            "\xF0\x9F\xA4\xB8\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man cartwheeling: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManCartwheelingMediumLightSkinTone,
+            "\xF0\x9F\xA4\xB8\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man cartwheeling: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManCartwheelingMediumSkinTone,
+            "\xF0\x9F\xA4\xB8\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man cartwheeling: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManCartwheelingMediumDarkSkinTone,
+            "\xF0\x9F\xA4\xB8\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man cartwheeling: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManCartwheelingDarkSkinTone,
+            "\xF0\x9F\xA4\xB8\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man cartwheeling: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanCartwheeling,
+            "\xF0\x9F\xA4\xB8\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
+            "woman cartwheeling"},
+        EmojiEntry{
+            EmojiEnum::WomanCartwheelingLightSkinTone,
+            "\xF0\x9F\xA4\xB8\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman cartwheeling: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanCartwheelingMediumLightSkinTone,
+            "\xF0\x9F\xA4\xB8\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman cartwheeling: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanCartwheelingMediumSkinTone,
+            "\xF0\x9F\xA4\xB8\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman cartwheeling: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanCartwheelingMediumDarkSkinTone,
+            "\xF0\x9F\xA4\xB8\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman cartwheeling: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanCartwheelingDarkSkinTone,
+            "\xF0\x9F\xA4\xB8\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman cartwheeling: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PeopleWrestling,
+            "\xF0\x9F\xA4\xBC",
+            "people wrestling"},
+        EmojiEntry{
+            EmojiEnum::MenWrestling,
+            "\xF0\x9F\xA4\xBC\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
+            "men wrestling"},
+        EmojiEntry{
+            EmojiEnum::WomenWrestling,
+            "\xF0\x9F\xA4\xBC\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
+            "women wrestling"},
+        EmojiEntry{
+            EmojiEnum::PersonPlayingWaterPolo,
+            "\xF0\x9F\xA4\xBD",
+            "person playing water polo"},
+        EmojiEntry{
+            EmojiEnum::PersonPlayingWaterPoloLightSkinTone,
+            "\xF0\x9F\xA4\xBD\xF0\x9F\x8F\xBB",
+            "person playing water polo: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonPlayingWaterPoloMediumLightSkinTone,
+            "\xF0\x9F\xA4\xBD\xF0\x9F\x8F\xBC",
+            "person playing water polo: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonPlayingWaterPoloMediumSkinTone,
+            "\xF0\x9F\xA4\xBD\xF0\x9F\x8F\xBD",
+            "person playing water polo: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonPlayingWaterPoloMediumDarkSkinTone,
+            "\xF0\x9F\xA4\xBD\xF0\x9F\x8F\xBE",
+            "person playing water polo: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonPlayingWaterPoloDarkSkinTone,
+            "\xF0\x9F\xA4\xBD\xF0\x9F\x8F\xBF",
+            "person playing water polo: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManPlayingWaterPolo,
+            "\xF0\x9F\xA4\xBD\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
+            "man playing water polo"},
+        EmojiEntry{
+            EmojiEnum::ManPlayingWaterPoloLightSkinTone,
+            "\xF0\x9F\xA4\xBD\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man playing water polo: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManPlayingWaterPoloMediumLightSkinTone,
+            "\xF0\x9F\xA4\xBD\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man playing water polo: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManPlayingWaterPoloMediumSkinTone,
+            "\xF0\x9F\xA4\xBD\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man playing water polo: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManPlayingWaterPoloMediumDarkSkinTone,
+            "\xF0\x9F\xA4\xBD\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man playing water polo: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManPlayingWaterPoloDarkSkinTone,
+            "\xF0\x9F\xA4\xBD\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man playing water polo: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanPlayingWaterPolo,
+            "\xF0\x9F\xA4\xBD\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
+            "woman playing water polo"},
+        EmojiEntry{
+            EmojiEnum::WomanPlayingWaterPoloLightSkinTone,
+            "\xF0\x9F\xA4\xBD\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman playing water polo: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanPlayingWaterPoloMediumLightSkinTone,
+            "\xF0\x9F\xA4\xBD\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman playing water polo: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanPlayingWaterPoloMediumSkinTone,
+            "\xF0\x9F\xA4\xBD\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman playing water polo: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanPlayingWaterPoloMediumDarkSkinTone,
+            "\xF0\x9F\xA4\xBD\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman playing water polo: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanPlayingWaterPoloDarkSkinTone,
+            "\xF0\x9F\xA4\xBD\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman playing water polo: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonPlayingHandball,
+            "\xF0\x9F\xA4\xBE",
+            "person playing handball"},
+        EmojiEntry{
+            EmojiEnum::PersonPlayingHandballLightSkinTone,
+            "\xF0\x9F\xA4\xBE\xF0\x9F\x8F\xBB",
+            "person playing handball: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonPlayingHandballMediumLightSkinTone,
+            "\xF0\x9F\xA4\xBE\xF0\x9F\x8F\xBC",
+            "person playing handball: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonPlayingHandballMediumSkinTone,
+            "\xF0\x9F\xA4\xBE\xF0\x9F\x8F\xBD",
+            "person playing handball: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonPlayingHandballMediumDarkSkinTone,
+            "\xF0\x9F\xA4\xBE\xF0\x9F\x8F\xBE",
+            "person playing handball: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonPlayingHandballDarkSkinTone,
+            "\xF0\x9F\xA4\xBE\xF0\x9F\x8F\xBF",
+            "person playing handball: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManPlayingHandball,
+            "\xF0\x9F\xA4\xBE\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
+            "man playing handball"},
+        EmojiEntry{
+            EmojiEnum::ManPlayingHandballLightSkinTone,
+            "\xF0\x9F\xA4\xBE\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man playing handball: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManPlayingHandballMediumLightSkinTone,
+            "\xF0\x9F\xA4\xBE\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man playing handball: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManPlayingHandballMediumSkinTone,
+            "\xF0\x9F\xA4\xBE\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man playing handball: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManPlayingHandballMediumDarkSkinTone,
+            "\xF0\x9F\xA4\xBE\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man playing handball: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManPlayingHandballDarkSkinTone,
+            "\xF0\x9F\xA4\xBE\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man playing handball: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanPlayingHandball,
+            "\xF0\x9F\xA4\xBE\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
+            "woman playing handball"},
+        EmojiEntry{
+            EmojiEnum::WomanPlayingHandballLightSkinTone,
+            "\xF0\x9F\xA4\xBE\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman playing handball: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanPlayingHandballMediumLightSkinTone,
+            "\xF0\x9F\xA4\xBE\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman playing handball: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanPlayingHandballMediumSkinTone,
+            "\xF0\x9F\xA4\xBE\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman playing handball: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanPlayingHandballMediumDarkSkinTone,
+            "\xF0\x9F\xA4\xBE\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman playing handball: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanPlayingHandballDarkSkinTone,
+            "\xF0\x9F\xA4\xBE\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman playing handball: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonJuggling,
+            "\xF0\x9F\xA4\xB9",
+            "person juggling"},
+        EmojiEntry{
+            EmojiEnum::PersonJugglingLightSkinTone,
+            "\xF0\x9F\xA4\xB9\xF0\x9F\x8F\xBB",
+            "person juggling: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonJugglingMediumLightSkinTone,
+            "\xF0\x9F\xA4\xB9\xF0\x9F\x8F\xBC",
+            "person juggling: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonJugglingMediumSkinTone,
+            "\xF0\x9F\xA4\xB9\xF0\x9F\x8F\xBD",
+            "person juggling: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonJugglingMediumDarkSkinTone,
+            "\xF0\x9F\xA4\xB9\xF0\x9F\x8F\xBE",
+            "person juggling: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonJugglingDarkSkinTone,
+            "\xF0\x9F\xA4\xB9\xF0\x9F\x8F\xBF",
+            "person juggling: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManJuggling,
+            "\xF0\x9F\xA4\xB9\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
+            "man juggling"},
+        EmojiEntry{
+            EmojiEnum::ManJugglingLightSkinTone,
+            "\xF0\x9F\xA4\xB9\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man juggling: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManJugglingMediumLightSkinTone,
+            "\xF0\x9F\xA4\xB9\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man juggling: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManJugglingMediumSkinTone,
+            "\xF0\x9F\xA4\xB9\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man juggling: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManJugglingMediumDarkSkinTone,
+            "\xF0\x9F\xA4\xB9\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man juggling: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManJugglingDarkSkinTone,
+            "\xF0\x9F\xA4\xB9\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man juggling: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanJuggling,
+            "\xF0\x9F\xA4\xB9\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
+            "woman juggling"},
+        EmojiEntry{
+            EmojiEnum::WomanJugglingLightSkinTone,
+            "\xF0\x9F\xA4\xB9\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman juggling: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanJugglingMediumLightSkinTone,
+            "\xF0\x9F\xA4\xB9\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman juggling: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanJugglingMediumSkinTone,
+            "\xF0\x9F\xA4\xB9\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman juggling: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanJugglingMediumDarkSkinTone,
+            "\xF0\x9F\xA4\xB9\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman juggling: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanJugglingDarkSkinTone,
+            "\xF0\x9F\xA4\xB9\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman juggling: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonInLotusPosition,
+            "\xF0\x9F\xA7\x98",
+            "person in lotus position"},
+        EmojiEntry{
+            EmojiEnum::PersonInLotusPositionLightSkinTone,
+            "\xF0\x9F\xA7\x98\xF0\x9F\x8F\xBB",
+            "person in lotus position: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonInLotusPositionMediumLightSkinTone,
+            "\xF0\x9F\xA7\x98\xF0\x9F\x8F\xBC",
+            "person in lotus position: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonInLotusPositionMediumSkinTone,
+            "\xF0\x9F\xA7\x98\xF0\x9F\x8F\xBD",
+            "person in lotus position: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonInLotusPositionMediumDarkSkinTone,
+            "\xF0\x9F\xA7\x98\xF0\x9F\x8F\xBE",
+            "person in lotus position: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonInLotusPositionDarkSkinTone,
+            "\xF0\x9F\xA7\x98\xF0\x9F\x8F\xBF",
+            "person in lotus position: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManInLotusPosition,
+            "\xF0\x9F\xA7\x98\xE2\x80\x8D\xE2\x99\x82\xEF\xB8\x8F",
+            "man in lotus position"},
+        EmojiEntry{
+            EmojiEnum::ManInLotusPositionLightSkinTone,
+            "\xF0\x9F\xA7\x98\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man in lotus position: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManInLotusPositionMediumLightSkinTone,
+            "\xF0\x9F\xA7\x98\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man in lotus position: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManInLotusPositionMediumSkinTone,
+            "\xF0\x9F\xA7\x98\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man in lotus position: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManInLotusPositionMediumDarkSkinTone,
+            "\xF0\x9F\xA7\x98\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man in lotus position: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::ManInLotusPositionDarkSkinTone,
+            "\xF0\x9F\xA7\x98\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x82"
+            "\xEF\xB8\x8F",
+            "man in lotus position: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanInLotusPosition,
+            "\xF0\x9F\xA7\x98\xE2\x80\x8D\xE2\x99\x80\xEF\xB8\x8F",
+            "woman in lotus position"},
+        EmojiEntry{
+            EmojiEnum::WomanInLotusPositionLightSkinTone,
+            "\xF0\x9F\xA7\x98\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman in lotus position: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanInLotusPositionMediumLightSkinTone,
+            "\xF0\x9F\xA7\x98\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman in lotus position: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanInLotusPositionMediumSkinTone,
+            "\xF0\x9F\xA7\x98\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman in lotus position: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanInLotusPositionMediumDarkSkinTone,
+            "\xF0\x9F\xA7\x98\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman in lotus position: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanInLotusPositionDarkSkinTone,
+            "\xF0\x9F\xA7\x98\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x99\x80"
+            "\xEF\xB8\x8F",
+            "woman in lotus position: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonTakingBath,
+            "\xF0\x9F\x9B\x80",
+            "person taking bath"},
+        EmojiEntry{
+            EmojiEnum::PersonTakingBathLightSkinTone,
+            "\xF0\x9F\x9B\x80\xF0\x9F\x8F\xBB",
+            "person taking bath: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonTakingBathMediumLightSkinTone,
+            "\xF0\x9F\x9B\x80\xF0\x9F\x8F\xBC",
+            "person taking bath: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonTakingBathMediumSkinTone,
+            "\xF0\x9F\x9B\x80\xF0\x9F\x8F\xBD",
+            "person taking bath: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonTakingBathMediumDarkSkinTone,
+            "\xF0\x9F\x9B\x80\xF0\x9F\x8F\xBE",
+            "person taking bath: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonTakingBathDarkSkinTone,
+            "\xF0\x9F\x9B\x80\xF0\x9F\x8F\xBF",
+            "person taking bath: dark skin tone"},
         EmojiEntry{EmojiEnum::PersonInBed, "\xF0\x9F\x9B\x8C", "person in bed"},
-        EmojiEntry{EmojiEnum::PersonInBedLightSkinTone,
-                   "\xF0\x9F\x9B\x8C\xF0\x9F\x8F\xBB",
-                   "person in bed: light skin tone"},
-        EmojiEntry{EmojiEnum::PersonInBedMediumLightSkinTone,
-                   "\xF0\x9F\x9B\x8C\xF0\x9F\x8F\xBC",
-                   "person in bed: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::PersonInBedMediumSkinTone,
-                   "\xF0\x9F\x9B\x8C\xF0\x9F\x8F\xBD",
-                   "person in bed: medium skin tone"},
-        EmojiEntry{EmojiEnum::PersonInBedMediumDarkSkinTone,
-                   "\xF0\x9F\x9B\x8C\xF0\x9F\x8F\xBE",
-                   "person in bed: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::PersonInBedDarkSkinTone,
-                   "\xF0\x9F\x9B\x8C\xF0\x9F\x8F\xBF",
-                   "person in bed: dark skin tone"},
-        EmojiEntry{EmojiEnum::PeopleHoldingHands,
-                   "\xF0\x9F\xA7\x91\xE2\x80\x8D\xF0\x9F\xA4\x9D\xE2\x80\x8D"
-                   "\xF0\x9F\xA7\x91",
-                   "people holding hands"},
-        EmojiEntry{EmojiEnum::PeopleHoldingHandsLightSkinTone,
-                   "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\xA4"
-                   "\x9D\xE2\x80\x8D\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBB",
-                   "people holding hands: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonInBedLightSkinTone,
+            "\xF0\x9F\x9B\x8C\xF0\x9F\x8F\xBB",
+            "person in bed: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonInBedMediumLightSkinTone,
+            "\xF0\x9F\x9B\x8C\xF0\x9F\x8F\xBC",
+            "person in bed: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonInBedMediumSkinTone,
+            "\xF0\x9F\x9B\x8C\xF0\x9F\x8F\xBD",
+            "person in bed: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonInBedMediumDarkSkinTone,
+            "\xF0\x9F\x9B\x8C\xF0\x9F\x8F\xBE",
+            "person in bed: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PersonInBedDarkSkinTone,
+            "\xF0\x9F\x9B\x8C\xF0\x9F\x8F\xBF",
+            "person in bed: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PeopleHoldingHands,
+            "\xF0\x9F\xA7\x91\xE2\x80\x8D\xF0\x9F\xA4\x9D\xE2\x80\x8D"
+            "\xF0\x9F\xA7\x91",
+            "people holding hands"},
+        EmojiEntry{
+            EmojiEnum::PeopleHoldingHandsLightSkinTone,
+            "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\xA4"
+            "\x9D\xE2\x80\x8D\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBB",
+            "people holding hands: light skin tone"},
         EmojiEntry{
             EmojiEnum::PeopleHoldingHandsLightSkinToneMediumLightSkinTone,
             "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\xA4\x9D\xE2"
             "\x80\x8D\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBC",
             "people holding hands: light skin tone, medium-light skin tone"},
-        EmojiEntry{EmojiEnum::PeopleHoldingHandsLightSkinToneMediumSkinTone,
-                   "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\xA4"
-                   "\x9D\xE2\x80\x8D\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBD",
-                   "people holding hands: light skin tone, medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::PeopleHoldingHandsLightSkinToneMediumSkinTone,
+            "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\xA4"
+            "\x9D\xE2\x80\x8D\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBD",
+            "people holding hands: light skin tone, medium skin tone"},
         EmojiEntry{
             EmojiEnum::PeopleHoldingHandsLightSkinToneMediumDarkSkinTone,
             "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\xA4\x9D\xE2"
             "\x80\x8D\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBE",
             "people holding hands: light skin tone, medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::PeopleHoldingHandsLightSkinToneDarkSkinTone,
-                   "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\xA4"
-                   "\x9D\xE2\x80\x8D\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBF",
-                   "people holding hands: light skin tone, dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PeopleHoldingHandsLightSkinToneDarkSkinTone,
+            "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\xA4"
+            "\x9D\xE2\x80\x8D\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBF",
+            "people holding hands: light skin tone, dark skin tone"},
         EmojiEntry{
             EmojiEnum::PeopleHoldingHandsMediumLightSkinToneLightSkinTone,
             "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBC\xE2\x80\x8D\xF0\x9F\xA4\x9D\xE2"
             "\x80\x8D\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBB",
             "people holding hands: medium-light skin tone, light skin tone"},
-        EmojiEntry{EmojiEnum::PeopleHoldingHandsMediumLightSkinTone,
-                   "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBC\xE2\x80\x8D\xF0\x9F\xA4"
-                   "\x9D\xE2\x80\x8D\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBC",
-                   "people holding hands: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PeopleHoldingHandsMediumLightSkinTone,
+            "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBC\xE2\x80\x8D\xF0\x9F\xA4"
+            "\x9D\xE2\x80\x8D\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBC",
+            "people holding hands: medium-light skin tone"},
         EmojiEntry{
             EmojiEnum::PeopleHoldingHandsMediumLightSkinToneMediumSkinTone,
             "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBC\xE2\x80\x8D\xF0\x9F\xA4\x9D\xE2"
@@ -6845,28 +8677,31 @@ consteval auto makeEmojiList()
             "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBC\xE2\x80\x8D\xF0\x9F\xA4\x9D\xE2"
             "\x80\x8D\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBF",
             "people holding hands: medium-light skin tone, dark skin tone"},
-        EmojiEntry{EmojiEnum::PeopleHoldingHandsMediumSkinToneLightSkinTone,
-                   "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBD\xE2\x80\x8D\xF0\x9F\xA4"
-                   "\x9D\xE2\x80\x8D\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBB",
-                   "people holding hands: medium skin tone, light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PeopleHoldingHandsMediumSkinToneLightSkinTone,
+            "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBD\xE2\x80\x8D\xF0\x9F\xA4"
+            "\x9D\xE2\x80\x8D\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBB",
+            "people holding hands: medium skin tone, light skin tone"},
         EmojiEntry{
             EmojiEnum::PeopleHoldingHandsMediumSkinToneMediumLightSkinTone,
             "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBD\xE2\x80\x8D\xF0\x9F\xA4\x9D\xE2"
             "\x80\x8D\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBC",
             "people holding hands: medium skin tone, medium-light skin tone"},
-        EmojiEntry{EmojiEnum::PeopleHoldingHandsMediumSkinTone,
-                   "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBD\xE2\x80\x8D\xF0\x9F\xA4"
-                   "\x9D\xE2\x80\x8D\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBD",
-                   "people holding hands: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::PeopleHoldingHandsMediumSkinTone,
+            "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBD\xE2\x80\x8D\xF0\x9F\xA4"
+            "\x9D\xE2\x80\x8D\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBD",
+            "people holding hands: medium skin tone"},
         EmojiEntry{
             EmojiEnum::PeopleHoldingHandsMediumSkinToneMediumDarkSkinTone,
             "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBD\xE2\x80\x8D\xF0\x9F\xA4\x9D\xE2"
             "\x80\x8D\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBE",
             "people holding hands: medium skin tone, medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::PeopleHoldingHandsMediumSkinToneDarkSkinTone,
-                   "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBD\xE2\x80\x8D\xF0\x9F\xA4"
-                   "\x9D\xE2\x80\x8D\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBF",
-                   "people holding hands: medium skin tone, dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PeopleHoldingHandsMediumSkinToneDarkSkinTone,
+            "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBD\xE2\x80\x8D\xF0\x9F\xA4"
+            "\x9D\xE2\x80\x8D\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBF",
+            "people holding hands: medium skin tone, dark skin tone"},
         EmojiEntry{
             EmojiEnum::PeopleHoldingHandsMediumDarkSkinToneLightSkinTone,
             "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBE\xE2\x80\x8D\xF0\x9F\xA4\x9D\xE2"
@@ -6883,68 +8718,78 @@ consteval auto makeEmojiList()
             "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBE\xE2\x80\x8D\xF0\x9F\xA4\x9D\xE2"
             "\x80\x8D\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBD",
             "people holding hands: medium-dark skin tone, medium skin tone"},
-        EmojiEntry{EmojiEnum::PeopleHoldingHandsMediumDarkSkinTone,
-                   "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBE\xE2\x80\x8D\xF0\x9F\xA4"
-                   "\x9D\xE2\x80\x8D\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBE",
-                   "people holding hands: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::PeopleHoldingHandsMediumDarkSkinTone,
+            "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBE\xE2\x80\x8D\xF0\x9F\xA4"
+            "\x9D\xE2\x80\x8D\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBE",
+            "people holding hands: medium-dark skin tone"},
         EmojiEntry{
             EmojiEnum::PeopleHoldingHandsMediumDarkSkinToneDarkSkinTone,
             "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBE\xE2\x80\x8D\xF0\x9F\xA4\x9D\xE2"
             "\x80\x8D\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBF",
             "people holding hands: medium-dark skin tone, dark skin tone"},
-        EmojiEntry{EmojiEnum::PeopleHoldingHandsDarkSkinToneLightSkinTone,
-                   "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\xA4"
-                   "\x9D\xE2\x80\x8D\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBB",
-                   "people holding hands: dark skin tone, light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PeopleHoldingHandsDarkSkinToneLightSkinTone,
+            "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\xA4"
+            "\x9D\xE2\x80\x8D\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBB",
+            "people holding hands: dark skin tone, light skin tone"},
         EmojiEntry{
             EmojiEnum::PeopleHoldingHandsDarkSkinToneMediumLightSkinTone,
             "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\xA4\x9D\xE2"
             "\x80\x8D\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBC",
             "people holding hands: dark skin tone, medium-light skin tone"},
-        EmojiEntry{EmojiEnum::PeopleHoldingHandsDarkSkinToneMediumSkinTone,
-                   "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\xA4"
-                   "\x9D\xE2\x80\x8D\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBD",
-                   "people holding hands: dark skin tone, medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::PeopleHoldingHandsDarkSkinToneMediumSkinTone,
+            "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\xA4"
+            "\x9D\xE2\x80\x8D\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBD",
+            "people holding hands: dark skin tone, medium skin tone"},
         EmojiEntry{
             EmojiEnum::PeopleHoldingHandsDarkSkinToneMediumDarkSkinTone,
             "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\xA4\x9D\xE2"
             "\x80\x8D\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBE",
             "people holding hands: dark skin tone, medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::PeopleHoldingHandsDarkSkinTone,
-                   "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\xA4"
-                   "\x9D\xE2\x80\x8D\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBF",
-                   "people holding hands: dark skin tone"},
-        EmojiEntry{EmojiEnum::WomenHoldingHands, "\xF0\x9F\x91\xAD",
-                   "women holding hands"},
-        EmojiEntry{EmojiEnum::WomenHoldingHandsLightSkinTone,
-                   "\xF0\x9F\x91\xAD\xF0\x9F\x8F\xBB",
-                   "women holding hands: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::PeopleHoldingHandsDarkSkinTone,
+            "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\xA4"
+            "\x9D\xE2\x80\x8D\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBF",
+            "people holding hands: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomenHoldingHands,
+            "\xF0\x9F\x91\xAD",
+            "women holding hands"},
+        EmojiEntry{
+            EmojiEnum::WomenHoldingHandsLightSkinTone,
+            "\xF0\x9F\x91\xAD\xF0\x9F\x8F\xBB",
+            "women holding hands: light skin tone"},
         EmojiEntry{
             EmojiEnum::WomenHoldingHandsLightSkinToneMediumLightSkinTone,
             "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\xA4\x9D\xE2"
             "\x80\x8D\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBC",
             "women holding hands: light skin tone, medium-light skin tone"},
-        EmojiEntry{EmojiEnum::WomenHoldingHandsLightSkinToneMediumSkinTone,
-                   "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\xA4"
-                   "\x9D\xE2\x80\x8D\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBD",
-                   "women holding hands: light skin tone, medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomenHoldingHandsLightSkinToneMediumSkinTone,
+            "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\xA4"
+            "\x9D\xE2\x80\x8D\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBD",
+            "women holding hands: light skin tone, medium skin tone"},
         EmojiEntry{
             EmojiEnum::WomenHoldingHandsLightSkinToneMediumDarkSkinTone,
             "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\xA4\x9D\xE2"
             "\x80\x8D\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBE",
             "women holding hands: light skin tone, medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::WomenHoldingHandsLightSkinToneDarkSkinTone,
-                   "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\xA4"
-                   "\x9D\xE2\x80\x8D\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBF",
-                   "women holding hands: light skin tone, dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomenHoldingHandsLightSkinToneDarkSkinTone,
+            "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\xA4"
+            "\x9D\xE2\x80\x8D\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBF",
+            "women holding hands: light skin tone, dark skin tone"},
         EmojiEntry{
             EmojiEnum::WomenHoldingHandsMediumLightSkinToneLightSkinTone,
             "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBC\xE2\x80\x8D\xF0\x9F\xA4\x9D\xE2"
             "\x80\x8D\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBB",
             "women holding hands: medium-light skin tone, light skin tone"},
-        EmojiEntry{EmojiEnum::WomenHoldingHandsMediumLightSkinTone,
-                   "\xF0\x9F\x91\xAD\xF0\x9F\x8F\xBC",
-                   "women holding hands: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomenHoldingHandsMediumLightSkinTone,
+            "\xF0\x9F\x91\xAD\xF0\x9F\x8F\xBC",
+            "women holding hands: medium-light skin tone"},
         EmojiEntry{
             EmojiEnum::WomenHoldingHandsMediumLightSkinToneMediumSkinTone,
             "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBC\xE2\x80\x8D\xF0\x9F\xA4\x9D\xE2"
@@ -6961,27 +8806,30 @@ consteval auto makeEmojiList()
             "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBC\xE2\x80\x8D\xF0\x9F\xA4\x9D\xE2"
             "\x80\x8D\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBF",
             "women holding hands: medium-light skin tone, dark skin tone"},
-        EmojiEntry{EmojiEnum::WomenHoldingHandsMediumSkinToneLightSkinTone,
-                   "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBD\xE2\x80\x8D\xF0\x9F\xA4"
-                   "\x9D\xE2\x80\x8D\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBB",
-                   "women holding hands: medium skin tone, light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomenHoldingHandsMediumSkinToneLightSkinTone,
+            "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBD\xE2\x80\x8D\xF0\x9F\xA4"
+            "\x9D\xE2\x80\x8D\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBB",
+            "women holding hands: medium skin tone, light skin tone"},
         EmojiEntry{
             EmojiEnum::WomenHoldingHandsMediumSkinToneMediumLightSkinTone,
             "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBD\xE2\x80\x8D\xF0\x9F\xA4\x9D\xE2"
             "\x80\x8D\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBC",
             "women holding hands: medium skin tone, medium-light skin tone"},
-        EmojiEntry{EmojiEnum::WomenHoldingHandsMediumSkinTone,
-                   "\xF0\x9F\x91\xAD\xF0\x9F\x8F\xBD",
-                   "women holding hands: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomenHoldingHandsMediumSkinTone,
+            "\xF0\x9F\x91\xAD\xF0\x9F\x8F\xBD",
+            "women holding hands: medium skin tone"},
         EmojiEntry{
             EmojiEnum::WomenHoldingHandsMediumSkinToneMediumDarkSkinTone,
             "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBD\xE2\x80\x8D\xF0\x9F\xA4\x9D\xE2"
             "\x80\x8D\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBE",
             "women holding hands: medium skin tone, medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::WomenHoldingHandsMediumSkinToneDarkSkinTone,
-                   "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBD\xE2\x80\x8D\xF0\x9F\xA4"
-                   "\x9D\xE2\x80\x8D\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBF",
-                   "women holding hands: medium skin tone, dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomenHoldingHandsMediumSkinToneDarkSkinTone,
+            "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBD\xE2\x80\x8D\xF0\x9F\xA4"
+            "\x9D\xE2\x80\x8D\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBF",
+            "women holding hands: medium skin tone, dark skin tone"},
         EmojiEntry{
             EmojiEnum::WomenHoldingHandsMediumDarkSkinToneLightSkinTone,
             "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBE\xE2\x80\x8D\xF0\x9F\xA4\x9D\xE2"
@@ -6998,40 +8846,47 @@ consteval auto makeEmojiList()
             "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBE\xE2\x80\x8D\xF0\x9F\xA4\x9D\xE2"
             "\x80\x8D\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBD",
             "women holding hands: medium-dark skin tone, medium skin tone"},
-        EmojiEntry{EmojiEnum::WomenHoldingHandsMediumDarkSkinTone,
-                   "\xF0\x9F\x91\xAD\xF0\x9F\x8F\xBE",
-                   "women holding hands: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomenHoldingHandsMediumDarkSkinTone,
+            "\xF0\x9F\x91\xAD\xF0\x9F\x8F\xBE",
+            "women holding hands: medium-dark skin tone"},
         EmojiEntry{
             EmojiEnum::WomenHoldingHandsMediumDarkSkinToneDarkSkinTone,
             "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBE\xE2\x80\x8D\xF0\x9F\xA4\x9D\xE2"
             "\x80\x8D\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBF",
             "women holding hands: medium-dark skin tone, dark skin tone"},
-        EmojiEntry{EmojiEnum::WomenHoldingHandsDarkSkinToneLightSkinTone,
-                   "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\xA4"
-                   "\x9D\xE2\x80\x8D\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBB",
-                   "women holding hands: dark skin tone, light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomenHoldingHandsDarkSkinToneLightSkinTone,
+            "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\xA4"
+            "\x9D\xE2\x80\x8D\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBB",
+            "women holding hands: dark skin tone, light skin tone"},
         EmojiEntry{
             EmojiEnum::WomenHoldingHandsDarkSkinToneMediumLightSkinTone,
             "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\xA4\x9D\xE2"
             "\x80\x8D\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBC",
             "women holding hands: dark skin tone, medium-light skin tone"},
-        EmojiEntry{EmojiEnum::WomenHoldingHandsDarkSkinToneMediumSkinTone,
-                   "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\xA4"
-                   "\x9D\xE2\x80\x8D\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBD",
-                   "women holding hands: dark skin tone, medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomenHoldingHandsDarkSkinToneMediumSkinTone,
+            "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\xA4"
+            "\x9D\xE2\x80\x8D\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBD",
+            "women holding hands: dark skin tone, medium skin tone"},
         EmojiEntry{
             EmojiEnum::WomenHoldingHandsDarkSkinToneMediumDarkSkinTone,
             "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\xA4\x9D\xE2"
             "\x80\x8D\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBE",
             "women holding hands: dark skin tone, medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::WomenHoldingHandsDarkSkinTone,
-                   "\xF0\x9F\x91\xAD\xF0\x9F\x8F\xBF",
-                   "women holding hands: dark skin tone"},
-        EmojiEntry{EmojiEnum::WomanAndManHoldingHands, "\xF0\x9F\x91\xAB",
-                   "woman and man holding hands"},
-        EmojiEntry{EmojiEnum::WomanAndManHoldingHandsLightSkinTone,
-                   "\xF0\x9F\x91\xAB\xF0\x9F\x8F\xBB",
-                   "woman and man holding hands: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomenHoldingHandsDarkSkinTone,
+            "\xF0\x9F\x91\xAD\xF0\x9F\x8F\xBF",
+            "women holding hands: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanAndManHoldingHands,
+            "\xF0\x9F\x91\xAB",
+            "woman and man holding hands"},
+        EmojiEntry{
+            EmojiEnum::WomanAndManHoldingHandsLightSkinTone,
+            "\xF0\x9F\x91\xAB\xF0\x9F\x8F\xBB",
+            "woman and man holding hands: light skin tone"},
         EmojiEntry{
             EmojiEnum::WomanAndManHoldingHandsLightSkinToneMediumLightSkinTone,
             "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\xA4\x9D\xE2"
@@ -7060,9 +8915,10 @@ consteval auto makeEmojiList()
             "\x80\x8D\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBB",
             "woman and man holding hands: medium-light skin tone, light skin "
             "tone"},
-        EmojiEntry{EmojiEnum::WomanAndManHoldingHandsMediumLightSkinTone,
-                   "\xF0\x9F\x91\xAB\xF0\x9F\x8F\xBC",
-                   "woman and man holding hands: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanAndManHoldingHandsMediumLightSkinTone,
+            "\xF0\x9F\x91\xAB\xF0\x9F\x8F\xBC",
+            "woman and man holding hands: medium-light skin tone"},
         EmojiEntry{
             EmojiEnum::WomanAndManHoldingHandsMediumLightSkinToneMediumSkinTone,
             "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBC\xE2\x80\x8D\xF0\x9F\xA4\x9D\xE2"
@@ -7093,9 +8949,10 @@ consteval auto makeEmojiList()
             "\x80\x8D\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBC",
             "woman and man holding hands: medium skin tone, medium-light skin "
             "tone"},
-        EmojiEntry{EmojiEnum::WomanAndManHoldingHandsMediumSkinTone,
-                   "\xF0\x9F\x91\xAB\xF0\x9F\x8F\xBD",
-                   "woman and man holding hands: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanAndManHoldingHandsMediumSkinTone,
+            "\xF0\x9F\x91\xAB\xF0\x9F\x8F\xBD",
+            "woman and man holding hands: medium skin tone"},
         EmojiEntry{
             EmojiEnum::WomanAndManHoldingHandsMediumSkinToneMediumDarkSkinTone,
             "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBD\xE2\x80\x8D\xF0\x9F\xA4\x9D\xE2"
@@ -7126,9 +8983,10 @@ consteval auto makeEmojiList()
             "\x80\x8D\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBD",
             "woman and man holding hands: medium-dark skin tone, medium skin "
             "tone"},
-        EmojiEntry{EmojiEnum::WomanAndManHoldingHandsMediumDarkSkinTone,
-                   "\xF0\x9F\x91\xAB\xF0\x9F\x8F\xBE",
-                   "woman and man holding hands: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanAndManHoldingHandsMediumDarkSkinTone,
+            "\xF0\x9F\x91\xAB\xF0\x9F\x8F\xBE",
+            "woman and man holding hands: medium-dark skin tone"},
         EmojiEntry{
             EmojiEnum::WomanAndManHoldingHandsMediumDarkSkinToneDarkSkinTone,
             "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBE\xE2\x80\x8D\xF0\x9F\xA4\x9D\xE2"
@@ -7157,39 +9015,47 @@ consteval auto makeEmojiList()
             "\x80\x8D\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBE",
             "woman and man holding hands: dark skin tone, medium-dark skin "
             "tone"},
-        EmojiEntry{EmojiEnum::WomanAndManHoldingHandsDarkSkinTone,
-                   "\xF0\x9F\x91\xAB\xF0\x9F\x8F\xBF",
-                   "woman and man holding hands: dark skin tone"},
-        EmojiEntry{EmojiEnum::MenHoldingHands, "\xF0\x9F\x91\xAC",
-                   "men holding hands"},
-        EmojiEntry{EmojiEnum::MenHoldingHandsLightSkinTone,
-                   "\xF0\x9F\x91\xAC\xF0\x9F\x8F\xBB",
-                   "men holding hands: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::WomanAndManHoldingHandsDarkSkinTone,
+            "\xF0\x9F\x91\xAB\xF0\x9F\x8F\xBF",
+            "woman and man holding hands: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::MenHoldingHands,
+            "\xF0\x9F\x91\xAC",
+            "men holding hands"},
+        EmojiEntry{
+            EmojiEnum::MenHoldingHandsLightSkinTone,
+            "\xF0\x9F\x91\xAC\xF0\x9F\x8F\xBB",
+            "men holding hands: light skin tone"},
         EmojiEntry{
             EmojiEnum::MenHoldingHandsLightSkinToneMediumLightSkinTone,
             "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\xA4\x9D\xE2"
             "\x80\x8D\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBC",
             "men holding hands: light skin tone, medium-light skin tone"},
-        EmojiEntry{EmojiEnum::MenHoldingHandsLightSkinToneMediumSkinTone,
-                   "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\xA4"
-                   "\x9D\xE2\x80\x8D\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBD",
-                   "men holding hands: light skin tone, medium skin tone"},
-        EmojiEntry{EmojiEnum::MenHoldingHandsLightSkinToneMediumDarkSkinTone,
-                   "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\xA4"
-                   "\x9D\xE2\x80\x8D\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBE",
-                   "men holding hands: light skin tone, medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::MenHoldingHandsLightSkinToneDarkSkinTone,
-                   "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\xA4"
-                   "\x9D\xE2\x80\x8D\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBF",
-                   "men holding hands: light skin tone, dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::MenHoldingHandsLightSkinToneMediumSkinTone,
+            "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\xA4"
+            "\x9D\xE2\x80\x8D\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBD",
+            "men holding hands: light skin tone, medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::MenHoldingHandsLightSkinToneMediumDarkSkinTone,
+            "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\xA4"
+            "\x9D\xE2\x80\x8D\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBE",
+            "men holding hands: light skin tone, medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::MenHoldingHandsLightSkinToneDarkSkinTone,
+            "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBB\xE2\x80\x8D\xF0\x9F\xA4"
+            "\x9D\xE2\x80\x8D\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBF",
+            "men holding hands: light skin tone, dark skin tone"},
         EmojiEntry{
             EmojiEnum::MenHoldingHandsMediumLightSkinToneLightSkinTone,
             "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBC\xE2\x80\x8D\xF0\x9F\xA4\x9D\xE2"
             "\x80\x8D\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBB",
             "men holding hands: medium-light skin tone, light skin tone"},
-        EmojiEntry{EmojiEnum::MenHoldingHandsMediumLightSkinTone,
-                   "\xF0\x9F\x91\xAC\xF0\x9F\x8F\xBC",
-                   "men holding hands: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::MenHoldingHandsMediumLightSkinTone,
+            "\xF0\x9F\x91\xAC\xF0\x9F\x8F\xBC",
+            "men holding hands: medium-light skin tone"},
         EmojiEntry{
             EmojiEnum::MenHoldingHandsMediumLightSkinToneMediumSkinTone,
             "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBC\xE2\x80\x8D\xF0\x9F\xA4\x9D\xE2"
@@ -7199,108 +9065,131 @@ consteval auto makeEmojiList()
             EmojiEnum::MenHoldingHandsMediumLightSkinToneMediumDarkSkinTone,
             "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBC\xE2\x80\x8D\xF0\x9F\xA4\x9D\xE2"
             "\x80\x8D\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBE",
-            "men holding hands: medium-light skin tone, medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::MenHoldingHandsMediumLightSkinToneDarkSkinTone,
-                   "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBC\xE2\x80\x8D\xF0\x9F\xA4"
-                   "\x9D\xE2\x80\x8D\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBF",
-                   "men holding hands: medium-light skin tone, dark skin tone"},
-        EmojiEntry{EmojiEnum::MenHoldingHandsMediumSkinToneLightSkinTone,
-                   "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBD\xE2\x80\x8D\xF0\x9F\xA4"
-                   "\x9D\xE2\x80\x8D\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBB",
-                   "men holding hands: medium skin tone, light skin tone"},
+            "men holding hands: medium-light skin tone, medium-dark skin "
+            "tone"},
+        EmojiEntry{
+            EmojiEnum::MenHoldingHandsMediumLightSkinToneDarkSkinTone,
+            "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBC\xE2\x80\x8D\xF0\x9F\xA4"
+            "\x9D\xE2\x80\x8D\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBF",
+            "men holding hands: medium-light skin tone, dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::MenHoldingHandsMediumSkinToneLightSkinTone,
+            "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBD\xE2\x80\x8D\xF0\x9F\xA4"
+            "\x9D\xE2\x80\x8D\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBB",
+            "men holding hands: medium skin tone, light skin tone"},
         EmojiEntry{
             EmojiEnum::MenHoldingHandsMediumSkinToneMediumLightSkinTone,
             "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBD\xE2\x80\x8D\xF0\x9F\xA4\x9D\xE2"
             "\x80\x8D\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBC",
             "men holding hands: medium skin tone, medium-light skin tone"},
-        EmojiEntry{EmojiEnum::MenHoldingHandsMediumSkinTone,
-                   "\xF0\x9F\x91\xAC\xF0\x9F\x8F\xBD",
-                   "men holding hands: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::MenHoldingHandsMediumSkinTone,
+            "\xF0\x9F\x91\xAC\xF0\x9F\x8F\xBD",
+            "men holding hands: medium skin tone"},
         EmojiEntry{
             EmojiEnum::MenHoldingHandsMediumSkinToneMediumDarkSkinTone,
             "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBD\xE2\x80\x8D\xF0\x9F\xA4\x9D\xE2"
             "\x80\x8D\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBE",
             "men holding hands: medium skin tone, medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::MenHoldingHandsMediumSkinToneDarkSkinTone,
-                   "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBD\xE2\x80\x8D\xF0\x9F\xA4"
-                   "\x9D\xE2\x80\x8D\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBF",
-                   "men holding hands: medium skin tone, dark skin tone"},
-        EmojiEntry{EmojiEnum::MenHoldingHandsMediumDarkSkinToneLightSkinTone,
-                   "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBE\xE2\x80\x8D\xF0\x9F\xA4"
-                   "\x9D\xE2\x80\x8D\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBB",
-                   "men holding hands: medium-dark skin tone, light skin tone"},
+        EmojiEntry{
+            EmojiEnum::MenHoldingHandsMediumSkinToneDarkSkinTone,
+            "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBD\xE2\x80\x8D\xF0\x9F\xA4"
+            "\x9D\xE2\x80\x8D\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBF",
+            "men holding hands: medium skin tone, dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::MenHoldingHandsMediumDarkSkinToneLightSkinTone,
+            "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBE\xE2\x80\x8D\xF0\x9F\xA4"
+            "\x9D\xE2\x80\x8D\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBB",
+            "men holding hands: medium-dark skin tone, light skin tone"},
         EmojiEntry{
             EmojiEnum::MenHoldingHandsMediumDarkSkinToneMediumLightSkinTone,
             "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBE\xE2\x80\x8D\xF0\x9F\xA4\x9D\xE2"
             "\x80\x8D\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBC",
-            "men holding hands: medium-dark skin tone, medium-light skin tone"},
+            "men holding hands: medium-dark skin tone, medium-light skin "
+            "tone"},
         EmojiEntry{
             EmojiEnum::MenHoldingHandsMediumDarkSkinToneMediumSkinTone,
             "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBE\xE2\x80\x8D\xF0\x9F\xA4\x9D\xE2"
             "\x80\x8D\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBD",
             "men holding hands: medium-dark skin tone, medium skin tone"},
-        EmojiEntry{EmojiEnum::MenHoldingHandsMediumDarkSkinTone,
-                   "\xF0\x9F\x91\xAC\xF0\x9F\x8F\xBE",
-                   "men holding hands: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::MenHoldingHandsMediumDarkSkinToneDarkSkinTone,
-                   "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBE\xE2\x80\x8D\xF0\x9F\xA4"
-                   "\x9D\xE2\x80\x8D\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBF",
-                   "men holding hands: medium-dark skin tone, dark skin tone"},
-        EmojiEntry{EmojiEnum::MenHoldingHandsDarkSkinToneLightSkinTone,
-                   "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\xA4"
-                   "\x9D\xE2\x80\x8D\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBB",
-                   "men holding hands: dark skin tone, light skin tone"},
-        EmojiEntry{EmojiEnum::MenHoldingHandsDarkSkinToneMediumLightSkinTone,
-                   "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\xA4"
-                   "\x9D\xE2\x80\x8D\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBC",
-                   "men holding hands: dark skin tone, medium-light skin tone"},
-        EmojiEntry{EmojiEnum::MenHoldingHandsDarkSkinToneMediumSkinTone,
-                   "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\xA4"
-                   "\x9D\xE2\x80\x8D\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBD",
-                   "men holding hands: dark skin tone, medium skin tone"},
-        EmojiEntry{EmojiEnum::MenHoldingHandsDarkSkinToneMediumDarkSkinTone,
-                   "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\xA4"
-                   "\x9D\xE2\x80\x8D\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBE",
-                   "men holding hands: dark skin tone, medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::MenHoldingHandsDarkSkinTone,
-                   "\xF0\x9F\x91\xAC\xF0\x9F\x8F\xBF",
-                   "men holding hands: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::MenHoldingHandsMediumDarkSkinTone,
+            "\xF0\x9F\x91\xAC\xF0\x9F\x8F\xBE",
+            "men holding hands: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::MenHoldingHandsMediumDarkSkinToneDarkSkinTone,
+            "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBE\xE2\x80\x8D\xF0\x9F\xA4"
+            "\x9D\xE2\x80\x8D\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBF",
+            "men holding hands: medium-dark skin tone, dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::MenHoldingHandsDarkSkinToneLightSkinTone,
+            "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\xA4"
+            "\x9D\xE2\x80\x8D\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBB",
+            "men holding hands: dark skin tone, light skin tone"},
+        EmojiEntry{
+            EmojiEnum::MenHoldingHandsDarkSkinToneMediumLightSkinTone,
+            "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\xA4"
+            "\x9D\xE2\x80\x8D\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBC",
+            "men holding hands: dark skin tone, medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::MenHoldingHandsDarkSkinToneMediumSkinTone,
+            "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\xA4"
+            "\x9D\xE2\x80\x8D\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBD",
+            "men holding hands: dark skin tone, medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::MenHoldingHandsDarkSkinToneMediumDarkSkinTone,
+            "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBF\xE2\x80\x8D\xF0\x9F\xA4"
+            "\x9D\xE2\x80\x8D\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBE",
+            "men holding hands: dark skin tone, medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::MenHoldingHandsDarkSkinTone,
+            "\xF0\x9F\x91\xAC\xF0\x9F\x8F\xBF",
+            "men holding hands: dark skin tone"},
         EmojiEntry{EmojiEnum::Kiss, "\xF0\x9F\x92\x8F", "kiss"},
-        EmojiEntry{EmojiEnum::KissLightSkinTone,
-                   "\xF0\x9F\x92\x8F\xF0\x9F\x8F\xBB", "kiss: light skin tone"},
-        EmojiEntry{EmojiEnum::KissMediumLightSkinTone,
-                   "\xF0\x9F\x92\x8F\xF0\x9F\x8F\xBC",
-                   "kiss: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::KissMediumSkinTone,
-                   "\xF0\x9F\x92\x8F\xF0\x9F\x8F\xBD",
-                   "kiss: medium skin tone"},
-        EmojiEntry{EmojiEnum::KissMediumDarkSkinTone,
-                   "\xF0\x9F\x92\x8F\xF0\x9F\x8F\xBE",
-                   "kiss: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::KissDarkSkinTone,
-                   "\xF0\x9F\x92\x8F\xF0\x9F\x8F\xBF", "kiss: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::KissLightSkinTone,
+            "\xF0\x9F\x92\x8F\xF0\x9F\x8F\xBB",
+            "kiss: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::KissMediumLightSkinTone,
+            "\xF0\x9F\x92\x8F\xF0\x9F\x8F\xBC",
+            "kiss: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::KissMediumSkinTone,
+            "\xF0\x9F\x92\x8F\xF0\x9F\x8F\xBD",
+            "kiss: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::KissMediumDarkSkinTone,
+            "\xF0\x9F\x92\x8F\xF0\x9F\x8F\xBE",
+            "kiss: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::KissDarkSkinTone,
+            "\xF0\x9F\x92\x8F\xF0\x9F\x8F\xBF",
+            "kiss: dark skin tone"},
         EmojiEntry{
             EmojiEnum::KissPersonPersonLightSkinToneMediumLightSkinTone,
             "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x9D\xA4\xEF\xB8"
             "\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0\x9F\xA7\x91\xF0"
             "\x9F\x8F\xBC",
             "kiss: person, person, light skin tone, medium-light skin tone"},
-        EmojiEntry{EmojiEnum::KissPersonPersonLightSkinToneMediumSkinTone,
-                   "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x9D\xA4"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
-                   "\x9F\xA7\x91\xF0\x9F\x8F\xBD",
-                   "kiss: person, person, light skin tone, medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::KissPersonPersonLightSkinToneMediumSkinTone,
+            "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x9D\xA4"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
+            "\x9F\xA7\x91\xF0\x9F\x8F\xBD",
+            "kiss: person, person, light skin tone, medium skin tone"},
         EmojiEntry{
             EmojiEnum::KissPersonPersonLightSkinToneMediumDarkSkinTone,
             "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x9D\xA4\xEF\xB8"
             "\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0\x9F\xA7\x91\xF0"
             "\x9F\x8F\xBE",
             "kiss: person, person, light skin tone, medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::KissPersonPersonLightSkinToneDarkSkinTone,
-                   "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x9D\xA4"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
-                   "\x9F\xA7\x91\xF0\x9F\x8F\xBF",
-                   "kiss: person, person, light skin tone, dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::KissPersonPersonLightSkinToneDarkSkinTone,
+            "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x9D\xA4"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
+            "\x9F\xA7\x91\xF0\x9F\x8F\xBF",
+            "kiss: person, person, light skin tone, dark skin tone"},
         EmojiEntry{
             EmojiEnum::KissPersonPersonMediumLightSkinToneLightSkinTone,
             "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x9D\xA4\xEF\xB8"
@@ -7326,11 +9215,12 @@ consteval auto makeEmojiList()
             "\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0\x9F\xA7\x91\xF0"
             "\x9F\x8F\xBF",
             "kiss: person, person, medium-light skin tone, dark skin tone"},
-        EmojiEntry{EmojiEnum::KissPersonPersonMediumSkinToneLightSkinTone,
-                   "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x9D\xA4"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
-                   "\x9F\xA7\x91\xF0\x9F\x8F\xBB",
-                   "kiss: person, person, medium skin tone, light skin tone"},
+        EmojiEntry{
+            EmojiEnum::KissPersonPersonMediumSkinToneLightSkinTone,
+            "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x9D\xA4"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
+            "\x9F\xA7\x91\xF0\x9F\x8F\xBB",
+            "kiss: person, person, medium skin tone, light skin tone"},
         EmojiEntry{
             EmojiEnum::KissPersonPersonMediumSkinToneMediumLightSkinTone,
             "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x9D\xA4\xEF\xB8"
@@ -7343,11 +9233,12 @@ consteval auto makeEmojiList()
             "\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0\x9F\xA7\x91\xF0"
             "\x9F\x8F\xBE",
             "kiss: person, person, medium skin tone, medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::KissPersonPersonMediumSkinToneDarkSkinTone,
-                   "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x9D\xA4"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
-                   "\x9F\xA7\x91\xF0\x9F\x8F\xBF",
-                   "kiss: person, person, medium skin tone, dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::KissPersonPersonMediumSkinToneDarkSkinTone,
+            "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x9D\xA4"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
+            "\x9F\xA7\x91\xF0\x9F\x8F\xBF",
+            "kiss: person, person, medium skin tone, dark skin tone"},
         EmojiEntry{
             EmojiEnum::KissPersonPersonMediumDarkSkinToneLightSkinTone,
             "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x9D\xA4\xEF\xB8"
@@ -7373,67 +9264,77 @@ consteval auto makeEmojiList()
             "\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0\x9F\xA7\x91\xF0"
             "\x9F\x8F\xBF",
             "kiss: person, person, medium-dark skin tone, dark skin tone"},
-        EmojiEntry{EmojiEnum::KissPersonPersonDarkSkinToneLightSkinTone,
-                   "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x9D\xA4"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
-                   "\x9F\xA7\x91\xF0\x9F\x8F\xBB",
-                   "kiss: person, person, dark skin tone, light skin tone"},
+        EmojiEntry{
+            EmojiEnum::KissPersonPersonDarkSkinToneLightSkinTone,
+            "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x9D\xA4"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
+            "\x9F\xA7\x91\xF0\x9F\x8F\xBB",
+            "kiss: person, person, dark skin tone, light skin tone"},
         EmojiEntry{
             EmojiEnum::KissPersonPersonDarkSkinToneMediumLightSkinTone,
             "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x9D\xA4\xEF\xB8"
             "\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0\x9F\xA7\x91\xF0"
             "\x9F\x8F\xBC",
             "kiss: person, person, dark skin tone, medium-light skin tone"},
-        EmojiEntry{EmojiEnum::KissPersonPersonDarkSkinToneMediumSkinTone,
-                   "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x9D\xA4"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
-                   "\x9F\xA7\x91\xF0\x9F\x8F\xBD",
-                   "kiss: person, person, dark skin tone, medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::KissPersonPersonDarkSkinToneMediumSkinTone,
+            "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x9D\xA4"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
+            "\x9F\xA7\x91\xF0\x9F\x8F\xBD",
+            "kiss: person, person, dark skin tone, medium skin tone"},
         EmojiEntry{
             EmojiEnum::KissPersonPersonDarkSkinToneMediumDarkSkinTone,
             "\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x9D\xA4\xEF\xB8"
             "\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0\x9F\xA7\x91\xF0"
             "\x9F\x8F\xBE",
             "kiss: person, person, dark skin tone, medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::KissWomanMan,
-                   "\xF0\x9F\x91\xA9\xE2\x80\x8D\xE2\x9D\xA4\xEF\xB8\x8F\xE2"
-                   "\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0\x9F\x91\xA8",
-                   "kiss: woman, man"},
-        EmojiEntry{EmojiEnum::KissWomanManLightSkinTone,
-                   "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x9D\xA4"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
-                   "\x9F\x91\xA8\xF0\x9F\x8F\xBB",
-                   "kiss: woman, man, light skin tone"},
-        EmojiEntry{EmojiEnum::KissWomanManLightSkinToneMediumLightSkinTone,
-                   "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x9D\xA4"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
-                   "\x9F\x91\xA8\xF0\x9F\x8F\xBC",
-                   "kiss: woman, man, light skin tone, medium-light skin tone"},
-        EmojiEntry{EmojiEnum::KissWomanManLightSkinToneMediumSkinTone,
-                   "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x9D\xA4"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
-                   "\x9F\x91\xA8\xF0\x9F\x8F\xBD",
-                   "kiss: woman, man, light skin tone, medium skin tone"},
-        EmojiEntry{EmojiEnum::KissWomanManLightSkinToneMediumDarkSkinTone,
-                   "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x9D\xA4"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
-                   "\x9F\x91\xA8\xF0\x9F\x8F\xBE",
-                   "kiss: woman, man, light skin tone, medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::KissWomanManLightSkinToneDarkSkinTone,
-                   "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x9D\xA4"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
-                   "\x9F\x91\xA8\xF0\x9F\x8F\xBF",
-                   "kiss: woman, man, light skin tone, dark skin tone"},
-        EmojiEntry{EmojiEnum::KissWomanManMediumLightSkinToneLightSkinTone,
-                   "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x9D\xA4"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
-                   "\x9F\x91\xA8\xF0\x9F\x8F\xBB",
-                   "kiss: woman, man, medium-light skin tone, light skin tone"},
-        EmojiEntry{EmojiEnum::KissWomanManMediumLightSkinTone,
-                   "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x9D\xA4"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
-                   "\x9F\x91\xA8\xF0\x9F\x8F\xBC",
-                   "kiss: woman, man, medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::KissWomanMan,
+            "\xF0\x9F\x91\xA9\xE2\x80\x8D\xE2\x9D\xA4\xEF\xB8\x8F\xE2"
+            "\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0\x9F\x91\xA8",
+            "kiss: woman, man"},
+        EmojiEntry{
+            EmojiEnum::KissWomanManLightSkinTone,
+            "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x9D\xA4"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
+            "\x9F\x91\xA8\xF0\x9F\x8F\xBB",
+            "kiss: woman, man, light skin tone"},
+        EmojiEntry{
+            EmojiEnum::KissWomanManLightSkinToneMediumLightSkinTone,
+            "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x9D\xA4"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
+            "\x9F\x91\xA8\xF0\x9F\x8F\xBC",
+            "kiss: woman, man, light skin tone, medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::KissWomanManLightSkinToneMediumSkinTone,
+            "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x9D\xA4"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
+            "\x9F\x91\xA8\xF0\x9F\x8F\xBD",
+            "kiss: woman, man, light skin tone, medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::KissWomanManLightSkinToneMediumDarkSkinTone,
+            "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x9D\xA4"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
+            "\x9F\x91\xA8\xF0\x9F\x8F\xBE",
+            "kiss: woman, man, light skin tone, medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::KissWomanManLightSkinToneDarkSkinTone,
+            "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x9D\xA4"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
+            "\x9F\x91\xA8\xF0\x9F\x8F\xBF",
+            "kiss: woman, man, light skin tone, dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::KissWomanManMediumLightSkinToneLightSkinTone,
+            "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x9D\xA4"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
+            "\x9F\x91\xA8\xF0\x9F\x8F\xBB",
+            "kiss: woman, man, medium-light skin tone, light skin tone"},
+        EmojiEntry{
+            EmojiEnum::KissWomanManMediumLightSkinTone,
+            "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x9D\xA4"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
+            "\x9F\x91\xA8\xF0\x9F\x8F\xBC",
+            "kiss: woman, man, medium-light skin tone"},
         EmojiEntry{
             EmojiEnum::KissWomanManMediumLightSkinToneMediumSkinTone,
             "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x9D\xA4\xEF\xB8"
@@ -7446,261 +9347,304 @@ consteval auto makeEmojiList()
             "\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0\x9F\x91\xA8\xF0"
             "\x9F\x8F\xBE",
             "kiss: woman, man, medium-light skin tone, medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::KissWomanManMediumLightSkinToneDarkSkinTone,
-                   "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x9D\xA4"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
-                   "\x9F\x91\xA8\xF0\x9F\x8F\xBF",
-                   "kiss: woman, man, medium-light skin tone, dark skin tone"},
-        EmojiEntry{EmojiEnum::KissWomanManMediumSkinToneLightSkinTone,
-                   "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x9D\xA4"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
-                   "\x9F\x91\xA8\xF0\x9F\x8F\xBB",
-                   "kiss: woman, man, medium skin tone, light skin tone"},
+        EmojiEntry{
+            EmojiEnum::KissWomanManMediumLightSkinToneDarkSkinTone,
+            "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x9D\xA4"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
+            "\x9F\x91\xA8\xF0\x9F\x8F\xBF",
+            "kiss: woman, man, medium-light skin tone, dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::KissWomanManMediumSkinToneLightSkinTone,
+            "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x9D\xA4"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
+            "\x9F\x91\xA8\xF0\x9F\x8F\xBB",
+            "kiss: woman, man, medium skin tone, light skin tone"},
         EmojiEntry{
             EmojiEnum::KissWomanManMediumSkinToneMediumLightSkinTone,
             "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x9D\xA4\xEF\xB8"
             "\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0\x9F\x91\xA8\xF0"
             "\x9F\x8F\xBC",
             "kiss: woman, man, medium skin tone, medium-light skin tone"},
-        EmojiEntry{EmojiEnum::KissWomanManMediumSkinTone,
-                   "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x9D\xA4"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
-                   "\x9F\x91\xA8\xF0\x9F\x8F\xBD",
-                   "kiss: woman, man, medium skin tone"},
-        EmojiEntry{EmojiEnum::KissWomanManMediumSkinToneMediumDarkSkinTone,
-                   "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x9D\xA4"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
-                   "\x9F\x91\xA8\xF0\x9F\x8F\xBE",
-                   "kiss: woman, man, medium skin tone, medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::KissWomanManMediumSkinToneDarkSkinTone,
-                   "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x9D\xA4"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
-                   "\x9F\x91\xA8\xF0\x9F\x8F\xBF",
-                   "kiss: woman, man, medium skin tone, dark skin tone"},
-        EmojiEntry{EmojiEnum::KissWomanManMediumDarkSkinToneLightSkinTone,
-                   "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x9D\xA4"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
-                   "\x9F\x91\xA8\xF0\x9F\x8F\xBB",
-                   "kiss: woman, man, medium-dark skin tone, light skin tone"},
+        EmojiEntry{
+            EmojiEnum::KissWomanManMediumSkinTone,
+            "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x9D\xA4"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
+            "\x9F\x91\xA8\xF0\x9F\x8F\xBD",
+            "kiss: woman, man, medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::KissWomanManMediumSkinToneMediumDarkSkinTone,
+            "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x9D\xA4"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
+            "\x9F\x91\xA8\xF0\x9F\x8F\xBE",
+            "kiss: woman, man, medium skin tone, medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::KissWomanManMediumSkinToneDarkSkinTone,
+            "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x9D\xA4"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
+            "\x9F\x91\xA8\xF0\x9F\x8F\xBF",
+            "kiss: woman, man, medium skin tone, dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::KissWomanManMediumDarkSkinToneLightSkinTone,
+            "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x9D\xA4"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
+            "\x9F\x91\xA8\xF0\x9F\x8F\xBB",
+            "kiss: woman, man, medium-dark skin tone, light skin tone"},
         EmojiEntry{
             EmojiEnum::KissWomanManMediumDarkSkinToneMediumLightSkinTone,
             "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x9D\xA4\xEF\xB8"
             "\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0\x9F\x91\xA8\xF0"
             "\x9F\x8F\xBC",
             "kiss: woman, man, medium-dark skin tone, medium-light skin tone"},
-        EmojiEntry{EmojiEnum::KissWomanManMediumDarkSkinToneMediumSkinTone,
-                   "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x9D\xA4"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
-                   "\x9F\x91\xA8\xF0\x9F\x8F\xBD",
-                   "kiss: woman, man, medium-dark skin tone, medium skin tone"},
-        EmojiEntry{EmojiEnum::KissWomanManMediumDarkSkinTone,
-                   "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x9D\xA4"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
-                   "\x9F\x91\xA8\xF0\x9F\x8F\xBE",
-                   "kiss: woman, man, medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::KissWomanManMediumDarkSkinToneDarkSkinTone,
-                   "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x9D\xA4"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
-                   "\x9F\x91\xA8\xF0\x9F\x8F\xBF",
-                   "kiss: woman, man, medium-dark skin tone, dark skin tone"},
-        EmojiEntry{EmojiEnum::KissWomanManDarkSkinToneLightSkinTone,
-                   "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x9D\xA4"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
-                   "\x9F\x91\xA8\xF0\x9F\x8F\xBB",
-                   "kiss: woman, man, dark skin tone, light skin tone"},
-        EmojiEntry{EmojiEnum::KissWomanManDarkSkinToneMediumLightSkinTone,
-                   "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x9D\xA4"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
-                   "\x9F\x91\xA8\xF0\x9F\x8F\xBC",
-                   "kiss: woman, man, dark skin tone, medium-light skin tone"},
-        EmojiEntry{EmojiEnum::KissWomanManDarkSkinToneMediumSkinTone,
-                   "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x9D\xA4"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
-                   "\x9F\x91\xA8\xF0\x9F\x8F\xBD",
-                   "kiss: woman, man, dark skin tone, medium skin tone"},
-        EmojiEntry{EmojiEnum::KissWomanManDarkSkinToneMediumDarkSkinTone,
-                   "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x9D\xA4"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
-                   "\x9F\x91\xA8\xF0\x9F\x8F\xBE",
-                   "kiss: woman, man, dark skin tone, medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::KissWomanManDarkSkinTone,
-                   "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x9D\xA4"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
-                   "\x9F\x91\xA8\xF0\x9F\x8F\xBF",
-                   "kiss: woman, man, dark skin tone"},
-        EmojiEntry{EmojiEnum::KissManMan,
-                   "\xF0\x9F\x91\xA8\xE2\x80\x8D\xE2\x9D\xA4\xEF\xB8\x8F\xE2"
-                   "\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0\x9F\x91\xA8",
-                   "kiss: man, man"},
-        EmojiEntry{EmojiEnum::KissManManLightSkinTone,
-                   "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x9D\xA4"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
-                   "\x9F\x91\xA8\xF0\x9F\x8F\xBB",
-                   "kiss: man, man, light skin tone"},
-        EmojiEntry{EmojiEnum::KissManManLightSkinToneMediumLightSkinTone,
-                   "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x9D\xA4"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
-                   "\x9F\x91\xA8\xF0\x9F\x8F\xBC",
-                   "kiss: man, man, light skin tone, medium-light skin tone"},
-        EmojiEntry{EmojiEnum::KissManManLightSkinToneMediumSkinTone,
-                   "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x9D\xA4"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
-                   "\x9F\x91\xA8\xF0\x9F\x8F\xBD",
-                   "kiss: man, man, light skin tone, medium skin tone"},
-        EmojiEntry{EmojiEnum::KissManManLightSkinToneMediumDarkSkinTone,
-                   "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x9D\xA4"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
-                   "\x9F\x91\xA8\xF0\x9F\x8F\xBE",
-                   "kiss: man, man, light skin tone, medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::KissManManLightSkinToneDarkSkinTone,
-                   "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x9D\xA4"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
-                   "\x9F\x91\xA8\xF0\x9F\x8F\xBF",
-                   "kiss: man, man, light skin tone, dark skin tone"},
-        EmojiEntry{EmojiEnum::KissManManMediumLightSkinToneLightSkinTone,
-                   "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x9D\xA4"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
-                   "\x9F\x91\xA8\xF0\x9F\x8F\xBB",
-                   "kiss: man, man, medium-light skin tone, light skin tone"},
-        EmojiEntry{EmojiEnum::KissManManMediumLightSkinTone,
-                   "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x9D\xA4"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
-                   "\x9F\x91\xA8\xF0\x9F\x8F\xBC",
-                   "kiss: man, man, medium-light skin tone"},
-        EmojiEntry{EmojiEnum::KissManManMediumLightSkinToneMediumSkinTone,
-                   "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x9D\xA4"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
-                   "\x9F\x91\xA8\xF0\x9F\x8F\xBD",
-                   "kiss: man, man, medium-light skin tone, medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::KissWomanManMediumDarkSkinToneMediumSkinTone,
+            "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x9D\xA4"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
+            "\x9F\x91\xA8\xF0\x9F\x8F\xBD",
+            "kiss: woman, man, medium-dark skin tone, medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::KissWomanManMediumDarkSkinTone,
+            "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x9D\xA4"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
+            "\x9F\x91\xA8\xF0\x9F\x8F\xBE",
+            "kiss: woman, man, medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::KissWomanManMediumDarkSkinToneDarkSkinTone,
+            "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x9D\xA4"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
+            "\x9F\x91\xA8\xF0\x9F\x8F\xBF",
+            "kiss: woman, man, medium-dark skin tone, dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::KissWomanManDarkSkinToneLightSkinTone,
+            "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x9D\xA4"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
+            "\x9F\x91\xA8\xF0\x9F\x8F\xBB",
+            "kiss: woman, man, dark skin tone, light skin tone"},
+        EmojiEntry{
+            EmojiEnum::KissWomanManDarkSkinToneMediumLightSkinTone,
+            "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x9D\xA4"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
+            "\x9F\x91\xA8\xF0\x9F\x8F\xBC",
+            "kiss: woman, man, dark skin tone, medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::KissWomanManDarkSkinToneMediumSkinTone,
+            "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x9D\xA4"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
+            "\x9F\x91\xA8\xF0\x9F\x8F\xBD",
+            "kiss: woman, man, dark skin tone, medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::KissWomanManDarkSkinToneMediumDarkSkinTone,
+            "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x9D\xA4"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
+            "\x9F\x91\xA8\xF0\x9F\x8F\xBE",
+            "kiss: woman, man, dark skin tone, medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::KissWomanManDarkSkinTone,
+            "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x9D\xA4"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
+            "\x9F\x91\xA8\xF0\x9F\x8F\xBF",
+            "kiss: woman, man, dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::KissManMan,
+            "\xF0\x9F\x91\xA8\xE2\x80\x8D\xE2\x9D\xA4\xEF\xB8\x8F\xE2"
+            "\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0\x9F\x91\xA8",
+            "kiss: man, man"},
+        EmojiEntry{
+            EmojiEnum::KissManManLightSkinTone,
+            "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x9D\xA4"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
+            "\x9F\x91\xA8\xF0\x9F\x8F\xBB",
+            "kiss: man, man, light skin tone"},
+        EmojiEntry{
+            EmojiEnum::KissManManLightSkinToneMediumLightSkinTone,
+            "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x9D\xA4"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
+            "\x9F\x91\xA8\xF0\x9F\x8F\xBC",
+            "kiss: man, man, light skin tone, medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::KissManManLightSkinToneMediumSkinTone,
+            "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x9D\xA4"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
+            "\x9F\x91\xA8\xF0\x9F\x8F\xBD",
+            "kiss: man, man, light skin tone, medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::KissManManLightSkinToneMediumDarkSkinTone,
+            "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x9D\xA4"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
+            "\x9F\x91\xA8\xF0\x9F\x8F\xBE",
+            "kiss: man, man, light skin tone, medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::KissManManLightSkinToneDarkSkinTone,
+            "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x9D\xA4"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
+            "\x9F\x91\xA8\xF0\x9F\x8F\xBF",
+            "kiss: man, man, light skin tone, dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::KissManManMediumLightSkinToneLightSkinTone,
+            "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x9D\xA4"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
+            "\x9F\x91\xA8\xF0\x9F\x8F\xBB",
+            "kiss: man, man, medium-light skin tone, light skin tone"},
+        EmojiEntry{
+            EmojiEnum::KissManManMediumLightSkinTone,
+            "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x9D\xA4"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
+            "\x9F\x91\xA8\xF0\x9F\x8F\xBC",
+            "kiss: man, man, medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::KissManManMediumLightSkinToneMediumSkinTone,
+            "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x9D\xA4"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
+            "\x9F\x91\xA8\xF0\x9F\x8F\xBD",
+            "kiss: man, man, medium-light skin tone, medium skin tone"},
         EmojiEntry{
             EmojiEnum::KissManManMediumLightSkinToneMediumDarkSkinTone,
             "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x9D\xA4\xEF\xB8"
             "\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0\x9F\x91\xA8\xF0"
             "\x9F\x8F\xBE",
             "kiss: man, man, medium-light skin tone, medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::KissManManMediumLightSkinToneDarkSkinTone,
-                   "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x9D\xA4"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
-                   "\x9F\x91\xA8\xF0\x9F\x8F\xBF",
-                   "kiss: man, man, medium-light skin tone, dark skin tone"},
-        EmojiEntry{EmojiEnum::KissManManMediumSkinToneLightSkinTone,
-                   "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x9D\xA4"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
-                   "\x9F\x91\xA8\xF0\x9F\x8F\xBB",
-                   "kiss: man, man, medium skin tone, light skin tone"},
-        EmojiEntry{EmojiEnum::KissManManMediumSkinToneMediumLightSkinTone,
-                   "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x9D\xA4"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
-                   "\x9F\x91\xA8\xF0\x9F\x8F\xBC",
-                   "kiss: man, man, medium skin tone, medium-light skin tone"},
-        EmojiEntry{EmojiEnum::KissManManMediumSkinTone,
-                   "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x9D\xA4"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
-                   "\x9F\x91\xA8\xF0\x9F\x8F\xBD",
-                   "kiss: man, man, medium skin tone"},
-        EmojiEntry{EmojiEnum::KissManManMediumSkinToneMediumDarkSkinTone,
-                   "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x9D\xA4"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
-                   "\x9F\x91\xA8\xF0\x9F\x8F\xBE",
-                   "kiss: man, man, medium skin tone, medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::KissManManMediumSkinToneDarkSkinTone,
-                   "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x9D\xA4"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
-                   "\x9F\x91\xA8\xF0\x9F\x8F\xBF",
-                   "kiss: man, man, medium skin tone, dark skin tone"},
-        EmojiEntry{EmojiEnum::KissManManMediumDarkSkinToneLightSkinTone,
-                   "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x9D\xA4"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
-                   "\x9F\x91\xA8\xF0\x9F\x8F\xBB",
-                   "kiss: man, man, medium-dark skin tone, light skin tone"},
+        EmojiEntry{
+            EmojiEnum::KissManManMediumLightSkinToneDarkSkinTone,
+            "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x9D\xA4"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
+            "\x9F\x91\xA8\xF0\x9F\x8F\xBF",
+            "kiss: man, man, medium-light skin tone, dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::KissManManMediumSkinToneLightSkinTone,
+            "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x9D\xA4"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
+            "\x9F\x91\xA8\xF0\x9F\x8F\xBB",
+            "kiss: man, man, medium skin tone, light skin tone"},
+        EmojiEntry{
+            EmojiEnum::KissManManMediumSkinToneMediumLightSkinTone,
+            "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x9D\xA4"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
+            "\x9F\x91\xA8\xF0\x9F\x8F\xBC",
+            "kiss: man, man, medium skin tone, medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::KissManManMediumSkinTone,
+            "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x9D\xA4"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
+            "\x9F\x91\xA8\xF0\x9F\x8F\xBD",
+            "kiss: man, man, medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::KissManManMediumSkinToneMediumDarkSkinTone,
+            "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x9D\xA4"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
+            "\x9F\x91\xA8\xF0\x9F\x8F\xBE",
+            "kiss: man, man, medium skin tone, medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::KissManManMediumSkinToneDarkSkinTone,
+            "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x9D\xA4"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
+            "\x9F\x91\xA8\xF0\x9F\x8F\xBF",
+            "kiss: man, man, medium skin tone, dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::KissManManMediumDarkSkinToneLightSkinTone,
+            "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x9D\xA4"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
+            "\x9F\x91\xA8\xF0\x9F\x8F\xBB",
+            "kiss: man, man, medium-dark skin tone, light skin tone"},
         EmojiEntry{
             EmojiEnum::KissManManMediumDarkSkinToneMediumLightSkinTone,
             "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x9D\xA4\xEF\xB8"
             "\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0\x9F\x91\xA8\xF0"
             "\x9F\x8F\xBC",
             "kiss: man, man, medium-dark skin tone, medium-light skin tone"},
-        EmojiEntry{EmojiEnum::KissManManMediumDarkSkinToneMediumSkinTone,
-                   "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x9D\xA4"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
-                   "\x9F\x91\xA8\xF0\x9F\x8F\xBD",
-                   "kiss: man, man, medium-dark skin tone, medium skin tone"},
-        EmojiEntry{EmojiEnum::KissManManMediumDarkSkinTone,
-                   "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x9D\xA4"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
-                   "\x9F\x91\xA8\xF0\x9F\x8F\xBE",
-                   "kiss: man, man, medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::KissManManMediumDarkSkinToneDarkSkinTone,
-                   "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x9D\xA4"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
-                   "\x9F\x91\xA8\xF0\x9F\x8F\xBF",
-                   "kiss: man, man, medium-dark skin tone, dark skin tone"},
-        EmojiEntry{EmojiEnum::KissManManDarkSkinToneLightSkinTone,
-                   "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x9D\xA4"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
-                   "\x9F\x91\xA8\xF0\x9F\x8F\xBB",
-                   "kiss: man, man, dark skin tone, light skin tone"},
-        EmojiEntry{EmojiEnum::KissManManDarkSkinToneMediumLightSkinTone,
-                   "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x9D\xA4"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
-                   "\x9F\x91\xA8\xF0\x9F\x8F\xBC",
-                   "kiss: man, man, dark skin tone, medium-light skin tone"},
-        EmojiEntry{EmojiEnum::KissManManDarkSkinToneMediumSkinTone,
-                   "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x9D\xA4"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
-                   "\x9F\x91\xA8\xF0\x9F\x8F\xBD",
-                   "kiss: man, man, dark skin tone, medium skin tone"},
-        EmojiEntry{EmojiEnum::KissManManDarkSkinToneMediumDarkSkinTone,
-                   "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x9D\xA4"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
-                   "\x9F\x91\xA8\xF0\x9F\x8F\xBE",
-                   "kiss: man, man, dark skin tone, medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::KissManManDarkSkinTone,
-                   "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x9D\xA4"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
-                   "\x9F\x91\xA8\xF0\x9F\x8F\xBF",
-                   "kiss: man, man, dark skin tone"},
-        EmojiEntry{EmojiEnum::KissWomanWoman,
-                   "\xF0\x9F\x91\xA9\xE2\x80\x8D\xE2\x9D\xA4\xEF\xB8\x8F\xE2"
-                   "\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0\x9F\x91\xA9",
-                   "kiss: woman, woman"},
-        EmojiEntry{EmojiEnum::KissWomanWomanLightSkinTone,
-                   "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x9D\xA4"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
-                   "\x9F\x91\xA9\xF0\x9F\x8F\xBB",
-                   "kiss: woman, woman, light skin tone"},
+        EmojiEntry{
+            EmojiEnum::KissManManMediumDarkSkinToneMediumSkinTone,
+            "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x9D\xA4"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
+            "\x9F\x91\xA8\xF0\x9F\x8F\xBD",
+            "kiss: man, man, medium-dark skin tone, medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::KissManManMediumDarkSkinTone,
+            "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x9D\xA4"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
+            "\x9F\x91\xA8\xF0\x9F\x8F\xBE",
+            "kiss: man, man, medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::KissManManMediumDarkSkinToneDarkSkinTone,
+            "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x9D\xA4"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
+            "\x9F\x91\xA8\xF0\x9F\x8F\xBF",
+            "kiss: man, man, medium-dark skin tone, dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::KissManManDarkSkinToneLightSkinTone,
+            "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x9D\xA4"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
+            "\x9F\x91\xA8\xF0\x9F\x8F\xBB",
+            "kiss: man, man, dark skin tone, light skin tone"},
+        EmojiEntry{
+            EmojiEnum::KissManManDarkSkinToneMediumLightSkinTone,
+            "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x9D\xA4"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
+            "\x9F\x91\xA8\xF0\x9F\x8F\xBC",
+            "kiss: man, man, dark skin tone, medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::KissManManDarkSkinToneMediumSkinTone,
+            "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x9D\xA4"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
+            "\x9F\x91\xA8\xF0\x9F\x8F\xBD",
+            "kiss: man, man, dark skin tone, medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::KissManManDarkSkinToneMediumDarkSkinTone,
+            "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x9D\xA4"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
+            "\x9F\x91\xA8\xF0\x9F\x8F\xBE",
+            "kiss: man, man, dark skin tone, medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::KissManManDarkSkinTone,
+            "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x9D\xA4"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
+            "\x9F\x91\xA8\xF0\x9F\x8F\xBF",
+            "kiss: man, man, dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::KissWomanWoman,
+            "\xF0\x9F\x91\xA9\xE2\x80\x8D\xE2\x9D\xA4\xEF\xB8\x8F\xE2"
+            "\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0\x9F\x91\xA9",
+            "kiss: woman, woman"},
+        EmojiEntry{
+            EmojiEnum::KissWomanWomanLightSkinTone,
+            "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x9D\xA4"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
+            "\x9F\x91\xA9\xF0\x9F\x8F\xBB",
+            "kiss: woman, woman, light skin tone"},
         EmojiEntry{
             EmojiEnum::KissWomanWomanLightSkinToneMediumLightSkinTone,
             "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x9D\xA4\xEF\xB8"
             "\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0\x9F\x91\xA9\xF0"
             "\x9F\x8F\xBC",
             "kiss: woman, woman, light skin tone, medium-light skin tone"},
-        EmojiEntry{EmojiEnum::KissWomanWomanLightSkinToneMediumSkinTone,
-                   "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x9D\xA4"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
-                   "\x9F\x91\xA9\xF0\x9F\x8F\xBD",
-                   "kiss: woman, woman, light skin tone, medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::KissWomanWomanLightSkinToneMediumSkinTone,
+            "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x9D\xA4"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
+            "\x9F\x91\xA9\xF0\x9F\x8F\xBD",
+            "kiss: woman, woman, light skin tone, medium skin tone"},
         EmojiEntry{
             EmojiEnum::KissWomanWomanLightSkinToneMediumDarkSkinTone,
             "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x9D\xA4\xEF\xB8"
             "\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0\x9F\x91\xA9\xF0"
             "\x9F\x8F\xBE",
             "kiss: woman, woman, light skin tone, medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::KissWomanWomanLightSkinToneDarkSkinTone,
-                   "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x9D\xA4"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
-                   "\x9F\x91\xA9\xF0\x9F\x8F\xBF",
-                   "kiss: woman, woman, light skin tone, dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::KissWomanWomanLightSkinToneDarkSkinTone,
+            "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x9D\xA4"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
+            "\x9F\x91\xA9\xF0\x9F\x8F\xBF",
+            "kiss: woman, woman, light skin tone, dark skin tone"},
         EmojiEntry{
             EmojiEnum::KissWomanWomanMediumLightSkinToneLightSkinTone,
             "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x9D\xA4\xEF\xB8"
             "\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0\x9F\x91\xA9\xF0"
             "\x9F\x8F\xBB",
             "kiss: woman, woman, medium-light skin tone, light skin tone"},
-        EmojiEntry{EmojiEnum::KissWomanWomanMediumLightSkinTone,
-                   "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x9D\xA4"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
-                   "\x9F\x91\xA9\xF0\x9F\x8F\xBC",
-                   "kiss: woman, woman, medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::KissWomanWomanMediumLightSkinTone,
+            "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x9D\xA4"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
+            "\x9F\x91\xA9\xF0\x9F\x8F\xBC",
+            "kiss: woman, woman, medium-light skin tone"},
         EmojiEntry{
             EmojiEnum::KissWomanWomanMediumLightSkinToneMediumSkinTone,
             "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x9D\xA4\xEF\xB8"
@@ -7720,33 +9664,36 @@ consteval auto makeEmojiList()
             "\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0\x9F\x91\xA9\xF0"
             "\x9F\x8F\xBF",
             "kiss: woman, woman, medium-light skin tone, dark skin tone"},
-        EmojiEntry{EmojiEnum::KissWomanWomanMediumSkinToneLightSkinTone,
-                   "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x9D\xA4"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
-                   "\x9F\x91\xA9\xF0\x9F\x8F\xBB",
-                   "kiss: woman, woman, medium skin tone, light skin tone"},
+        EmojiEntry{
+            EmojiEnum::KissWomanWomanMediumSkinToneLightSkinTone,
+            "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x9D\xA4"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
+            "\x9F\x91\xA9\xF0\x9F\x8F\xBB",
+            "kiss: woman, woman, medium skin tone, light skin tone"},
         EmojiEntry{
             EmojiEnum::KissWomanWomanMediumSkinToneMediumLightSkinTone,
             "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x9D\xA4\xEF\xB8"
             "\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0\x9F\x91\xA9\xF0"
             "\x9F\x8F\xBC",
             "kiss: woman, woman, medium skin tone, medium-light skin tone"},
-        EmojiEntry{EmojiEnum::KissWomanWomanMediumSkinTone,
-                   "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x9D\xA4"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
-                   "\x9F\x91\xA9\xF0\x9F\x8F\xBD",
-                   "kiss: woman, woman, medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::KissWomanWomanMediumSkinTone,
+            "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x9D\xA4"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
+            "\x9F\x91\xA9\xF0\x9F\x8F\xBD",
+            "kiss: woman, woman, medium skin tone"},
         EmojiEntry{
             EmojiEnum::KissWomanWomanMediumSkinToneMediumDarkSkinTone,
             "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x9D\xA4\xEF\xB8"
             "\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0\x9F\x91\xA9\xF0"
             "\x9F\x8F\xBE",
             "kiss: woman, woman, medium skin tone, medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::KissWomanWomanMediumSkinToneDarkSkinTone,
-                   "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x9D\xA4"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
-                   "\x9F\x91\xA9\xF0\x9F\x8F\xBF",
-                   "kiss: woman, woman, medium skin tone, dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::KissWomanWomanMediumSkinToneDarkSkinTone,
+            "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x9D\xA4"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
+            "\x9F\x91\xA9\xF0\x9F\x8F\xBF",
+            "kiss: woman, woman, medium skin tone, dark skin tone"},
         EmojiEntry{
             EmojiEnum::KissWomanWomanMediumDarkSkinToneLightSkinTone,
             "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x9D\xA4\xEF\xB8"
@@ -7766,59 +9713,72 @@ consteval auto makeEmojiList()
             "\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0\x9F\x91\xA9\xF0"
             "\x9F\x8F\xBD",
             "kiss: woman, woman, medium-dark skin tone, medium skin tone"},
-        EmojiEntry{EmojiEnum::KissWomanWomanMediumDarkSkinTone,
-                   "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x9D\xA4"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
-                   "\x9F\x91\xA9\xF0\x9F\x8F\xBE",
-                   "kiss: woman, woman, medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::KissWomanWomanMediumDarkSkinToneDarkSkinTone,
-                   "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x9D\xA4"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
-                   "\x9F\x91\xA9\xF0\x9F\x8F\xBF",
-                   "kiss: woman, woman, medium-dark skin tone, dark skin tone"},
-        EmojiEntry{EmojiEnum::KissWomanWomanDarkSkinToneLightSkinTone,
-                   "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x9D\xA4"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
-                   "\x9F\x91\xA9\xF0\x9F\x8F\xBB",
-                   "kiss: woman, woman, dark skin tone, light skin tone"},
+        EmojiEntry{
+            EmojiEnum::KissWomanWomanMediumDarkSkinTone,
+            "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x9D\xA4"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
+            "\x9F\x91\xA9\xF0\x9F\x8F\xBE",
+            "kiss: woman, woman, medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::KissWomanWomanMediumDarkSkinToneDarkSkinTone,
+            "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x9D\xA4"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
+            "\x9F\x91\xA9\xF0\x9F\x8F\xBF",
+            "kiss: woman, woman, medium-dark skin tone, dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::KissWomanWomanDarkSkinToneLightSkinTone,
+            "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x9D\xA4"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
+            "\x9F\x91\xA9\xF0\x9F\x8F\xBB",
+            "kiss: woman, woman, dark skin tone, light skin tone"},
         EmojiEntry{
             EmojiEnum::KissWomanWomanDarkSkinToneMediumLightSkinTone,
             "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x9D\xA4\xEF\xB8"
             "\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0\x9F\x91\xA9\xF0"
             "\x9F\x8F\xBC",
             "kiss: woman, woman, dark skin tone, medium-light skin tone"},
-        EmojiEntry{EmojiEnum::KissWomanWomanDarkSkinToneMediumSkinTone,
-                   "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x9D\xA4"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
-                   "\x9F\x91\xA9\xF0\x9F\x8F\xBD",
-                   "kiss: woman, woman, dark skin tone, medium skin tone"},
-        EmojiEntry{EmojiEnum::KissWomanWomanDarkSkinToneMediumDarkSkinTone,
-                   "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x9D\xA4"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
-                   "\x9F\x91\xA9\xF0\x9F\x8F\xBE",
-                   "kiss: woman, woman, dark skin tone, medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::KissWomanWomanDarkSkinTone,
-                   "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x9D\xA4"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
-                   "\x9F\x91\xA9\xF0\x9F\x8F\xBF",
-                   "kiss: woman, woman, dark skin tone"},
-        EmojiEntry{EmojiEnum::CoupleWithHeart, "\xF0\x9F\x92\x91",
-                   "couple with heart"},
-        EmojiEntry{EmojiEnum::CoupleWithHeartLightSkinTone,
-                   "\xF0\x9F\x92\x91\xF0\x9F\x8F\xBB",
-                   "couple with heart: light skin tone"},
-        EmojiEntry{EmojiEnum::CoupleWithHeartMediumLightSkinTone,
-                   "\xF0\x9F\x92\x91\xF0\x9F\x8F\xBC",
-                   "couple with heart: medium-light skin tone"},
-        EmojiEntry{EmojiEnum::CoupleWithHeartMediumSkinTone,
-                   "\xF0\x9F\x92\x91\xF0\x9F\x8F\xBD",
-                   "couple with heart: medium skin tone"},
-        EmojiEntry{EmojiEnum::CoupleWithHeartMediumDarkSkinTone,
-                   "\xF0\x9F\x92\x91\xF0\x9F\x8F\xBE",
-                   "couple with heart: medium-dark skin tone"},
-        EmojiEntry{EmojiEnum::CoupleWithHeartDarkSkinTone,
-                   "\xF0\x9F\x92\x91\xF0\x9F\x8F\xBF",
-                   "couple with heart: dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::KissWomanWomanDarkSkinToneMediumSkinTone,
+            "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x9D\xA4"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
+            "\x9F\x91\xA9\xF0\x9F\x8F\xBD",
+            "kiss: woman, woman, dark skin tone, medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::KissWomanWomanDarkSkinToneMediumDarkSkinTone,
+            "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x9D\xA4"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
+            "\x9F\x91\xA9\xF0\x9F\x8F\xBE",
+            "kiss: woman, woman, dark skin tone, medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::KissWomanWomanDarkSkinTone,
+            "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x9D\xA4"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\x8B\xE2\x80\x8D\xF0"
+            "\x9F\x91\xA9\xF0\x9F\x8F\xBF",
+            "kiss: woman, woman, dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::CoupleWithHeart,
+            "\xF0\x9F\x92\x91",
+            "couple with heart"},
+        EmojiEntry{
+            EmojiEnum::CoupleWithHeartLightSkinTone,
+            "\xF0\x9F\x92\x91\xF0\x9F\x8F\xBB",
+            "couple with heart: light skin tone"},
+        EmojiEntry{
+            EmojiEnum::CoupleWithHeartMediumLightSkinTone,
+            "\xF0\x9F\x92\x91\xF0\x9F\x8F\xBC",
+            "couple with heart: medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::CoupleWithHeartMediumSkinTone,
+            "\xF0\x9F\x92\x91\xF0\x9F\x8F\xBD",
+            "couple with heart: medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::CoupleWithHeartMediumDarkSkinTone,
+            "\xF0\x9F\x92\x91\xF0\x9F\x8F\xBE",
+            "couple with heart: medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::CoupleWithHeartDarkSkinTone,
+            "\xF0\x9F\x92\x91\xF0\x9F\x8F\xBF",
+            "couple with heart: dark skin tone"},
         EmojiEntry{
             EmojiEnum::
                 CoupleWithHeartPersonPersonLightSkinToneMediumLightSkinTone,
@@ -7953,14 +9913,16 @@ consteval auto makeEmojiList()
             "\x8F\xE2\x80\x8D\xF0\x9F\xA7\x91\xF0\x9F\x8F\xBE",
             "couple with heart: person, person, dark skin tone, medium-dark "
             "skin tone"},
-        EmojiEntry{EmojiEnum::CoupleWithHeartWomanMan,
-                   "\xF0\x9F\x91\xA9\xE2\x80\x8D\xE2\x9D\xA4\xEF\xB8\x8F\xE2"
-                   "\x80\x8D\xF0\x9F\x91\xA8",
-                   "couple with heart: woman, man"},
-        EmojiEntry{EmojiEnum::CoupleWithHeartWomanManLightSkinTone,
-                   "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x9D\xA4"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBB",
-                   "couple with heart: woman, man, light skin tone"},
+        EmojiEntry{
+            EmojiEnum::CoupleWithHeartWomanMan,
+            "\xF0\x9F\x91\xA9\xE2\x80\x8D\xE2\x9D\xA4\xEF\xB8\x8F\xE2"
+            "\x80\x8D\xF0\x9F\x91\xA8",
+            "couple with heart: woman, man"},
+        EmojiEntry{
+            EmojiEnum::CoupleWithHeartWomanManLightSkinTone,
+            "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x9D\xA4"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBB",
+            "couple with heart: woman, man, light skin tone"},
         EmojiEntry{
             EmojiEnum::CoupleWithHeartWomanManLightSkinToneMediumLightSkinTone,
             "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x9D\xA4\xEF\xB8"
@@ -7971,7 +9933,8 @@ consteval auto makeEmojiList()
             EmojiEnum::CoupleWithHeartWomanManLightSkinToneMediumSkinTone,
             "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x9D\xA4\xEF\xB8"
             "\x8F\xE2\x80\x8D\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBD",
-            "couple with heart: woman, man, light skin tone, medium skin tone"},
+            "couple with heart: woman, man, light skin tone, medium skin "
+            "tone"},
         EmojiEntry{
             EmojiEnum::CoupleWithHeartWomanManLightSkinToneMediumDarkSkinTone,
             "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x9D\xA4\xEF\xB8"
@@ -7989,10 +9952,11 @@ consteval auto makeEmojiList()
             "\x8F\xE2\x80\x8D\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBB",
             "couple with heart: woman, man, medium-light skin tone, light skin "
             "tone"},
-        EmojiEntry{EmojiEnum::CoupleWithHeartWomanManMediumLightSkinTone,
-                   "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x9D\xA4"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBC",
-                   "couple with heart: woman, man, medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::CoupleWithHeartWomanManMediumLightSkinTone,
+            "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x9D\xA4"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBC",
+            "couple with heart: woman, man, medium-light skin tone"},
         EmojiEntry{
             EmojiEnum::CoupleWithHeartWomanManMediumLightSkinToneMediumSkinTone,
             "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x9D\xA4\xEF\xB8"
@@ -8016,17 +9980,19 @@ consteval auto makeEmojiList()
             EmojiEnum::CoupleWithHeartWomanManMediumSkinToneLightSkinTone,
             "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x9D\xA4\xEF\xB8"
             "\x8F\xE2\x80\x8D\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBB",
-            "couple with heart: woman, man, medium skin tone, light skin tone"},
+            "couple with heart: woman, man, medium skin tone, light skin "
+            "tone"},
         EmojiEntry{
             EmojiEnum::CoupleWithHeartWomanManMediumSkinToneMediumLightSkinTone,
             "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x9D\xA4\xEF\xB8"
             "\x8F\xE2\x80\x8D\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBC",
             "couple with heart: woman, man, medium skin tone, medium-light "
             "skin tone"},
-        EmojiEntry{EmojiEnum::CoupleWithHeartWomanManMediumSkinTone,
-                   "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x9D\xA4"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBD",
-                   "couple with heart: woman, man, medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::CoupleWithHeartWomanManMediumSkinTone,
+            "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x9D\xA4"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBD",
+            "couple with heart: woman, man, medium skin tone"},
         EmojiEntry{
             EmojiEnum::CoupleWithHeartWomanManMediumSkinToneMediumDarkSkinTone,
             "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x9D\xA4\xEF\xB8"
@@ -8057,10 +10023,11 @@ consteval auto makeEmojiList()
             "\x8F\xE2\x80\x8D\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBD",
             "couple with heart: woman, man, medium-dark skin tone, medium skin "
             "tone"},
-        EmojiEntry{EmojiEnum::CoupleWithHeartWomanManMediumDarkSkinTone,
-                   "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x9D\xA4"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBE",
-                   "couple with heart: woman, man, medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::CoupleWithHeartWomanManMediumDarkSkinTone,
+            "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x9D\xA4"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBE",
+            "couple with heart: woman, man, medium-dark skin tone"},
         EmojiEntry{
             EmojiEnum::CoupleWithHeartWomanManMediumDarkSkinToneDarkSkinTone,
             "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x9D\xA4\xEF\xB8"
@@ -8089,18 +10056,21 @@ consteval auto makeEmojiList()
             "\x8F\xE2\x80\x8D\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBE",
             "couple with heart: woman, man, dark skin tone, medium-dark skin "
             "tone"},
-        EmojiEntry{EmojiEnum::CoupleWithHeartWomanManDarkSkinTone,
-                   "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x9D\xA4"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBF",
-                   "couple with heart: woman, man, dark skin tone"},
-        EmojiEntry{EmojiEnum::CoupleWithHeartManMan,
-                   "\xF0\x9F\x91\xA8\xE2\x80\x8D\xE2\x9D\xA4\xEF\xB8\x8F\xE2"
-                   "\x80\x8D\xF0\x9F\x91\xA8",
-                   "couple with heart: man, man"},
-        EmojiEntry{EmojiEnum::CoupleWithHeartManManLightSkinTone,
-                   "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x9D\xA4"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBB",
-                   "couple with heart: man, man, light skin tone"},
+        EmojiEntry{
+            EmojiEnum::CoupleWithHeartWomanManDarkSkinTone,
+            "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x9D\xA4"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBF",
+            "couple with heart: woman, man, dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::CoupleWithHeartManMan,
+            "\xF0\x9F\x91\xA8\xE2\x80\x8D\xE2\x9D\xA4\xEF\xB8\x8F\xE2"
+            "\x80\x8D\xF0\x9F\x91\xA8",
+            "couple with heart: man, man"},
+        EmojiEntry{
+            EmojiEnum::CoupleWithHeartManManLightSkinTone,
+            "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x9D\xA4"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBB",
+            "couple with heart: man, man, light skin tone"},
         EmojiEntry{
             EmojiEnum::CoupleWithHeartManManLightSkinToneMediumLightSkinTone,
             "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x9D\xA4\xEF\xB8"
@@ -8129,10 +10099,11 @@ consteval auto makeEmojiList()
             "\x8F\xE2\x80\x8D\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBB",
             "couple with heart: man, man, medium-light skin tone, light skin "
             "tone"},
-        EmojiEntry{EmojiEnum::CoupleWithHeartManManMediumLightSkinTone,
-                   "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x9D\xA4"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBC",
-                   "couple with heart: man, man, medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::CoupleWithHeartManManMediumLightSkinTone,
+            "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x9D\xA4"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBC",
+            "couple with heart: man, man, medium-light skin tone"},
         EmojiEntry{
             EmojiEnum::CoupleWithHeartManManMediumLightSkinToneMediumSkinTone,
             "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x9D\xA4\xEF\xB8"
@@ -8163,10 +10134,11 @@ consteval auto makeEmojiList()
             "\x8F\xE2\x80\x8D\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBC",
             "couple with heart: man, man, medium skin tone, medium-light skin "
             "tone"},
-        EmojiEntry{EmojiEnum::CoupleWithHeartManManMediumSkinTone,
-                   "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x9D\xA4"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBD",
-                   "couple with heart: man, man, medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::CoupleWithHeartManManMediumSkinTone,
+            "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x9D\xA4"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBD",
+            "couple with heart: man, man, medium skin tone"},
         EmojiEntry{
             EmojiEnum::CoupleWithHeartManManMediumSkinToneMediumDarkSkinTone,
             "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x9D\xA4\xEF\xB8"
@@ -8197,10 +10169,11 @@ consteval auto makeEmojiList()
             "\x8F\xE2\x80\x8D\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBD",
             "couple with heart: man, man, medium-dark skin tone, medium skin "
             "tone"},
-        EmojiEntry{EmojiEnum::CoupleWithHeartManManMediumDarkSkinTone,
-                   "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x9D\xA4"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBE",
-                   "couple with heart: man, man, medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::CoupleWithHeartManManMediumDarkSkinTone,
+            "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x9D\xA4"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBE",
+            "couple with heart: man, man, medium-dark skin tone"},
         EmojiEntry{
             EmojiEnum::CoupleWithHeartManManMediumDarkSkinToneDarkSkinTone,
             "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x9D\xA4\xEF\xB8"
@@ -8229,18 +10202,21 @@ consteval auto makeEmojiList()
             "\x8F\xE2\x80\x8D\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBE",
             "couple with heart: man, man, dark skin tone, medium-dark skin "
             "tone"},
-        EmojiEntry{EmojiEnum::CoupleWithHeartManManDarkSkinTone,
-                   "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x9D\xA4"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBF",
-                   "couple with heart: man, man, dark skin tone"},
-        EmojiEntry{EmojiEnum::CoupleWithHeartWomanWoman,
-                   "\xF0\x9F\x91\xA9\xE2\x80\x8D\xE2\x9D\xA4\xEF\xB8\x8F\xE2"
-                   "\x80\x8D\xF0\x9F\x91\xA9",
-                   "couple with heart: woman, woman"},
-        EmojiEntry{EmojiEnum::CoupleWithHeartWomanWomanLightSkinTone,
-                   "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x9D\xA4"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBB",
-                   "couple with heart: woman, woman, light skin tone"},
+        EmojiEntry{
+            EmojiEnum::CoupleWithHeartManManDarkSkinTone,
+            "\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x9D\xA4"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x91\xA8\xF0\x9F\x8F\xBF",
+            "couple with heart: man, man, dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::CoupleWithHeartWomanWoman,
+            "\xF0\x9F\x91\xA9\xE2\x80\x8D\xE2\x9D\xA4\xEF\xB8\x8F\xE2"
+            "\x80\x8D\xF0\x9F\x91\xA9",
+            "couple with heart: woman, woman"},
+        EmojiEntry{
+            EmojiEnum::CoupleWithHeartWomanWomanLightSkinTone,
+            "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x9D\xA4"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBB",
+            "couple with heart: woman, woman, light skin tone"},
         EmojiEntry{
             EmojiEnum::
                 CoupleWithHeartWomanWomanLightSkinToneMediumLightSkinTone,
@@ -8264,7 +10240,8 @@ consteval auto makeEmojiList()
             EmojiEnum::CoupleWithHeartWomanWomanLightSkinToneDarkSkinTone,
             "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBB\xE2\x80\x8D\xE2\x9D\xA4\xEF\xB8"
             "\x8F\xE2\x80\x8D\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBF",
-            "couple with heart: woman, woman, light skin tone, dark skin tone"},
+            "couple with heart: woman, woman, light skin tone, dark skin "
+            "tone"},
         EmojiEntry{
             EmojiEnum::
                 CoupleWithHeartWomanWomanMediumLightSkinToneLightSkinTone,
@@ -8272,10 +10249,11 @@ consteval auto makeEmojiList()
             "\x8F\xE2\x80\x8D\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBB",
             "couple with heart: woman, woman, medium-light skin tone, light "
             "skin tone"},
-        EmojiEntry{EmojiEnum::CoupleWithHeartWomanWomanMediumLightSkinTone,
-                   "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x9D\xA4"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBC",
-                   "couple with heart: woman, woman, medium-light skin tone"},
+        EmojiEntry{
+            EmojiEnum::CoupleWithHeartWomanWomanMediumLightSkinTone,
+            "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBC\xE2\x80\x8D\xE2\x9D\xA4"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBC",
+            "couple with heart: woman, woman, medium-light skin tone"},
         EmojiEntry{
             EmojiEnum::
                 CoupleWithHeartWomanWomanMediumLightSkinToneMediumSkinTone,
@@ -8309,10 +10287,11 @@ consteval auto makeEmojiList()
             "\x8F\xE2\x80\x8D\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBC",
             "couple with heart: woman, woman, medium skin tone, medium-light "
             "skin tone"},
-        EmojiEntry{EmojiEnum::CoupleWithHeartWomanWomanMediumSkinTone,
-                   "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x9D\xA4"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBD",
-                   "couple with heart: woman, woman, medium skin tone"},
+        EmojiEntry{
+            EmojiEnum::CoupleWithHeartWomanWomanMediumSkinTone,
+            "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBD\xE2\x80\x8D\xE2\x9D\xA4"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBD",
+            "couple with heart: woman, woman, medium skin tone"},
         EmojiEntry{
             EmojiEnum::
                 CoupleWithHeartWomanWomanMediumSkinToneMediumDarkSkinTone,
@@ -8346,10 +10325,11 @@ consteval auto makeEmojiList()
             "\x8F\xE2\x80\x8D\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBD",
             "couple with heart: woman, woman, medium-dark skin tone, medium "
             "skin tone"},
-        EmojiEntry{EmojiEnum::CoupleWithHeartWomanWomanMediumDarkSkinTone,
-                   "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x9D\xA4"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBE",
-                   "couple with heart: woman, woman, medium-dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::CoupleWithHeartWomanWomanMediumDarkSkinTone,
+            "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x9D\xA4"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBE",
+            "couple with heart: woman, woman, medium-dark skin tone"},
         EmojiEntry{
             EmojiEnum::CoupleWithHeartWomanWomanMediumDarkSkinToneDarkSkinTone,
             "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBE\xE2\x80\x8D\xE2\x9D\xA4\xEF\xB8"
@@ -8360,7 +10340,8 @@ consteval auto makeEmojiList()
             EmojiEnum::CoupleWithHeartWomanWomanDarkSkinToneLightSkinTone,
             "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x9D\xA4\xEF\xB8"
             "\x8F\xE2\x80\x8D\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBB",
-            "couple with heart: woman, woman, dark skin tone, light skin tone"},
+            "couple with heart: woman, woman, dark skin tone, light skin "
+            "tone"},
         EmojiEntry{
             EmojiEnum::CoupleWithHeartWomanWomanDarkSkinToneMediumLightSkinTone,
             "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x9D\xA4\xEF\xB8"
@@ -8379,130 +10360,168 @@ consteval auto makeEmojiList()
             "\x8F\xE2\x80\x8D\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBE",
             "couple with heart: woman, woman, dark skin tone, medium-dark skin "
             "tone"},
-        EmojiEntry{EmojiEnum::CoupleWithHeartWomanWomanDarkSkinTone,
-                   "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x9D\xA4"
-                   "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBF",
-                   "couple with heart: woman, woman, dark skin tone"},
-        EmojiEntry{EmojiEnum::FamilyManWomanBoy,
-                   "\xF0\x9F\x91\xA8\xE2\x80\x8D\xF0\x9F\x91\xA9\xE2\x80\x8D"
-                   "\xF0\x9F\x91\xA6",
-                   "family: man, woman, boy"},
-        EmojiEntry{EmojiEnum::FamilyManWomanGirl,
-                   "\xF0\x9F\x91\xA8\xE2\x80\x8D\xF0\x9F\x91\xA9\xE2\x80\x8D"
-                   "\xF0\x9F\x91\xA7",
-                   "family: man, woman, girl"},
-        EmojiEntry{EmojiEnum::FamilyManWomanGirlBoy,
-                   "\xF0\x9F\x91\xA8\xE2\x80\x8D\xF0\x9F\x91\xA9\xE2\x80\x8D"
-                   "\xF0\x9F\x91\xA7\xE2\x80\x8D\xF0\x9F\x91\xA6",
-                   "family: man, woman, girl, boy"},
-        EmojiEntry{EmojiEnum::FamilyManWomanBoyBoy,
-                   "\xF0\x9F\x91\xA8\xE2\x80\x8D\xF0\x9F\x91\xA9\xE2\x80\x8D"
-                   "\xF0\x9F\x91\xA6\xE2\x80\x8D\xF0\x9F\x91\xA6",
-                   "family: man, woman, boy, boy"},
-        EmojiEntry{EmojiEnum::FamilyManWomanGirlGirl,
-                   "\xF0\x9F\x91\xA8\xE2\x80\x8D\xF0\x9F\x91\xA9\xE2\x80\x8D"
-                   "\xF0\x9F\x91\xA7\xE2\x80\x8D\xF0\x9F\x91\xA7",
-                   "family: man, woman, girl, girl"},
-        EmojiEntry{EmojiEnum::FamilyManManBoy,
-                   "\xF0\x9F\x91\xA8\xE2\x80\x8D\xF0\x9F\x91\xA8\xE2\x80\x8D"
-                   "\xF0\x9F\x91\xA6",
-                   "family: man, man, boy"},
-        EmojiEntry{EmojiEnum::FamilyManManGirl,
-                   "\xF0\x9F\x91\xA8\xE2\x80\x8D\xF0\x9F\x91\xA8\xE2\x80\x8D"
-                   "\xF0\x9F\x91\xA7",
-                   "family: man, man, girl"},
-        EmojiEntry{EmojiEnum::FamilyManManGirlBoy,
-                   "\xF0\x9F\x91\xA8\xE2\x80\x8D\xF0\x9F\x91\xA8\xE2\x80\x8D"
-                   "\xF0\x9F\x91\xA7\xE2\x80\x8D\xF0\x9F\x91\xA6",
-                   "family: man, man, girl, boy"},
-        EmojiEntry{EmojiEnum::FamilyManManBoyBoy,
-                   "\xF0\x9F\x91\xA8\xE2\x80\x8D\xF0\x9F\x91\xA8\xE2\x80\x8D"
-                   "\xF0\x9F\x91\xA6\xE2\x80\x8D\xF0\x9F\x91\xA6",
-                   "family: man, man, boy, boy"},
-        EmojiEntry{EmojiEnum::FamilyManManGirlGirl,
-                   "\xF0\x9F\x91\xA8\xE2\x80\x8D\xF0\x9F\x91\xA8\xE2\x80\x8D"
-                   "\xF0\x9F\x91\xA7\xE2\x80\x8D\xF0\x9F\x91\xA7",
-                   "family: man, man, girl, girl"},
-        EmojiEntry{EmojiEnum::FamilyWomanWomanBoy,
-                   "\xF0\x9F\x91\xA9\xE2\x80\x8D\xF0\x9F\x91\xA9\xE2\x80\x8D"
-                   "\xF0\x9F\x91\xA6",
-                   "family: woman, woman, boy"},
-        EmojiEntry{EmojiEnum::FamilyWomanWomanGirl,
-                   "\xF0\x9F\x91\xA9\xE2\x80\x8D\xF0\x9F\x91\xA9\xE2\x80\x8D"
-                   "\xF0\x9F\x91\xA7",
-                   "family: woman, woman, girl"},
-        EmojiEntry{EmojiEnum::FamilyWomanWomanGirlBoy,
-                   "\xF0\x9F\x91\xA9\xE2\x80\x8D\xF0\x9F\x91\xA9\xE2\x80\x8D"
-                   "\xF0\x9F\x91\xA7\xE2\x80\x8D\xF0\x9F\x91\xA6",
-                   "family: woman, woman, girl, boy"},
-        EmojiEntry{EmojiEnum::FamilyWomanWomanBoyBoy,
-                   "\xF0\x9F\x91\xA9\xE2\x80\x8D\xF0\x9F\x91\xA9\xE2\x80\x8D"
-                   "\xF0\x9F\x91\xA6\xE2\x80\x8D\xF0\x9F\x91\xA6",
-                   "family: woman, woman, boy, boy"},
-        EmojiEntry{EmojiEnum::FamilyWomanWomanGirlGirl,
-                   "\xF0\x9F\x91\xA9\xE2\x80\x8D\xF0\x9F\x91\xA9\xE2\x80\x8D"
-                   "\xF0\x9F\x91\xA7\xE2\x80\x8D\xF0\x9F\x91\xA7",
-                   "family: woman, woman, girl, girl"},
-        EmojiEntry{EmojiEnum::FamilyManBoy,
-                   "\xF0\x9F\x91\xA8\xE2\x80\x8D\xF0\x9F\x91\xA6",
-                   "family: man, boy"},
-        EmojiEntry{EmojiEnum::FamilyManBoyBoy,
-                   "\xF0\x9F\x91\xA8\xE2\x80\x8D\xF0\x9F\x91\xA6\xE2\x80\x8D"
-                   "\xF0\x9F\x91\xA6",
-                   "family: man, boy, boy"},
-        EmojiEntry{EmojiEnum::FamilyManGirl,
-                   "\xF0\x9F\x91\xA8\xE2\x80\x8D\xF0\x9F\x91\xA7",
-                   "family: man, girl"},
-        EmojiEntry{EmojiEnum::FamilyManGirlBoy,
-                   "\xF0\x9F\x91\xA8\xE2\x80\x8D\xF0\x9F\x91\xA7\xE2\x80\x8D"
-                   "\xF0\x9F\x91\xA6",
-                   "family: man, girl, boy"},
-        EmojiEntry{EmojiEnum::FamilyManGirlGirl,
-                   "\xF0\x9F\x91\xA8\xE2\x80\x8D\xF0\x9F\x91\xA7\xE2\x80\x8D"
-                   "\xF0\x9F\x91\xA7",
-                   "family: man, girl, girl"},
-        EmojiEntry{EmojiEnum::FamilyWomanBoy,
-                   "\xF0\x9F\x91\xA9\xE2\x80\x8D\xF0\x9F\x91\xA6",
-                   "family: woman, boy"},
-        EmojiEntry{EmojiEnum::FamilyWomanBoyBoy,
-                   "\xF0\x9F\x91\xA9\xE2\x80\x8D\xF0\x9F\x91\xA6\xE2\x80\x8D"
-                   "\xF0\x9F\x91\xA6",
-                   "family: woman, boy, boy"},
-        EmojiEntry{EmojiEnum::FamilyWomanGirl,
-                   "\xF0\x9F\x91\xA9\xE2\x80\x8D\xF0\x9F\x91\xA7",
-                   "family: woman, girl"},
-        EmojiEntry{EmojiEnum::FamilyWomanGirlBoy,
-                   "\xF0\x9F\x91\xA9\xE2\x80\x8D\xF0\x9F\x91\xA7\xE2\x80\x8D"
-                   "\xF0\x9F\x91\xA6",
-                   "family: woman, girl, boy"},
-        EmojiEntry{EmojiEnum::FamilyWomanGirlGirl,
-                   "\xF0\x9F\x91\xA9\xE2\x80\x8D\xF0\x9F\x91\xA7\xE2\x80\x8D"
-                   "\xF0\x9F\x91\xA7",
-                   "family: woman, girl, girl"},
-        EmojiEntry{EmojiEnum::SpeakingHead, "\xF0\x9F\x97\xA3\xEF\xB8\x8F",
-                   "speaking head"},
-        EmojiEntry{EmojiEnum::BustInSilhouette, "\xF0\x9F\x91\xA4",
-                   "bust in silhouette"},
-        EmojiEntry{EmojiEnum::BustsInSilhouette, "\xF0\x9F\x91\xA5",
-                   "busts in silhouette"},
-        EmojiEntry{EmojiEnum::PeopleHugging, "\xF0\x9F\xAB\x82",
-                   "people hugging"},
+        EmojiEntry{
+            EmojiEnum::CoupleWithHeartWomanWomanDarkSkinTone,
+            "\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBF\xE2\x80\x8D\xE2\x9D\xA4"
+            "\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x91\xA9\xF0\x9F\x8F\xBF",
+            "couple with heart: woman, woman, dark skin tone"},
+        EmojiEntry{
+            EmojiEnum::FamilyManWomanBoy,
+            "\xF0\x9F\x91\xA8\xE2\x80\x8D\xF0\x9F\x91\xA9\xE2\x80\x8D"
+            "\xF0\x9F\x91\xA6",
+            "family: man, woman, boy"},
+        EmojiEntry{
+            EmojiEnum::FamilyManWomanGirl,
+            "\xF0\x9F\x91\xA8\xE2\x80\x8D\xF0\x9F\x91\xA9\xE2\x80\x8D"
+            "\xF0\x9F\x91\xA7",
+            "family: man, woman, girl"},
+        EmojiEntry{
+            EmojiEnum::FamilyManWomanGirlBoy,
+            "\xF0\x9F\x91\xA8\xE2\x80\x8D\xF0\x9F\x91\xA9\xE2\x80\x8D"
+            "\xF0\x9F\x91\xA7\xE2\x80\x8D\xF0\x9F\x91\xA6",
+            "family: man, woman, girl, boy"},
+        EmojiEntry{
+            EmojiEnum::FamilyManWomanBoyBoy,
+            "\xF0\x9F\x91\xA8\xE2\x80\x8D\xF0\x9F\x91\xA9\xE2\x80\x8D"
+            "\xF0\x9F\x91\xA6\xE2\x80\x8D\xF0\x9F\x91\xA6",
+            "family: man, woman, boy, boy"},
+        EmojiEntry{
+            EmojiEnum::FamilyManWomanGirlGirl,
+            "\xF0\x9F\x91\xA8\xE2\x80\x8D\xF0\x9F\x91\xA9\xE2\x80\x8D"
+            "\xF0\x9F\x91\xA7\xE2\x80\x8D\xF0\x9F\x91\xA7",
+            "family: man, woman, girl, girl"},
+        EmojiEntry{
+            EmojiEnum::FamilyManManBoy,
+            "\xF0\x9F\x91\xA8\xE2\x80\x8D\xF0\x9F\x91\xA8\xE2\x80\x8D"
+            "\xF0\x9F\x91\xA6",
+            "family: man, man, boy"},
+        EmojiEntry{
+            EmojiEnum::FamilyManManGirl,
+            "\xF0\x9F\x91\xA8\xE2\x80\x8D\xF0\x9F\x91\xA8\xE2\x80\x8D"
+            "\xF0\x9F\x91\xA7",
+            "family: man, man, girl"},
+        EmojiEntry{
+            EmojiEnum::FamilyManManGirlBoy,
+            "\xF0\x9F\x91\xA8\xE2\x80\x8D\xF0\x9F\x91\xA8\xE2\x80\x8D"
+            "\xF0\x9F\x91\xA7\xE2\x80\x8D\xF0\x9F\x91\xA6",
+            "family: man, man, girl, boy"},
+        EmojiEntry{
+            EmojiEnum::FamilyManManBoyBoy,
+            "\xF0\x9F\x91\xA8\xE2\x80\x8D\xF0\x9F\x91\xA8\xE2\x80\x8D"
+            "\xF0\x9F\x91\xA6\xE2\x80\x8D\xF0\x9F\x91\xA6",
+            "family: man, man, boy, boy"},
+        EmojiEntry{
+            EmojiEnum::FamilyManManGirlGirl,
+            "\xF0\x9F\x91\xA8\xE2\x80\x8D\xF0\x9F\x91\xA8\xE2\x80\x8D"
+            "\xF0\x9F\x91\xA7\xE2\x80\x8D\xF0\x9F\x91\xA7",
+            "family: man, man, girl, girl"},
+        EmojiEntry{
+            EmojiEnum::FamilyWomanWomanBoy,
+            "\xF0\x9F\x91\xA9\xE2\x80\x8D\xF0\x9F\x91\xA9\xE2\x80\x8D"
+            "\xF0\x9F\x91\xA6",
+            "family: woman, woman, boy"},
+        EmojiEntry{
+            EmojiEnum::FamilyWomanWomanGirl,
+            "\xF0\x9F\x91\xA9\xE2\x80\x8D\xF0\x9F\x91\xA9\xE2\x80\x8D"
+            "\xF0\x9F\x91\xA7",
+            "family: woman, woman, girl"},
+        EmojiEntry{
+            EmojiEnum::FamilyWomanWomanGirlBoy,
+            "\xF0\x9F\x91\xA9\xE2\x80\x8D\xF0\x9F\x91\xA9\xE2\x80\x8D"
+            "\xF0\x9F\x91\xA7\xE2\x80\x8D\xF0\x9F\x91\xA6",
+            "family: woman, woman, girl, boy"},
+        EmojiEntry{
+            EmojiEnum::FamilyWomanWomanBoyBoy,
+            "\xF0\x9F\x91\xA9\xE2\x80\x8D\xF0\x9F\x91\xA9\xE2\x80\x8D"
+            "\xF0\x9F\x91\xA6\xE2\x80\x8D\xF0\x9F\x91\xA6",
+            "family: woman, woman, boy, boy"},
+        EmojiEntry{
+            EmojiEnum::FamilyWomanWomanGirlGirl,
+            "\xF0\x9F\x91\xA9\xE2\x80\x8D\xF0\x9F\x91\xA9\xE2\x80\x8D"
+            "\xF0\x9F\x91\xA7\xE2\x80\x8D\xF0\x9F\x91\xA7",
+            "family: woman, woman, girl, girl"},
+        EmojiEntry{
+            EmojiEnum::FamilyManBoy,
+            "\xF0\x9F\x91\xA8\xE2\x80\x8D\xF0\x9F\x91\xA6",
+            "family: man, boy"},
+        EmojiEntry{
+            EmojiEnum::FamilyManBoyBoy,
+            "\xF0\x9F\x91\xA8\xE2\x80\x8D\xF0\x9F\x91\xA6\xE2\x80\x8D"
+            "\xF0\x9F\x91\xA6",
+            "family: man, boy, boy"},
+        EmojiEntry{
+            EmojiEnum::FamilyManGirl,
+            "\xF0\x9F\x91\xA8\xE2\x80\x8D\xF0\x9F\x91\xA7",
+            "family: man, girl"},
+        EmojiEntry{
+            EmojiEnum::FamilyManGirlBoy,
+            "\xF0\x9F\x91\xA8\xE2\x80\x8D\xF0\x9F\x91\xA7\xE2\x80\x8D"
+            "\xF0\x9F\x91\xA6",
+            "family: man, girl, boy"},
+        EmojiEntry{
+            EmojiEnum::FamilyManGirlGirl,
+            "\xF0\x9F\x91\xA8\xE2\x80\x8D\xF0\x9F\x91\xA7\xE2\x80\x8D"
+            "\xF0\x9F\x91\xA7",
+            "family: man, girl, girl"},
+        EmojiEntry{
+            EmojiEnum::FamilyWomanBoy,
+            "\xF0\x9F\x91\xA9\xE2\x80\x8D\xF0\x9F\x91\xA6",
+            "family: woman, boy"},
+        EmojiEntry{
+            EmojiEnum::FamilyWomanBoyBoy,
+            "\xF0\x9F\x91\xA9\xE2\x80\x8D\xF0\x9F\x91\xA6\xE2\x80\x8D"
+            "\xF0\x9F\x91\xA6",
+            "family: woman, boy, boy"},
+        EmojiEntry{
+            EmojiEnum::FamilyWomanGirl,
+            "\xF0\x9F\x91\xA9\xE2\x80\x8D\xF0\x9F\x91\xA7",
+            "family: woman, girl"},
+        EmojiEntry{
+            EmojiEnum::FamilyWomanGirlBoy,
+            "\xF0\x9F\x91\xA9\xE2\x80\x8D\xF0\x9F\x91\xA7\xE2\x80\x8D"
+            "\xF0\x9F\x91\xA6",
+            "family: woman, girl, boy"},
+        EmojiEntry{
+            EmojiEnum::FamilyWomanGirlGirl,
+            "\xF0\x9F\x91\xA9\xE2\x80\x8D\xF0\x9F\x91\xA7\xE2\x80\x8D"
+            "\xF0\x9F\x91\xA7",
+            "family: woman, girl, girl"},
+        EmojiEntry{
+            EmojiEnum::SpeakingHead,
+            "\xF0\x9F\x97\xA3\xEF\xB8\x8F",
+            "speaking head"},
+        EmojiEntry{
+            EmojiEnum::BustInSilhouette,
+            "\xF0\x9F\x91\xA4",
+            "bust in silhouette"},
+        EmojiEntry{
+            EmojiEnum::BustsInSilhouette,
+            "\xF0\x9F\x91\xA5",
+            "busts in silhouette"},
+        EmojiEntry{
+            EmojiEnum::PeopleHugging,
+            "\xF0\x9F\xAB\x82",
+            "people hugging"},
         EmojiEntry{EmojiEnum::Family, "\xF0\x9F\x91\xAA", "family"},
-        EmojiEntry{EmojiEnum::FamilyAdultAdultChild,
-                   "\xF0\x9F\xA7\x91\xE2\x80\x8D\xF0\x9F\xA7\x91\xE2\x80\x8D"
-                   "\xF0\x9F\xA7\x92",
-                   "family: adult, adult, child"},
-        EmojiEntry{EmojiEnum::FamilyAdultAdultChildChild,
-                   "\xF0\x9F\xA7\x91\xE2\x80\x8D\xF0\x9F\xA7\x91\xE2\x80\x8D"
-                   "\xF0\x9F\xA7\x92\xE2\x80\x8D\xF0\x9F\xA7\x92",
-                   "family: adult, adult, child, child"},
-        EmojiEntry{EmojiEnum::FamilyAdultChild,
-                   "\xF0\x9F\xA7\x91\xE2\x80\x8D\xF0\x9F\xA7\x92",
-                   "family: adult, child"},
-        EmojiEntry{EmojiEnum::FamilyAdultChildChild,
-                   "\xF0\x9F\xA7\x91\xE2\x80\x8D\xF0\x9F\xA7\x92\xE2\x80\x8D"
-                   "\xF0\x9F\xA7\x92",
-                   "family: adult, child, child"},
+        EmojiEntry{
+            EmojiEnum::FamilyAdultAdultChild,
+            "\xF0\x9F\xA7\x91\xE2\x80\x8D\xF0\x9F\xA7\x91\xE2\x80\x8D"
+            "\xF0\x9F\xA7\x92",
+            "family: adult, adult, child"},
+        EmojiEntry{
+            EmojiEnum::FamilyAdultAdultChildChild,
+            "\xF0\x9F\xA7\x91\xE2\x80\x8D\xF0\x9F\xA7\x91\xE2\x80\x8D"
+            "\xF0\x9F\xA7\x92\xE2\x80\x8D\xF0\x9F\xA7\x92",
+            "family: adult, adult, child, child"},
+        EmojiEntry{
+            EmojiEnum::FamilyAdultChild,
+            "\xF0\x9F\xA7\x91\xE2\x80\x8D\xF0\x9F\xA7\x92",
+            "family: adult, child"},
+        EmojiEntry{
+            EmojiEnum::FamilyAdultChildChild,
+            "\xF0\x9F\xA7\x91\xE2\x80\x8D\xF0\x9F\xA7\x92\xE2\x80\x8D"
+            "\xF0\x9F\xA7\x92",
+            "family: adult, child, child"},
         EmojiEntry{EmojiEnum::Footprints, "\xF0\x9F\x91\xA3", "footprints"},
         EmojiEntry{EmojiEnum::MonkeyFace, "\xF0\x9F\x90\xB5", "monkey face"},
         EmojiEntry{EmojiEnum::Monkey, "\xF0\x9F\x90\x92", "monkey"},
@@ -8511,17 +10530,20 @@ consteval auto makeEmojiList()
         EmojiEntry{EmojiEnum::DogFace, "\xF0\x9F\x90\xB6", "dog face"},
         EmojiEntry{EmojiEnum::Dog, "\xF0\x9F\x90\x95", "dog"},
         EmojiEntry{EmojiEnum::GuideDog, "\xF0\x9F\xA6\xAE", "guide dog"},
-        EmojiEntry{EmojiEnum::ServiceDog,
-                   "\xF0\x9F\x90\x95\xE2\x80\x8D\xF0\x9F\xA6\xBA",
-                   "service dog"},
+        EmojiEntry{
+            EmojiEnum::ServiceDog,
+            "\xF0\x9F\x90\x95\xE2\x80\x8D\xF0\x9F\xA6\xBA",
+            "service dog"},
         EmojiEntry{EmojiEnum::Poodle, "\xF0\x9F\x90\xA9", "poodle"},
         EmojiEntry{EmojiEnum::Wolf, "\xF0\x9F\x90\xBA", "wolf"},
         EmojiEntry{EmojiEnum::Fox, "\xF0\x9F\xA6\x8A", "fox"},
         EmojiEntry{EmojiEnum::Raccoon, "\xF0\x9F\xA6\x9D", "raccoon"},
         EmojiEntry{EmojiEnum::CatFace, "\xF0\x9F\x90\xB1", "cat face"},
         EmojiEntry{EmojiEnum::Cat, "\xF0\x9F\x90\x88", "cat"},
-        EmojiEntry{EmojiEnum::BlackCat,
-                   "\xF0\x9F\x90\x88\xE2\x80\x8D\xE2\xAC\x9B", "black cat"},
+        EmojiEntry{
+            EmojiEnum::BlackCat,
+            "\xF0\x9F\x90\x88\xE2\x80\x8D\xE2\xAC\x9B",
+            "black cat"},
         EmojiEntry{EmojiEnum::Lion, "\xF0\x9F\xA6\x81", "lion"},
         EmojiEntry{EmojiEnum::TigerFace, "\xF0\x9F\x90\xAF", "tiger face"},
         EmojiEntry{EmojiEnum::Tiger, "\xF0\x9F\x90\x85", "tiger"},
@@ -8536,8 +10558,10 @@ consteval auto makeEmojiList()
         EmojiEntry{EmojiEnum::Bison, "\xF0\x9F\xA6\xAC", "bison"},
         EmojiEntry{EmojiEnum::CowFace, "\xF0\x9F\x90\xAE", "cow face"},
         EmojiEntry{EmojiEnum::Ox, "\xF0\x9F\x90\x82", "ox"},
-        EmojiEntry{EmojiEnum::WaterBuffalo, "\xF0\x9F\x90\x83",
-                   "water buffalo"},
+        EmojiEntry{
+            EmojiEnum::WaterBuffalo,
+            "\xF0\x9F\x90\x83",
+            "water buffalo"},
         EmojiEntry{EmojiEnum::Cow, "\xF0\x9F\x90\x84", "cow"},
         EmojiEntry{EmojiEnum::PigFace, "\xF0\x9F\x90\xB7", "pig face"},
         EmojiEntry{EmojiEnum::Pig, "\xF0\x9F\x90\x96", "pig"},
@@ -8547,8 +10571,10 @@ consteval auto makeEmojiList()
         EmojiEntry{EmojiEnum::Ewe, "\xF0\x9F\x90\x91", "ewe"},
         EmojiEntry{EmojiEnum::Goat, "\xF0\x9F\x90\x90", "goat"},
         EmojiEntry{EmojiEnum::Camel, "\xF0\x9F\x90\xAA", "camel"},
-        EmojiEntry{EmojiEnum::TwoHumpCamel, "\xF0\x9F\x90\xAB",
-                   "two-hump camel"},
+        EmojiEntry{
+            EmojiEnum::TwoHumpCamel,
+            "\xF0\x9F\x90\xAB",
+            "two-hump camel"},
         EmojiEntry{EmojiEnum::Llama, "\xF0\x9F\xA6\x99", "llama"},
         EmojiEntry{EmojiEnum::Giraffe, "\xF0\x9F\xA6\x92", "giraffe"},
         EmojiEntry{EmojiEnum::Elephant, "\xF0\x9F\x90\x98", "elephant"},
@@ -8561,15 +10587,18 @@ consteval auto makeEmojiList()
         EmojiEntry{EmojiEnum::Hamster, "\xF0\x9F\x90\xB9", "hamster"},
         EmojiEntry{EmojiEnum::RabbitFace, "\xF0\x9F\x90\xB0", "rabbit face"},
         EmojiEntry{EmojiEnum::Rabbit, "\xF0\x9F\x90\x87", "rabbit"},
-        EmojiEntry{EmojiEnum::Chipmunk, "\xF0\x9F\x90\xBF\xEF\xB8\x8F",
-                   "chipmunk"},
+        EmojiEntry{
+            EmojiEnum::Chipmunk,
+            "\xF0\x9F\x90\xBF\xEF\xB8\x8F",
+            "chipmunk"},
         EmojiEntry{EmojiEnum::Beaver, "\xF0\x9F\xA6\xAB", "beaver"},
         EmojiEntry{EmojiEnum::Hedgehog, "\xF0\x9F\xA6\x94", "hedgehog"},
         EmojiEntry{EmojiEnum::Bat, "\xF0\x9F\xA6\x87", "bat"},
         EmojiEntry{EmojiEnum::Bear, "\xF0\x9F\x90\xBB", "bear"},
-        EmojiEntry{EmojiEnum::PolarBear,
-                   "\xF0\x9F\x90\xBB\xE2\x80\x8D\xE2\x9D\x84\xEF\xB8\x8F",
-                   "polar bear"},
+        EmojiEntry{
+            EmojiEnum::PolarBear,
+            "\xF0\x9F\x90\xBB\xE2\x80\x8D\xE2\x9D\x84\xEF\xB8\x8F",
+            "polar bear"},
         EmojiEntry{EmojiEnum::Koala, "\xF0\x9F\x90\xA8", "koala"},
         EmojiEntry{EmojiEnum::Panda, "\xF0\x9F\x90\xBC", "panda"},
         EmojiEntry{EmojiEnum::Sloth, "\xF0\x9F\xA6\xA5", "sloth"},
@@ -8581,11 +10610,15 @@ consteval auto makeEmojiList()
         EmojiEntry{EmojiEnum::Turkey, "\xF0\x9F\xA6\x83", "turkey"},
         EmojiEntry{EmojiEnum::Chicken, "\xF0\x9F\x90\x94", "chicken"},
         EmojiEntry{EmojiEnum::Rooster, "\xF0\x9F\x90\x93", "rooster"},
-        EmojiEntry{EmojiEnum::HatchingChick, "\xF0\x9F\x90\xA3",
-                   "hatching chick"},
+        EmojiEntry{
+            EmojiEnum::HatchingChick,
+            "\xF0\x9F\x90\xA3",
+            "hatching chick"},
         EmojiEntry{EmojiEnum::BabyChick, "\xF0\x9F\x90\xA4", "baby chick"},
-        EmojiEntry{EmojiEnum::FrontFacingBabyChick, "\xF0\x9F\x90\xA5",
-                   "front-facing baby chick"},
+        EmojiEntry{
+            EmojiEnum::FrontFacingBabyChick,
+            "\xF0\x9F\x90\xA5",
+            "front-facing baby chick"},
         EmojiEntry{EmojiEnum::Bird, "\xF0\x9F\x90\xA6", "bird"},
         EmojiEntry{EmojiEnum::Penguin, "\xF0\x9F\x90\xA7", "penguin"},
         EmojiEntry{EmojiEnum::Dove, "\xF0\x9F\x95\x8A\xEF\xB8\x8F", "dove"},
@@ -8599,11 +10632,15 @@ consteval auto makeEmojiList()
         EmojiEntry{EmojiEnum::Peacock, "\xF0\x9F\xA6\x9A", "peacock"},
         EmojiEntry{EmojiEnum::Parrot, "\xF0\x9F\xA6\x9C", "parrot"},
         EmojiEntry{EmojiEnum::Wing, "\xF0\x9F\xAA\xBD", "wing"},
-        EmojiEntry{EmojiEnum::BlackBird,
-                   "\xF0\x9F\x90\xA6\xE2\x80\x8D\xE2\xAC\x9B", "black bird"},
+        EmojiEntry{
+            EmojiEnum::BlackBird,
+            "\xF0\x9F\x90\xA6\xE2\x80\x8D\xE2\xAC\x9B",
+            "black bird"},
         EmojiEntry{EmojiEnum::Goose, "\xF0\x9F\xAA\xBF", "goose"},
-        EmojiEntry{EmojiEnum::Phoenix,
-                   "\xF0\x9F\x90\xA6\xE2\x80\x8D\xF0\x9F\x94\xA5", "phoenix"},
+        EmojiEntry{
+            EmojiEnum::Phoenix,
+            "\xF0\x9F\x90\xA6\xE2\x80\x8D\xF0\x9F\x94\xA5",
+            "phoenix"},
         EmojiEntry{EmojiEnum::Frog, "\xF0\x9F\x90\xB8", "frog"},
         EmojiEntry{EmojiEnum::Crocodile, "\xF0\x9F\x90\x8A", "crocodile"},
         EmojiEntry{EmojiEnum::Turtle, "\xF0\x9F\x90\xA2", "turtle"},
@@ -8613,14 +10650,18 @@ consteval auto makeEmojiList()
         EmojiEntry{EmojiEnum::Dragon, "\xF0\x9F\x90\x89", "dragon"},
         EmojiEntry{EmojiEnum::Sauropod, "\xF0\x9F\xA6\x95", "sauropod"},
         EmojiEntry{EmojiEnum::TRex, "\xF0\x9F\xA6\x96", "T-Rex"},
-        EmojiEntry{EmojiEnum::SpoutingWhale, "\xF0\x9F\x90\xB3",
-                   "spouting whale"},
+        EmojiEntry{
+            EmojiEnum::SpoutingWhale,
+            "\xF0\x9F\x90\xB3",
+            "spouting whale"},
         EmojiEntry{EmojiEnum::Whale, "\xF0\x9F\x90\x8B", "whale"},
         EmojiEntry{EmojiEnum::Dolphin, "\xF0\x9F\x90\xAC", "dolphin"},
         EmojiEntry{EmojiEnum::Seal, "\xF0\x9F\xA6\xAD", "seal"},
         EmojiEntry{EmojiEnum::Fish, "\xF0\x9F\x90\x9F", "fish"},
-        EmojiEntry{EmojiEnum::TropicalFish, "\xF0\x9F\x90\xA0",
-                   "tropical fish"},
+        EmojiEntry{
+            EmojiEnum::TropicalFish,
+            "\xF0\x9F\x90\xA0",
+            "tropical fish"},
         EmojiEntry{EmojiEnum::Blowfish, "\xF0\x9F\x90\xA1", "blowfish"},
         EmojiEntry{EmojiEnum::Shark, "\xF0\x9F\xA6\x88", "shark"},
         EmojiEntry{EmojiEnum::Octopus, "\xF0\x9F\x90\x99", "octopus"},
@@ -8637,23 +10678,31 @@ consteval auto makeEmojiList()
         EmojiEntry{EmojiEnum::Cricket, "\xF0\x9F\xA6\x97", "cricket"},
         EmojiEntry{EmojiEnum::Cockroach, "\xF0\x9F\xAA\xB3", "cockroach"},
         EmojiEntry{EmojiEnum::Spider, "\xF0\x9F\x95\xB7\xEF\xB8\x8F", "spider"},
-        EmojiEntry{EmojiEnum::SpiderWeb, "\xF0\x9F\x95\xB8\xEF\xB8\x8F",
-                   "spider web"},
+        EmojiEntry{
+            EmojiEnum::SpiderWeb,
+            "\xF0\x9F\x95\xB8\xEF\xB8\x8F",
+            "spider web"},
         EmojiEntry{EmojiEnum::Scorpion, "\xF0\x9F\xA6\x82", "scorpion"},
         EmojiEntry{EmojiEnum::Mosquito, "\xF0\x9F\xA6\x9F", "mosquito"},
         EmojiEntry{EmojiEnum::Fly, "\xF0\x9F\xAA\xB0", "fly"},
         EmojiEntry{EmojiEnum::Worm, "\xF0\x9F\xAA\xB1", "worm"},
         EmojiEntry{EmojiEnum::Microbe, "\xF0\x9F\xA6\xA0", "microbe"},
         EmojiEntry{EmojiEnum::Bouquet, "\xF0\x9F\x92\x90", "bouquet"},
-        EmojiEntry{EmojiEnum::CherryBlossom, "\xF0\x9F\x8C\xB8",
-                   "cherry blossom"},
+        EmojiEntry{
+            EmojiEnum::CherryBlossom,
+            "\xF0\x9F\x8C\xB8",
+            "cherry blossom"},
         EmojiEntry{EmojiEnum::WhiteFlower, "\xF0\x9F\x92\xAE", "white flower"},
         EmojiEntry{EmojiEnum::Lotus, "\xF0\x9F\xAA\xB7", "lotus"},
-        EmojiEntry{EmojiEnum::Rosette, "\xF0\x9F\x8F\xB5\xEF\xB8\x8F",
-                   "rosette"},
+        EmojiEntry{
+            EmojiEnum::Rosette,
+            "\xF0\x9F\x8F\xB5\xEF\xB8\x8F",
+            "rosette"},
         EmojiEntry{EmojiEnum::Rose, "\xF0\x9F\x8C\xB9", "rose"},
-        EmojiEntry{EmojiEnum::WiltedFlower, "\xF0\x9F\xA5\x80",
-                   "wilted flower"},
+        EmojiEntry{
+            EmojiEnum::WiltedFlower,
+            "\xF0\x9F\xA5\x80",
+            "wilted flower"},
         EmojiEntry{EmojiEnum::Hibiscus, "\xF0\x9F\x8C\xBA", "hibiscus"},
         EmojiEntry{EmojiEnum::Sunflower, "\xF0\x9F\x8C\xBB", "sunflower"},
         EmojiEntry{EmojiEnum::Blossom, "\xF0\x9F\x8C\xBC", "blossom"},
@@ -8661,32 +10710,44 @@ consteval auto makeEmojiList()
         EmojiEntry{EmojiEnum::Hyacinth, "\xF0\x9F\xAA\xBB", "hyacinth"},
         EmojiEntry{EmojiEnum::Seedling, "\xF0\x9F\x8C\xB1", "seedling"},
         EmojiEntry{EmojiEnum::PottedPlant, "\xF0\x9F\xAA\xB4", "potted plant"},
-        EmojiEntry{EmojiEnum::EvergreenTree, "\xF0\x9F\x8C\xB2",
-                   "evergreen tree"},
-        EmojiEntry{EmojiEnum::DeciduousTree, "\xF0\x9F\x8C\xB3",
-                   "deciduous tree"},
+        EmojiEntry{
+            EmojiEnum::EvergreenTree,
+            "\xF0\x9F\x8C\xB2",
+            "evergreen tree"},
+        EmojiEntry{
+            EmojiEnum::DeciduousTree,
+            "\xF0\x9F\x8C\xB3",
+            "deciduous tree"},
         EmojiEntry{EmojiEnum::PalmTree, "\xF0\x9F\x8C\xB4", "palm tree"},
         EmojiEntry{EmojiEnum::Cactus, "\xF0\x9F\x8C\xB5", "cactus"},
         EmojiEntry{EmojiEnum::SheafOfRice, "\xF0\x9F\x8C\xBE", "sheaf of rice"},
         EmojiEntry{EmojiEnum::Herb, "\xF0\x9F\x8C\xBF", "herb"},
         EmojiEntry{EmojiEnum::Shamrock, "\xE2\x98\x98\xEF\xB8\x8F", "shamrock"},
-        EmojiEntry{EmojiEnum::FourLeafClover, "\xF0\x9F\x8D\x80",
-                   "four leaf clover"},
+        EmojiEntry{
+            EmojiEnum::FourLeafClover,
+            "\xF0\x9F\x8D\x80",
+            "four leaf clover"},
         EmojiEntry{EmojiEnum::MapleLeaf, "\xF0\x9F\x8D\x81", "maple leaf"},
         EmojiEntry{EmojiEnum::FallenLeaf, "\xF0\x9F\x8D\x82", "fallen leaf"},
-        EmojiEntry{EmojiEnum::LeafFlutteringInWind, "\xF0\x9F\x8D\x83",
-                   "leaf fluttering in wind"},
+        EmojiEntry{
+            EmojiEnum::LeafFlutteringInWind,
+            "\xF0\x9F\x8D\x83",
+            "leaf fluttering in wind"},
         EmojiEntry{EmojiEnum::EmptyNest, "\xF0\x9F\xAA\xB9", "empty nest"},
-        EmojiEntry{EmojiEnum::NestWithEggs, "\xF0\x9F\xAA\xBA",
-                   "nest with eggs"},
+        EmojiEntry{
+            EmojiEnum::NestWithEggs,
+            "\xF0\x9F\xAA\xBA",
+            "nest with eggs"},
         EmojiEntry{EmojiEnum::Mushroom, "\xF0\x9F\x8D\x84", "mushroom"},
         EmojiEntry{EmojiEnum::Grapes, "\xF0\x9F\x8D\x87", "grapes"},
         EmojiEntry{EmojiEnum::Melon, "\xF0\x9F\x8D\x88", "melon"},
         EmojiEntry{EmojiEnum::Watermelon, "\xF0\x9F\x8D\x89", "watermelon"},
         EmojiEntry{EmojiEnum::Tangerine, "\xF0\x9F\x8D\x8A", "tangerine"},
         EmojiEntry{EmojiEnum::Lemon, "\xF0\x9F\x8D\x8B", "lemon"},
-        EmojiEntry{EmojiEnum::Lime,
-                   "\xF0\x9F\x8D\x8B\xE2\x80\x8D\xF0\x9F\x9F\xA9", "lime"},
+        EmojiEntry{
+            EmojiEnum::Lime,
+            "\xF0\x9F\x8D\x8B\xE2\x80\x8D\xF0\x9F\x9F\xA9",
+            "lime"},
         EmojiEntry{EmojiEnum::Banana, "\xF0\x9F\x8D\x8C", "banana"},
         EmojiEntry{EmojiEnum::Pineapple, "\xF0\x9F\x8D\x8D", "pineapple"},
         EmojiEntry{EmojiEnum::Mango, "\xF0\x9F\xA5\xAD", "mango"},
@@ -8706,8 +10767,10 @@ consteval auto makeEmojiList()
         EmojiEntry{EmojiEnum::Potato, "\xF0\x9F\xA5\x94", "potato"},
         EmojiEntry{EmojiEnum::Carrot, "\xF0\x9F\xA5\x95", "carrot"},
         EmojiEntry{EmojiEnum::EarOfCorn, "\xF0\x9F\x8C\xBD", "ear of corn"},
-        EmojiEntry{EmojiEnum::HotPepper, "\xF0\x9F\x8C\xB6\xEF\xB8\x8F",
-                   "hot pepper"},
+        EmojiEntry{
+            EmojiEnum::HotPepper,
+            "\xF0\x9F\x8C\xB6\xEF\xB8\x8F",
+            "hot pepper"},
         EmojiEntry{EmojiEnum::BellPepper, "\xF0\x9F\xAB\x91", "bell pepper"},
         EmojiEntry{EmojiEnum::Cucumber, "\xF0\x9F\xA5\x92", "cucumber"},
         EmojiEntry{EmojiEnum::LeafyGreen, "\xF0\x9F\xA5\xAC", "leafy green"},
@@ -8719,13 +10782,16 @@ consteval auto makeEmojiList()
         EmojiEntry{EmojiEnum::Chestnut, "\xF0\x9F\x8C\xB0", "chestnut"},
         EmojiEntry{EmojiEnum::GingerRoot, "\xF0\x9F\xAB\x9A", "ginger root"},
         EmojiEntry{EmojiEnum::PeaPod, "\xF0\x9F\xAB\x9B", "pea pod"},
-        EmojiEntry{EmojiEnum::BrownMushroom,
-                   "\xF0\x9F\x8D\x84\xE2\x80\x8D\xF0\x9F\x9F\xAB",
-                   "brown mushroom"},
+        EmojiEntry{
+            EmojiEnum::BrownMushroom,
+            "\xF0\x9F\x8D\x84\xE2\x80\x8D\xF0\x9F\x9F\xAB",
+            "brown mushroom"},
         EmojiEntry{EmojiEnum::Bread, "\xF0\x9F\x8D\x9E", "bread"},
         EmojiEntry{EmojiEnum::Croissant, "\xF0\x9F\xA5\x90", "croissant"},
-        EmojiEntry{EmojiEnum::BaguetteBread, "\xF0\x9F\xA5\x96",
-                   "baguette bread"},
+        EmojiEntry{
+            EmojiEnum::BaguetteBread,
+            "\xF0\x9F\xA5\x96",
+            "baguette bread"},
         EmojiEntry{EmojiEnum::Flatbread, "\xF0\x9F\xAB\x93", "flatbread"},
         EmojiEntry{EmojiEnum::Pretzel, "\xF0\x9F\xA5\xA8", "pretzel"},
         EmojiEntry{EmojiEnum::Bagel, "\xF0\x9F\xA5\xAF", "bagel"},
@@ -8744,17 +10810,23 @@ consteval auto makeEmojiList()
         EmojiEntry{EmojiEnum::Taco, "\xF0\x9F\x8C\xAE", "taco"},
         EmojiEntry{EmojiEnum::Burrito, "\xF0\x9F\x8C\xAF", "burrito"},
         EmojiEntry{EmojiEnum::Tamale, "\xF0\x9F\xAB\x94", "tamale"},
-        EmojiEntry{EmojiEnum::StuffedFlatbread, "\xF0\x9F\xA5\x99",
-                   "stuffed flatbread"},
+        EmojiEntry{
+            EmojiEnum::StuffedFlatbread,
+            "\xF0\x9F\xA5\x99",
+            "stuffed flatbread"},
         EmojiEntry{EmojiEnum::Falafel, "\xF0\x9F\xA7\x86", "falafel"},
         EmojiEntry{EmojiEnum::Egg, "\xF0\x9F\xA5\x9A", "egg"},
         EmojiEntry{EmojiEnum::Cooking, "\xF0\x9F\x8D\xB3", "cooking"},
-        EmojiEntry{EmojiEnum::ShallowPanOfFood, "\xF0\x9F\xA5\x98",
-                   "shallow pan of food"},
+        EmojiEntry{
+            EmojiEnum::ShallowPanOfFood,
+            "\xF0\x9F\xA5\x98",
+            "shallow pan of food"},
         EmojiEntry{EmojiEnum::PotOfFood, "\xF0\x9F\x8D\xB2", "pot of food"},
         EmojiEntry{EmojiEnum::Fondue, "\xF0\x9F\xAB\x95", "fondue"},
-        EmojiEntry{EmojiEnum::BowlWithSpoon, "\xF0\x9F\xA5\xA3",
-                   "bowl with spoon"},
+        EmojiEntry{
+            EmojiEnum::BowlWithSpoon,
+            "\xF0\x9F\xA5\xA3",
+            "bowl with spoon"},
         EmojiEntry{EmojiEnum::GreenSalad, "\xF0\x9F\xA5\x97", "green salad"},
         EmojiEntry{EmojiEnum::Popcorn, "\xF0\x9F\x8D\xBF", "popcorn"},
         EmojiEntry{EmojiEnum::Butter, "\xF0\x9F\xA7\x88", "butter"},
@@ -8765,40 +10837,54 @@ consteval auto makeEmojiList()
         EmojiEntry{EmojiEnum::RiceBall, "\xF0\x9F\x8D\x99", "rice ball"},
         EmojiEntry{EmojiEnum::CookedRice, "\xF0\x9F\x8D\x9A", "cooked rice"},
         EmojiEntry{EmojiEnum::CurryRice, "\xF0\x9F\x8D\x9B", "curry rice"},
-        EmojiEntry{EmojiEnum::SteamingBowl, "\xF0\x9F\x8D\x9C",
-                   "steaming bowl"},
+        EmojiEntry{
+            EmojiEnum::SteamingBowl,
+            "\xF0\x9F\x8D\x9C",
+            "steaming bowl"},
         EmojiEntry{EmojiEnum::Spaghetti, "\xF0\x9F\x8D\x9D", "spaghetti"},
-        EmojiEntry{EmojiEnum::RoastedSweetPotato, "\xF0\x9F\x8D\xA0",
-                   "roasted sweet potato"},
+        EmojiEntry{
+            EmojiEnum::RoastedSweetPotato,
+            "\xF0\x9F\x8D\xA0",
+            "roasted sweet potato"},
         EmojiEntry{EmojiEnum::Oden, "\xF0\x9F\x8D\xA2", "oden"},
         EmojiEntry{EmojiEnum::Sushi, "\xF0\x9F\x8D\xA3", "sushi"},
         EmojiEntry{EmojiEnum::FriedShrimp, "\xF0\x9F\x8D\xA4", "fried shrimp"},
-        EmojiEntry{EmojiEnum::FishCakeWithSwirl, "\xF0\x9F\x8D\xA5",
-                   "fish cake with swirl"},
+        EmojiEntry{
+            EmojiEnum::FishCakeWithSwirl,
+            "\xF0\x9F\x8D\xA5",
+            "fish cake with swirl"},
         EmojiEntry{EmojiEnum::MoonCake, "\xF0\x9F\xA5\xAE", "moon cake"},
         EmojiEntry{EmojiEnum::Dango, "\xF0\x9F\x8D\xA1", "dango"},
         EmojiEntry{EmojiEnum::Dumpling, "\xF0\x9F\xA5\x9F", "dumpling"},
-        EmojiEntry{EmojiEnum::FortuneCookie, "\xF0\x9F\xA5\xA0",
-                   "fortune cookie"},
+        EmojiEntry{
+            EmojiEnum::FortuneCookie,
+            "\xF0\x9F\xA5\xA0",
+            "fortune cookie"},
         EmojiEntry{EmojiEnum::TakeoutBox, "\xF0\x9F\xA5\xA1", "takeout box"},
         EmojiEntry{EmojiEnum::Crab, "\xF0\x9F\xA6\x80", "crab"},
         EmojiEntry{EmojiEnum::Lobster, "\xF0\x9F\xA6\x9E", "lobster"},
         EmojiEntry{EmojiEnum::Shrimp, "\xF0\x9F\xA6\x90", "shrimp"},
         EmojiEntry{EmojiEnum::Squid, "\xF0\x9F\xA6\x91", "squid"},
         EmojiEntry{EmojiEnum::Oyster, "\xF0\x9F\xA6\xAA", "oyster"},
-        EmojiEntry{EmojiEnum::SoftIceCream, "\xF0\x9F\x8D\xA6",
-                   "soft ice cream"},
+        EmojiEntry{
+            EmojiEnum::SoftIceCream,
+            "\xF0\x9F\x8D\xA6",
+            "soft ice cream"},
         EmojiEntry{EmojiEnum::ShavedIce, "\xF0\x9F\x8D\xA7", "shaved ice"},
         EmojiEntry{EmojiEnum::IceCream, "\xF0\x9F\x8D\xA8", "ice cream"},
         EmojiEntry{EmojiEnum::Doughnut, "\xF0\x9F\x8D\xA9", "doughnut"},
         EmojiEntry{EmojiEnum::Cookie, "\xF0\x9F\x8D\xAA", "cookie"},
-        EmojiEntry{EmojiEnum::BirthdayCake, "\xF0\x9F\x8E\x82",
-                   "birthday cake"},
+        EmojiEntry{
+            EmojiEnum::BirthdayCake,
+            "\xF0\x9F\x8E\x82",
+            "birthday cake"},
         EmojiEntry{EmojiEnum::Shortcake, "\xF0\x9F\x8D\xB0", "shortcake"},
         EmojiEntry{EmojiEnum::Cupcake, "\xF0\x9F\xA7\x81", "cupcake"},
         EmojiEntry{EmojiEnum::Pie, "\xF0\x9F\xA5\xA7", "pie"},
-        EmojiEntry{EmojiEnum::ChocolateBar, "\xF0\x9F\x8D\xAB",
-                   "chocolate bar"},
+        EmojiEntry{
+            EmojiEnum::ChocolateBar,
+            "\xF0\x9F\x8D\xAB",
+            "chocolate bar"},
         EmojiEntry{EmojiEnum::Candy, "\xF0\x9F\x8D\xAC", "candy"},
         EmojiEntry{EmojiEnum::Lollipop, "\xF0\x9F\x8D\xAD", "lollipop"},
         EmojiEntry{EmojiEnum::Custard, "\xF0\x9F\x8D\xAE", "custard"},
@@ -8807,142 +10893,230 @@ consteval auto makeEmojiList()
         EmojiEntry{EmojiEnum::GlassOfMilk, "\xF0\x9F\xA5\x9B", "glass of milk"},
         EmojiEntry{EmojiEnum::HotBeverage, "\xE2\x98\x95", "hot beverage"},
         EmojiEntry{EmojiEnum::Teapot, "\xF0\x9F\xAB\x96", "teapot"},
-        EmojiEntry{EmojiEnum::TeacupWithoutHandle, "\xF0\x9F\x8D\xB5",
-                   "teacup without handle"},
+        EmojiEntry{
+            EmojiEnum::TeacupWithoutHandle,
+            "\xF0\x9F\x8D\xB5",
+            "teacup without handle"},
         EmojiEntry{EmojiEnum::Sake, "\xF0\x9F\x8D\xB6", "sake"},
-        EmojiEntry{EmojiEnum::BottleWithPoppingCork, "\xF0\x9F\x8D\xBE",
-                   "bottle with popping cork"},
+        EmojiEntry{
+            EmojiEnum::BottleWithPoppingCork,
+            "\xF0\x9F\x8D\xBE",
+            "bottle with popping cork"},
         EmojiEntry{EmojiEnum::WineGlass, "\xF0\x9F\x8D\xB7", "wine glass"},
-        EmojiEntry{EmojiEnum::CocktailGlass, "\xF0\x9F\x8D\xB8",
-                   "cocktail glass"},
-        EmojiEntry{EmojiEnum::TropicalDrink, "\xF0\x9F\x8D\xB9",
-                   "tropical drink"},
+        EmojiEntry{
+            EmojiEnum::CocktailGlass,
+            "\xF0\x9F\x8D\xB8",
+            "cocktail glass"},
+        EmojiEntry{
+            EmojiEnum::TropicalDrink,
+            "\xF0\x9F\x8D\xB9",
+            "tropical drink"},
         EmojiEntry{EmojiEnum::BeerMug, "\xF0\x9F\x8D\xBA", "beer mug"},
-        EmojiEntry{EmojiEnum::ClinkingBeerMugs, "\xF0\x9F\x8D\xBB",
-                   "clinking beer mugs"},
-        EmojiEntry{EmojiEnum::ClinkingGlasses, "\xF0\x9F\xA5\x82",
-                   "clinking glasses"},
-        EmojiEntry{EmojiEnum::TumblerGlass, "\xF0\x9F\xA5\x83",
-                   "tumbler glass"},
-        EmojiEntry{EmojiEnum::PouringLiquid, "\xF0\x9F\xAB\x97",
-                   "pouring liquid"},
-        EmojiEntry{EmojiEnum::CupWithStraw, "\xF0\x9F\xA5\xA4",
-                   "cup with straw"},
+        EmojiEntry{
+            EmojiEnum::ClinkingBeerMugs,
+            "\xF0\x9F\x8D\xBB",
+            "clinking beer mugs"},
+        EmojiEntry{
+            EmojiEnum::ClinkingGlasses,
+            "\xF0\x9F\xA5\x82",
+            "clinking glasses"},
+        EmojiEntry{
+            EmojiEnum::TumblerGlass,
+            "\xF0\x9F\xA5\x83",
+            "tumbler glass"},
+        EmojiEntry{
+            EmojiEnum::PouringLiquid,
+            "\xF0\x9F\xAB\x97",
+            "pouring liquid"},
+        EmojiEntry{
+            EmojiEnum::CupWithStraw,
+            "\xF0\x9F\xA5\xA4",
+            "cup with straw"},
         EmojiEntry{EmojiEnum::BubbleTea, "\xF0\x9F\xA7\x8B", "bubble tea"},
         EmojiEntry{EmojiEnum::BeverageBox, "\xF0\x9F\xA7\x83", "beverage box"},
         EmojiEntry{EmojiEnum::Mate, "\xF0\x9F\xA7\x89", "mate"},
         EmojiEntry{EmojiEnum::Ice, "\xF0\x9F\xA7\x8A", "ice"},
         EmojiEntry{EmojiEnum::Chopsticks, "\xF0\x9F\xA5\xA2", "chopsticks"},
-        EmojiEntry{EmojiEnum::ForkAndKnifeWithPlate,
-                   "\xF0\x9F\x8D\xBD\xEF\xB8\x8F", "fork and knife with plate"},
-        EmojiEntry{EmojiEnum::ForkAndKnife, "\xF0\x9F\x8D\xB4",
-                   "fork and knife"},
+        EmojiEntry{
+            EmojiEnum::ForkAndKnifeWithPlate,
+            "\xF0\x9F\x8D\xBD\xEF\xB8\x8F",
+            "fork and knife with plate"},
+        EmojiEntry{
+            EmojiEnum::ForkAndKnife,
+            "\xF0\x9F\x8D\xB4",
+            "fork and knife"},
         EmojiEntry{EmojiEnum::Spoon, "\xF0\x9F\xA5\x84", "spoon"},
-        EmojiEntry{EmojiEnum::KitchenKnife, "\xF0\x9F\x94\xAA",
-                   "kitchen knife"},
+        EmojiEntry{
+            EmojiEnum::KitchenKnife,
+            "\xF0\x9F\x94\xAA",
+            "kitchen knife"},
         EmojiEntry{EmojiEnum::Jar, "\xF0\x9F\xAB\x99", "jar"},
         EmojiEntry{EmojiEnum::Amphora, "\xF0\x9F\x8F\xBA", "amphora"},
-        EmojiEntry{EmojiEnum::GlobeShowingEuropeAfrica, "\xF0\x9F\x8C\x8D",
-                   "globe showing Europe-Africa"},
-        EmojiEntry{EmojiEnum::GlobeShowingAmericas, "\xF0\x9F\x8C\x8E",
-                   "globe showing Americas"},
-        EmojiEntry{EmojiEnum::GlobeShowingAsiaAustralia, "\xF0\x9F\x8C\x8F",
-                   "globe showing Asia-Australia"},
-        EmojiEntry{EmojiEnum::GlobeWithMeridians, "\xF0\x9F\x8C\x90",
-                   "globe with meridians"},
-        EmojiEntry{EmojiEnum::WorldMap, "\xF0\x9F\x97\xBA\xEF\xB8\x8F",
-                   "world map"},
+        EmojiEntry{
+            EmojiEnum::GlobeShowingEuropeAfrica,
+            "\xF0\x9F\x8C\x8D",
+            "globe showing Europe-Africa"},
+        EmojiEntry{
+            EmojiEnum::GlobeShowingAmericas,
+            "\xF0\x9F\x8C\x8E",
+            "globe showing Americas"},
+        EmojiEntry{
+            EmojiEnum::GlobeShowingAsiaAustralia,
+            "\xF0\x9F\x8C\x8F",
+            "globe showing Asia-Australia"},
+        EmojiEntry{
+            EmojiEnum::GlobeWithMeridians,
+            "\xF0\x9F\x8C\x90",
+            "globe with meridians"},
+        EmojiEntry{
+            EmojiEnum::WorldMap,
+            "\xF0\x9F\x97\xBA\xEF\xB8\x8F",
+            "world map"},
         EmojiEntry{EmojiEnum::MapOfJapan, "\xF0\x9F\x97\xBE", "map of Japan"},
         EmojiEntry{EmojiEnum::Compass, "\xF0\x9F\xA7\xAD", "compass"},
-        EmojiEntry{EmojiEnum::SnowCappedMountain,
-                   "\xF0\x9F\x8F\x94\xEF\xB8\x8F", "snow-capped mountain"},
+        EmojiEntry{
+            EmojiEnum::SnowCappedMountain,
+            "\xF0\x9F\x8F\x94\xEF\xB8\x8F",
+            "snow-capped mountain"},
         EmojiEntry{EmojiEnum::Mountain, "\xE2\x9B\xB0\xEF\xB8\x8F", "mountain"},
         EmojiEntry{EmojiEnum::Volcano, "\xF0\x9F\x8C\x8B", "volcano"},
         EmojiEntry{EmojiEnum::MountFuji, "\xF0\x9F\x97\xBB", "mount fuji"},
-        EmojiEntry{EmojiEnum::Camping, "\xF0\x9F\x8F\x95\xEF\xB8\x8F",
-                   "camping"},
-        EmojiEntry{EmojiEnum::BeachWithUmbrella, "\xF0\x9F\x8F\x96\xEF\xB8\x8F",
-                   "beach with umbrella"},
+        EmojiEntry{
+            EmojiEnum::Camping,
+            "\xF0\x9F\x8F\x95\xEF\xB8\x8F",
+            "camping"},
+        EmojiEntry{
+            EmojiEnum::BeachWithUmbrella,
+            "\xF0\x9F\x8F\x96\xEF\xB8\x8F",
+            "beach with umbrella"},
         EmojiEntry{EmojiEnum::Desert, "\xF0\x9F\x8F\x9C\xEF\xB8\x8F", "desert"},
-        EmojiEntry{EmojiEnum::DesertIsland, "\xF0\x9F\x8F\x9D\xEF\xB8\x8F",
-                   "desert island"},
-        EmojiEntry{EmojiEnum::NationalPark, "\xF0\x9F\x8F\x9E\xEF\xB8\x8F",
-                   "national park"},
-        EmojiEntry{EmojiEnum::Stadium, "\xF0\x9F\x8F\x9F\xEF\xB8\x8F",
-                   "stadium"},
-        EmojiEntry{EmojiEnum::ClassicalBuilding, "\xF0\x9F\x8F\x9B\xEF\xB8\x8F",
-                   "classical building"},
-        EmojiEntry{EmojiEnum::BuildingConstruction,
-                   "\xF0\x9F\x8F\x97\xEF\xB8\x8F", "building construction"},
+        EmojiEntry{
+            EmojiEnum::DesertIsland,
+            "\xF0\x9F\x8F\x9D\xEF\xB8\x8F",
+            "desert island"},
+        EmojiEntry{
+            EmojiEnum::NationalPark,
+            "\xF0\x9F\x8F\x9E\xEF\xB8\x8F",
+            "national park"},
+        EmojiEntry{
+            EmojiEnum::Stadium,
+            "\xF0\x9F\x8F\x9F\xEF\xB8\x8F",
+            "stadium"},
+        EmojiEntry{
+            EmojiEnum::ClassicalBuilding,
+            "\xF0\x9F\x8F\x9B\xEF\xB8\x8F",
+            "classical building"},
+        EmojiEntry{
+            EmojiEnum::BuildingConstruction,
+            "\xF0\x9F\x8F\x97\xEF\xB8\x8F",
+            "building construction"},
         EmojiEntry{EmojiEnum::Brick, "\xF0\x9F\xA7\xB1", "brick"},
         EmojiEntry{EmojiEnum::Rock, "\xF0\x9F\xAA\xA8", "rock"},
         EmojiEntry{EmojiEnum::Wood, "\xF0\x9F\xAA\xB5", "wood"},
         EmojiEntry{EmojiEnum::Hut, "\xF0\x9F\x9B\x96", "hut"},
         EmojiEntry{EmojiEnum::Houses, "\xF0\x9F\x8F\x98\xEF\xB8\x8F", "houses"},
-        EmojiEntry{EmojiEnum::DerelictHouse, "\xF0\x9F\x8F\x9A\xEF\xB8\x8F",
-                   "derelict house"},
+        EmojiEntry{
+            EmojiEnum::DerelictHouse,
+            "\xF0\x9F\x8F\x9A\xEF\xB8\x8F",
+            "derelict house"},
         EmojiEntry{EmojiEnum::House, "\xF0\x9F\x8F\xA0", "house"},
-        EmojiEntry{EmojiEnum::HouseWithGarden, "\xF0\x9F\x8F\xA1",
-                   "house with garden"},
-        EmojiEntry{EmojiEnum::OfficeBuilding, "\xF0\x9F\x8F\xA2",
-                   "office building"},
-        EmojiEntry{EmojiEnum::JapanesePostOffice, "\xF0\x9F\x8F\xA3",
-                   "Japanese post office"},
+        EmojiEntry{
+            EmojiEnum::HouseWithGarden,
+            "\xF0\x9F\x8F\xA1",
+            "house with garden"},
+        EmojiEntry{
+            EmojiEnum::OfficeBuilding,
+            "\xF0\x9F\x8F\xA2",
+            "office building"},
+        EmojiEntry{
+            EmojiEnum::JapanesePostOffice,
+            "\xF0\x9F\x8F\xA3",
+            "Japanese post office"},
         EmojiEntry{EmojiEnum::PostOffice, "\xF0\x9F\x8F\xA4", "post office"},
         EmojiEntry{EmojiEnum::Hospital, "\xF0\x9F\x8F\xA5", "hospital"},
         EmojiEntry{EmojiEnum::Bank, "\xF0\x9F\x8F\xA6", "bank"},
         EmojiEntry{EmojiEnum::Hotel, "\xF0\x9F\x8F\xA8", "hotel"},
         EmojiEntry{EmojiEnum::LoveHotel, "\xF0\x9F\x8F\xA9", "love hotel"},
-        EmojiEntry{EmojiEnum::ConvenienceStore, "\xF0\x9F\x8F\xAA",
-                   "convenience store"},
+        EmojiEntry{
+            EmojiEnum::ConvenienceStore,
+            "\xF0\x9F\x8F\xAA",
+            "convenience store"},
         EmojiEntry{EmojiEnum::School, "\xF0\x9F\x8F\xAB", "school"},
-        EmojiEntry{EmojiEnum::DepartmentStore, "\xF0\x9F\x8F\xAC",
-                   "department store"},
+        EmojiEntry{
+            EmojiEnum::DepartmentStore,
+            "\xF0\x9F\x8F\xAC",
+            "department store"},
         EmojiEntry{EmojiEnum::Factory, "\xF0\x9F\x8F\xAD", "factory"},
-        EmojiEntry{EmojiEnum::JapaneseCastle, "\xF0\x9F\x8F\xAF",
-                   "Japanese castle"},
+        EmojiEntry{
+            EmojiEnum::JapaneseCastle,
+            "\xF0\x9F\x8F\xAF",
+            "Japanese castle"},
         EmojiEntry{EmojiEnum::Castle, "\xF0\x9F\x8F\xB0", "castle"},
         EmojiEntry{EmojiEnum::Wedding, "\xF0\x9F\x92\x92", "wedding"},
         EmojiEntry{EmojiEnum::TokyoTower, "\xF0\x9F\x97\xBC", "Tokyo tower"},
-        EmojiEntry{EmojiEnum::StatueOfLiberty, "\xF0\x9F\x97\xBD",
-                   "Statue of Liberty"},
+        EmojiEntry{
+            EmojiEnum::StatueOfLiberty,
+            "\xF0\x9F\x97\xBD",
+            "Statue of Liberty"},
         EmojiEntry{EmojiEnum::Church, "\xE2\x9B\xAA", "church"},
         EmojiEntry{EmojiEnum::Mosque, "\xF0\x9F\x95\x8C", "mosque"},
         EmojiEntry{EmojiEnum::HinduTemple, "\xF0\x9F\x9B\x95", "hindu temple"},
         EmojiEntry{EmojiEnum::Synagogue, "\xF0\x9F\x95\x8D", "synagogue"},
-        EmojiEntry{EmojiEnum::ShintoShrine, "\xE2\x9B\xA9\xEF\xB8\x8F",
-                   "shinto shrine"},
+        EmojiEntry{
+            EmojiEnum::ShintoShrine,
+            "\xE2\x9B\xA9\xEF\xB8\x8F",
+            "shinto shrine"},
         EmojiEntry{EmojiEnum::Kaaba, "\xF0\x9F\x95\x8B", "kaaba"},
         EmojiEntry{EmojiEnum::Fountain, "\xE2\x9B\xB2", "fountain"},
         EmojiEntry{EmojiEnum::Tent, "\xE2\x9B\xBA", "tent"},
         EmojiEntry{EmojiEnum::Foggy, "\xF0\x9F\x8C\x81", "foggy"},
-        EmojiEntry{EmojiEnum::NightWithStars, "\xF0\x9F\x8C\x83",
-                   "night with stars"},
-        EmojiEntry{EmojiEnum::Cityscape, "\xF0\x9F\x8F\x99\xEF\xB8\x8F",
-                   "cityscape"},
-        EmojiEntry{EmojiEnum::SunriseOverMountains, "\xF0\x9F\x8C\x84",
-                   "sunrise over mountains"},
+        EmojiEntry{
+            EmojiEnum::NightWithStars,
+            "\xF0\x9F\x8C\x83",
+            "night with stars"},
+        EmojiEntry{
+            EmojiEnum::Cityscape,
+            "\xF0\x9F\x8F\x99\xEF\xB8\x8F",
+            "cityscape"},
+        EmojiEntry{
+            EmojiEnum::SunriseOverMountains,
+            "\xF0\x9F\x8C\x84",
+            "sunrise over mountains"},
         EmojiEntry{EmojiEnum::Sunrise, "\xF0\x9F\x8C\x85", "sunrise"},
-        EmojiEntry{EmojiEnum::CityscapeAtDusk, "\xF0\x9F\x8C\x86",
-                   "cityscape at dusk"},
+        EmojiEntry{
+            EmojiEnum::CityscapeAtDusk,
+            "\xF0\x9F\x8C\x86",
+            "cityscape at dusk"},
         EmojiEntry{EmojiEnum::Sunset, "\xF0\x9F\x8C\x87", "sunset"},
-        EmojiEntry{EmojiEnum::BridgeAtNight, "\xF0\x9F\x8C\x89",
-                   "bridge at night"},
-        EmojiEntry{EmojiEnum::HotSprings, "\xE2\x99\xA8\xEF\xB8\x8F",
-                   "hot springs"},
-        EmojiEntry{EmojiEnum::CarouselHorse, "\xF0\x9F\x8E\xA0",
-                   "carousel horse"},
-        EmojiEntry{EmojiEnum::PlaygroundSlide, "\xF0\x9F\x9B\x9D",
-                   "playground slide"},
+        EmojiEntry{
+            EmojiEnum::BridgeAtNight,
+            "\xF0\x9F\x8C\x89",
+            "bridge at night"},
+        EmojiEntry{
+            EmojiEnum::HotSprings,
+            "\xE2\x99\xA8\xEF\xB8\x8F",
+            "hot springs"},
+        EmojiEntry{
+            EmojiEnum::CarouselHorse,
+            "\xF0\x9F\x8E\xA0",
+            "carousel horse"},
+        EmojiEntry{
+            EmojiEnum::PlaygroundSlide,
+            "\xF0\x9F\x9B\x9D",
+            "playground slide"},
         EmojiEntry{EmojiEnum::FerrisWheel, "\xF0\x9F\x8E\xA1", "ferris wheel"},
-        EmojiEntry{EmojiEnum::RollerCoaster, "\xF0\x9F\x8E\xA2",
-                   "roller coaster"},
+        EmojiEntry{
+            EmojiEnum::RollerCoaster,
+            "\xF0\x9F\x8E\xA2",
+            "roller coaster"},
         EmojiEntry{EmojiEnum::BarberPole, "\xF0\x9F\x92\x88", "barber pole"},
         EmojiEntry{EmojiEnum::CircusTent, "\xF0\x9F\x8E\xAA", "circus tent"},
         EmojiEntry{EmojiEnum::Locomotive, "\xF0\x9F\x9A\x82", "locomotive"},
         EmojiEntry{EmojiEnum::RailwayCar, "\xF0\x9F\x9A\x83", "railway car"},
-        EmojiEntry{EmojiEnum::HighSpeedTrain, "\xF0\x9F\x9A\x84",
-                   "high-speed train"},
+        EmojiEntry{
+            EmojiEnum::HighSpeedTrain,
+            "\xF0\x9F\x9A\x84",
+            "high-speed train"},
         EmojiEntry{EmojiEnum::BulletTrain, "\xF0\x9F\x9A\x85", "bullet train"},
         EmojiEntry{EmojiEnum::Train, "\xF0\x9F\x9A\x86", "train"},
         EmojiEntry{EmojiEnum::Metro, "\xF0\x9F\x9A\x87", "metro"},
@@ -8950,8 +11124,10 @@ consteval auto makeEmojiList()
         EmojiEntry{EmojiEnum::Station, "\xF0\x9F\x9A\x89", "station"},
         EmojiEntry{EmojiEnum::Tram, "\xF0\x9F\x9A\x8A", "tram"},
         EmojiEntry{EmojiEnum::Monorail, "\xF0\x9F\x9A\x9D", "monorail"},
-        EmojiEntry{EmojiEnum::MountainRailway, "\xF0\x9F\x9A\x9E",
-                   "mountain railway"},
+        EmojiEntry{
+            EmojiEnum::MountainRailway,
+            "\xF0\x9F\x9A\x9E",
+            "mountain railway"},
         EmojiEntry{EmojiEnum::TramCar, "\xF0\x9F\x9A\x8B", "tram car"},
         EmojiEntry{EmojiEnum::Bus, "\xF0\x9F\x9A\x8C", "bus"},
         EmojiEntry{EmojiEnum::OncomingBus, "\xF0\x9F\x9A\x8D", "oncoming bus"},
@@ -8960,53 +11136,89 @@ consteval auto makeEmojiList()
         EmojiEntry{EmojiEnum::Ambulance, "\xF0\x9F\x9A\x91", "ambulance"},
         EmojiEntry{EmojiEnum::FireEngine, "\xF0\x9F\x9A\x92", "fire engine"},
         EmojiEntry{EmojiEnum::PoliceCar, "\xF0\x9F\x9A\x93", "police car"},
-        EmojiEntry{EmojiEnum::OncomingPoliceCar, "\xF0\x9F\x9A\x94",
-                   "oncoming police car"},
+        EmojiEntry{
+            EmojiEnum::OncomingPoliceCar,
+            "\xF0\x9F\x9A\x94",
+            "oncoming police car"},
         EmojiEntry{EmojiEnum::Taxi, "\xF0\x9F\x9A\x95", "taxi"},
-        EmojiEntry{EmojiEnum::OncomingTaxi, "\xF0\x9F\x9A\x96",
-                   "oncoming taxi"},
+        EmojiEntry{
+            EmojiEnum::OncomingTaxi,
+            "\xF0\x9F\x9A\x96",
+            "oncoming taxi"},
         EmojiEntry{EmojiEnum::Automobile, "\xF0\x9F\x9A\x97", "automobile"},
-        EmojiEntry{EmojiEnum::OncomingAutomobile, "\xF0\x9F\x9A\x98",
-                   "oncoming automobile"},
-        EmojiEntry{EmojiEnum::SportUtilityVehicle, "\xF0\x9F\x9A\x99",
-                   "sport utility vehicle"},
+        EmojiEntry{
+            EmojiEnum::OncomingAutomobile,
+            "\xF0\x9F\x9A\x98",
+            "oncoming automobile"},
+        EmojiEntry{
+            EmojiEnum::SportUtilityVehicle,
+            "\xF0\x9F\x9A\x99",
+            "sport utility vehicle"},
         EmojiEntry{EmojiEnum::PickupTruck, "\xF0\x9F\x9B\xBB", "pickup truck"},
-        EmojiEntry{EmojiEnum::DeliveryTruck, "\xF0\x9F\x9A\x9A",
-                   "delivery truck"},
-        EmojiEntry{EmojiEnum::ArticulatedLorry, "\xF0\x9F\x9A\x9B",
-                   "articulated lorry"},
+        EmojiEntry{
+            EmojiEnum::DeliveryTruck,
+            "\xF0\x9F\x9A\x9A",
+            "delivery truck"},
+        EmojiEntry{
+            EmojiEnum::ArticulatedLorry,
+            "\xF0\x9F\x9A\x9B",
+            "articulated lorry"},
         EmojiEntry{EmojiEnum::Tractor, "\xF0\x9F\x9A\x9C", "tractor"},
-        EmojiEntry{EmojiEnum::RacingCar, "\xF0\x9F\x8F\x8E\xEF\xB8\x8F",
-                   "racing car"},
-        EmojiEntry{EmojiEnum::Motorcycle, "\xF0\x9F\x8F\x8D\xEF\xB8\x8F",
-                   "motorcycle"},
-        EmojiEntry{EmojiEnum::MotorScooter, "\xF0\x9F\x9B\xB5",
-                   "motor scooter"},
-        EmojiEntry{EmojiEnum::ManualWheelchair, "\xF0\x9F\xA6\xBD",
-                   "manual wheelchair"},
-        EmojiEntry{EmojiEnum::MotorizedWheelchair, "\xF0\x9F\xA6\xBC",
-                   "motorized wheelchair"},
-        EmojiEntry{EmojiEnum::AutoRickshaw, "\xF0\x9F\x9B\xBA",
-                   "auto rickshaw"},
+        EmojiEntry{
+            EmojiEnum::RacingCar,
+            "\xF0\x9F\x8F\x8E\xEF\xB8\x8F",
+            "racing car"},
+        EmojiEntry{
+            EmojiEnum::Motorcycle,
+            "\xF0\x9F\x8F\x8D\xEF\xB8\x8F",
+            "motorcycle"},
+        EmojiEntry{
+            EmojiEnum::MotorScooter,
+            "\xF0\x9F\x9B\xB5",
+            "motor scooter"},
+        EmojiEntry{
+            EmojiEnum::ManualWheelchair,
+            "\xF0\x9F\xA6\xBD",
+            "manual wheelchair"},
+        EmojiEntry{
+            EmojiEnum::MotorizedWheelchair,
+            "\xF0\x9F\xA6\xBC",
+            "motorized wheelchair"},
+        EmojiEntry{
+            EmojiEnum::AutoRickshaw,
+            "\xF0\x9F\x9B\xBA",
+            "auto rickshaw"},
         EmojiEntry{EmojiEnum::Bicycle, "\xF0\x9F\x9A\xB2", "bicycle"},
         EmojiEntry{EmojiEnum::KickScooter, "\xF0\x9F\x9B\xB4", "kick scooter"},
         EmojiEntry{EmojiEnum::Skateboard, "\xF0\x9F\x9B\xB9", "skateboard"},
         EmojiEntry{EmojiEnum::RollerSkate, "\xF0\x9F\x9B\xBC", "roller skate"},
         EmojiEntry{EmojiEnum::BusStop, "\xF0\x9F\x9A\x8F", "bus stop"},
-        EmojiEntry{EmojiEnum::Motorway, "\xF0\x9F\x9B\xA3\xEF\xB8\x8F",
-                   "motorway"},
-        EmojiEntry{EmojiEnum::RailwayTrack, "\xF0\x9F\x9B\xA4\xEF\xB8\x8F",
-                   "railway track"},
-        EmojiEntry{EmojiEnum::OilDrum, "\xF0\x9F\x9B\xA2\xEF\xB8\x8F",
-                   "oil drum"},
+        EmojiEntry{
+            EmojiEnum::Motorway,
+            "\xF0\x9F\x9B\xA3\xEF\xB8\x8F",
+            "motorway"},
+        EmojiEntry{
+            EmojiEnum::RailwayTrack,
+            "\xF0\x9F\x9B\xA4\xEF\xB8\x8F",
+            "railway track"},
+        EmojiEntry{
+            EmojiEnum::OilDrum,
+            "\xF0\x9F\x9B\xA2\xEF\xB8\x8F",
+            "oil drum"},
         EmojiEntry{EmojiEnum::FuelPump, "\xE2\x9B\xBD", "fuel pump"},
         EmojiEntry{EmojiEnum::Wheel, "\xF0\x9F\x9B\x9E", "wheel"},
-        EmojiEntry{EmojiEnum::PoliceCarLight, "\xF0\x9F\x9A\xA8",
-                   "police car light"},
-        EmojiEntry{EmojiEnum::HorizontalTrafficLight, "\xF0\x9F\x9A\xA5",
-                   "horizontal traffic light"},
-        EmojiEntry{EmojiEnum::VerticalTrafficLight, "\xF0\x9F\x9A\xA6",
-                   "vertical traffic light"},
+        EmojiEntry{
+            EmojiEnum::PoliceCarLight,
+            "\xF0\x9F\x9A\xA8",
+            "police car light"},
+        EmojiEntry{
+            EmojiEnum::HorizontalTrafficLight,
+            "\xF0\x9F\x9A\xA5",
+            "horizontal traffic light"},
+        EmojiEntry{
+            EmojiEnum::VerticalTrafficLight,
+            "\xF0\x9F\x9A\xA6",
+            "vertical traffic light"},
         EmojiEntry{EmojiEnum::StopSign, "\xF0\x9F\x9B\x91", "stop sign"},
         EmojiEntry{EmojiEnum::Construction, "\xF0\x9F\x9A\xA7", "construction"},
         EmojiEntry{EmojiEnum::Anchor, "\xE2\x9A\x93", "anchor"},
@@ -9014,51 +11226,85 @@ consteval auto makeEmojiList()
         EmojiEntry{EmojiEnum::Sailboat, "\xE2\x9B\xB5", "sailboat"},
         EmojiEntry{EmojiEnum::Canoe, "\xF0\x9F\x9B\xB6", "canoe"},
         EmojiEntry{EmojiEnum::Speedboat, "\xF0\x9F\x9A\xA4", "speedboat"},
-        EmojiEntry{EmojiEnum::PassengerShip, "\xF0\x9F\x9B\xB3\xEF\xB8\x8F",
-                   "passenger ship"},
+        EmojiEntry{
+            EmojiEnum::PassengerShip,
+            "\xF0\x9F\x9B\xB3\xEF\xB8\x8F",
+            "passenger ship"},
         EmojiEntry{EmojiEnum::Ferry, "\xE2\x9B\xB4\xEF\xB8\x8F", "ferry"},
-        EmojiEntry{EmojiEnum::MotorBoat, "\xF0\x9F\x9B\xA5\xEF\xB8\x8F",
-                   "motor boat"},
+        EmojiEntry{
+            EmojiEnum::MotorBoat,
+            "\xF0\x9F\x9B\xA5\xEF\xB8\x8F",
+            "motor boat"},
         EmojiEntry{EmojiEnum::Ship, "\xF0\x9F\x9A\xA2", "ship"},
         EmojiEntry{EmojiEnum::Airplane, "\xE2\x9C\x88\xEF\xB8\x8F", "airplane"},
-        EmojiEntry{EmojiEnum::SmallAirplane, "\xF0\x9F\x9B\xA9\xEF\xB8\x8F",
-                   "small airplane"},
-        EmojiEntry{EmojiEnum::AirplaneDeparture, "\xF0\x9F\x9B\xAB",
-                   "airplane departure"},
-        EmojiEntry{EmojiEnum::AirplaneArrival, "\xF0\x9F\x9B\xAC",
-                   "airplane arrival"},
+        EmojiEntry{
+            EmojiEnum::SmallAirplane,
+            "\xF0\x9F\x9B\xA9\xEF\xB8\x8F",
+            "small airplane"},
+        EmojiEntry{
+            EmojiEnum::AirplaneDeparture,
+            "\xF0\x9F\x9B\xAB",
+            "airplane departure"},
+        EmojiEntry{
+            EmojiEnum::AirplaneArrival,
+            "\xF0\x9F\x9B\xAC",
+            "airplane arrival"},
         EmojiEntry{EmojiEnum::Parachute, "\xF0\x9F\xAA\x82", "parachute"},
         EmojiEntry{EmojiEnum::Seat, "\xF0\x9F\x92\xBA", "seat"},
         EmojiEntry{EmojiEnum::Helicopter, "\xF0\x9F\x9A\x81", "helicopter"},
-        EmojiEntry{EmojiEnum::SuspensionRailway, "\xF0\x9F\x9A\x9F",
-                   "suspension railway"},
-        EmojiEntry{EmojiEnum::MountainCableway, "\xF0\x9F\x9A\xA0",
-                   "mountain cableway"},
-        EmojiEntry{EmojiEnum::AerialTramway, "\xF0\x9F\x9A\xA1",
-                   "aerial tramway"},
-        EmojiEntry{EmojiEnum::Satellite, "\xF0\x9F\x9B\xB0\xEF\xB8\x8F",
-                   "satellite"},
+        EmojiEntry{
+            EmojiEnum::SuspensionRailway,
+            "\xF0\x9F\x9A\x9F",
+            "suspension railway"},
+        EmojiEntry{
+            EmojiEnum::MountainCableway,
+            "\xF0\x9F\x9A\xA0",
+            "mountain cableway"},
+        EmojiEntry{
+            EmojiEnum::AerialTramway,
+            "\xF0\x9F\x9A\xA1",
+            "aerial tramway"},
+        EmojiEntry{
+            EmojiEnum::Satellite,
+            "\xF0\x9F\x9B\xB0\xEF\xB8\x8F",
+            "satellite"},
         EmojiEntry{EmojiEnum::Rocket, "\xF0\x9F\x9A\x80", "rocket"},
-        EmojiEntry{EmojiEnum::FlyingSaucer, "\xF0\x9F\x9B\xB8",
-                   "flying saucer"},
-        EmojiEntry{EmojiEnum::BellhopBell, "\xF0\x9F\x9B\x8E\xEF\xB8\x8F",
-                   "bellhop bell"},
+        EmojiEntry{
+            EmojiEnum::FlyingSaucer,
+            "\xF0\x9F\x9B\xB8",
+            "flying saucer"},
+        EmojiEntry{
+            EmojiEnum::BellhopBell,
+            "\xF0\x9F\x9B\x8E\xEF\xB8\x8F",
+            "bellhop bell"},
         EmojiEntry{EmojiEnum::Luggage, "\xF0\x9F\xA7\xB3", "luggage"},
         EmojiEntry{EmojiEnum::HourglassDone, "\xE2\x8C\x9B", "hourglass done"},
-        EmojiEntry{EmojiEnum::HourglassNotDone, "\xE2\x8F\xB3",
-                   "hourglass not done"},
+        EmojiEntry{
+            EmojiEnum::HourglassNotDone,
+            "\xE2\x8F\xB3",
+            "hourglass not done"},
         EmojiEntry{EmojiEnum::Watch, "\xE2\x8C\x9A", "watch"},
         EmojiEntry{EmojiEnum::AlarmClock, "\xE2\x8F\xB0", "alarm clock"},
-        EmojiEntry{EmojiEnum::Stopwatch, "\xE2\x8F\xB1\xEF\xB8\x8F",
-                   "stopwatch"},
-        EmojiEntry{EmojiEnum::TimerClock, "\xE2\x8F\xB2\xEF\xB8\x8F",
-                   "timer clock"},
-        EmojiEntry{EmojiEnum::MantelpieceClock, "\xF0\x9F\x95\xB0\xEF\xB8\x8F",
-                   "mantelpiece clock"},
-        EmojiEntry{EmojiEnum::TwelveOclock, "\xF0\x9F\x95\x9B",
-                   "twelve oclock"},
-        EmojiEntry{EmojiEnum::TwelveThirty, "\xF0\x9F\x95\xA7",
-                   "twelve-thirty"},
+        EmojiEntry{
+            EmojiEnum::Stopwatch,
+            "\xE2\x8F\xB1\xEF\xB8\x8F",
+            "stopwatch"},
+        EmojiEntry{
+            EmojiEnum::TimerClock,
+            "\xE2\x8F\xB2\xEF\xB8\x8F",
+            "timer clock"},
+        EmojiEntry{
+            EmojiEnum::MantelpieceClock,
+            "\xF0\x9F\x95\xB0\xEF\xB8\x8F",
+            "mantelpiece clock"},
+        EmojiEntry{
+            EmojiEnum::TwelveOclock,
+            "\xF0\x9F\x95\x9B",
+            "twelve oclock"},
+        EmojiEntry{
+            EmojiEnum::TwelveThirty,
+            "\xF0\x9F\x95\xA7",
+            "twelve-thirty"},
         EmojiEntry{EmojiEnum::OneOclock, "\xF0\x9F\x95\x90", "one oclock"},
         EmojiEntry{EmojiEnum::OneThirty, "\xF0\x9F\x95\x9C", "one-thirty"},
         EmojiEntry{EmojiEnum::TwoOclock, "\xF0\x9F\x95\x91", "two oclock"},
@@ -9079,135 +11325,227 @@ consteval auto makeEmojiList()
         EmojiEntry{EmojiEnum::NineThirty, "\xF0\x9F\x95\xA4", "nine-thirty"},
         EmojiEntry{EmojiEnum::TenOclock, "\xF0\x9F\x95\x99", "ten oclock"},
         EmojiEntry{EmojiEnum::TenThirty, "\xF0\x9F\x95\xA5", "ten-thirty"},
-        EmojiEntry{EmojiEnum::ElevenOclock, "\xF0\x9F\x95\x9A",
-                   "eleven oclock"},
-        EmojiEntry{EmojiEnum::ElevenThirty, "\xF0\x9F\x95\xA6",
-                   "eleven-thirty"},
+        EmojiEntry{
+            EmojiEnum::ElevenOclock,
+            "\xF0\x9F\x95\x9A",
+            "eleven oclock"},
+        EmojiEntry{
+            EmojiEnum::ElevenThirty,
+            "\xF0\x9F\x95\xA6",
+            "eleven-thirty"},
         EmojiEntry{EmojiEnum::NewMoon, "\xF0\x9F\x8C\x91", "new moon"},
-        EmojiEntry{EmojiEnum::WaxingCrescentMoon, "\xF0\x9F\x8C\x92",
-                   "waxing crescent moon"},
-        EmojiEntry{EmojiEnum::FirstQuarterMoon, "\xF0\x9F\x8C\x93",
-                   "first quarter moon"},
-        EmojiEntry{EmojiEnum::WaxingGibbousMoon, "\xF0\x9F\x8C\x94",
-                   "waxing gibbous moon"},
+        EmojiEntry{
+            EmojiEnum::WaxingCrescentMoon,
+            "\xF0\x9F\x8C\x92",
+            "waxing crescent moon"},
+        EmojiEntry{
+            EmojiEnum::FirstQuarterMoon,
+            "\xF0\x9F\x8C\x93",
+            "first quarter moon"},
+        EmojiEntry{
+            EmojiEnum::WaxingGibbousMoon,
+            "\xF0\x9F\x8C\x94",
+            "waxing gibbous moon"},
         EmojiEntry{EmojiEnum::FullMoon, "\xF0\x9F\x8C\x95", "full moon"},
-        EmojiEntry{EmojiEnum::WaningGibbousMoon, "\xF0\x9F\x8C\x96",
-                   "waning gibbous moon"},
-        EmojiEntry{EmojiEnum::LastQuarterMoon, "\xF0\x9F\x8C\x97",
-                   "last quarter moon"},
-        EmojiEntry{EmojiEnum::WaningCrescentMoon, "\xF0\x9F\x8C\x98",
-                   "waning crescent moon"},
-        EmojiEntry{EmojiEnum::CrescentMoon, "\xF0\x9F\x8C\x99",
-                   "crescent moon"},
+        EmojiEntry{
+            EmojiEnum::WaningGibbousMoon,
+            "\xF0\x9F\x8C\x96",
+            "waning gibbous moon"},
+        EmojiEntry{
+            EmojiEnum::LastQuarterMoon,
+            "\xF0\x9F\x8C\x97",
+            "last quarter moon"},
+        EmojiEntry{
+            EmojiEnum::WaningCrescentMoon,
+            "\xF0\x9F\x8C\x98",
+            "waning crescent moon"},
+        EmojiEntry{
+            EmojiEnum::CrescentMoon,
+            "\xF0\x9F\x8C\x99",
+            "crescent moon"},
         EmojiEntry{EmojiEnum::NewMoonFace, "\xF0\x9F\x8C\x9A", "new moon face"},
-        EmojiEntry{EmojiEnum::FirstQuarterMoonFace, "\xF0\x9F\x8C\x9B",
-                   "first quarter moon face"},
-        EmojiEntry{EmojiEnum::LastQuarterMoonFace, "\xF0\x9F\x8C\x9C",
-                   "last quarter moon face"},
-        EmojiEntry{EmojiEnum::Thermometer, "\xF0\x9F\x8C\xA1\xEF\xB8\x8F",
-                   "thermometer"},
+        EmojiEntry{
+            EmojiEnum::FirstQuarterMoonFace,
+            "\xF0\x9F\x8C\x9B",
+            "first quarter moon face"},
+        EmojiEntry{
+            EmojiEnum::LastQuarterMoonFace,
+            "\xF0\x9F\x8C\x9C",
+            "last quarter moon face"},
+        EmojiEntry{
+            EmojiEnum::Thermometer,
+            "\xF0\x9F\x8C\xA1\xEF\xB8\x8F",
+            "thermometer"},
         EmojiEntry{EmojiEnum::Sun, "\xE2\x98\x80\xEF\xB8\x8F", "sun"},
-        EmojiEntry{EmojiEnum::FullMoonFace, "\xF0\x9F\x8C\x9D",
-                   "full moon face"},
+        EmojiEntry{
+            EmojiEnum::FullMoonFace,
+            "\xF0\x9F\x8C\x9D",
+            "full moon face"},
         EmojiEntry{EmojiEnum::SunWithFace, "\xF0\x9F\x8C\x9E", "sun with face"},
-        EmojiEntry{EmojiEnum::RingedPlanet, "\xF0\x9F\xAA\x90",
-                   "ringed planet"},
+        EmojiEntry{
+            EmojiEnum::RingedPlanet,
+            "\xF0\x9F\xAA\x90",
+            "ringed planet"},
         EmojiEntry{EmojiEnum::Star, "\xE2\xAD\x90", "star"},
         EmojiEntry{EmojiEnum::GlowingStar, "\xF0\x9F\x8C\x9F", "glowing star"},
-        EmojiEntry{EmojiEnum::ShootingStar, "\xF0\x9F\x8C\xA0",
-                   "shooting star"},
+        EmojiEntry{
+            EmojiEnum::ShootingStar,
+            "\xF0\x9F\x8C\xA0",
+            "shooting star"},
         EmojiEntry{EmojiEnum::MilkyWay, "\xF0\x9F\x8C\x8C", "milky way"},
         EmojiEntry{EmojiEnum::Cloud, "\xE2\x98\x81\xEF\xB8\x8F", "cloud"},
-        EmojiEntry{EmojiEnum::SunBehindCloud, "\xE2\x9B\x85",
-                   "sun behind cloud"},
-        EmojiEntry{EmojiEnum::CloudWithLightningAndRain,
-                   "\xE2\x9B\x88\xEF\xB8\x8F", "cloud with lightning and rain"},
-        EmojiEntry{EmojiEnum::SunBehindSmallCloud,
-                   "\xF0\x9F\x8C\xA4\xEF\xB8\x8F", "sun behind small cloud"},
-        EmojiEntry{EmojiEnum::SunBehindLargeCloud,
-                   "\xF0\x9F\x8C\xA5\xEF\xB8\x8F", "sun behind large cloud"},
-        EmojiEntry{EmojiEnum::SunBehindRainCloud,
-                   "\xF0\x9F\x8C\xA6\xEF\xB8\x8F", "sun behind rain cloud"},
-        EmojiEntry{EmojiEnum::CloudWithRain, "\xF0\x9F\x8C\xA7\xEF\xB8\x8F",
-                   "cloud with rain"},
-        EmojiEntry{EmojiEnum::CloudWithSnow, "\xF0\x9F\x8C\xA8\xEF\xB8\x8F",
-                   "cloud with snow"},
-        EmojiEntry{EmojiEnum::CloudWithLightning,
-                   "\xF0\x9F\x8C\xA9\xEF\xB8\x8F", "cloud with lightning"},
-        EmojiEntry{EmojiEnum::Tornado, "\xF0\x9F\x8C\xAA\xEF\xB8\x8F",
-                   "tornado"},
+        EmojiEntry{
+            EmojiEnum::SunBehindCloud,
+            "\xE2\x9B\x85",
+            "sun behind cloud"},
+        EmojiEntry{
+            EmojiEnum::CloudWithLightningAndRain,
+            "\xE2\x9B\x88\xEF\xB8\x8F",
+            "cloud with lightning and rain"},
+        EmojiEntry{
+            EmojiEnum::SunBehindSmallCloud,
+            "\xF0\x9F\x8C\xA4\xEF\xB8\x8F",
+            "sun behind small cloud"},
+        EmojiEntry{
+            EmojiEnum::SunBehindLargeCloud,
+            "\xF0\x9F\x8C\xA5\xEF\xB8\x8F",
+            "sun behind large cloud"},
+        EmojiEntry{
+            EmojiEnum::SunBehindRainCloud,
+            "\xF0\x9F\x8C\xA6\xEF\xB8\x8F",
+            "sun behind rain cloud"},
+        EmojiEntry{
+            EmojiEnum::CloudWithRain,
+            "\xF0\x9F\x8C\xA7\xEF\xB8\x8F",
+            "cloud with rain"},
+        EmojiEntry{
+            EmojiEnum::CloudWithSnow,
+            "\xF0\x9F\x8C\xA8\xEF\xB8\x8F",
+            "cloud with snow"},
+        EmojiEntry{
+            EmojiEnum::CloudWithLightning,
+            "\xF0\x9F\x8C\xA9\xEF\xB8\x8F",
+            "cloud with lightning"},
+        EmojiEntry{
+            EmojiEnum::Tornado,
+            "\xF0\x9F\x8C\xAA\xEF\xB8\x8F",
+            "tornado"},
         EmojiEntry{EmojiEnum::Fog, "\xF0\x9F\x8C\xAB\xEF\xB8\x8F", "fog"},
-        EmojiEntry{EmojiEnum::WindFace, "\xF0\x9F\x8C\xAC\xEF\xB8\x8F",
-                   "wind face"},
+        EmojiEntry{
+            EmojiEnum::WindFace,
+            "\xF0\x9F\x8C\xAC\xEF\xB8\x8F",
+            "wind face"},
         EmojiEntry{EmojiEnum::Cyclone, "\xF0\x9F\x8C\x80", "cyclone"},
         EmojiEntry{EmojiEnum::Rainbow, "\xF0\x9F\x8C\x88", "rainbow"},
-        EmojiEntry{EmojiEnum::ClosedUmbrella, "\xF0\x9F\x8C\x82",
-                   "closed umbrella"},
+        EmojiEntry{
+            EmojiEnum::ClosedUmbrella,
+            "\xF0\x9F\x8C\x82",
+            "closed umbrella"},
         EmojiEntry{EmojiEnum::Umbrella, "\xE2\x98\x82\xEF\xB8\x8F", "umbrella"},
-        EmojiEntry{EmojiEnum::UmbrellaWithRainDrops, "\xE2\x98\x94",
-                   "umbrella with rain drops"},
-        EmojiEntry{EmojiEnum::UmbrellaOnGround, "\xE2\x9B\xB1\xEF\xB8\x8F",
-                   "umbrella on ground"},
+        EmojiEntry{
+            EmojiEnum::UmbrellaWithRainDrops,
+            "\xE2\x98\x94",
+            "umbrella with rain drops"},
+        EmojiEntry{
+            EmojiEnum::UmbrellaOnGround,
+            "\xE2\x9B\xB1\xEF\xB8\x8F",
+            "umbrella on ground"},
         EmojiEntry{EmojiEnum::HighVoltage, "\xE2\x9A\xA1", "high voltage"},
-        EmojiEntry{EmojiEnum::Snowflake, "\xE2\x9D\x84\xEF\xB8\x8F",
-                   "snowflake"},
+        EmojiEntry{
+            EmojiEnum::Snowflake,
+            "\xE2\x9D\x84\xEF\xB8\x8F",
+            "snowflake"},
         EmojiEntry{EmojiEnum::Snowman, "\xE2\x98\x83\xEF\xB8\x8F", "snowman"},
-        EmojiEntry{EmojiEnum::SnowmanWithoutSnow, "\xE2\x9B\x84",
-                   "snowman without snow"},
+        EmojiEntry{
+            EmojiEnum::SnowmanWithoutSnow,
+            "\xE2\x9B\x84",
+            "snowman without snow"},
         EmojiEntry{EmojiEnum::Comet, "\xE2\x98\x84\xEF\xB8\x8F", "comet"},
         EmojiEntry{EmojiEnum::Fire, "\xF0\x9F\x94\xA5", "fire"},
         EmojiEntry{EmojiEnum::Droplet, "\xF0\x9F\x92\xA7", "droplet"},
         EmojiEntry{EmojiEnum::WaterWave, "\xF0\x9F\x8C\x8A", "water wave"},
-        EmojiEntry{EmojiEnum::JackOLantern, "\xF0\x9F\x8E\x83",
-                   "jack-o-lantern"},
-        EmojiEntry{EmojiEnum::ChristmasTree, "\xF0\x9F\x8E\x84",
-                   "Christmas tree"},
+        EmojiEntry{
+            EmojiEnum::JackOLantern,
+            "\xF0\x9F\x8E\x83",
+            "jack-o-lantern"},
+        EmojiEntry{
+            EmojiEnum::ChristmasTree,
+            "\xF0\x9F\x8E\x84",
+            "Christmas tree"},
         EmojiEntry{EmojiEnum::Fireworks, "\xF0\x9F\x8E\x86", "fireworks"},
         EmojiEntry{EmojiEnum::Sparkler, "\xF0\x9F\x8E\x87", "sparkler"},
         EmojiEntry{EmojiEnum::Firecracker, "\xF0\x9F\xA7\xA8", "firecracker"},
         EmojiEntry{EmojiEnum::Sparkles, "\xE2\x9C\xA8", "sparkles"},
         EmojiEntry{EmojiEnum::Balloon, "\xF0\x9F\x8E\x88", "balloon"},
         EmojiEntry{EmojiEnum::PartyPopper, "\xF0\x9F\x8E\x89", "party popper"},
-        EmojiEntry{EmojiEnum::ConfettiBall, "\xF0\x9F\x8E\x8A",
-                   "confetti ball"},
-        EmojiEntry{EmojiEnum::TanabataTree, "\xF0\x9F\x8E\x8B",
-                   "tanabata tree"},
-        EmojiEntry{EmojiEnum::PineDecoration, "\xF0\x9F\x8E\x8D",
-                   "pine decoration"},
-        EmojiEntry{EmojiEnum::JapaneseDolls, "\xF0\x9F\x8E\x8E",
-                   "Japanese dolls"},
-        EmojiEntry{EmojiEnum::CarpStreamer, "\xF0\x9F\x8E\x8F",
-                   "carp streamer"},
+        EmojiEntry{
+            EmojiEnum::ConfettiBall,
+            "\xF0\x9F\x8E\x8A",
+            "confetti ball"},
+        EmojiEntry{
+            EmojiEnum::TanabataTree,
+            "\xF0\x9F\x8E\x8B",
+            "tanabata tree"},
+        EmojiEntry{
+            EmojiEnum::PineDecoration,
+            "\xF0\x9F\x8E\x8D",
+            "pine decoration"},
+        EmojiEntry{
+            EmojiEnum::JapaneseDolls,
+            "\xF0\x9F\x8E\x8E",
+            "Japanese dolls"},
+        EmojiEntry{
+            EmojiEnum::CarpStreamer,
+            "\xF0\x9F\x8E\x8F",
+            "carp streamer"},
         EmojiEntry{EmojiEnum::WindChime, "\xF0\x9F\x8E\x90", "wind chime"},
-        EmojiEntry{EmojiEnum::MoonViewingCeremony, "\xF0\x9F\x8E\x91",
-                   "moon viewing ceremony"},
+        EmojiEntry{
+            EmojiEnum::MoonViewingCeremony,
+            "\xF0\x9F\x8E\x91",
+            "moon viewing ceremony"},
         EmojiEntry{EmojiEnum::RedEnvelope, "\xF0\x9F\xA7\xA7", "red envelope"},
         EmojiEntry{EmojiEnum::Ribbon, "\xF0\x9F\x8E\x80", "ribbon"},
         EmojiEntry{EmojiEnum::WrappedGift, "\xF0\x9F\x8E\x81", "wrapped gift"},
-        EmojiEntry{EmojiEnum::ReminderRibbon, "\xF0\x9F\x8E\x97\xEF\xB8\x8F",
-                   "reminder ribbon"},
-        EmojiEntry{EmojiEnum::AdmissionTickets, "\xF0\x9F\x8E\x9F\xEF\xB8\x8F",
-                   "admission tickets"},
+        EmojiEntry{
+            EmojiEnum::ReminderRibbon,
+            "\xF0\x9F\x8E\x97\xEF\xB8\x8F",
+            "reminder ribbon"},
+        EmojiEntry{
+            EmojiEnum::AdmissionTickets,
+            "\xF0\x9F\x8E\x9F\xEF\xB8\x8F",
+            "admission tickets"},
         EmojiEntry{EmojiEnum::Ticket, "\xF0\x9F\x8E\xAB", "ticket"},
-        EmojiEntry{EmojiEnum::MilitaryMedal, "\xF0\x9F\x8E\x96\xEF\xB8\x8F",
-                   "military medal"},
+        EmojiEntry{
+            EmojiEnum::MilitaryMedal,
+            "\xF0\x9F\x8E\x96\xEF\xB8\x8F",
+            "military medal"},
         EmojiEntry{EmojiEnum::Trophy, "\xF0\x9F\x8F\x86", "trophy"},
         EmojiEntry{EmojiEnum::SportsMedal, "\xF0\x9F\x8F\x85", "sports medal"},
-        EmojiEntry{EmojiEnum::OneStPlaceMedal, "\xF0\x9F\xA5\x87",
-                   "1st place medal"},
-        EmojiEntry{EmojiEnum::TwoNdPlaceMedal, "\xF0\x9F\xA5\x88",
-                   "2nd place medal"},
-        EmojiEntry{EmojiEnum::ThreeRdPlaceMedal, "\xF0\x9F\xA5\x89",
-                   "3rd place medal"},
+        EmojiEntry{
+            EmojiEnum::OneStPlaceMedal,
+            "\xF0\x9F\xA5\x87",
+            "1st place medal"},
+        EmojiEntry{
+            EmojiEnum::TwoNdPlaceMedal,
+            "\xF0\x9F\xA5\x88",
+            "2nd place medal"},
+        EmojiEntry{
+            EmojiEnum::ThreeRdPlaceMedal,
+            "\xF0\x9F\xA5\x89",
+            "3rd place medal"},
         EmojiEntry{EmojiEnum::SoccerBall, "\xE2\x9A\xBD", "soccer ball"},
         EmojiEntry{EmojiEnum::Baseball, "\xE2\x9A\xBE", "baseball"},
         EmojiEntry{EmojiEnum::Softball, "\xF0\x9F\xA5\x8E", "softball"},
         EmojiEntry{EmojiEnum::Basketball, "\xF0\x9F\x8F\x80", "basketball"},
         EmojiEntry{EmojiEnum::Volleyball, "\xF0\x9F\x8F\x90", "volleyball"},
-        EmojiEntry{EmojiEnum::AmericanFootball, "\xF0\x9F\x8F\x88",
-                   "american football"},
-        EmojiEntry{EmojiEnum::RugbyFootball, "\xF0\x9F\x8F\x89",
-                   "rugby football"},
+        EmojiEntry{
+            EmojiEnum::AmericanFootball,
+            "\xF0\x9F\x8F\x88",
+            "american football"},
+        EmojiEntry{
+            EmojiEnum::RugbyFootball,
+            "\xF0\x9F\x8F\x89",
+            "rugby football"},
         EmojiEntry{EmojiEnum::Tennis, "\xF0\x9F\x8E\xBE", "tennis"},
         EmojiEntry{EmojiEnum::FlyingDisc, "\xF0\x9F\xA5\x8F", "flying disc"},
         EmojiEntry{EmojiEnum::Bowling, "\xF0\x9F\x8E\xB3", "bowling"},
@@ -9218,20 +11556,28 @@ consteval auto makeEmojiList()
         EmojiEntry{EmojiEnum::PingPong, "\xF0\x9F\x8F\x93", "ping pong"},
         EmojiEntry{EmojiEnum::Badminton, "\xF0\x9F\x8F\xB8", "badminton"},
         EmojiEntry{EmojiEnum::BoxingGlove, "\xF0\x9F\xA5\x8A", "boxing glove"},
-        EmojiEntry{EmojiEnum::MartialArtsUniform, "\xF0\x9F\xA5\x8B",
-                   "martial arts uniform"},
+        EmojiEntry{
+            EmojiEnum::MartialArtsUniform,
+            "\xF0\x9F\xA5\x8B",
+            "martial arts uniform"},
         EmojiEntry{EmojiEnum::GoalNet, "\xF0\x9F\xA5\x85", "goal net"},
         EmojiEntry{EmojiEnum::FlagInHole, "\xE2\x9B\xB3", "flag in hole"},
-        EmojiEntry{EmojiEnum::IceSkate, "\xE2\x9B\xB8\xEF\xB8\x8F",
-                   "ice skate"},
+        EmojiEntry{
+            EmojiEnum::IceSkate,
+            "\xE2\x9B\xB8\xEF\xB8\x8F",
+            "ice skate"},
         EmojiEntry{EmojiEnum::FishingPole, "\xF0\x9F\x8E\xA3", "fishing pole"},
         EmojiEntry{EmojiEnum::DivingMask, "\xF0\x9F\xA4\xBF", "diving mask"},
-        EmojiEntry{EmojiEnum::RunningShirt, "\xF0\x9F\x8E\xBD",
-                   "running shirt"},
+        EmojiEntry{
+            EmojiEnum::RunningShirt,
+            "\xF0\x9F\x8E\xBD",
+            "running shirt"},
         EmojiEntry{EmojiEnum::Skis, "\xF0\x9F\x8E\xBF", "skis"},
         EmojiEntry{EmojiEnum::Sled, "\xF0\x9F\x9B\xB7", "sled"},
-        EmojiEntry{EmojiEnum::CurlingStone, "\xF0\x9F\xA5\x8C",
-                   "curling stone"},
+        EmojiEntry{
+            EmojiEnum::CurlingStone,
+            "\xF0\x9F\xA5\x8C",
+            "curling stone"},
         EmojiEntry{EmojiEnum::Bullseye, "\xF0\x9F\x8E\xAF", "bullseye"},
         EmojiEntry{EmojiEnum::YoYo, "\xF0\x9F\xAA\x80", "yo-yo"},
         EmojiEntry{EmojiEnum::Kite, "\xF0\x9F\xAA\x81", "kite"},
@@ -9240,45 +11586,73 @@ consteval auto makeEmojiList()
         EmojiEntry{EmojiEnum::CrystalBall, "\xF0\x9F\x94\xAE", "crystal ball"},
         EmojiEntry{EmojiEnum::MagicWand, "\xF0\x9F\xAA\x84", "magic wand"},
         EmojiEntry{EmojiEnum::VideoGame, "\xF0\x9F\x8E\xAE", "video game"},
-        EmojiEntry{EmojiEnum::Joystick, "\xF0\x9F\x95\xB9\xEF\xB8\x8F",
-                   "joystick"},
+        EmojiEntry{
+            EmojiEnum::Joystick,
+            "\xF0\x9F\x95\xB9\xEF\xB8\x8F",
+            "joystick"},
         EmojiEntry{EmojiEnum::SlotMachine, "\xF0\x9F\x8E\xB0", "slot machine"},
         EmojiEntry{EmojiEnum::GameDie, "\xF0\x9F\x8E\xB2", "game die"},
         EmojiEntry{EmojiEnum::PuzzlePiece, "\xF0\x9F\xA7\xA9", "puzzle piece"},
         EmojiEntry{EmojiEnum::TeddyBear, "\xF0\x9F\xA7\xB8", "teddy bear"},
         EmojiEntry{EmojiEnum::Pinata, "\xF0\x9F\xAA\x85", "pinata"},
         EmojiEntry{EmojiEnum::MirrorBall, "\xF0\x9F\xAA\xA9", "mirror ball"},
-        EmojiEntry{EmojiEnum::NestingDolls, "\xF0\x9F\xAA\x86",
-                   "nesting dolls"},
-        EmojiEntry{EmojiEnum::SpadeSuit, "\xE2\x99\xA0\xEF\xB8\x8F",
-                   "spade suit"},
-        EmojiEntry{EmojiEnum::HeartSuit, "\xE2\x99\xA5\xEF\xB8\x8F",
-                   "heart suit"},
-        EmojiEntry{EmojiEnum::DiamondSuit, "\xE2\x99\xA6\xEF\xB8\x8F",
-                   "diamond suit"},
-        EmojiEntry{EmojiEnum::ClubSuit, "\xE2\x99\xA3\xEF\xB8\x8F",
-                   "club suit"},
-        EmojiEntry{EmojiEnum::ChessPawn, "\xE2\x99\x9F\xEF\xB8\x8F",
-                   "chess pawn"},
+        EmojiEntry{
+            EmojiEnum::NestingDolls,
+            "\xF0\x9F\xAA\x86",
+            "nesting dolls"},
+        EmojiEntry{
+            EmojiEnum::SpadeSuit,
+            "\xE2\x99\xA0\xEF\xB8\x8F",
+            "spade suit"},
+        EmojiEntry{
+            EmojiEnum::HeartSuit,
+            "\xE2\x99\xA5\xEF\xB8\x8F",
+            "heart suit"},
+        EmojiEntry{
+            EmojiEnum::DiamondSuit,
+            "\xE2\x99\xA6\xEF\xB8\x8F",
+            "diamond suit"},
+        EmojiEntry{
+            EmojiEnum::ClubSuit,
+            "\xE2\x99\xA3\xEF\xB8\x8F",
+            "club suit"},
+        EmojiEntry{
+            EmojiEnum::ChessPawn,
+            "\xE2\x99\x9F\xEF\xB8\x8F",
+            "chess pawn"},
         EmojiEntry{EmojiEnum::Joker, "\xF0\x9F\x83\x8F", "joker"},
-        EmojiEntry{EmojiEnum::MahjongRedDragon, "\xF0\x9F\x80\x84",
-                   "mahjong red dragon"},
-        EmojiEntry{EmojiEnum::FlowerPlayingCards, "\xF0\x9F\x8E\xB4",
-                   "flower playing cards"},
-        EmojiEntry{EmojiEnum::PerformingArts, "\xF0\x9F\x8E\xAD",
-                   "performing arts"},
-        EmojiEntry{EmojiEnum::FramedPicture, "\xF0\x9F\x96\xBC\xEF\xB8\x8F",
-                   "framed picture"},
-        EmojiEntry{EmojiEnum::ArtistPalette, "\xF0\x9F\x8E\xA8",
-                   "artist palette"},
+        EmojiEntry{
+            EmojiEnum::MahjongRedDragon,
+            "\xF0\x9F\x80\x84",
+            "mahjong red dragon"},
+        EmojiEntry{
+            EmojiEnum::FlowerPlayingCards,
+            "\xF0\x9F\x8E\xB4",
+            "flower playing cards"},
+        EmojiEntry{
+            EmojiEnum::PerformingArts,
+            "\xF0\x9F\x8E\xAD",
+            "performing arts"},
+        EmojiEntry{
+            EmojiEnum::FramedPicture,
+            "\xF0\x9F\x96\xBC\xEF\xB8\x8F",
+            "framed picture"},
+        EmojiEntry{
+            EmojiEnum::ArtistPalette,
+            "\xF0\x9F\x8E\xA8",
+            "artist palette"},
         EmojiEntry{EmojiEnum::Thread, "\xF0\x9F\xA7\xB5", "thread"},
-        EmojiEntry{EmojiEnum::SewingNeedle, "\xF0\x9F\xAA\xA1",
-                   "sewing needle"},
+        EmojiEntry{
+            EmojiEnum::SewingNeedle,
+            "\xF0\x9F\xAA\xA1",
+            "sewing needle"},
         EmojiEntry{EmojiEnum::Yarn, "\xF0\x9F\xA7\xB6", "yarn"},
         EmojiEntry{EmojiEnum::Knot, "\xF0\x9F\xAA\xA2", "knot"},
         EmojiEntry{EmojiEnum::Glasses, "\xF0\x9F\x91\x93", "glasses"},
-        EmojiEntry{EmojiEnum::Sunglasses, "\xF0\x9F\x95\xB6\xEF\xB8\x8F",
-                   "sunglasses"},
+        EmojiEntry{
+            EmojiEnum::Sunglasses,
+            "\xF0\x9F\x95\xB6\xEF\xB8\x8F",
+            "sunglasses"},
         EmojiEntry{EmojiEnum::Goggles, "\xF0\x9F\xA5\xBD", "goggles"},
         EmojiEntry{EmojiEnum::LabCoat, "\xF0\x9F\xA5\xBC", "lab coat"},
         EmojiEntry{EmojiEnum::SafetyVest, "\xF0\x9F\xA6\xBA", "safety vest"},
@@ -9292,80 +11666,120 @@ consteval auto makeEmojiList()
         EmojiEntry{EmojiEnum::Dress, "\xF0\x9F\x91\x97", "dress"},
         EmojiEntry{EmojiEnum::Kimono, "\xF0\x9F\x91\x98", "kimono"},
         EmojiEntry{EmojiEnum::Sari, "\xF0\x9F\xA5\xBB", "sari"},
-        EmojiEntry{EmojiEnum::OnePieceSwimsuit, "\xF0\x9F\xA9\xB1",
-                   "one-piece swimsuit"},
+        EmojiEntry{
+            EmojiEnum::OnePieceSwimsuit,
+            "\xF0\x9F\xA9\xB1",
+            "one-piece swimsuit"},
         EmojiEntry{EmojiEnum::Briefs, "\xF0\x9F\xA9\xB2", "briefs"},
         EmojiEntry{EmojiEnum::Shorts, "\xF0\x9F\xA9\xB3", "shorts"},
         EmojiEntry{EmojiEnum::Bikini, "\xF0\x9F\x91\x99", "bikini"},
-        EmojiEntry{EmojiEnum::WomansClothes, "\xF0\x9F\x91\x9A",
-                   "womans clothes"},
-        EmojiEntry{EmojiEnum::FoldingHandFan, "\xF0\x9F\xAA\xAD",
-                   "folding hand fan"},
+        EmojiEntry{
+            EmojiEnum::WomansClothes,
+            "\xF0\x9F\x91\x9A",
+            "womans clothes"},
+        EmojiEntry{
+            EmojiEnum::FoldingHandFan,
+            "\xF0\x9F\xAA\xAD",
+            "folding hand fan"},
         EmojiEntry{EmojiEnum::Purse, "\xF0\x9F\x91\x9B", "purse"},
         EmojiEntry{EmojiEnum::Handbag, "\xF0\x9F\x91\x9C", "handbag"},
         EmojiEntry{EmojiEnum::ClutchBag, "\xF0\x9F\x91\x9D", "clutch bag"},
-        EmojiEntry{EmojiEnum::ShoppingBags, "\xF0\x9F\x9B\x8D\xEF\xB8\x8F",
-                   "shopping bags"},
+        EmojiEntry{
+            EmojiEnum::ShoppingBags,
+            "\xF0\x9F\x9B\x8D\xEF\xB8\x8F",
+            "shopping bags"},
         EmojiEntry{EmojiEnum::Backpack, "\xF0\x9F\x8E\x92", "backpack"},
         EmojiEntry{EmojiEnum::ThongSandal, "\xF0\x9F\xA9\xB4", "thong sandal"},
         EmojiEntry{EmojiEnum::MansShoe, "\xF0\x9F\x91\x9E", "mans shoe"},
         EmojiEntry{EmojiEnum::RunningShoe, "\xF0\x9F\x91\x9F", "running shoe"},
         EmojiEntry{EmojiEnum::HikingBoot, "\xF0\x9F\xA5\xBE", "hiking boot"},
         EmojiEntry{EmojiEnum::FlatShoe, "\xF0\x9F\xA5\xBF", "flat shoe"},
-        EmojiEntry{EmojiEnum::HighHeeledShoe, "\xF0\x9F\x91\xA0",
-                   "high-heeled shoe"},
-        EmojiEntry{EmojiEnum::WomansSandal, "\xF0\x9F\x91\xA1",
-                   "womans sandal"},
+        EmojiEntry{
+            EmojiEnum::HighHeeledShoe,
+            "\xF0\x9F\x91\xA0",
+            "high-heeled shoe"},
+        EmojiEntry{
+            EmojiEnum::WomansSandal,
+            "\xF0\x9F\x91\xA1",
+            "womans sandal"},
         EmojiEntry{EmojiEnum::BalletShoes, "\xF0\x9F\xA9\xB0", "ballet shoes"},
         EmojiEntry{EmojiEnum::WomansBoot, "\xF0\x9F\x91\xA2", "womans boot"},
         EmojiEntry{EmojiEnum::HairPick, "\xF0\x9F\xAA\xAE", "hair pick"},
         EmojiEntry{EmojiEnum::Crown, "\xF0\x9F\x91\x91", "crown"},
         EmojiEntry{EmojiEnum::WomansHat, "\xF0\x9F\x91\x92", "womans hat"},
         EmojiEntry{EmojiEnum::TopHat, "\xF0\x9F\x8E\xA9", "top hat"},
-        EmojiEntry{EmojiEnum::GraduationCap, "\xF0\x9F\x8E\x93",
-                   "graduation cap"},
+        EmojiEntry{
+            EmojiEnum::GraduationCap,
+            "\xF0\x9F\x8E\x93",
+            "graduation cap"},
         EmojiEntry{EmojiEnum::BilledCap, "\xF0\x9F\xA7\xA2", "billed cap"},
-        EmojiEntry{EmojiEnum::MilitaryHelmet, "\xF0\x9F\xAA\x96",
-                   "military helmet"},
-        EmojiEntry{EmojiEnum::RescueWorkersHelmet, "\xE2\x9B\x91\xEF\xB8\x8F",
-                   "rescue workers helmet"},
+        EmojiEntry{
+            EmojiEnum::MilitaryHelmet,
+            "\xF0\x9F\xAA\x96",
+            "military helmet"},
+        EmojiEntry{
+            EmojiEnum::RescueWorkersHelmet,
+            "\xE2\x9B\x91\xEF\xB8\x8F",
+            "rescue workers helmet"},
         EmojiEntry{EmojiEnum::PrayerBeads, "\xF0\x9F\x93\xBF", "prayer beads"},
         EmojiEntry{EmojiEnum::Lipstick, "\xF0\x9F\x92\x84", "lipstick"},
         EmojiEntry{EmojiEnum::Ring, "\xF0\x9F\x92\x8D", "ring"},
         EmojiEntry{EmojiEnum::GemStone, "\xF0\x9F\x92\x8E", "gem stone"},
-        EmojiEntry{EmojiEnum::MutedSpeaker, "\xF0\x9F\x94\x87",
-                   "muted speaker"},
-        EmojiEntry{EmojiEnum::SpeakerLowVolume, "\xF0\x9F\x94\x88",
-                   "speaker low volume"},
-        EmojiEntry{EmojiEnum::SpeakerMediumVolume, "\xF0\x9F\x94\x89",
-                   "speaker medium volume"},
-        EmojiEntry{EmojiEnum::SpeakerHighVolume, "\xF0\x9F\x94\x8A",
-                   "speaker high volume"},
+        EmojiEntry{
+            EmojiEnum::MutedSpeaker,
+            "\xF0\x9F\x94\x87",
+            "muted speaker"},
+        EmojiEntry{
+            EmojiEnum::SpeakerLowVolume,
+            "\xF0\x9F\x94\x88",
+            "speaker low volume"},
+        EmojiEntry{
+            EmojiEnum::SpeakerMediumVolume,
+            "\xF0\x9F\x94\x89",
+            "speaker medium volume"},
+        EmojiEntry{
+            EmojiEnum::SpeakerHighVolume,
+            "\xF0\x9F\x94\x8A",
+            "speaker high volume"},
         EmojiEntry{EmojiEnum::Loudspeaker, "\xF0\x9F\x93\xA2", "loudspeaker"},
         EmojiEntry{EmojiEnum::Megaphone, "\xF0\x9F\x93\xA3", "megaphone"},
         EmojiEntry{EmojiEnum::PostalHorn, "\xF0\x9F\x93\xAF", "postal horn"},
         EmojiEntry{EmojiEnum::Bell, "\xF0\x9F\x94\x94", "bell"},
-        EmojiEntry{EmojiEnum::BellWithSlash, "\xF0\x9F\x94\x95",
-                   "bell with slash"},
-        EmojiEntry{EmojiEnum::MusicalScore, "\xF0\x9F\x8E\xBC",
-                   "musical score"},
+        EmojiEntry{
+            EmojiEnum::BellWithSlash,
+            "\xF0\x9F\x94\x95",
+            "bell with slash"},
+        EmojiEntry{
+            EmojiEnum::MusicalScore,
+            "\xF0\x9F\x8E\xBC",
+            "musical score"},
         EmojiEntry{EmojiEnum::MusicalNote, "\xF0\x9F\x8E\xB5", "musical note"},
-        EmojiEntry{EmojiEnum::MusicalNotes, "\xF0\x9F\x8E\xB6",
-                   "musical notes"},
-        EmojiEntry{EmojiEnum::StudioMicrophone, "\xF0\x9F\x8E\x99\xEF\xB8\x8F",
-                   "studio microphone"},
-        EmojiEntry{EmojiEnum::LevelSlider, "\xF0\x9F\x8E\x9A\xEF\xB8\x8F",
-                   "level slider"},
-        EmojiEntry{EmojiEnum::ControlKnobs, "\xF0\x9F\x8E\x9B\xEF\xB8\x8F",
-                   "control knobs"},
+        EmojiEntry{
+            EmojiEnum::MusicalNotes,
+            "\xF0\x9F\x8E\xB6",
+            "musical notes"},
+        EmojiEntry{
+            EmojiEnum::StudioMicrophone,
+            "\xF0\x9F\x8E\x99\xEF\xB8\x8F",
+            "studio microphone"},
+        EmojiEntry{
+            EmojiEnum::LevelSlider,
+            "\xF0\x9F\x8E\x9A\xEF\xB8\x8F",
+            "level slider"},
+        EmojiEntry{
+            EmojiEnum::ControlKnobs,
+            "\xF0\x9F\x8E\x9B\xEF\xB8\x8F",
+            "control knobs"},
         EmojiEntry{EmojiEnum::Microphone, "\xF0\x9F\x8E\xA4", "microphone"},
         EmojiEntry{EmojiEnum::Headphone, "\xF0\x9F\x8E\xA7", "headphone"},
         EmojiEntry{EmojiEnum::Radio, "\xF0\x9F\x93\xBB", "radio"},
         EmojiEntry{EmojiEnum::Saxophone, "\xF0\x9F\x8E\xB7", "saxophone"},
         EmojiEntry{EmojiEnum::Accordion, "\xF0\x9F\xAA\x97", "accordion"},
         EmojiEntry{EmojiEnum::Guitar, "\xF0\x9F\x8E\xB8", "guitar"},
-        EmojiEntry{EmojiEnum::MusicalKeyboard, "\xF0\x9F\x8E\xB9",
-                   "musical keyboard"},
+        EmojiEntry{
+            EmojiEnum::MusicalKeyboard,
+            "\xF0\x9F\x8E\xB9",
+            "musical keyboard"},
         EmojiEntry{EmojiEnum::Trumpet, "\xF0\x9F\x8E\xBA", "trumpet"},
         EmojiEntry{EmojiEnum::Violin, "\xF0\x9F\x8E\xBB", "violin"},
         EmojiEntry{EmojiEnum::Banjo, "\xF0\x9F\xAA\x95", "banjo"},
@@ -9374,60 +11788,96 @@ consteval auto makeEmojiList()
         EmojiEntry{EmojiEnum::Maracas, "\xF0\x9F\xAA\x87", "maracas"},
         EmojiEntry{EmojiEnum::Flute, "\xF0\x9F\xAA\x88", "flute"},
         EmojiEntry{EmojiEnum::MobilePhone, "\xF0\x9F\x93\xB1", "mobile phone"},
-        EmojiEntry{EmojiEnum::MobilePhoneWithArrow, "\xF0\x9F\x93\xB2",
-                   "mobile phone with arrow"},
-        EmojiEntry{EmojiEnum::Telephone, "\xE2\x98\x8E\xEF\xB8\x8F",
-                   "telephone"},
-        EmojiEntry{EmojiEnum::TelephoneReceiver, "\xF0\x9F\x93\x9E",
-                   "telephone receiver"},
+        EmojiEntry{
+            EmojiEnum::MobilePhoneWithArrow,
+            "\xF0\x9F\x93\xB2",
+            "mobile phone with arrow"},
+        EmojiEntry{
+            EmojiEnum::Telephone,
+            "\xE2\x98\x8E\xEF\xB8\x8F",
+            "telephone"},
+        EmojiEntry{
+            EmojiEnum::TelephoneReceiver,
+            "\xF0\x9F\x93\x9E",
+            "telephone receiver"},
         EmojiEntry{EmojiEnum::Pager, "\xF0\x9F\x93\x9F", "pager"},
         EmojiEntry{EmojiEnum::FaxMachine, "\xF0\x9F\x93\xA0", "fax machine"},
         EmojiEntry{EmojiEnum::Battery, "\xF0\x9F\x94\x8B", "battery"},
         EmojiEntry{EmojiEnum::LowBattery, "\xF0\x9F\xAA\xAB", "low battery"},
-        EmojiEntry{EmojiEnum::ElectricPlug, "\xF0\x9F\x94\x8C",
-                   "electric plug"},
+        EmojiEntry{
+            EmojiEnum::ElectricPlug,
+            "\xF0\x9F\x94\x8C",
+            "electric plug"},
         EmojiEntry{EmojiEnum::Laptop, "\xF0\x9F\x92\xBB", "laptop"},
-        EmojiEntry{EmojiEnum::DesktopComputer, "\xF0\x9F\x96\xA5\xEF\xB8\x8F",
-                   "desktop computer"},
-        EmojiEntry{EmojiEnum::Printer, "\xF0\x9F\x96\xA8\xEF\xB8\x8F",
-                   "printer"},
+        EmojiEntry{
+            EmojiEnum::DesktopComputer,
+            "\xF0\x9F\x96\xA5\xEF\xB8\x8F",
+            "desktop computer"},
+        EmojiEntry{
+            EmojiEnum::Printer,
+            "\xF0\x9F\x96\xA8\xEF\xB8\x8F",
+            "printer"},
         EmojiEntry{EmojiEnum::Keyboard, "\xE2\x8C\xA8\xEF\xB8\x8F", "keyboard"},
-        EmojiEntry{EmojiEnum::ComputerMouse, "\xF0\x9F\x96\xB1\xEF\xB8\x8F",
-                   "computer mouse"},
-        EmojiEntry{EmojiEnum::Trackball, "\xF0\x9F\x96\xB2\xEF\xB8\x8F",
-                   "trackball"},
-        EmojiEntry{EmojiEnum::ComputerDisk, "\xF0\x9F\x92\xBD",
-                   "computer disk"},
+        EmojiEntry{
+            EmojiEnum::ComputerMouse,
+            "\xF0\x9F\x96\xB1\xEF\xB8\x8F",
+            "computer mouse"},
+        EmojiEntry{
+            EmojiEnum::Trackball,
+            "\xF0\x9F\x96\xB2\xEF\xB8\x8F",
+            "trackball"},
+        EmojiEntry{
+            EmojiEnum::ComputerDisk,
+            "\xF0\x9F\x92\xBD",
+            "computer disk"},
         EmojiEntry{EmojiEnum::FloppyDisk, "\xF0\x9F\x92\xBE", "floppy disk"},
         EmojiEntry{EmojiEnum::OpticalDisk, "\xF0\x9F\x92\xBF", "optical disk"},
         EmojiEntry{EmojiEnum::Dvd, "\xF0\x9F\x93\x80", "dvd"},
         EmojiEntry{EmojiEnum::Abacus, "\xF0\x9F\xA7\xAE", "abacus"},
         EmojiEntry{EmojiEnum::MovieCamera, "\xF0\x9F\x8E\xA5", "movie camera"},
-        EmojiEntry{EmojiEnum::FilmFrames, "\xF0\x9F\x8E\x9E\xEF\xB8\x8F",
-                   "film frames"},
-        EmojiEntry{EmojiEnum::FilmProjector, "\xF0\x9F\x93\xBD\xEF\xB8\x8F",
-                   "film projector"},
-        EmojiEntry{EmojiEnum::ClapperBoard, "\xF0\x9F\x8E\xAC",
-                   "clapper board"},
+        EmojiEntry{
+            EmojiEnum::FilmFrames,
+            "\xF0\x9F\x8E\x9E\xEF\xB8\x8F",
+            "film frames"},
+        EmojiEntry{
+            EmojiEnum::FilmProjector,
+            "\xF0\x9F\x93\xBD\xEF\xB8\x8F",
+            "film projector"},
+        EmojiEntry{
+            EmojiEnum::ClapperBoard,
+            "\xF0\x9F\x8E\xAC",
+            "clapper board"},
         EmojiEntry{EmojiEnum::Television, "\xF0\x9F\x93\xBA", "television"},
         EmojiEntry{EmojiEnum::Camera, "\xF0\x9F\x93\xB7", "camera"},
-        EmojiEntry{EmojiEnum::CameraWithFlash, "\xF0\x9F\x93\xB8",
-                   "camera with flash"},
+        EmojiEntry{
+            EmojiEnum::CameraWithFlash,
+            "\xF0\x9F\x93\xB8",
+            "camera with flash"},
         EmojiEntry{EmojiEnum::VideoCamera, "\xF0\x9F\x93\xB9", "video camera"},
-        EmojiEntry{EmojiEnum::Videocassette, "\xF0\x9F\x93\xBC",
-                   "videocassette"},
-        EmojiEntry{EmojiEnum::MagnifyingGlassTiltedLeft, "\xF0\x9F\x94\x8D",
-                   "magnifying glass tilted left"},
-        EmojiEntry{EmojiEnum::MagnifyingGlassTiltedRight, "\xF0\x9F\x94\x8E",
-                   "magnifying glass tilted right"},
+        EmojiEntry{
+            EmojiEnum::Videocassette,
+            "\xF0\x9F\x93\xBC",
+            "videocassette"},
+        EmojiEntry{
+            EmojiEnum::MagnifyingGlassTiltedLeft,
+            "\xF0\x9F\x94\x8D",
+            "magnifying glass tilted left"},
+        EmojiEntry{
+            EmojiEnum::MagnifyingGlassTiltedRight,
+            "\xF0\x9F\x94\x8E",
+            "magnifying glass tilted right"},
         EmojiEntry{EmojiEnum::Candle, "\xF0\x9F\x95\xAF\xEF\xB8\x8F", "candle"},
         EmojiEntry{EmojiEnum::LightBulb, "\xF0\x9F\x92\xA1", "light bulb"},
         EmojiEntry{EmojiEnum::Flashlight, "\xF0\x9F\x94\xA6", "flashlight"},
-        EmojiEntry{EmojiEnum::RedPaperLantern, "\xF0\x9F\x8F\xAE",
-                   "red paper lantern"},
+        EmojiEntry{
+            EmojiEnum::RedPaperLantern,
+            "\xF0\x9F\x8F\xAE",
+            "red paper lantern"},
         EmojiEntry{EmojiEnum::DiyaLamp, "\xF0\x9F\xAA\x94", "diya lamp"},
-        EmojiEntry{EmojiEnum::NotebookWithDecorativeCover, "\xF0\x9F\x93\x94",
-                   "notebook with decorative cover"},
+        EmojiEntry{
+            EmojiEnum::NotebookWithDecorativeCover,
+            "\xF0\x9F\x93\x94",
+            "notebook with decorative cover"},
         EmojiEntry{EmojiEnum::ClosedBook, "\xF0\x9F\x93\x95", "closed book"},
         EmojiEntry{EmojiEnum::OpenBook, "\xF0\x9F\x93\x96", "open book"},
         EmojiEntry{EmojiEnum::GreenBook, "\xF0\x9F\x93\x97", "green book"},
@@ -9436,137 +11886,220 @@ consteval auto makeEmojiList()
         EmojiEntry{EmojiEnum::Books, "\xF0\x9F\x93\x9A", "books"},
         EmojiEntry{EmojiEnum::Notebook, "\xF0\x9F\x93\x93", "notebook"},
         EmojiEntry{EmojiEnum::Ledger, "\xF0\x9F\x93\x92", "ledger"},
-        EmojiEntry{EmojiEnum::PageWithCurl, "\xF0\x9F\x93\x83",
-                   "page with curl"},
+        EmojiEntry{
+            EmojiEnum::PageWithCurl,
+            "\xF0\x9F\x93\x83",
+            "page with curl"},
         EmojiEntry{EmojiEnum::Scroll, "\xF0\x9F\x93\x9C", "scroll"},
-        EmojiEntry{EmojiEnum::PageFacingUp, "\xF0\x9F\x93\x84",
-                   "page facing up"},
+        EmojiEntry{
+            EmojiEnum::PageFacingUp,
+            "\xF0\x9F\x93\x84",
+            "page facing up"},
         EmojiEntry{EmojiEnum::Newspaper, "\xF0\x9F\x93\xB0", "newspaper"},
-        EmojiEntry{EmojiEnum::RolledUpNewspaper, "\xF0\x9F\x97\x9E\xEF\xB8\x8F",
-                   "rolled-up newspaper"},
-        EmojiEntry{EmojiEnum::BookmarkTabs, "\xF0\x9F\x93\x91",
-                   "bookmark tabs"},
+        EmojiEntry{
+            EmojiEnum::RolledUpNewspaper,
+            "\xF0\x9F\x97\x9E\xEF\xB8\x8F",
+            "rolled-up newspaper"},
+        EmojiEntry{
+            EmojiEnum::BookmarkTabs,
+            "\xF0\x9F\x93\x91",
+            "bookmark tabs"},
         EmojiEntry{EmojiEnum::Bookmark, "\xF0\x9F\x94\x96", "bookmark"},
         EmojiEntry{EmojiEnum::Label, "\xF0\x9F\x8F\xB7\xEF\xB8\x8F", "label"},
         EmojiEntry{EmojiEnum::MoneyBag, "\xF0\x9F\x92\xB0", "money bag"},
         EmojiEntry{EmojiEnum::Coin, "\xF0\x9F\xAA\x99", "coin"},
         EmojiEntry{EmojiEnum::YenBanknote, "\xF0\x9F\x92\xB4", "yen banknote"},
-        EmojiEntry{EmojiEnum::DollarBanknote, "\xF0\x9F\x92\xB5",
-                   "dollar banknote"},
-        EmojiEntry{EmojiEnum::EuroBanknote, "\xF0\x9F\x92\xB6",
-                   "euro banknote"},
-        EmojiEntry{EmojiEnum::PoundBanknote, "\xF0\x9F\x92\xB7",
-                   "pound banknote"},
-        EmojiEntry{EmojiEnum::MoneyWithWings, "\xF0\x9F\x92\xB8",
-                   "money with wings"},
+        EmojiEntry{
+            EmojiEnum::DollarBanknote,
+            "\xF0\x9F\x92\xB5",
+            "dollar banknote"},
+        EmojiEntry{
+            EmojiEnum::EuroBanknote,
+            "\xF0\x9F\x92\xB6",
+            "euro banknote"},
+        EmojiEntry{
+            EmojiEnum::PoundBanknote,
+            "\xF0\x9F\x92\xB7",
+            "pound banknote"},
+        EmojiEntry{
+            EmojiEnum::MoneyWithWings,
+            "\xF0\x9F\x92\xB8",
+            "money with wings"},
         EmojiEntry{EmojiEnum::CreditCard, "\xF0\x9F\x92\xB3", "credit card"},
         EmojiEntry{EmojiEnum::Receipt, "\xF0\x9F\xA7\xBE", "receipt"},
-        EmojiEntry{EmojiEnum::ChartIncreasingWithYen, "\xF0\x9F\x92\xB9",
-                   "chart increasing with yen"},
+        EmojiEntry{
+            EmojiEnum::ChartIncreasingWithYen,
+            "\xF0\x9F\x92\xB9",
+            "chart increasing with yen"},
         EmojiEntry{EmojiEnum::Envelope, "\xE2\x9C\x89\xEF\xB8\x8F", "envelope"},
         EmojiEntry{EmojiEnum::EMail, "\xF0\x9F\x93\xA7", "e-mail"},
-        EmojiEntry{EmojiEnum::IncomingEnvelope, "\xF0\x9F\x93\xA8",
-                   "incoming envelope"},
-        EmojiEntry{EmojiEnum::EnvelopeWithArrow, "\xF0\x9F\x93\xA9",
-                   "envelope with arrow"},
+        EmojiEntry{
+            EmojiEnum::IncomingEnvelope,
+            "\xF0\x9F\x93\xA8",
+            "incoming envelope"},
+        EmojiEntry{
+            EmojiEnum::EnvelopeWithArrow,
+            "\xF0\x9F\x93\xA9",
+            "envelope with arrow"},
         EmojiEntry{EmojiEnum::OutboxTray, "\xF0\x9F\x93\xA4", "outbox tray"},
         EmojiEntry{EmojiEnum::InboxTray, "\xF0\x9F\x93\xA5", "inbox tray"},
         EmojiEntry{EmojiEnum::Package, "\xF0\x9F\x93\xA6", "package"},
-        EmojiEntry{EmojiEnum::ClosedMailboxWithRaisedFlag, "\xF0\x9F\x93\xAB",
-                   "closed mailbox with raised flag"},
-        EmojiEntry{EmojiEnum::ClosedMailboxWithLoweredFlag, "\xF0\x9F\x93\xAA",
-                   "closed mailbox with lowered flag"},
-        EmojiEntry{EmojiEnum::OpenMailboxWithRaisedFlag, "\xF0\x9F\x93\xAC",
-                   "open mailbox with raised flag"},
-        EmojiEntry{EmojiEnum::OpenMailboxWithLoweredFlag, "\xF0\x9F\x93\xAD",
-                   "open mailbox with lowered flag"},
+        EmojiEntry{
+            EmojiEnum::ClosedMailboxWithRaisedFlag,
+            "\xF0\x9F\x93\xAB",
+            "closed mailbox with raised flag"},
+        EmojiEntry{
+            EmojiEnum::ClosedMailboxWithLoweredFlag,
+            "\xF0\x9F\x93\xAA",
+            "closed mailbox with lowered flag"},
+        EmojiEntry{
+            EmojiEnum::OpenMailboxWithRaisedFlag,
+            "\xF0\x9F\x93\xAC",
+            "open mailbox with raised flag"},
+        EmojiEntry{
+            EmojiEnum::OpenMailboxWithLoweredFlag,
+            "\xF0\x9F\x93\xAD",
+            "open mailbox with lowered flag"},
         EmojiEntry{EmojiEnum::Postbox, "\xF0\x9F\x93\xAE", "postbox"},
-        EmojiEntry{EmojiEnum::BallotBoxWithBallot,
-                   "\xF0\x9F\x97\xB3\xEF\xB8\x8F", "ballot box with ballot"},
+        EmojiEntry{
+            EmojiEnum::BallotBoxWithBallot,
+            "\xF0\x9F\x97\xB3\xEF\xB8\x8F",
+            "ballot box with ballot"},
         EmojiEntry{EmojiEnum::Pencil, "\xE2\x9C\x8F\xEF\xB8\x8F", "pencil"},
-        EmojiEntry{EmojiEnum::BlackNib, "\xE2\x9C\x92\xEF\xB8\x8F",
-                   "black nib"},
-        EmojiEntry{EmojiEnum::FountainPen, "\xF0\x9F\x96\x8B\xEF\xB8\x8F",
-                   "fountain pen"},
+        EmojiEntry{
+            EmojiEnum::BlackNib,
+            "\xE2\x9C\x92\xEF\xB8\x8F",
+            "black nib"},
+        EmojiEntry{
+            EmojiEnum::FountainPen,
+            "\xF0\x9F\x96\x8B\xEF\xB8\x8F",
+            "fountain pen"},
         EmojiEntry{EmojiEnum::Pen, "\xF0\x9F\x96\x8A\xEF\xB8\x8F", "pen"},
-        EmojiEntry{EmojiEnum::Paintbrush, "\xF0\x9F\x96\x8C\xEF\xB8\x8F",
-                   "paintbrush"},
+        EmojiEntry{
+            EmojiEnum::Paintbrush,
+            "\xF0\x9F\x96\x8C\xEF\xB8\x8F",
+            "paintbrush"},
         EmojiEntry{EmojiEnum::Crayon, "\xF0\x9F\x96\x8D\xEF\xB8\x8F", "crayon"},
         EmojiEntry{EmojiEnum::Memo, "\xF0\x9F\x93\x9D", "memo"},
         EmojiEntry{EmojiEnum::Briefcase, "\xF0\x9F\x92\xBC", "briefcase"},
         EmojiEntry{EmojiEnum::FileFolder, "\xF0\x9F\x93\x81", "file folder"},
-        EmojiEntry{EmojiEnum::OpenFileFolder, "\xF0\x9F\x93\x82",
-                   "open file folder"},
-        EmojiEntry{EmojiEnum::CardIndexDividers, "\xF0\x9F\x97\x82\xEF\xB8\x8F",
-                   "card index dividers"},
+        EmojiEntry{
+            EmojiEnum::OpenFileFolder,
+            "\xF0\x9F\x93\x82",
+            "open file folder"},
+        EmojiEntry{
+            EmojiEnum::CardIndexDividers,
+            "\xF0\x9F\x97\x82\xEF\xB8\x8F",
+            "card index dividers"},
         EmojiEntry{EmojiEnum::Calendar, "\xF0\x9F\x93\x85", "calendar"},
-        EmojiEntry{EmojiEnum::TearOffCalendar, "\xF0\x9F\x93\x86",
-                   "tear-off calendar"},
-        EmojiEntry{EmojiEnum::SpiralNotepad, "\xF0\x9F\x97\x92\xEF\xB8\x8F",
-                   "spiral notepad"},
-        EmojiEntry{EmojiEnum::SpiralCalendar, "\xF0\x9F\x97\x93\xEF\xB8\x8F",
-                   "spiral calendar"},
+        EmojiEntry{
+            EmojiEnum::TearOffCalendar,
+            "\xF0\x9F\x93\x86",
+            "tear-off calendar"},
+        EmojiEntry{
+            EmojiEnum::SpiralNotepad,
+            "\xF0\x9F\x97\x92\xEF\xB8\x8F",
+            "spiral notepad"},
+        EmojiEntry{
+            EmojiEnum::SpiralCalendar,
+            "\xF0\x9F\x97\x93\xEF\xB8\x8F",
+            "spiral calendar"},
         EmojiEntry{EmojiEnum::CardIndex, "\xF0\x9F\x93\x87", "card index"},
-        EmojiEntry{EmojiEnum::ChartIncreasing, "\xF0\x9F\x93\x88",
-                   "chart increasing"},
-        EmojiEntry{EmojiEnum::ChartDecreasing, "\xF0\x9F\x93\x89",
-                   "chart decreasing"},
+        EmojiEntry{
+            EmojiEnum::ChartIncreasing,
+            "\xF0\x9F\x93\x88",
+            "chart increasing"},
+        EmojiEntry{
+            EmojiEnum::ChartDecreasing,
+            "\xF0\x9F\x93\x89",
+            "chart decreasing"},
         EmojiEntry{EmojiEnum::BarChart, "\xF0\x9F\x93\x8A", "bar chart"},
         EmojiEntry{EmojiEnum::Clipboard, "\xF0\x9F\x93\x8B", "clipboard"},
         EmojiEntry{EmojiEnum::Pushpin, "\xF0\x9F\x93\x8C", "pushpin"},
-        EmojiEntry{EmojiEnum::RoundPushpin, "\xF0\x9F\x93\x8D",
-                   "round pushpin"},
+        EmojiEntry{
+            EmojiEnum::RoundPushpin,
+            "\xF0\x9F\x93\x8D",
+            "round pushpin"},
         EmojiEntry{EmojiEnum::Paperclip, "\xF0\x9F\x93\x8E", "paperclip"},
-        EmojiEntry{EmojiEnum::LinkedPaperclips, "\xF0\x9F\x96\x87\xEF\xB8\x8F",
-                   "linked paperclips"},
-        EmojiEntry{EmojiEnum::StraightRuler, "\xF0\x9F\x93\x8F",
-                   "straight ruler"},
-        EmojiEntry{EmojiEnum::TriangularRuler, "\xF0\x9F\x93\x90",
-                   "triangular ruler"},
+        EmojiEntry{
+            EmojiEnum::LinkedPaperclips,
+            "\xF0\x9F\x96\x87\xEF\xB8\x8F",
+            "linked paperclips"},
+        EmojiEntry{
+            EmojiEnum::StraightRuler,
+            "\xF0\x9F\x93\x8F",
+            "straight ruler"},
+        EmojiEntry{
+            EmojiEnum::TriangularRuler,
+            "\xF0\x9F\x93\x90",
+            "triangular ruler"},
         EmojiEntry{EmojiEnum::Scissors, "\xE2\x9C\x82\xEF\xB8\x8F", "scissors"},
-        EmojiEntry{EmojiEnum::CardFileBox, "\xF0\x9F\x97\x83\xEF\xB8\x8F",
-                   "card file box"},
-        EmojiEntry{EmojiEnum::FileCabinet, "\xF0\x9F\x97\x84\xEF\xB8\x8F",
-                   "file cabinet"},
-        EmojiEntry{EmojiEnum::Wastebasket, "\xF0\x9F\x97\x91\xEF\xB8\x8F",
-                   "wastebasket"},
+        EmojiEntry{
+            EmojiEnum::CardFileBox,
+            "\xF0\x9F\x97\x83\xEF\xB8\x8F",
+            "card file box"},
+        EmojiEntry{
+            EmojiEnum::FileCabinet,
+            "\xF0\x9F\x97\x84\xEF\xB8\x8F",
+            "file cabinet"},
+        EmojiEntry{
+            EmojiEnum::Wastebasket,
+            "\xF0\x9F\x97\x91\xEF\xB8\x8F",
+            "wastebasket"},
         EmojiEntry{EmojiEnum::Locked, "\xF0\x9F\x94\x92", "locked"},
         EmojiEntry{EmojiEnum::Unlocked, "\xF0\x9F\x94\x93", "unlocked"},
-        EmojiEntry{EmojiEnum::LockedWithPen, "\xF0\x9F\x94\x8F",
-                   "locked with pen"},
-        EmojiEntry{EmojiEnum::LockedWithKey, "\xF0\x9F\x94\x90",
-                   "locked with key"},
+        EmojiEntry{
+            EmojiEnum::LockedWithPen,
+            "\xF0\x9F\x94\x8F",
+            "locked with pen"},
+        EmojiEntry{
+            EmojiEnum::LockedWithKey,
+            "\xF0\x9F\x94\x90",
+            "locked with key"},
         EmojiEntry{EmojiEnum::Key, "\xF0\x9F\x94\x91", "key"},
-        EmojiEntry{EmojiEnum::OldKey, "\xF0\x9F\x97\x9D\xEF\xB8\x8F",
-                   "old key"},
+        EmojiEntry{
+            EmojiEnum::OldKey,
+            "\xF0\x9F\x97\x9D\xEF\xB8\x8F",
+            "old key"},
         EmojiEntry{EmojiEnum::Hammer, "\xF0\x9F\x94\xA8", "hammer"},
         EmojiEntry{EmojiEnum::Axe, "\xF0\x9F\xAA\x93", "axe"},
         EmojiEntry{EmojiEnum::Pick, "\xE2\x9B\x8F\xEF\xB8\x8F", "pick"},
-        EmojiEntry{EmojiEnum::HammerAndPick, "\xE2\x9A\x92\xEF\xB8\x8F",
-                   "hammer and pick"},
-        EmojiEntry{EmojiEnum::HammerAndWrench, "\xF0\x9F\x9B\xA0\xEF\xB8\x8F",
-                   "hammer and wrench"},
+        EmojiEntry{
+            EmojiEnum::HammerAndPick,
+            "\xE2\x9A\x92\xEF\xB8\x8F",
+            "hammer and pick"},
+        EmojiEntry{
+            EmojiEnum::HammerAndWrench,
+            "\xF0\x9F\x9B\xA0\xEF\xB8\x8F",
+            "hammer and wrench"},
         EmojiEntry{EmojiEnum::Dagger, "\xF0\x9F\x97\xA1\xEF\xB8\x8F", "dagger"},
-        EmojiEntry{EmojiEnum::CrossedSwords, "\xE2\x9A\x94\xEF\xB8\x8F",
-                   "crossed swords"},
+        EmojiEntry{
+            EmojiEnum::CrossedSwords,
+            "\xE2\x9A\x94\xEF\xB8\x8F",
+            "crossed swords"},
         EmojiEntry{EmojiEnum::Bomb, "\xF0\x9F\x92\xA3", "bomb"},
         EmojiEntry{EmojiEnum::Boomerang, "\xF0\x9F\xAA\x83", "boomerang"},
         EmojiEntry{EmojiEnum::BowAndArrow, "\xF0\x9F\x8F\xB9", "bow and arrow"},
         EmojiEntry{EmojiEnum::Shield, "\xF0\x9F\x9B\xA1\xEF\xB8\x8F", "shield"},
-        EmojiEntry{EmojiEnum::CarpentrySaw, "\xF0\x9F\xAA\x9A",
-                   "carpentry saw"},
+        EmojiEntry{
+            EmojiEnum::CarpentrySaw,
+            "\xF0\x9F\xAA\x9A",
+            "carpentry saw"},
         EmojiEntry{EmojiEnum::Wrench, "\xF0\x9F\x94\xA7", "wrench"},
         EmojiEntry{EmojiEnum::Screwdriver, "\xF0\x9F\xAA\x9B", "screwdriver"},
         EmojiEntry{EmojiEnum::NutAndBolt, "\xF0\x9F\x94\xA9", "nut and bolt"},
         EmojiEntry{EmojiEnum::Gear, "\xE2\x9A\x99\xEF\xB8\x8F", "gear"},
         EmojiEntry{EmojiEnum::Clamp, "\xF0\x9F\x97\x9C\xEF\xB8\x8F", "clamp"},
-        EmojiEntry{EmojiEnum::BalanceScale, "\xE2\x9A\x96\xEF\xB8\x8F",
-                   "balance scale"},
+        EmojiEntry{
+            EmojiEnum::BalanceScale,
+            "\xE2\x9A\x96\xEF\xB8\x8F",
+            "balance scale"},
         EmojiEntry{EmojiEnum::WhiteCane, "\xF0\x9F\xA6\xAF", "white cane"},
         EmojiEntry{EmojiEnum::Link, "\xF0\x9F\x94\x97", "link"},
-        EmojiEntry{EmojiEnum::BrokenChain,
-                   "\xE2\x9B\x93\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\xA5",
-                   "broken chain"},
+        EmojiEntry{
+            EmojiEnum::BrokenChain,
+            "\xE2\x9B\x93\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x92\xA5",
+            "broken chain"},
         EmojiEntry{EmojiEnum::Chains, "\xE2\x9B\x93\xEF\xB8\x8F", "chains"},
         EmojiEntry{EmojiEnum::Hook, "\xF0\x9F\xAA\x9D", "hook"},
         EmojiEntry{EmojiEnum::Toolbox, "\xF0\x9F\xA7\xB0", "toolbox"},
@@ -9578,13 +12111,17 @@ consteval auto makeEmojiList()
         EmojiEntry{EmojiEnum::Dna, "\xF0\x9F\xA7\xAC", "dna"},
         EmojiEntry{EmojiEnum::Microscope, "\xF0\x9F\x94\xAC", "microscope"},
         EmojiEntry{EmojiEnum::Telescope, "\xF0\x9F\x94\xAD", "telescope"},
-        EmojiEntry{EmojiEnum::SatelliteAntenna, "\xF0\x9F\x93\xA1",
-                   "satellite antenna"},
+        EmojiEntry{
+            EmojiEnum::SatelliteAntenna,
+            "\xF0\x9F\x93\xA1",
+            "satellite antenna"},
         EmojiEntry{EmojiEnum::Syringe, "\xF0\x9F\x92\x89", "syringe"},
         EmojiEntry{EmojiEnum::DropOfBlood, "\xF0\x9F\xA9\xB8", "drop of blood"},
         EmojiEntry{EmojiEnum::Pill, "\xF0\x9F\x92\x8A", "pill"},
-        EmojiEntry{EmojiEnum::AdhesiveBandage, "\xF0\x9F\xA9\xB9",
-                   "adhesive bandage"},
+        EmojiEntry{
+            EmojiEnum::AdhesiveBandage,
+            "\xF0\x9F\xA9\xB9",
+            "adhesive bandage"},
         EmojiEntry{EmojiEnum::Crutch, "\xF0\x9F\xA9\xBC", "crutch"},
         EmojiEntry{EmojiEnum::Stethoscope, "\xF0\x9F\xA9\xBA", "stethoscope"},
         EmojiEntry{EmojiEnum::XRay, "\xF0\x9F\xA9\xBB", "x-ray"},
@@ -9593,8 +12130,10 @@ consteval auto makeEmojiList()
         EmojiEntry{EmojiEnum::Mirror, "\xF0\x9F\xAA\x9E", "mirror"},
         EmojiEntry{EmojiEnum::Window, "\xF0\x9F\xAA\x9F", "window"},
         EmojiEntry{EmojiEnum::Bed, "\xF0\x9F\x9B\x8F\xEF\xB8\x8F", "bed"},
-        EmojiEntry{EmojiEnum::CouchAndLamp, "\xF0\x9F\x9B\x8B\xEF\xB8\x8F",
-                   "couch and lamp"},
+        EmojiEntry{
+            EmojiEnum::CouchAndLamp,
+            "\xF0\x9F\x9B\x8B\xEF\xB8\x8F",
+            "couch and lamp"},
         EmojiEntry{EmojiEnum::Chair, "\xF0\x9F\xAA\x91", "chair"},
         EmojiEntry{EmojiEnum::Toilet, "\xF0\x9F\x9A\xBD", "toilet"},
         EmojiEntry{EmojiEnum::Plunger, "\xF0\x9F\xAA\xA0", "plunger"},
@@ -9602,8 +12141,10 @@ consteval auto makeEmojiList()
         EmojiEntry{EmojiEnum::Bathtub, "\xF0\x9F\x9B\x81", "bathtub"},
         EmojiEntry{EmojiEnum::MouseTrap, "\xF0\x9F\xAA\xA4", "mouse trap"},
         EmojiEntry{EmojiEnum::Razor, "\xF0\x9F\xAA\x92", "razor"},
-        EmojiEntry{EmojiEnum::LotionBottle, "\xF0\x9F\xA7\xB4",
-                   "lotion bottle"},
+        EmojiEntry{
+            EmojiEnum::LotionBottle,
+            "\xF0\x9F\xA7\xB4",
+            "lotion bottle"},
         EmojiEntry{EmojiEnum::SafetyPin, "\xF0\x9F\xA7\xB7", "safety pin"},
         EmojiEntry{EmojiEnum::Broom, "\xF0\x9F\xA7\xB9", "broom"},
         EmojiEntry{EmojiEnum::Basket, "\xF0\x9F\xA7\xBA", "basket"},
@@ -9613,116 +12154,196 @@ consteval auto makeEmojiList()
         EmojiEntry{EmojiEnum::Bubbles, "\xF0\x9F\xAB\xA7", "bubbles"},
         EmojiEntry{EmojiEnum::Toothbrush, "\xF0\x9F\xAA\xA5", "toothbrush"},
         EmojiEntry{EmojiEnum::Sponge, "\xF0\x9F\xA7\xBD", "sponge"},
-        EmojiEntry{EmojiEnum::FireExtinguisher, "\xF0\x9F\xA7\xAF",
-                   "fire extinguisher"},
-        EmojiEntry{EmojiEnum::ShoppingCart, "\xF0\x9F\x9B\x92",
-                   "shopping cart"},
+        EmojiEntry{
+            EmojiEnum::FireExtinguisher,
+            "\xF0\x9F\xA7\xAF",
+            "fire extinguisher"},
+        EmojiEntry{
+            EmojiEnum::ShoppingCart,
+            "\xF0\x9F\x9B\x92",
+            "shopping cart"},
         EmojiEntry{EmojiEnum::Cigarette, "\xF0\x9F\x9A\xAC", "cigarette"},
         EmojiEntry{EmojiEnum::Coffin, "\xE2\x9A\xB0\xEF\xB8\x8F", "coffin"},
         EmojiEntry{EmojiEnum::Headstone, "\xF0\x9F\xAA\xA6", "headstone"},
-        EmojiEntry{EmojiEnum::FuneralUrn, "\xE2\x9A\xB1\xEF\xB8\x8F",
-                   "funeral urn"},
+        EmojiEntry{
+            EmojiEnum::FuneralUrn,
+            "\xE2\x9A\xB1\xEF\xB8\x8F",
+            "funeral urn"},
         EmojiEntry{EmojiEnum::NazarAmulet, "\xF0\x9F\xA7\xBF", "nazar amulet"},
         EmojiEntry{EmojiEnum::Hamsa, "\xF0\x9F\xAA\xAC", "hamsa"},
         EmojiEntry{EmojiEnum::Moai, "\xF0\x9F\x97\xBF", "moai"},
         EmojiEntry{EmojiEnum::Placard, "\xF0\x9F\xAA\xA7", "placard"},
-        EmojiEntry{EmojiEnum::IdentificationCard, "\xF0\x9F\xAA\xAA",
-                   "identification card"},
+        EmojiEntry{
+            EmojiEnum::IdentificationCard,
+            "\xF0\x9F\xAA\xAA",
+            "identification card"},
         EmojiEntry{EmojiEnum::AtmSign, "\xF0\x9F\x8F\xA7", "ATM sign"},
-        EmojiEntry{EmojiEnum::LitterInBinSign, "\xF0\x9F\x9A\xAE",
-                   "litter in bin sign"},
-        EmojiEntry{EmojiEnum::PotableWater, "\xF0\x9F\x9A\xB0",
-                   "potable water"},
-        EmojiEntry{EmojiEnum::WheelchairSymbol, "\xE2\x99\xBF",
-                   "wheelchair symbol"},
+        EmojiEntry{
+            EmojiEnum::LitterInBinSign,
+            "\xF0\x9F\x9A\xAE",
+            "litter in bin sign"},
+        EmojiEntry{
+            EmojiEnum::PotableWater,
+            "\xF0\x9F\x9A\xB0",
+            "potable water"},
+        EmojiEntry{
+            EmojiEnum::WheelchairSymbol,
+            "\xE2\x99\xBF",
+            "wheelchair symbol"},
         EmojiEntry{EmojiEnum::MensRoom, "\xF0\x9F\x9A\xB9", "mens room"},
         EmojiEntry{EmojiEnum::WomensRoom, "\xF0\x9F\x9A\xBA", "womens room"},
         EmojiEntry{EmojiEnum::Restroom, "\xF0\x9F\x9A\xBB", "restroom"},
         EmojiEntry{EmojiEnum::BabySymbol, "\xF0\x9F\x9A\xBC", "baby symbol"},
         EmojiEntry{EmojiEnum::WaterCloset, "\xF0\x9F\x9A\xBE", "water closet"},
-        EmojiEntry{EmojiEnum::PassportControl, "\xF0\x9F\x9B\x82",
-                   "passport control"},
+        EmojiEntry{
+            EmojiEnum::PassportControl,
+            "\xF0\x9F\x9B\x82",
+            "passport control"},
         EmojiEntry{EmojiEnum::Customs, "\xF0\x9F\x9B\x83", "customs"},
-        EmojiEntry{EmojiEnum::BaggageClaim, "\xF0\x9F\x9B\x84",
-                   "baggage claim"},
+        EmojiEntry{
+            EmojiEnum::BaggageClaim,
+            "\xF0\x9F\x9B\x84",
+            "baggage claim"},
         EmojiEntry{EmojiEnum::LeftLuggage, "\xF0\x9F\x9B\x85", "left luggage"},
         EmojiEntry{EmojiEnum::Warning, "\xE2\x9A\xA0\xEF\xB8\x8F", "warning"},
-        EmojiEntry{EmojiEnum::ChildrenCrossing, "\xF0\x9F\x9A\xB8",
-                   "children crossing"},
+        EmojiEntry{
+            EmojiEnum::ChildrenCrossing,
+            "\xF0\x9F\x9A\xB8",
+            "children crossing"},
         EmojiEntry{EmojiEnum::NoEntry, "\xE2\x9B\x94", "no entry"},
         EmojiEntry{EmojiEnum::Prohibited, "\xF0\x9F\x9A\xAB", "prohibited"},
         EmojiEntry{EmojiEnum::NoBicycles, "\xF0\x9F\x9A\xB3", "no bicycles"},
         EmojiEntry{EmojiEnum::NoSmoking, "\xF0\x9F\x9A\xAD", "no smoking"},
         EmojiEntry{EmojiEnum::NoLittering, "\xF0\x9F\x9A\xAF", "no littering"},
-        EmojiEntry{EmojiEnum::NonPotableWater, "\xF0\x9F\x9A\xB1",
-                   "non-potable water"},
-        EmojiEntry{EmojiEnum::NoPedestrians, "\xF0\x9F\x9A\xB7",
-                   "no pedestrians"},
-        EmojiEntry{EmojiEnum::NoMobilePhones, "\xF0\x9F\x93\xB5",
-                   "no mobile phones"},
-        EmojiEntry{EmojiEnum::NoOneUnderEighteen, "\xF0\x9F\x94\x9E",
-                   "no one under eighteen"},
-        EmojiEntry{EmojiEnum::Radioactive, "\xE2\x98\xA2\xEF\xB8\x8F",
-                   "radioactive"},
-        EmojiEntry{EmojiEnum::Biohazard, "\xE2\x98\xA3\xEF\xB8\x8F",
-                   "biohazard"},
+        EmojiEntry{
+            EmojiEnum::NonPotableWater,
+            "\xF0\x9F\x9A\xB1",
+            "non-potable water"},
+        EmojiEntry{
+            EmojiEnum::NoPedestrians,
+            "\xF0\x9F\x9A\xB7",
+            "no pedestrians"},
+        EmojiEntry{
+            EmojiEnum::NoMobilePhones,
+            "\xF0\x9F\x93\xB5",
+            "no mobile phones"},
+        EmojiEntry{
+            EmojiEnum::NoOneUnderEighteen,
+            "\xF0\x9F\x94\x9E",
+            "no one under eighteen"},
+        EmojiEntry{
+            EmojiEnum::Radioactive,
+            "\xE2\x98\xA2\xEF\xB8\x8F",
+            "radioactive"},
+        EmojiEntry{
+            EmojiEnum::Biohazard,
+            "\xE2\x98\xA3\xEF\xB8\x8F",
+            "biohazard"},
         EmojiEntry{EmojiEnum::UpArrow, "\xE2\xAC\x86\xEF\xB8\x8F", "up arrow"},
-        EmojiEntry{EmojiEnum::UpRightArrow, "\xE2\x86\x97\xEF\xB8\x8F",
-                   "up-right arrow"},
-        EmojiEntry{EmojiEnum::RightArrow, "\xE2\x9E\xA1\xEF\xB8\x8F",
-                   "right arrow"},
-        EmojiEntry{EmojiEnum::DownRightArrow, "\xE2\x86\x98\xEF\xB8\x8F",
-                   "down-right arrow"},
-        EmojiEntry{EmojiEnum::DownArrow, "\xE2\xAC\x87\xEF\xB8\x8F",
-                   "down arrow"},
-        EmojiEntry{EmojiEnum::DownLeftArrow, "\xE2\x86\x99\xEF\xB8\x8F",
-                   "down-left arrow"},
-        EmojiEntry{EmojiEnum::LeftArrow, "\xE2\xAC\x85\xEF\xB8\x8F",
-                   "left arrow"},
-        EmojiEntry{EmojiEnum::UpLeftArrow, "\xE2\x86\x96\xEF\xB8\x8F",
-                   "up-left arrow"},
-        EmojiEntry{EmojiEnum::UpDownArrow, "\xE2\x86\x95\xEF\xB8\x8F",
-                   "up-down arrow"},
-        EmojiEntry{EmojiEnum::LeftRightArrow, "\xE2\x86\x94\xEF\xB8\x8F",
-                   "left-right arrow"},
-        EmojiEntry{EmojiEnum::RightArrowCurvingLeft, "\xE2\x86\xA9\xEF\xB8\x8F",
-                   "right arrow curving left"},
-        EmojiEntry{EmojiEnum::LeftArrowCurvingRight, "\xE2\x86\xAA\xEF\xB8\x8F",
-                   "left arrow curving right"},
-        EmojiEntry{EmojiEnum::RightArrowCurvingUp, "\xE2\xA4\xB4\xEF\xB8\x8F",
-                   "right arrow curving up"},
-        EmojiEntry{EmojiEnum::RightArrowCurvingDown, "\xE2\xA4\xB5\xEF\xB8\x8F",
-                   "right arrow curving down"},
-        EmojiEntry{EmojiEnum::ClockwiseVerticalArrows, "\xF0\x9F\x94\x83",
-                   "clockwise vertical arrows"},
-        EmojiEntry{EmojiEnum::CounterclockwiseArrowsButton, "\xF0\x9F\x94\x84",
-                   "counterclockwise arrows button"},
+        EmojiEntry{
+            EmojiEnum::UpRightArrow,
+            "\xE2\x86\x97\xEF\xB8\x8F",
+            "up-right arrow"},
+        EmojiEntry{
+            EmojiEnum::RightArrow,
+            "\xE2\x9E\xA1\xEF\xB8\x8F",
+            "right arrow"},
+        EmojiEntry{
+            EmojiEnum::DownRightArrow,
+            "\xE2\x86\x98\xEF\xB8\x8F",
+            "down-right arrow"},
+        EmojiEntry{
+            EmojiEnum::DownArrow,
+            "\xE2\xAC\x87\xEF\xB8\x8F",
+            "down arrow"},
+        EmojiEntry{
+            EmojiEnum::DownLeftArrow,
+            "\xE2\x86\x99\xEF\xB8\x8F",
+            "down-left arrow"},
+        EmojiEntry{
+            EmojiEnum::LeftArrow,
+            "\xE2\xAC\x85\xEF\xB8\x8F",
+            "left arrow"},
+        EmojiEntry{
+            EmojiEnum::UpLeftArrow,
+            "\xE2\x86\x96\xEF\xB8\x8F",
+            "up-left arrow"},
+        EmojiEntry{
+            EmojiEnum::UpDownArrow,
+            "\xE2\x86\x95\xEF\xB8\x8F",
+            "up-down arrow"},
+        EmojiEntry{
+            EmojiEnum::LeftRightArrow,
+            "\xE2\x86\x94\xEF\xB8\x8F",
+            "left-right arrow"},
+        EmojiEntry{
+            EmojiEnum::RightArrowCurvingLeft,
+            "\xE2\x86\xA9\xEF\xB8\x8F",
+            "right arrow curving left"},
+        EmojiEntry{
+            EmojiEnum::LeftArrowCurvingRight,
+            "\xE2\x86\xAA\xEF\xB8\x8F",
+            "left arrow curving right"},
+        EmojiEntry{
+            EmojiEnum::RightArrowCurvingUp,
+            "\xE2\xA4\xB4\xEF\xB8\x8F",
+            "right arrow curving up"},
+        EmojiEntry{
+            EmojiEnum::RightArrowCurvingDown,
+            "\xE2\xA4\xB5\xEF\xB8\x8F",
+            "right arrow curving down"},
+        EmojiEntry{
+            EmojiEnum::ClockwiseVerticalArrows,
+            "\xF0\x9F\x94\x83",
+            "clockwise vertical arrows"},
+        EmojiEntry{
+            EmojiEnum::CounterclockwiseArrowsButton,
+            "\xF0\x9F\x94\x84",
+            "counterclockwise arrows button"},
         EmojiEntry{EmojiEnum::BackArrow, "\xF0\x9F\x94\x99", "BACK arrow"},
         EmojiEntry{EmojiEnum::EndArrow, "\xF0\x9F\x94\x9A", "END arrow"},
         EmojiEntry{EmojiEnum::OnArrow, "\xF0\x9F\x94\x9B", "ON! arrow"},
         EmojiEntry{EmojiEnum::SoonArrow, "\xF0\x9F\x94\x9C", "SOON arrow"},
         EmojiEntry{EmojiEnum::TopArrow, "\xF0\x9F\x94\x9D", "TOP arrow"},
-        EmojiEntry{EmojiEnum::PlaceOfWorship, "\xF0\x9F\x9B\x90",
-                   "place of worship"},
-        EmojiEntry{EmojiEnum::AtomSymbol, "\xE2\x9A\x9B\xEF\xB8\x8F",
-                   "atom symbol"},
+        EmojiEntry{
+            EmojiEnum::PlaceOfWorship,
+            "\xF0\x9F\x9B\x90",
+            "place of worship"},
+        EmojiEntry{
+            EmojiEnum::AtomSymbol,
+            "\xE2\x9A\x9B\xEF\xB8\x8F",
+            "atom symbol"},
         EmojiEntry{EmojiEnum::Om, "\xF0\x9F\x95\x89\xEF\xB8\x8F", "om"},
-        EmojiEntry{EmojiEnum::StarOfDavid, "\xE2\x9C\xA1\xEF\xB8\x8F",
-                   "star of David"},
-        EmojiEntry{EmojiEnum::WheelOfDharma, "\xE2\x98\xB8\xEF\xB8\x8F",
-                   "wheel of dharma"},
+        EmojiEntry{
+            EmojiEnum::StarOfDavid,
+            "\xE2\x9C\xA1\xEF\xB8\x8F",
+            "star of David"},
+        EmojiEntry{
+            EmojiEnum::WheelOfDharma,
+            "\xE2\x98\xB8\xEF\xB8\x8F",
+            "wheel of dharma"},
         EmojiEntry{EmojiEnum::YinYang, "\xE2\x98\xAF\xEF\xB8\x8F", "yin yang"},
-        EmojiEntry{EmojiEnum::LatinCross, "\xE2\x9C\x9D\xEF\xB8\x8F",
-                   "latin cross"},
-        EmojiEntry{EmojiEnum::OrthodoxCross, "\xE2\x98\xA6\xEF\xB8\x8F",
-                   "orthodox cross"},
-        EmojiEntry{EmojiEnum::StarAndCrescent, "\xE2\x98\xAA\xEF\xB8\x8F",
-                   "star and crescent"},
-        EmojiEntry{EmojiEnum::PeaceSymbol, "\xE2\x98\xAE\xEF\xB8\x8F",
-                   "peace symbol"},
+        EmojiEntry{
+            EmojiEnum::LatinCross,
+            "\xE2\x9C\x9D\xEF\xB8\x8F",
+            "latin cross"},
+        EmojiEntry{
+            EmojiEnum::OrthodoxCross,
+            "\xE2\x98\xA6\xEF\xB8\x8F",
+            "orthodox cross"},
+        EmojiEntry{
+            EmojiEnum::StarAndCrescent,
+            "\xE2\x98\xAA\xEF\xB8\x8F",
+            "star and crescent"},
+        EmojiEntry{
+            EmojiEnum::PeaceSymbol,
+            "\xE2\x98\xAE\xEF\xB8\x8F",
+            "peace symbol"},
         EmojiEntry{EmojiEnum::Menorah, "\xF0\x9F\x95\x8E", "menorah"},
-        EmojiEntry{EmojiEnum::DottedSixPointedStar, "\xF0\x9F\x94\xAF",
-                   "dotted six-pointed star"},
+        EmojiEntry{
+            EmojiEnum::DottedSixPointedStar,
+            "\xF0\x9F\x94\xAF",
+            "dotted six-pointed star"},
         EmojiEntry{EmojiEnum::Khanda, "\xF0\x9F\xAA\xAF", "khanda"},
         EmojiEntry{EmojiEnum::Aries, "\xE2\x99\x88", "Aries"},
         EmojiEntry{EmojiEnum::Taurus, "\xE2\x99\x89", "Taurus"},
@@ -9737,854 +12358,1568 @@ consteval auto makeEmojiList()
         EmojiEntry{EmojiEnum::Aquarius, "\xE2\x99\x92", "Aquarius"},
         EmojiEntry{EmojiEnum::Pisces, "\xE2\x99\x93", "Pisces"},
         EmojiEntry{EmojiEnum::Ophiuchus, "\xE2\x9B\x8E", "Ophiuchus"},
-        EmojiEntry{EmojiEnum::ShuffleTracksButton, "\xF0\x9F\x94\x80",
-                   "shuffle tracks button"},
-        EmojiEntry{EmojiEnum::RepeatButton, "\xF0\x9F\x94\x81",
-                   "repeat button"},
-        EmojiEntry{EmojiEnum::RepeatSingleButton, "\xF0\x9F\x94\x82",
-                   "repeat single button"},
-        EmojiEntry{EmojiEnum::PlayButton, "\xE2\x96\xB6\xEF\xB8\x8F",
-                   "play button"},
-        EmojiEntry{EmojiEnum::FastForwardButton, "\xE2\x8F\xA9",
-                   "fast-forward button"},
-        EmojiEntry{EmojiEnum::NextTrackButton, "\xE2\x8F\xAD\xEF\xB8\x8F",
-                   "next track button"},
-        EmojiEntry{EmojiEnum::PlayOrPauseButton, "\xE2\x8F\xAF\xEF\xB8\x8F",
-                   "play or pause button"},
-        EmojiEntry{EmojiEnum::ReverseButton, "\xE2\x97\x80\xEF\xB8\x8F",
-                   "reverse button"},
-        EmojiEntry{EmojiEnum::FastReverseButton, "\xE2\x8F\xAA",
-                   "fast reverse button"},
-        EmojiEntry{EmojiEnum::LastTrackButton, "\xE2\x8F\xAE\xEF\xB8\x8F",
-                   "last track button"},
-        EmojiEntry{EmojiEnum::UpwardsButton, "\xF0\x9F\x94\xBC",
-                   "upwards button"},
+        EmojiEntry{
+            EmojiEnum::ShuffleTracksButton,
+            "\xF0\x9F\x94\x80",
+            "shuffle tracks button"},
+        EmojiEntry{
+            EmojiEnum::RepeatButton,
+            "\xF0\x9F\x94\x81",
+            "repeat button"},
+        EmojiEntry{
+            EmojiEnum::RepeatSingleButton,
+            "\xF0\x9F\x94\x82",
+            "repeat single button"},
+        EmojiEntry{
+            EmojiEnum::PlayButton,
+            "\xE2\x96\xB6\xEF\xB8\x8F",
+            "play button"},
+        EmojiEntry{
+            EmojiEnum::FastForwardButton,
+            "\xE2\x8F\xA9",
+            "fast-forward button"},
+        EmojiEntry{
+            EmojiEnum::NextTrackButton,
+            "\xE2\x8F\xAD\xEF\xB8\x8F",
+            "next track button"},
+        EmojiEntry{
+            EmojiEnum::PlayOrPauseButton,
+            "\xE2\x8F\xAF\xEF\xB8\x8F",
+            "play or pause button"},
+        EmojiEntry{
+            EmojiEnum::ReverseButton,
+            "\xE2\x97\x80\xEF\xB8\x8F",
+            "reverse button"},
+        EmojiEntry{
+            EmojiEnum::FastReverseButton,
+            "\xE2\x8F\xAA",
+            "fast reverse button"},
+        EmojiEntry{
+            EmojiEnum::LastTrackButton,
+            "\xE2\x8F\xAE\xEF\xB8\x8F",
+            "last track button"},
+        EmojiEntry{
+            EmojiEnum::UpwardsButton,
+            "\xF0\x9F\x94\xBC",
+            "upwards button"},
         EmojiEntry{EmojiEnum::FastUpButton, "\xE2\x8F\xAB", "fast up button"},
-        EmojiEntry{EmojiEnum::DownwardsButton, "\xF0\x9F\x94\xBD",
-                   "downwards button"},
-        EmojiEntry{EmojiEnum::FastDownButton, "\xE2\x8F\xAC",
-                   "fast down button"},
-        EmojiEntry{EmojiEnum::PauseButton, "\xE2\x8F\xB8\xEF\xB8\x8F",
-                   "pause button"},
-        EmojiEntry{EmojiEnum::StopButton, "\xE2\x8F\xB9\xEF\xB8\x8F",
-                   "stop button"},
-        EmojiEntry{EmojiEnum::RecordButton, "\xE2\x8F\xBA\xEF\xB8\x8F",
-                   "record button"},
-        EmojiEntry{EmojiEnum::EjectButton, "\xE2\x8F\x8F\xEF\xB8\x8F",
-                   "eject button"},
+        EmojiEntry{
+            EmojiEnum::DownwardsButton,
+            "\xF0\x9F\x94\xBD",
+            "downwards button"},
+        EmojiEntry{
+            EmojiEnum::FastDownButton,
+            "\xE2\x8F\xAC",
+            "fast down button"},
+        EmojiEntry{
+            EmojiEnum::PauseButton,
+            "\xE2\x8F\xB8\xEF\xB8\x8F",
+            "pause button"},
+        EmojiEntry{
+            EmojiEnum::StopButton,
+            "\xE2\x8F\xB9\xEF\xB8\x8F",
+            "stop button"},
+        EmojiEntry{
+            EmojiEnum::RecordButton,
+            "\xE2\x8F\xBA\xEF\xB8\x8F",
+            "record button"},
+        EmojiEntry{
+            EmojiEnum::EjectButton,
+            "\xE2\x8F\x8F\xEF\xB8\x8F",
+            "eject button"},
         EmojiEntry{EmojiEnum::Cinema, "\xF0\x9F\x8E\xA6", "cinema"},
         EmojiEntry{EmojiEnum::DimButton, "\xF0\x9F\x94\x85", "dim button"},
-        EmojiEntry{EmojiEnum::BrightButton, "\xF0\x9F\x94\x86",
-                   "bright button"},
+        EmojiEntry{
+            EmojiEnum::BrightButton,
+            "\xF0\x9F\x94\x86",
+            "bright button"},
         EmojiEntry{EmojiEnum::AntennaBars, "\xF0\x9F\x93\xB6", "antenna bars"},
         EmojiEntry{EmojiEnum::Wireless, "\xF0\x9F\x9B\x9C", "wireless"},
-        EmojiEntry{EmojiEnum::VibrationMode, "\xF0\x9F\x93\xB3",
-                   "vibration mode"},
-        EmojiEntry{EmojiEnum::MobilePhoneOff, "\xF0\x9F\x93\xB4",
-                   "mobile phone off"},
-        EmojiEntry{EmojiEnum::FemaleSign, "\xE2\x99\x80\xEF\xB8\x8F",
-                   "female sign"},
-        EmojiEntry{EmojiEnum::MaleSign, "\xE2\x99\x82\xEF\xB8\x8F",
-                   "male sign"},
-        EmojiEntry{EmojiEnum::TransgenderSymbol, "\xE2\x9A\xA7\xEF\xB8\x8F",
-                   "transgender symbol"},
+        EmojiEntry{
+            EmojiEnum::VibrationMode,
+            "\xF0\x9F\x93\xB3",
+            "vibration mode"},
+        EmojiEntry{
+            EmojiEnum::MobilePhoneOff,
+            "\xF0\x9F\x93\xB4",
+            "mobile phone off"},
+        EmojiEntry{
+            EmojiEnum::FemaleSign,
+            "\xE2\x99\x80\xEF\xB8\x8F",
+            "female sign"},
+        EmojiEntry{
+            EmojiEnum::MaleSign,
+            "\xE2\x99\x82\xEF\xB8\x8F",
+            "male sign"},
+        EmojiEntry{
+            EmojiEnum::TransgenderSymbol,
+            "\xE2\x9A\xA7\xEF\xB8\x8F",
+            "transgender symbol"},
         EmojiEntry{EmojiEnum::Multiply, "\xE2\x9C\x96\xEF\xB8\x8F", "multiply"},
         EmojiEntry{EmojiEnum::Plus, "\xE2\x9E\x95", "plus"},
         EmojiEntry{EmojiEnum::Minus, "\xE2\x9E\x96", "minus"},
         EmojiEntry{EmojiEnum::Divide, "\xE2\x9E\x97", "divide"},
-        EmojiEntry{EmojiEnum::HeavyEqualsSign, "\xF0\x9F\x9F\xB0",
-                   "heavy equals sign"},
+        EmojiEntry{
+            EmojiEnum::HeavyEqualsSign,
+            "\xF0\x9F\x9F\xB0",
+            "heavy equals sign"},
         EmojiEntry{EmojiEnum::Infinity, "\xE2\x99\xBE\xEF\xB8\x8F", "infinity"},
-        EmojiEntry{EmojiEnum::DoubleExclamationMark, "\xE2\x80\xBC\xEF\xB8\x8F",
-                   "double exclamation mark"},
-        EmojiEntry{EmojiEnum::ExclamationQuestionMark,
-                   "\xE2\x81\x89\xEF\xB8\x8F", "exclamation question mark"},
-        EmojiEntry{EmojiEnum::RedQuestionMark, "\xE2\x9D\x93",
-                   "red question mark"},
-        EmojiEntry{EmojiEnum::WhiteQuestionMark, "\xE2\x9D\x94",
-                   "white question mark"},
-        EmojiEntry{EmojiEnum::WhiteExclamationMark, "\xE2\x9D\x95",
-                   "white exclamation mark"},
-        EmojiEntry{EmojiEnum::RedExclamationMark, "\xE2\x9D\x97",
-                   "red exclamation mark"},
-        EmojiEntry{EmojiEnum::WavyDash, "\xE3\x80\xB0\xEF\xB8\x8F",
-                   "wavy dash"},
-        EmojiEntry{EmojiEnum::CurrencyExchange, "\xF0\x9F\x92\xB1",
-                   "currency exchange"},
-        EmojiEntry{EmojiEnum::HeavyDollarSign, "\xF0\x9F\x92\xB2",
-                   "heavy dollar sign"},
-        EmojiEntry{EmojiEnum::MedicalSymbol, "\xE2\x9A\x95\xEF\xB8\x8F",
-                   "medical symbol"},
-        EmojiEntry{EmojiEnum::RecyclingSymbol, "\xE2\x99\xBB\xEF\xB8\x8F",
-                   "recycling symbol"},
-        EmojiEntry{EmojiEnum::FleurDeLis, "\xE2\x9A\x9C\xEF\xB8\x8F",
-                   "fleur-de-lis"},
-        EmojiEntry{EmojiEnum::TridentEmblem, "\xF0\x9F\x94\xB1",
-                   "trident emblem"},
+        EmojiEntry{
+            EmojiEnum::DoubleExclamationMark,
+            "\xE2\x80\xBC\xEF\xB8\x8F",
+            "double exclamation mark"},
+        EmojiEntry{
+            EmojiEnum::ExclamationQuestionMark,
+            "\xE2\x81\x89\xEF\xB8\x8F",
+            "exclamation question mark"},
+        EmojiEntry{
+            EmojiEnum::RedQuestionMark,
+            "\xE2\x9D\x93",
+            "red question mark"},
+        EmojiEntry{
+            EmojiEnum::WhiteQuestionMark,
+            "\xE2\x9D\x94",
+            "white question mark"},
+        EmojiEntry{
+            EmojiEnum::WhiteExclamationMark,
+            "\xE2\x9D\x95",
+            "white exclamation mark"},
+        EmojiEntry{
+            EmojiEnum::RedExclamationMark,
+            "\xE2\x9D\x97",
+            "red exclamation mark"},
+        EmojiEntry{
+            EmojiEnum::WavyDash,
+            "\xE3\x80\xB0\xEF\xB8\x8F",
+            "wavy dash"},
+        EmojiEntry{
+            EmojiEnum::CurrencyExchange,
+            "\xF0\x9F\x92\xB1",
+            "currency exchange"},
+        EmojiEntry{
+            EmojiEnum::HeavyDollarSign,
+            "\xF0\x9F\x92\xB2",
+            "heavy dollar sign"},
+        EmojiEntry{
+            EmojiEnum::MedicalSymbol,
+            "\xE2\x9A\x95\xEF\xB8\x8F",
+            "medical symbol"},
+        EmojiEntry{
+            EmojiEnum::RecyclingSymbol,
+            "\xE2\x99\xBB\xEF\xB8\x8F",
+            "recycling symbol"},
+        EmojiEntry{
+            EmojiEnum::FleurDeLis,
+            "\xE2\x9A\x9C\xEF\xB8\x8F",
+            "fleur-de-lis"},
+        EmojiEntry{
+            EmojiEnum::TridentEmblem,
+            "\xF0\x9F\x94\xB1",
+            "trident emblem"},
         EmojiEntry{EmojiEnum::NameBadge, "\xF0\x9F\x93\x9B", "name badge"},
-        EmojiEntry{EmojiEnum::JapaneseSymbolForBeginner, "\xF0\x9F\x94\xB0",
-                   "Japanese symbol for beginner"},
-        EmojiEntry{EmojiEnum::HollowRedCircle, "\xE2\xAD\x95",
-                   "hollow red circle"},
-        EmojiEntry{EmojiEnum::CheckMarkButton, "\xE2\x9C\x85",
-                   "check mark button"},
-        EmojiEntry{EmojiEnum::CheckBoxWithCheck, "\xE2\x98\x91\xEF\xB8\x8F",
-                   "check box with check"},
-        EmojiEntry{EmojiEnum::CheckMark, "\xE2\x9C\x94\xEF\xB8\x8F",
-                   "check mark"},
+        EmojiEntry{
+            EmojiEnum::JapaneseSymbolForBeginner,
+            "\xF0\x9F\x94\xB0",
+            "Japanese symbol for beginner"},
+        EmojiEntry{
+            EmojiEnum::HollowRedCircle,
+            "\xE2\xAD\x95",
+            "hollow red circle"},
+        EmojiEntry{
+            EmojiEnum::CheckMarkButton,
+            "\xE2\x9C\x85",
+            "check mark button"},
+        EmojiEntry{
+            EmojiEnum::CheckBoxWithCheck,
+            "\xE2\x98\x91\xEF\xB8\x8F",
+            "check box with check"},
+        EmojiEntry{
+            EmojiEnum::CheckMark,
+            "\xE2\x9C\x94\xEF\xB8\x8F",
+            "check mark"},
         EmojiEntry{EmojiEnum::CrossMark, "\xE2\x9D\x8C", "cross mark"},
-        EmojiEntry{EmojiEnum::CrossMarkButton, "\xE2\x9D\x8E",
-                   "cross mark button"},
+        EmojiEntry{
+            EmojiEnum::CrossMarkButton,
+            "\xE2\x9D\x8E",
+            "cross mark button"},
         EmojiEntry{EmojiEnum::CurlyLoop, "\xE2\x9E\xB0", "curly loop"},
-        EmojiEntry{EmojiEnum::DoubleCurlyLoop, "\xE2\x9E\xBF",
-                   "double curly loop"},
-        EmojiEntry{EmojiEnum::PartAlternationMark, "\xE3\x80\xBD\xEF\xB8\x8F",
-                   "part alternation mark"},
-        EmojiEntry{EmojiEnum::EightSpokedAsterisk, "\xE2\x9C\xB3\xEF\xB8\x8F",
-                   "eight-spoked asterisk"},
-        EmojiEntry{EmojiEnum::EightPointedStar, "\xE2\x9C\xB4\xEF\xB8\x8F",
-                   "eight-pointed star"},
+        EmojiEntry{
+            EmojiEnum::DoubleCurlyLoop,
+            "\xE2\x9E\xBF",
+            "double curly loop"},
+        EmojiEntry{
+            EmojiEnum::PartAlternationMark,
+            "\xE3\x80\xBD\xEF\xB8\x8F",
+            "part alternation mark"},
+        EmojiEntry{
+            EmojiEnum::EightSpokedAsterisk,
+            "\xE2\x9C\xB3\xEF\xB8\x8F",
+            "eight-spoked asterisk"},
+        EmojiEntry{
+            EmojiEnum::EightPointedStar,
+            "\xE2\x9C\xB4\xEF\xB8\x8F",
+            "eight-pointed star"},
         EmojiEntry{EmojiEnum::Sparkle, "\xE2\x9D\x87\xEF\xB8\x8F", "sparkle"},
         EmojiEntry{EmojiEnum::Copyright, "\xC2\xA9\xEF\xB8\x8F", "copyright"},
         EmojiEntry{EmojiEnum::Registered, "\xC2\xAE\xEF\xB8\x8F", "registered"},
-        EmojiEntry{EmojiEnum::TradeMark, "\xE2\x84\xA2\xEF\xB8\x8F",
-                   "trade mark"},
-        EmojiEntry{EmojiEnum::Keycap, "\x23\xEF\xB8\x8F\xE2\x83\xA3",
-                   "keycap: #"},
-        EmojiEntry{EmojiEnum::Keycap2, "\x2A\xEF\xB8\x8F\xE2\x83\xA3",
-                   "keycap: *"},
-        EmojiEntry{EmojiEnum::KeycapZero, "\x30\xEF\xB8\x8F\xE2\x83\xA3",
-                   "keycap: 0"},
-        EmojiEntry{EmojiEnum::KeycapOne, "\x31\xEF\xB8\x8F\xE2\x83\xA3",
-                   "keycap: 1"},
-        EmojiEntry{EmojiEnum::KeycapTwo, "\x32\xEF\xB8\x8F\xE2\x83\xA3",
-                   "keycap: 2"},
-        EmojiEntry{EmojiEnum::KeycapThree, "\x33\xEF\xB8\x8F\xE2\x83\xA3",
-                   "keycap: 3"},
-        EmojiEntry{EmojiEnum::KeycapFour, "\x34\xEF\xB8\x8F\xE2\x83\xA3",
-                   "keycap: 4"},
-        EmojiEntry{EmojiEnum::KeycapFive, "\x35\xEF\xB8\x8F\xE2\x83\xA3",
-                   "keycap: 5"},
-        EmojiEntry{EmojiEnum::KeycapSix, "\x36\xEF\xB8\x8F\xE2\x83\xA3",
-                   "keycap: 6"},
-        EmojiEntry{EmojiEnum::KeycapSeven, "\x37\xEF\xB8\x8F\xE2\x83\xA3",
-                   "keycap: 7"},
-        EmojiEntry{EmojiEnum::KeycapEight, "\x38\xEF\xB8\x8F\xE2\x83\xA3",
-                   "keycap: 8"},
-        EmojiEntry{EmojiEnum::KeycapNine, "\x39\xEF\xB8\x8F\xE2\x83\xA3",
-                   "keycap: 9"},
+        EmojiEntry{
+            EmojiEnum::TradeMark,
+            "\xE2\x84\xA2\xEF\xB8\x8F",
+            "trade mark"},
+        EmojiEntry{
+            EmojiEnum::Keycap,
+            "\x23\xEF\xB8\x8F\xE2\x83\xA3",
+            "keycap: #"},
+        EmojiEntry{
+            EmojiEnum::Keycap2,
+            "\x2A\xEF\xB8\x8F\xE2\x83\xA3",
+            "keycap: *"},
+        EmojiEntry{
+            EmojiEnum::KeycapZero,
+            "\x30\xEF\xB8\x8F\xE2\x83\xA3",
+            "keycap: 0"},
+        EmojiEntry{
+            EmojiEnum::KeycapOne,
+            "\x31\xEF\xB8\x8F\xE2\x83\xA3",
+            "keycap: 1"},
+        EmojiEntry{
+            EmojiEnum::KeycapTwo,
+            "\x32\xEF\xB8\x8F\xE2\x83\xA3",
+            "keycap: 2"},
+        EmojiEntry{
+            EmojiEnum::KeycapThree,
+            "\x33\xEF\xB8\x8F\xE2\x83\xA3",
+            "keycap: 3"},
+        EmojiEntry{
+            EmojiEnum::KeycapFour,
+            "\x34\xEF\xB8\x8F\xE2\x83\xA3",
+            "keycap: 4"},
+        EmojiEntry{
+            EmojiEnum::KeycapFive,
+            "\x35\xEF\xB8\x8F\xE2\x83\xA3",
+            "keycap: 5"},
+        EmojiEntry{
+            EmojiEnum::KeycapSix,
+            "\x36\xEF\xB8\x8F\xE2\x83\xA3",
+            "keycap: 6"},
+        EmojiEntry{
+            EmojiEnum::KeycapSeven,
+            "\x37\xEF\xB8\x8F\xE2\x83\xA3",
+            "keycap: 7"},
+        EmojiEntry{
+            EmojiEnum::KeycapEight,
+            "\x38\xEF\xB8\x8F\xE2\x83\xA3",
+            "keycap: 8"},
+        EmojiEntry{
+            EmojiEnum::KeycapNine,
+            "\x39\xEF\xB8\x8F\xE2\x83\xA3",
+            "keycap: 9"},
         EmojiEntry{EmojiEnum::KeycapOneZero, "\xF0\x9F\x94\x9F", "keycap: 10"},
-        EmojiEntry{EmojiEnum::InputLatinUppercase, "\xF0\x9F\x94\xA0",
-                   "input latin uppercase"},
-        EmojiEntry{EmojiEnum::InputLatinLowercase, "\xF0\x9F\x94\xA1",
-                   "input latin lowercase"},
-        EmojiEntry{EmojiEnum::InputNumbers, "\xF0\x9F\x94\xA2",
-                   "input numbers"},
-        EmojiEntry{EmojiEnum::InputSymbols, "\xF0\x9F\x94\xA3",
-                   "input symbols"},
-        EmojiEntry{EmojiEnum::InputLatinLetters, "\xF0\x9F\x94\xA4",
-                   "input latin letters"},
-        EmojiEntry{EmojiEnum::AButtonBloodType, "\xF0\x9F\x85\xB0\xEF\xB8\x8F",
-                   "A button (blood type)"},
-        EmojiEntry{EmojiEnum::AbButtonBloodType, "\xF0\x9F\x86\x8E",
-                   "AB button (blood type)"},
-        EmojiEntry{EmojiEnum::BButtonBloodType, "\xF0\x9F\x85\xB1\xEF\xB8\x8F",
-                   "B button (blood type)"},
+        EmojiEntry{
+            EmojiEnum::InputLatinUppercase,
+            "\xF0\x9F\x94\xA0",
+            "input latin uppercase"},
+        EmojiEntry{
+            EmojiEnum::InputLatinLowercase,
+            "\xF0\x9F\x94\xA1",
+            "input latin lowercase"},
+        EmojiEntry{
+            EmojiEnum::InputNumbers,
+            "\xF0\x9F\x94\xA2",
+            "input numbers"},
+        EmojiEntry{
+            EmojiEnum::InputSymbols,
+            "\xF0\x9F\x94\xA3",
+            "input symbols"},
+        EmojiEntry{
+            EmojiEnum::InputLatinLetters,
+            "\xF0\x9F\x94\xA4",
+            "input latin letters"},
+        EmojiEntry{
+            EmojiEnum::AButtonBloodType,
+            "\xF0\x9F\x85\xB0\xEF\xB8\x8F",
+            "A button (blood type)"},
+        EmojiEntry{
+            EmojiEnum::AbButtonBloodType,
+            "\xF0\x9F\x86\x8E",
+            "AB button (blood type)"},
+        EmojiEntry{
+            EmojiEnum::BButtonBloodType,
+            "\xF0\x9F\x85\xB1\xEF\xB8\x8F",
+            "B button (blood type)"},
         EmojiEntry{EmojiEnum::ClButton, "\xF0\x9F\x86\x91", "CL button"},
         EmojiEntry{EmojiEnum::CoolButton, "\xF0\x9F\x86\x92", "COOL button"},
         EmojiEntry{EmojiEnum::FreeButton, "\xF0\x9F\x86\x93", "FREE button"},
-        EmojiEntry{EmojiEnum::Information, "\xE2\x84\xB9\xEF\xB8\x8F",
-                   "information"},
+        EmojiEntry{
+            EmojiEnum::Information,
+            "\xE2\x84\xB9\xEF\xB8\x8F",
+            "information"},
         EmojiEntry{EmojiEnum::IdButton, "\xF0\x9F\x86\x94", "ID button"},
-        EmojiEntry{EmojiEnum::CircledM, "\xE2\x93\x82\xEF\xB8\x8F",
-                   "circled M"},
+        EmojiEntry{
+            EmojiEnum::CircledM,
+            "\xE2\x93\x82\xEF\xB8\x8F",
+            "circled M"},
         EmojiEntry{EmojiEnum::NewButton, "\xF0\x9F\x86\x95", "NEW button"},
         EmojiEntry{EmojiEnum::NgButton, "\xF0\x9F\x86\x96", "NG button"},
-        EmojiEntry{EmojiEnum::OButtonBloodType, "\xF0\x9F\x85\xBE\xEF\xB8\x8F",
-                   "O button (blood type)"},
+        EmojiEntry{
+            EmojiEnum::OButtonBloodType,
+            "\xF0\x9F\x85\xBE\xEF\xB8\x8F",
+            "O button (blood type)"},
         EmojiEntry{EmojiEnum::OkButton, "\xF0\x9F\x86\x97", "OK button"},
-        EmojiEntry{EmojiEnum::PButton, "\xF0\x9F\x85\xBF\xEF\xB8\x8F",
-                   "P button"},
+        EmojiEntry{
+            EmojiEnum::PButton,
+            "\xF0\x9F\x85\xBF\xEF\xB8\x8F",
+            "P button"},
         EmojiEntry{EmojiEnum::SosButton, "\xF0\x9F\x86\x98", "SOS button"},
         EmojiEntry{EmojiEnum::UpButton, "\xF0\x9F\x86\x99", "UP! button"},
         EmojiEntry{EmojiEnum::VsButton, "\xF0\x9F\x86\x9A", "VS button"},
-        EmojiEntry{EmojiEnum::JapaneseHereButton, "\xF0\x9F\x88\x81",
-                   "Japanese here button"},
-        EmojiEntry{EmojiEnum::JapaneseServiceChargeButton,
-                   "\xF0\x9F\x88\x82\xEF\xB8\x8F",
-                   "Japanese service charge button"},
-        EmojiEntry{EmojiEnum::JapaneseMonthlyAmountButton,
-                   "\xF0\x9F\x88\xB7\xEF\xB8\x8F",
-                   "Japanese monthly amount button"},
-        EmojiEntry{EmojiEnum::JapaneseNotFreeOfChargeButton, "\xF0\x9F\x88\xB6",
-                   "Japanese not free of charge button"},
-        EmojiEntry{EmojiEnum::JapaneseReservedButton, "\xF0\x9F\x88\xAF",
-                   "Japanese reserved button"},
-        EmojiEntry{EmojiEnum::JapaneseBargainButton, "\xF0\x9F\x89\x90",
-                   "Japanese bargain button"},
-        EmojiEntry{EmojiEnum::JapaneseDiscountButton, "\xF0\x9F\x88\xB9",
-                   "Japanese discount button"},
-        EmojiEntry{EmojiEnum::JapaneseFreeOfChargeButton, "\xF0\x9F\x88\x9A",
-                   "Japanese free of charge button"},
-        EmojiEntry{EmojiEnum::JapaneseProhibitedButton, "\xF0\x9F\x88\xB2",
-                   "Japanese prohibited button"},
-        EmojiEntry{EmojiEnum::JapaneseAcceptableButton, "\xF0\x9F\x89\x91",
-                   "Japanese acceptable button"},
-        EmojiEntry{EmojiEnum::JapaneseApplicationButton, "\xF0\x9F\x88\xB8",
-                   "Japanese application button"},
-        EmojiEntry{EmojiEnum::JapanesePassingGradeButton, "\xF0\x9F\x88\xB4",
-                   "Japanese passing grade button"},
-        EmojiEntry{EmojiEnum::JapaneseVacancyButton, "\xF0\x9F\x88\xB3",
-                   "Japanese vacancy button"},
-        EmojiEntry{EmojiEnum::JapaneseCongratulationsButton,
-                   "\xE3\x8A\x97\xEF\xB8\x8F",
-                   "Japanese congratulations button"},
-        EmojiEntry{EmojiEnum::JapaneseSecretButton, "\xE3\x8A\x99\xEF\xB8\x8F",
-                   "Japanese secret button"},
-        EmojiEntry{EmojiEnum::JapaneseOpenForBusinessButton, "\xF0\x9F\x88\xBA",
-                   "Japanese open for business button"},
-        EmojiEntry{EmojiEnum::JapaneseNoVacancyButton, "\xF0\x9F\x88\xB5",
-                   "Japanese no vacancy button"},
+        EmojiEntry{
+            EmojiEnum::JapaneseHereButton,
+            "\xF0\x9F\x88\x81",
+            "Japanese here button"},
+        EmojiEntry{
+            EmojiEnum::JapaneseServiceChargeButton,
+            "\xF0\x9F\x88\x82\xEF\xB8\x8F",
+            "Japanese service charge button"},
+        EmojiEntry{
+            EmojiEnum::JapaneseMonthlyAmountButton,
+            "\xF0\x9F\x88\xB7\xEF\xB8\x8F",
+            "Japanese monthly amount button"},
+        EmojiEntry{
+            EmojiEnum::JapaneseNotFreeOfChargeButton,
+            "\xF0\x9F\x88\xB6",
+            "Japanese not free of charge button"},
+        EmojiEntry{
+            EmojiEnum::JapaneseReservedButton,
+            "\xF0\x9F\x88\xAF",
+            "Japanese reserved button"},
+        EmojiEntry{
+            EmojiEnum::JapaneseBargainButton,
+            "\xF0\x9F\x89\x90",
+            "Japanese bargain button"},
+        EmojiEntry{
+            EmojiEnum::JapaneseDiscountButton,
+            "\xF0\x9F\x88\xB9",
+            "Japanese discount button"},
+        EmojiEntry{
+            EmojiEnum::JapaneseFreeOfChargeButton,
+            "\xF0\x9F\x88\x9A",
+            "Japanese free of charge button"},
+        EmojiEntry{
+            EmojiEnum::JapaneseProhibitedButton,
+            "\xF0\x9F\x88\xB2",
+            "Japanese prohibited button"},
+        EmojiEntry{
+            EmojiEnum::JapaneseAcceptableButton,
+            "\xF0\x9F\x89\x91",
+            "Japanese acceptable button"},
+        EmojiEntry{
+            EmojiEnum::JapaneseApplicationButton,
+            "\xF0\x9F\x88\xB8",
+            "Japanese application button"},
+        EmojiEntry{
+            EmojiEnum::JapanesePassingGradeButton,
+            "\xF0\x9F\x88\xB4",
+            "Japanese passing grade button"},
+        EmojiEntry{
+            EmojiEnum::JapaneseVacancyButton,
+            "\xF0\x9F\x88\xB3",
+            "Japanese vacancy button"},
+        EmojiEntry{
+            EmojiEnum::JapaneseCongratulationsButton,
+            "\xE3\x8A\x97\xEF\xB8\x8F",
+            "Japanese congratulations button"},
+        EmojiEntry{
+            EmojiEnum::JapaneseSecretButton,
+            "\xE3\x8A\x99\xEF\xB8\x8F",
+            "Japanese secret button"},
+        EmojiEntry{
+            EmojiEnum::JapaneseOpenForBusinessButton,
+            "\xF0\x9F\x88\xBA",
+            "Japanese open for business button"},
+        EmojiEntry{
+            EmojiEnum::JapaneseNoVacancyButton,
+            "\xF0\x9F\x88\xB5",
+            "Japanese no vacancy button"},
         EmojiEntry{EmojiEnum::RedCircle, "\xF0\x9F\x94\xB4", "red circle"},
-        EmojiEntry{EmojiEnum::OrangeCircle, "\xF0\x9F\x9F\xA0",
-                   "orange circle"},
-        EmojiEntry{EmojiEnum::YellowCircle, "\xF0\x9F\x9F\xA1",
-                   "yellow circle"},
+        EmojiEntry{
+            EmojiEnum::OrangeCircle,
+            "\xF0\x9F\x9F\xA0",
+            "orange circle"},
+        EmojiEntry{
+            EmojiEnum::YellowCircle,
+            "\xF0\x9F\x9F\xA1",
+            "yellow circle"},
         EmojiEntry{EmojiEnum::GreenCircle, "\xF0\x9F\x9F\xA2", "green circle"},
         EmojiEntry{EmojiEnum::BlueCircle, "\xF0\x9F\x94\xB5", "blue circle"},
-        EmojiEntry{EmojiEnum::PurpleCircle, "\xF0\x9F\x9F\xA3",
-                   "purple circle"},
+        EmojiEntry{
+            EmojiEnum::PurpleCircle,
+            "\xF0\x9F\x9F\xA3",
+            "purple circle"},
         EmojiEntry{EmojiEnum::BrownCircle, "\xF0\x9F\x9F\xA4", "brown circle"},
         EmojiEntry{EmojiEnum::BlackCircle, "\xE2\x9A\xAB", "black circle"},
         EmojiEntry{EmojiEnum::WhiteCircle, "\xE2\x9A\xAA", "white circle"},
         EmojiEntry{EmojiEnum::RedSquare, "\xF0\x9F\x9F\xA5", "red square"},
-        EmojiEntry{EmojiEnum::OrangeSquare, "\xF0\x9F\x9F\xA7",
-                   "orange square"},
-        EmojiEntry{EmojiEnum::YellowSquare, "\xF0\x9F\x9F\xA8",
-                   "yellow square"},
+        EmojiEntry{
+            EmojiEnum::OrangeSquare,
+            "\xF0\x9F\x9F\xA7",
+            "orange square"},
+        EmojiEntry{
+            EmojiEnum::YellowSquare,
+            "\xF0\x9F\x9F\xA8",
+            "yellow square"},
         EmojiEntry{EmojiEnum::GreenSquare, "\xF0\x9F\x9F\xA9", "green square"},
         EmojiEntry{EmojiEnum::BlueSquare, "\xF0\x9F\x9F\xA6", "blue square"},
-        EmojiEntry{EmojiEnum::PurpleSquare, "\xF0\x9F\x9F\xAA",
-                   "purple square"},
+        EmojiEntry{
+            EmojiEnum::PurpleSquare,
+            "\xF0\x9F\x9F\xAA",
+            "purple square"},
         EmojiEntry{EmojiEnum::BrownSquare, "\xF0\x9F\x9F\xAB", "brown square"},
-        EmojiEntry{EmojiEnum::BlackLargeSquare, "\xE2\xAC\x9B",
-                   "black large square"},
-        EmojiEntry{EmojiEnum::WhiteLargeSquare, "\xE2\xAC\x9C",
-                   "white large square"},
-        EmojiEntry{EmojiEnum::BlackMediumSquare, "\xE2\x97\xBC\xEF\xB8\x8F",
-                   "black medium square"},
-        EmojiEntry{EmojiEnum::WhiteMediumSquare, "\xE2\x97\xBB\xEF\xB8\x8F",
-                   "white medium square"},
-        EmojiEntry{EmojiEnum::BlackMediumSmallSquare, "\xE2\x97\xBE",
-                   "black medium-small square"},
-        EmojiEntry{EmojiEnum::WhiteMediumSmallSquare, "\xE2\x97\xBD",
-                   "white medium-small square"},
-        EmojiEntry{EmojiEnum::BlackSmallSquare, "\xE2\x96\xAA\xEF\xB8\x8F",
-                   "black small square"},
-        EmojiEntry{EmojiEnum::WhiteSmallSquare, "\xE2\x96\xAB\xEF\xB8\x8F",
-                   "white small square"},
-        EmojiEntry{EmojiEnum::LargeOrangeDiamond, "\xF0\x9F\x94\xB6",
-                   "large orange diamond"},
-        EmojiEntry{EmojiEnum::LargeBlueDiamond, "\xF0\x9F\x94\xB7",
-                   "large blue diamond"},
-        EmojiEntry{EmojiEnum::SmallOrangeDiamond, "\xF0\x9F\x94\xB8",
-                   "small orange diamond"},
-        EmojiEntry{EmojiEnum::SmallBlueDiamond, "\xF0\x9F\x94\xB9",
-                   "small blue diamond"},
-        EmojiEntry{EmojiEnum::RedTrianglePointedUp, "\xF0\x9F\x94\xBA",
-                   "red triangle pointed up"},
-        EmojiEntry{EmojiEnum::RedTrianglePointedDown, "\xF0\x9F\x94\xBB",
-                   "red triangle pointed down"},
-        EmojiEntry{EmojiEnum::DiamondWithADot, "\xF0\x9F\x92\xA0",
-                   "diamond with a dot"},
+        EmojiEntry{
+            EmojiEnum::BlackLargeSquare,
+            "\xE2\xAC\x9B",
+            "black large square"},
+        EmojiEntry{
+            EmojiEnum::WhiteLargeSquare,
+            "\xE2\xAC\x9C",
+            "white large square"},
+        EmojiEntry{
+            EmojiEnum::BlackMediumSquare,
+            "\xE2\x97\xBC\xEF\xB8\x8F",
+            "black medium square"},
+        EmojiEntry{
+            EmojiEnum::WhiteMediumSquare,
+            "\xE2\x97\xBB\xEF\xB8\x8F",
+            "white medium square"},
+        EmojiEntry{
+            EmojiEnum::BlackMediumSmallSquare,
+            "\xE2\x97\xBE",
+            "black medium-small square"},
+        EmojiEntry{
+            EmojiEnum::WhiteMediumSmallSquare,
+            "\xE2\x97\xBD",
+            "white medium-small square"},
+        EmojiEntry{
+            EmojiEnum::BlackSmallSquare,
+            "\xE2\x96\xAA\xEF\xB8\x8F",
+            "black small square"},
+        EmojiEntry{
+            EmojiEnum::WhiteSmallSquare,
+            "\xE2\x96\xAB\xEF\xB8\x8F",
+            "white small square"},
+        EmojiEntry{
+            EmojiEnum::LargeOrangeDiamond,
+            "\xF0\x9F\x94\xB6",
+            "large orange diamond"},
+        EmojiEntry{
+            EmojiEnum::LargeBlueDiamond,
+            "\xF0\x9F\x94\xB7",
+            "large blue diamond"},
+        EmojiEntry{
+            EmojiEnum::SmallOrangeDiamond,
+            "\xF0\x9F\x94\xB8",
+            "small orange diamond"},
+        EmojiEntry{
+            EmojiEnum::SmallBlueDiamond,
+            "\xF0\x9F\x94\xB9",
+            "small blue diamond"},
+        EmojiEntry{
+            EmojiEnum::RedTrianglePointedUp,
+            "\xF0\x9F\x94\xBA",
+            "red triangle pointed up"},
+        EmojiEntry{
+            EmojiEnum::RedTrianglePointedDown,
+            "\xF0\x9F\x94\xBB",
+            "red triangle pointed down"},
+        EmojiEntry{
+            EmojiEnum::DiamondWithADot,
+            "\xF0\x9F\x92\xA0",
+            "diamond with a dot"},
         EmojiEntry{EmojiEnum::RadioButton, "\xF0\x9F\x94\x98", "radio button"},
-        EmojiEntry{EmojiEnum::WhiteSquareButton, "\xF0\x9F\x94\xB3",
-                   "white square button"},
-        EmojiEntry{EmojiEnum::BlackSquareButton, "\xF0\x9F\x94\xB2",
-                   "black square button"},
-        EmojiEntry{EmojiEnum::ChequeredFlag, "\xF0\x9F\x8F\x81",
-                   "chequered flag"},
-        EmojiEntry{EmojiEnum::TriangularFlag, "\xF0\x9F\x9A\xA9",
-                   "triangular flag"},
-        EmojiEntry{EmojiEnum::CrossedFlags, "\xF0\x9F\x8E\x8C",
-                   "crossed flags"},
+        EmojiEntry{
+            EmojiEnum::WhiteSquareButton,
+            "\xF0\x9F\x94\xB3",
+            "white square button"},
+        EmojiEntry{
+            EmojiEnum::BlackSquareButton,
+            "\xF0\x9F\x94\xB2",
+            "black square button"},
+        EmojiEntry{
+            EmojiEnum::ChequeredFlag,
+            "\xF0\x9F\x8F\x81",
+            "chequered flag"},
+        EmojiEntry{
+            EmojiEnum::TriangularFlag,
+            "\xF0\x9F\x9A\xA9",
+            "triangular flag"},
+        EmojiEntry{
+            EmojiEnum::CrossedFlags,
+            "\xF0\x9F\x8E\x8C",
+            "crossed flags"},
         EmojiEntry{EmojiEnum::BlackFlag, "\xF0\x9F\x8F\xB4", "black flag"},
-        EmojiEntry{EmojiEnum::WhiteFlag, "\xF0\x9F\x8F\xB3\xEF\xB8\x8F",
-                   "white flag"},
-        EmojiEntry{EmojiEnum::RainbowFlag,
-                   "\xF0\x9F\x8F\xB3\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x8C\x88",
-                   "rainbow flag"},
+        EmojiEntry{
+            EmojiEnum::WhiteFlag,
+            "\xF0\x9F\x8F\xB3\xEF\xB8\x8F",
+            "white flag"},
+        EmojiEntry{
+            EmojiEnum::RainbowFlag,
+            "\xF0\x9F\x8F\xB3\xEF\xB8\x8F\xE2\x80\x8D\xF0\x9F\x8C\x88",
+            "rainbow flag"},
         EmojiEntry{
             EmojiEnum::TransgenderFlag,
             "\xF0\x9F\x8F\xB3\xEF\xB8\x8F\xE2\x80\x8D\xE2\x9A\xA7\xEF\xB8\x8F",
             "transgender flag"},
-        EmojiEntry{EmojiEnum::PirateFlag,
-                   "\xF0\x9F\x8F\xB4\xE2\x80\x8D\xE2\x98\xA0\xEF\xB8\x8F",
-                   "pirate flag"},
-        EmojiEntry{EmojiEnum::FlagAscensionIsland,
-                   "\xF0\x9F\x87\xA6\xF0\x9F\x87\xA8",
-                   "flag: Ascension Island"},
-        EmojiEntry{EmojiEnum::FlagAndorra, "\xF0\x9F\x87\xA6\xF0\x9F\x87\xA9",
-                   "flag: Andorra"},
-        EmojiEntry{EmojiEnum::FlagUnitedArabEmirates,
-                   "\xF0\x9F\x87\xA6\xF0\x9F\x87\xAA",
-                   "flag: United Arab Emirates"},
-        EmojiEntry{EmojiEnum::FlagAfghanistan,
-                   "\xF0\x9F\x87\xA6\xF0\x9F\x87\xAB", "flag: Afghanistan"},
-        EmojiEntry{EmojiEnum::FlagAntiguaAndBarbuda,
-                   "\xF0\x9F\x87\xA6\xF0\x9F\x87\xAC",
-                   "flag: Antigua & Barbuda"},
-        EmojiEntry{EmojiEnum::FlagAnguilla, "\xF0\x9F\x87\xA6\xF0\x9F\x87\xAE",
-                   "flag: Anguilla"},
-        EmojiEntry{EmojiEnum::FlagAlbania, "\xF0\x9F\x87\xA6\xF0\x9F\x87\xB1",
-                   "flag: Albania"},
-        EmojiEntry{EmojiEnum::FlagArmenia, "\xF0\x9F\x87\xA6\xF0\x9F\x87\xB2",
-                   "flag: Armenia"},
-        EmojiEntry{EmojiEnum::FlagAngola, "\xF0\x9F\x87\xA6\xF0\x9F\x87\xB4",
-                   "flag: Angola"},
-        EmojiEntry{EmojiEnum::FlagAntarctica,
-                   "\xF0\x9F\x87\xA6\xF0\x9F\x87\xB6", "flag: Antarctica"},
-        EmojiEntry{EmojiEnum::FlagArgentina, "\xF0\x9F\x87\xA6\xF0\x9F\x87\xB7",
-                   "flag: Argentina"},
-        EmojiEntry{EmojiEnum::FlagAmericanSamoa,
-                   "\xF0\x9F\x87\xA6\xF0\x9F\x87\xB8", "flag: American Samoa"},
-        EmojiEntry{EmojiEnum::FlagAustria, "\xF0\x9F\x87\xA6\xF0\x9F\x87\xB9",
-                   "flag: Austria"},
-        EmojiEntry{EmojiEnum::FlagAustralia, "\xF0\x9F\x87\xA6\xF0\x9F\x87\xBA",
-                   "flag: Australia"},
-        EmojiEntry{EmojiEnum::FlagAruba, "\xF0\x9F\x87\xA6\xF0\x9F\x87\xBC",
-                   "flag: Aruba"},
-        EmojiEntry{EmojiEnum::FlagAlandIslands,
-                   "\xF0\x9F\x87\xA6\xF0\x9F\x87\xBD", "flag: Aland Islands"},
-        EmojiEntry{EmojiEnum::FlagAzerbaijan,
-                   "\xF0\x9F\x87\xA6\xF0\x9F\x87\xBF", "flag: Azerbaijan"},
-        EmojiEntry{EmojiEnum::FlagBosniaAndHerzegovina,
-                   "\xF0\x9F\x87\xA7\xF0\x9F\x87\xA6",
-                   "flag: Bosnia & Herzegovina"},
-        EmojiEntry{EmojiEnum::FlagBarbados, "\xF0\x9F\x87\xA7\xF0\x9F\x87\xA7",
-                   "flag: Barbados"},
-        EmojiEntry{EmojiEnum::FlagBangladesh,
-                   "\xF0\x9F\x87\xA7\xF0\x9F\x87\xA9", "flag: Bangladesh"},
-        EmojiEntry{EmojiEnum::FlagBelgium, "\xF0\x9F\x87\xA7\xF0\x9F\x87\xAA",
-                   "flag: Belgium"},
-        EmojiEntry{EmojiEnum::FlagBurkinaFaso,
-                   "\xF0\x9F\x87\xA7\xF0\x9F\x87\xAB", "flag: Burkina Faso"},
-        EmojiEntry{EmojiEnum::FlagBulgaria, "\xF0\x9F\x87\xA7\xF0\x9F\x87\xAC",
-                   "flag: Bulgaria"},
-        EmojiEntry{EmojiEnum::FlagBahrain, "\xF0\x9F\x87\xA7\xF0\x9F\x87\xAD",
-                   "flag: Bahrain"},
-        EmojiEntry{EmojiEnum::FlagBurundi, "\xF0\x9F\x87\xA7\xF0\x9F\x87\xAE",
-                   "flag: Burundi"},
-        EmojiEntry{EmojiEnum::FlagBenin, "\xF0\x9F\x87\xA7\xF0\x9F\x87\xAF",
-                   "flag: Benin"},
-        EmojiEntry{EmojiEnum::FlagStBarthelemy,
-                   "\xF0\x9F\x87\xA7\xF0\x9F\x87\xB1", "flag: St. Barthelemy"},
-        EmojiEntry{EmojiEnum::FlagBermuda, "\xF0\x9F\x87\xA7\xF0\x9F\x87\xB2",
-                   "flag: Bermuda"},
-        EmojiEntry{EmojiEnum::FlagBrunei, "\xF0\x9F\x87\xA7\xF0\x9F\x87\xB3",
-                   "flag: Brunei"},
-        EmojiEntry{EmojiEnum::FlagBolivia, "\xF0\x9F\x87\xA7\xF0\x9F\x87\xB4",
-                   "flag: Bolivia"},
-        EmojiEntry{EmojiEnum::FlagCaribbeanNetherlands,
-                   "\xF0\x9F\x87\xA7\xF0\x9F\x87\xB6",
-                   "flag: Caribbean Netherlands"},
-        EmojiEntry{EmojiEnum::FlagBrazil, "\xF0\x9F\x87\xA7\xF0\x9F\x87\xB7",
-                   "flag: Brazil"},
-        EmojiEntry{EmojiEnum::FlagBahamas, "\xF0\x9F\x87\xA7\xF0\x9F\x87\xB8",
-                   "flag: Bahamas"},
-        EmojiEntry{EmojiEnum::FlagBhutan, "\xF0\x9F\x87\xA7\xF0\x9F\x87\xB9",
-                   "flag: Bhutan"},
-        EmojiEntry{EmojiEnum::FlagBouvetIsland,
-                   "\xF0\x9F\x87\xA7\xF0\x9F\x87\xBB", "flag: Bouvet Island"},
-        EmojiEntry{EmojiEnum::FlagBotswana, "\xF0\x9F\x87\xA7\xF0\x9F\x87\xBC",
-                   "flag: Botswana"},
-        EmojiEntry{EmojiEnum::FlagBelarus, "\xF0\x9F\x87\xA7\xF0\x9F\x87\xBE",
-                   "flag: Belarus"},
-        EmojiEntry{EmojiEnum::FlagBelize, "\xF0\x9F\x87\xA7\xF0\x9F\x87\xBF",
-                   "flag: Belize"},
-        EmojiEntry{EmojiEnum::FlagCanada, "\xF0\x9F\x87\xA8\xF0\x9F\x87\xA6",
-                   "flag: Canada"},
-        EmojiEntry{EmojiEnum::FlagCocosKeelingIslands,
-                   "\xF0\x9F\x87\xA8\xF0\x9F\x87\xA8",
-                   "flag: Cocos (Keeling) Islands"},
-        EmojiEntry{EmojiEnum::FlagCongoKinshasa,
-                   "\xF0\x9F\x87\xA8\xF0\x9F\x87\xA9",
-                   "flag: Congo - Kinshasa"},
-        EmojiEntry{EmojiEnum::FlagCentralAfricanRepublic,
-                   "\xF0\x9F\x87\xA8\xF0\x9F\x87\xAB",
-                   "flag: Central African Republic"},
-        EmojiEntry{EmojiEnum::FlagCongoBrazzaville,
-                   "\xF0\x9F\x87\xA8\xF0\x9F\x87\xAC",
-                   "flag: Congo - Brazzaville"},
-        EmojiEntry{EmojiEnum::FlagSwitzerland,
-                   "\xF0\x9F\x87\xA8\xF0\x9F\x87\xAD", "flag: Switzerland"},
-        EmojiEntry{EmojiEnum::FlagCoteDivoire,
-                   "\xF0\x9F\x87\xA8\xF0\x9F\x87\xAE", "flag: Cote dIvoire"},
-        EmojiEntry{EmojiEnum::FlagCookIslands,
-                   "\xF0\x9F\x87\xA8\xF0\x9F\x87\xB0", "flag: Cook Islands"},
-        EmojiEntry{EmojiEnum::FlagChile, "\xF0\x9F\x87\xA8\xF0\x9F\x87\xB1",
-                   "flag: Chile"},
-        EmojiEntry{EmojiEnum::FlagCameroon, "\xF0\x9F\x87\xA8\xF0\x9F\x87\xB2",
-                   "flag: Cameroon"},
-        EmojiEntry{EmojiEnum::FlagChina, "\xF0\x9F\x87\xA8\xF0\x9F\x87\xB3",
-                   "flag: China"},
-        EmojiEntry{EmojiEnum::FlagColombia, "\xF0\x9F\x87\xA8\xF0\x9F\x87\xB4",
-                   "flag: Colombia"},
-        EmojiEntry{EmojiEnum::FlagClippertonIsland,
-                   "\xF0\x9F\x87\xA8\xF0\x9F\x87\xB5",
-                   "flag: Clipperton Island"},
-        EmojiEntry{EmojiEnum::FlagCostaRica, "\xF0\x9F\x87\xA8\xF0\x9F\x87\xB7",
-                   "flag: Costa Rica"},
-        EmojiEntry{EmojiEnum::FlagCuba, "\xF0\x9F\x87\xA8\xF0\x9F\x87\xBA",
-                   "flag: Cuba"},
-        EmojiEntry{EmojiEnum::FlagCapeVerde, "\xF0\x9F\x87\xA8\xF0\x9F\x87\xBB",
-                   "flag: Cape Verde"},
-        EmojiEntry{EmojiEnum::FlagCuracao, "\xF0\x9F\x87\xA8\xF0\x9F\x87\xBC",
-                   "flag: Curacao"},
-        EmojiEntry{EmojiEnum::FlagChristmasIsland,
-                   "\xF0\x9F\x87\xA8\xF0\x9F\x87\xBD",
-                   "flag: Christmas Island"},
-        EmojiEntry{EmojiEnum::FlagCyprus, "\xF0\x9F\x87\xA8\xF0\x9F\x87\xBE",
-                   "flag: Cyprus"},
-        EmojiEntry{EmojiEnum::FlagCzechia, "\xF0\x9F\x87\xA8\xF0\x9F\x87\xBF",
-                   "flag: Czechia"},
-        EmojiEntry{EmojiEnum::FlagGermany, "\xF0\x9F\x87\xA9\xF0\x9F\x87\xAA",
-                   "flag: Germany"},
-        EmojiEntry{EmojiEnum::FlagDiegoGarcia,
-                   "\xF0\x9F\x87\xA9\xF0\x9F\x87\xAC", "flag: Diego Garcia"},
-        EmojiEntry{EmojiEnum::FlagDjibouti, "\xF0\x9F\x87\xA9\xF0\x9F\x87\xAF",
-                   "flag: Djibouti"},
-        EmojiEntry{EmojiEnum::FlagDenmark, "\xF0\x9F\x87\xA9\xF0\x9F\x87\xB0",
-                   "flag: Denmark"},
-        EmojiEntry{EmojiEnum::FlagDominica, "\xF0\x9F\x87\xA9\xF0\x9F\x87\xB2",
-                   "flag: Dominica"},
-        EmojiEntry{EmojiEnum::FlagDominicanRepublic,
-                   "\xF0\x9F\x87\xA9\xF0\x9F\x87\xB4",
-                   "flag: Dominican Republic"},
-        EmojiEntry{EmojiEnum::FlagAlgeria, "\xF0\x9F\x87\xA9\xF0\x9F\x87\xBF",
-                   "flag: Algeria"},
-        EmojiEntry{EmojiEnum::FlagCeutaAndMelilla,
-                   "\xF0\x9F\x87\xAA\xF0\x9F\x87\xA6", "flag: Ceuta & Melilla"},
-        EmojiEntry{EmojiEnum::FlagEcuador, "\xF0\x9F\x87\xAA\xF0\x9F\x87\xA8",
-                   "flag: Ecuador"},
-        EmojiEntry{EmojiEnum::FlagEstonia, "\xF0\x9F\x87\xAA\xF0\x9F\x87\xAA",
-                   "flag: Estonia"},
-        EmojiEntry{EmojiEnum::FlagEgypt, "\xF0\x9F\x87\xAA\xF0\x9F\x87\xAC",
-                   "flag: Egypt"},
-        EmojiEntry{EmojiEnum::FlagWesternSahara,
-                   "\xF0\x9F\x87\xAA\xF0\x9F\x87\xAD", "flag: Western Sahara"},
-        EmojiEntry{EmojiEnum::FlagEritrea, "\xF0\x9F\x87\xAA\xF0\x9F\x87\xB7",
-                   "flag: Eritrea"},
-        EmojiEntry{EmojiEnum::FlagSpain, "\xF0\x9F\x87\xAA\xF0\x9F\x87\xB8",
-                   "flag: Spain"},
-        EmojiEntry{EmojiEnum::FlagEthiopia, "\xF0\x9F\x87\xAA\xF0\x9F\x87\xB9",
-                   "flag: Ethiopia"},
-        EmojiEntry{EmojiEnum::FlagEuropeanUnion,
-                   "\xF0\x9F\x87\xAA\xF0\x9F\x87\xBA", "flag: European Union"},
-        EmojiEntry{EmojiEnum::FlagFinland, "\xF0\x9F\x87\xAB\xF0\x9F\x87\xAE",
-                   "flag: Finland"},
-        EmojiEntry{EmojiEnum::FlagFiji, "\xF0\x9F\x87\xAB\xF0\x9F\x87\xAF",
-                   "flag: Fiji"},
-        EmojiEntry{EmojiEnum::FlagFalklandIslands,
-                   "\xF0\x9F\x87\xAB\xF0\x9F\x87\xB0",
-                   "flag: Falkland Islands"},
-        EmojiEntry{EmojiEnum::FlagMicronesia,
-                   "\xF0\x9F\x87\xAB\xF0\x9F\x87\xB2", "flag: Micronesia"},
-        EmojiEntry{EmojiEnum::FlagFaroeIslands,
-                   "\xF0\x9F\x87\xAB\xF0\x9F\x87\xB4", "flag: Faroe Islands"},
-        EmojiEntry{EmojiEnum::FlagFrance, "\xF0\x9F\x87\xAB\xF0\x9F\x87\xB7",
-                   "flag: France"},
-        EmojiEntry{EmojiEnum::FlagGabon, "\xF0\x9F\x87\xAC\xF0\x9F\x87\xA6",
-                   "flag: Gabon"},
-        EmojiEntry{EmojiEnum::FlagUnitedKingdom,
-                   "\xF0\x9F\x87\xAC\xF0\x9F\x87\xA7", "flag: United Kingdom"},
-        EmojiEntry{EmojiEnum::FlagGrenada, "\xF0\x9F\x87\xAC\xF0\x9F\x87\xA9",
-                   "flag: Grenada"},
-        EmojiEntry{EmojiEnum::FlagGeorgia, "\xF0\x9F\x87\xAC\xF0\x9F\x87\xAA",
-                   "flag: Georgia"},
-        EmojiEntry{EmojiEnum::FlagFrenchGuiana,
-                   "\xF0\x9F\x87\xAC\xF0\x9F\x87\xAB", "flag: French Guiana"},
-        EmojiEntry{EmojiEnum::FlagGuernsey, "\xF0\x9F\x87\xAC\xF0\x9F\x87\xAC",
-                   "flag: Guernsey"},
-        EmojiEntry{EmojiEnum::FlagGhana, "\xF0\x9F\x87\xAC\xF0\x9F\x87\xAD",
-                   "flag: Ghana"},
-        EmojiEntry{EmojiEnum::FlagGibraltar, "\xF0\x9F\x87\xAC\xF0\x9F\x87\xAE",
-                   "flag: Gibraltar"},
-        EmojiEntry{EmojiEnum::FlagGreenland, "\xF0\x9F\x87\xAC\xF0\x9F\x87\xB1",
-                   "flag: Greenland"},
-        EmojiEntry{EmojiEnum::FlagGambia, "\xF0\x9F\x87\xAC\xF0\x9F\x87\xB2",
-                   "flag: Gambia"},
-        EmojiEntry{EmojiEnum::FlagGuinea, "\xF0\x9F\x87\xAC\xF0\x9F\x87\xB3",
-                   "flag: Guinea"},
-        EmojiEntry{EmojiEnum::FlagGuadeloupe,
-                   "\xF0\x9F\x87\xAC\xF0\x9F\x87\xB5", "flag: Guadeloupe"},
-        EmojiEntry{EmojiEnum::FlagEquatorialGuinea,
-                   "\xF0\x9F\x87\xAC\xF0\x9F\x87\xB6",
-                   "flag: Equatorial Guinea"},
-        EmojiEntry{EmojiEnum::FlagGreece, "\xF0\x9F\x87\xAC\xF0\x9F\x87\xB7",
-                   "flag: Greece"},
-        EmojiEntry{EmojiEnum::FlagSouthGeorgiaAndSouthSandwichIslands,
-                   "\xF0\x9F\x87\xAC\xF0\x9F\x87\xB8",
-                   "flag: South Georgia & South Sandwich Islands"},
-        EmojiEntry{EmojiEnum::FlagGuatemala, "\xF0\x9F\x87\xAC\xF0\x9F\x87\xB9",
-                   "flag: Guatemala"},
-        EmojiEntry{EmojiEnum::FlagGuam, "\xF0\x9F\x87\xAC\xF0\x9F\x87\xBA",
-                   "flag: Guam"},
-        EmojiEntry{EmojiEnum::FlagGuineaBissau,
-                   "\xF0\x9F\x87\xAC\xF0\x9F\x87\xBC", "flag: Guinea-Bissau"},
-        EmojiEntry{EmojiEnum::FlagGuyana, "\xF0\x9F\x87\xAC\xF0\x9F\x87\xBE",
-                   "flag: Guyana"},
-        EmojiEntry{EmojiEnum::FlagHongKongSarChina,
-                   "\xF0\x9F\x87\xAD\xF0\x9F\x87\xB0",
-                   "flag: Hong Kong SAR China"},
-        EmojiEntry{EmojiEnum::FlagHeardAndMcdonaldIslands,
-                   "\xF0\x9F\x87\xAD\xF0\x9F\x87\xB2",
-                   "flag: Heard & McDonald Islands"},
-        EmojiEntry{EmojiEnum::FlagHonduras, "\xF0\x9F\x87\xAD\xF0\x9F\x87\xB3",
-                   "flag: Honduras"},
-        EmojiEntry{EmojiEnum::FlagCroatia, "\xF0\x9F\x87\xAD\xF0\x9F\x87\xB7",
-                   "flag: Croatia"},
-        EmojiEntry{EmojiEnum::FlagHaiti, "\xF0\x9F\x87\xAD\xF0\x9F\x87\xB9",
-                   "flag: Haiti"},
-        EmojiEntry{EmojiEnum::FlagHungary, "\xF0\x9F\x87\xAD\xF0\x9F\x87\xBA",
-                   "flag: Hungary"},
-        EmojiEntry{EmojiEnum::FlagCanaryIslands,
-                   "\xF0\x9F\x87\xAE\xF0\x9F\x87\xA8", "flag: Canary Islands"},
-        EmojiEntry{EmojiEnum::FlagIndonesia, "\xF0\x9F\x87\xAE\xF0\x9F\x87\xA9",
-                   "flag: Indonesia"},
-        EmojiEntry{EmojiEnum::FlagIreland, "\xF0\x9F\x87\xAE\xF0\x9F\x87\xAA",
-                   "flag: Ireland"},
-        EmojiEntry{EmojiEnum::FlagIsrael, "\xF0\x9F\x87\xAE\xF0\x9F\x87\xB1",
-                   "flag: Israel"},
-        EmojiEntry{EmojiEnum::FlagIsleOfMan, "\xF0\x9F\x87\xAE\xF0\x9F\x87\xB2",
-                   "flag: Isle of Man"},
-        EmojiEntry{EmojiEnum::FlagIndia, "\xF0\x9F\x87\xAE\xF0\x9F\x87\xB3",
-                   "flag: India"},
-        EmojiEntry{EmojiEnum::FlagBritishIndianOceanTerritory,
-                   "\xF0\x9F\x87\xAE\xF0\x9F\x87\xB4",
-                   "flag: British Indian Ocean Territory"},
-        EmojiEntry{EmojiEnum::FlagIraq, "\xF0\x9F\x87\xAE\xF0\x9F\x87\xB6",
-                   "flag: Iraq"},
-        EmojiEntry{EmojiEnum::FlagIran, "\xF0\x9F\x87\xAE\xF0\x9F\x87\xB7",
-                   "flag: Iran"},
-        EmojiEntry{EmojiEnum::FlagIceland, "\xF0\x9F\x87\xAE\xF0\x9F\x87\xB8",
-                   "flag: Iceland"},
-        EmojiEntry{EmojiEnum::FlagItaly, "\xF0\x9F\x87\xAE\xF0\x9F\x87\xB9",
-                   "flag: Italy"},
-        EmojiEntry{EmojiEnum::FlagJersey, "\xF0\x9F\x87\xAF\xF0\x9F\x87\xAA",
-                   "flag: Jersey"},
-        EmojiEntry{EmojiEnum::FlagJamaica, "\xF0\x9F\x87\xAF\xF0\x9F\x87\xB2",
-                   "flag: Jamaica"},
-        EmojiEntry{EmojiEnum::FlagJordan, "\xF0\x9F\x87\xAF\xF0\x9F\x87\xB4",
-                   "flag: Jordan"},
-        EmojiEntry{EmojiEnum::FlagJapan, "\xF0\x9F\x87\xAF\xF0\x9F\x87\xB5",
-                   "flag: Japan"},
-        EmojiEntry{EmojiEnum::FlagKenya, "\xF0\x9F\x87\xB0\xF0\x9F\x87\xAA",
-                   "flag: Kenya"},
-        EmojiEntry{EmojiEnum::FlagKyrgyzstan,
-                   "\xF0\x9F\x87\xB0\xF0\x9F\x87\xAC", "flag: Kyrgyzstan"},
-        EmojiEntry{EmojiEnum::FlagCambodia, "\xF0\x9F\x87\xB0\xF0\x9F\x87\xAD",
-                   "flag: Cambodia"},
-        EmojiEntry{EmojiEnum::FlagKiribati, "\xF0\x9F\x87\xB0\xF0\x9F\x87\xAE",
-                   "flag: Kiribati"},
-        EmojiEntry{EmojiEnum::FlagComoros, "\xF0\x9F\x87\xB0\xF0\x9F\x87\xB2",
-                   "flag: Comoros"},
-        EmojiEntry{EmojiEnum::FlagStKittsAndNevis,
-                   "\xF0\x9F\x87\xB0\xF0\x9F\x87\xB3",
-                   "flag: St. Kitts & Nevis"},
-        EmojiEntry{EmojiEnum::FlagNorthKorea,
-                   "\xF0\x9F\x87\xB0\xF0\x9F\x87\xB5", "flag: North Korea"},
-        EmojiEntry{EmojiEnum::FlagSouthKorea,
-                   "\xF0\x9F\x87\xB0\xF0\x9F\x87\xB7", "flag: South Korea"},
-        EmojiEntry{EmojiEnum::FlagKuwait, "\xF0\x9F\x87\xB0\xF0\x9F\x87\xBC",
-                   "flag: Kuwait"},
-        EmojiEntry{EmojiEnum::FlagCaymanIslands,
-                   "\xF0\x9F\x87\xB0\xF0\x9F\x87\xBE", "flag: Cayman Islands"},
-        EmojiEntry{EmojiEnum::FlagKazakhstan,
-                   "\xF0\x9F\x87\xB0\xF0\x9F\x87\xBF", "flag: Kazakhstan"},
-        EmojiEntry{EmojiEnum::FlagLaos, "\xF0\x9F\x87\xB1\xF0\x9F\x87\xA6",
-                   "flag: Laos"},
-        EmojiEntry{EmojiEnum::FlagLebanon, "\xF0\x9F\x87\xB1\xF0\x9F\x87\xA7",
-                   "flag: Lebanon"},
-        EmojiEntry{EmojiEnum::FlagStLucia, "\xF0\x9F\x87\xB1\xF0\x9F\x87\xA8",
-                   "flag: St. Lucia"},
-        EmojiEntry{EmojiEnum::FlagLiechtenstein,
-                   "\xF0\x9F\x87\xB1\xF0\x9F\x87\xAE", "flag: Liechtenstein"},
-        EmojiEntry{EmojiEnum::FlagSriLanka, "\xF0\x9F\x87\xB1\xF0\x9F\x87\xB0",
-                   "flag: Sri Lanka"},
-        EmojiEntry{EmojiEnum::FlagLiberia, "\xF0\x9F\x87\xB1\xF0\x9F\x87\xB7",
-                   "flag: Liberia"},
-        EmojiEntry{EmojiEnum::FlagLesotho, "\xF0\x9F\x87\xB1\xF0\x9F\x87\xB8",
-                   "flag: Lesotho"},
-        EmojiEntry{EmojiEnum::FlagLithuania, "\xF0\x9F\x87\xB1\xF0\x9F\x87\xB9",
-                   "flag: Lithuania"},
-        EmojiEntry{EmojiEnum::FlagLuxembourg,
-                   "\xF0\x9F\x87\xB1\xF0\x9F\x87\xBA", "flag: Luxembourg"},
-        EmojiEntry{EmojiEnum::FlagLatvia, "\xF0\x9F\x87\xB1\xF0\x9F\x87\xBB",
-                   "flag: Latvia"},
-        EmojiEntry{EmojiEnum::FlagLibya, "\xF0\x9F\x87\xB1\xF0\x9F\x87\xBE",
-                   "flag: Libya"},
-        EmojiEntry{EmojiEnum::FlagMorocco, "\xF0\x9F\x87\xB2\xF0\x9F\x87\xA6",
-                   "flag: Morocco"},
-        EmojiEntry{EmojiEnum::FlagMonaco, "\xF0\x9F\x87\xB2\xF0\x9F\x87\xA8",
-                   "flag: Monaco"},
-        EmojiEntry{EmojiEnum::FlagMoldova, "\xF0\x9F\x87\xB2\xF0\x9F\x87\xA9",
-                   "flag: Moldova"},
-        EmojiEntry{EmojiEnum::FlagMontenegro,
-                   "\xF0\x9F\x87\xB2\xF0\x9F\x87\xAA", "flag: Montenegro"},
-        EmojiEntry{EmojiEnum::FlagStMartin, "\xF0\x9F\x87\xB2\xF0\x9F\x87\xAB",
-                   "flag: St. Martin"},
-        EmojiEntry{EmojiEnum::FlagMadagascar,
-                   "\xF0\x9F\x87\xB2\xF0\x9F\x87\xAC", "flag: Madagascar"},
-        EmojiEntry{EmojiEnum::FlagMarshallIslands,
-                   "\xF0\x9F\x87\xB2\xF0\x9F\x87\xAD",
-                   "flag: Marshall Islands"},
-        EmojiEntry{EmojiEnum::FlagNorthMacedonia,
-                   "\xF0\x9F\x87\xB2\xF0\x9F\x87\xB0", "flag: North Macedonia"},
-        EmojiEntry{EmojiEnum::FlagMali, "\xF0\x9F\x87\xB2\xF0\x9F\x87\xB1",
-                   "flag: Mali"},
-        EmojiEntry{EmojiEnum::FlagMyanmarBurma,
-                   "\xF0\x9F\x87\xB2\xF0\x9F\x87\xB2", "flag: Myanmar (Burma)"},
-        EmojiEntry{EmojiEnum::FlagMongolia, "\xF0\x9F\x87\xB2\xF0\x9F\x87\xB3",
-                   "flag: Mongolia"},
-        EmojiEntry{EmojiEnum::FlagMacaoSarChina,
-                   "\xF0\x9F\x87\xB2\xF0\x9F\x87\xB4", "flag: Macao SAR China"},
-        EmojiEntry{EmojiEnum::FlagNorthernMarianaIslands,
-                   "\xF0\x9F\x87\xB2\xF0\x9F\x87\xB5",
-                   "flag: Northern Mariana Islands"},
-        EmojiEntry{EmojiEnum::FlagMartinique,
-                   "\xF0\x9F\x87\xB2\xF0\x9F\x87\xB6", "flag: Martinique"},
-        EmojiEntry{EmojiEnum::FlagMauritania,
-                   "\xF0\x9F\x87\xB2\xF0\x9F\x87\xB7", "flag: Mauritania"},
-        EmojiEntry{EmojiEnum::FlagMontserrat,
-                   "\xF0\x9F\x87\xB2\xF0\x9F\x87\xB8", "flag: Montserrat"},
-        EmojiEntry{EmojiEnum::FlagMalta, "\xF0\x9F\x87\xB2\xF0\x9F\x87\xB9",
-                   "flag: Malta"},
-        EmojiEntry{EmojiEnum::FlagMauritius, "\xF0\x9F\x87\xB2\xF0\x9F\x87\xBA",
-                   "flag: Mauritius"},
-        EmojiEntry{EmojiEnum::FlagMaldives, "\xF0\x9F\x87\xB2\xF0\x9F\x87\xBB",
-                   "flag: Maldives"},
-        EmojiEntry{EmojiEnum::FlagMalawi, "\xF0\x9F\x87\xB2\xF0\x9F\x87\xBC",
-                   "flag: Malawi"},
-        EmojiEntry{EmojiEnum::FlagMexico, "\xF0\x9F\x87\xB2\xF0\x9F\x87\xBD",
-                   "flag: Mexico"},
-        EmojiEntry{EmojiEnum::FlagMalaysia, "\xF0\x9F\x87\xB2\xF0\x9F\x87\xBE",
-                   "flag: Malaysia"},
-        EmojiEntry{EmojiEnum::FlagMozambique,
-                   "\xF0\x9F\x87\xB2\xF0\x9F\x87\xBF", "flag: Mozambique"},
-        EmojiEntry{EmojiEnum::FlagNamibia, "\xF0\x9F\x87\xB3\xF0\x9F\x87\xA6",
-                   "flag: Namibia"},
-        EmojiEntry{EmojiEnum::FlagNewCaledonia,
-                   "\xF0\x9F\x87\xB3\xF0\x9F\x87\xA8", "flag: New Caledonia"},
-        EmojiEntry{EmojiEnum::FlagNiger, "\xF0\x9F\x87\xB3\xF0\x9F\x87\xAA",
-                   "flag: Niger"},
-        EmojiEntry{EmojiEnum::FlagNorfolkIsland,
-                   "\xF0\x9F\x87\xB3\xF0\x9F\x87\xAB", "flag: Norfolk Island"},
-        EmojiEntry{EmojiEnum::FlagNigeria, "\xF0\x9F\x87\xB3\xF0\x9F\x87\xAC",
-                   "flag: Nigeria"},
-        EmojiEntry{EmojiEnum::FlagNicaragua, "\xF0\x9F\x87\xB3\xF0\x9F\x87\xAE",
-                   "flag: Nicaragua"},
-        EmojiEntry{EmojiEnum::FlagNetherlands,
-                   "\xF0\x9F\x87\xB3\xF0\x9F\x87\xB1", "flag: Netherlands"},
-        EmojiEntry{EmojiEnum::FlagNorway, "\xF0\x9F\x87\xB3\xF0\x9F\x87\xB4",
-                   "flag: Norway"},
-        EmojiEntry{EmojiEnum::FlagNepal, "\xF0\x9F\x87\xB3\xF0\x9F\x87\xB5",
-                   "flag: Nepal"},
-        EmojiEntry{EmojiEnum::FlagNauru, "\xF0\x9F\x87\xB3\xF0\x9F\x87\xB7",
-                   "flag: Nauru"},
-        EmojiEntry{EmojiEnum::FlagNiue, "\xF0\x9F\x87\xB3\xF0\x9F\x87\xBA",
-                   "flag: Niue"},
-        EmojiEntry{EmojiEnum::FlagNewZealand,
-                   "\xF0\x9F\x87\xB3\xF0\x9F\x87\xBF", "flag: New Zealand"},
-        EmojiEntry{EmojiEnum::FlagOman, "\xF0\x9F\x87\xB4\xF0\x9F\x87\xB2",
-                   "flag: Oman"},
-        EmojiEntry{EmojiEnum::FlagPanama, "\xF0\x9F\x87\xB5\xF0\x9F\x87\xA6",
-                   "flag: Panama"},
-        EmojiEntry{EmojiEnum::FlagPeru, "\xF0\x9F\x87\xB5\xF0\x9F\x87\xAA",
-                   "flag: Peru"},
-        EmojiEntry{EmojiEnum::FlagFrenchPolynesia,
-                   "\xF0\x9F\x87\xB5\xF0\x9F\x87\xAB",
-                   "flag: French Polynesia"},
-        EmojiEntry{EmojiEnum::FlagPapuaNewGuinea,
-                   "\xF0\x9F\x87\xB5\xF0\x9F\x87\xAC",
-                   "flag: Papua New Guinea"},
-        EmojiEntry{EmojiEnum::FlagPhilippines,
-                   "\xF0\x9F\x87\xB5\xF0\x9F\x87\xAD", "flag: Philippines"},
-        EmojiEntry{EmojiEnum::FlagPakistan, "\xF0\x9F\x87\xB5\xF0\x9F\x87\xB0",
-                   "flag: Pakistan"},
-        EmojiEntry{EmojiEnum::FlagPoland, "\xF0\x9F\x87\xB5\xF0\x9F\x87\xB1",
-                   "flag: Poland"},
-        EmojiEntry{EmojiEnum::FlagStPierreAndMiquelon,
-                   "\xF0\x9F\x87\xB5\xF0\x9F\x87\xB2",
-                   "flag: St. Pierre & Miquelon"},
-        EmojiEntry{EmojiEnum::FlagPitcairnIslands,
-                   "\xF0\x9F\x87\xB5\xF0\x9F\x87\xB3",
-                   "flag: Pitcairn Islands"},
-        EmojiEntry{EmojiEnum::FlagPuertoRico,
-                   "\xF0\x9F\x87\xB5\xF0\x9F\x87\xB7", "flag: Puerto Rico"},
-        EmojiEntry{EmojiEnum::FlagPalestinianTerritories,
-                   "\xF0\x9F\x87\xB5\xF0\x9F\x87\xB8",
-                   "flag: Palestinian Territories"},
-        EmojiEntry{EmojiEnum::FlagPortugal, "\xF0\x9F\x87\xB5\xF0\x9F\x87\xB9",
-                   "flag: Portugal"},
-        EmojiEntry{EmojiEnum::FlagPalau, "\xF0\x9F\x87\xB5\xF0\x9F\x87\xBC",
-                   "flag: Palau"},
-        EmojiEntry{EmojiEnum::FlagParaguay, "\xF0\x9F\x87\xB5\xF0\x9F\x87\xBE",
-                   "flag: Paraguay"},
-        EmojiEntry{EmojiEnum::FlagQatar, "\xF0\x9F\x87\xB6\xF0\x9F\x87\xA6",
-                   "flag: Qatar"},
-        EmojiEntry{EmojiEnum::FlagReunion, "\xF0\x9F\x87\xB7\xF0\x9F\x87\xAA",
-                   "flag: Reunion"},
-        EmojiEntry{EmojiEnum::FlagRomania, "\xF0\x9F\x87\xB7\xF0\x9F\x87\xB4",
-                   "flag: Romania"},
-        EmojiEntry{EmojiEnum::FlagSerbia, "\xF0\x9F\x87\xB7\xF0\x9F\x87\xB8",
-                   "flag: Serbia"},
-        EmojiEntry{EmojiEnum::FlagRussia, "\xF0\x9F\x87\xB7\xF0\x9F\x87\xBA",
-                   "flag: Russia"},
-        EmojiEntry{EmojiEnum::FlagRwanda, "\xF0\x9F\x87\xB7\xF0\x9F\x87\xBC",
-                   "flag: Rwanda"},
-        EmojiEntry{EmojiEnum::FlagSaudiArabia,
-                   "\xF0\x9F\x87\xB8\xF0\x9F\x87\xA6", "flag: Saudi Arabia"},
-        EmojiEntry{EmojiEnum::FlagSolomonIslands,
-                   "\xF0\x9F\x87\xB8\xF0\x9F\x87\xA7", "flag: Solomon Islands"},
-        EmojiEntry{EmojiEnum::FlagSeychelles,
-                   "\xF0\x9F\x87\xB8\xF0\x9F\x87\xA8", "flag: Seychelles"},
-        EmojiEntry{EmojiEnum::FlagSudan, "\xF0\x9F\x87\xB8\xF0\x9F\x87\xA9",
-                   "flag: Sudan"},
-        EmojiEntry{EmojiEnum::FlagSweden, "\xF0\x9F\x87\xB8\xF0\x9F\x87\xAA",
-                   "flag: Sweden"},
-        EmojiEntry{EmojiEnum::FlagSingapore, "\xF0\x9F\x87\xB8\xF0\x9F\x87\xAC",
-                   "flag: Singapore"},
-        EmojiEntry{EmojiEnum::FlagStHelena, "\xF0\x9F\x87\xB8\xF0\x9F\x87\xAD",
-                   "flag: St. Helena"},
-        EmojiEntry{EmojiEnum::FlagSlovenia, "\xF0\x9F\x87\xB8\xF0\x9F\x87\xAE",
-                   "flag: Slovenia"},
-        EmojiEntry{EmojiEnum::FlagSvalbardAndJanMayen,
-                   "\xF0\x9F\x87\xB8\xF0\x9F\x87\xAF",
-                   "flag: Svalbard & Jan Mayen"},
-        EmojiEntry{EmojiEnum::FlagSlovakia, "\xF0\x9F\x87\xB8\xF0\x9F\x87\xB0",
-                   "flag: Slovakia"},
-        EmojiEntry{EmojiEnum::FlagSierraLeone,
-                   "\xF0\x9F\x87\xB8\xF0\x9F\x87\xB1", "flag: Sierra Leone"},
-        EmojiEntry{EmojiEnum::FlagSanMarino, "\xF0\x9F\x87\xB8\xF0\x9F\x87\xB2",
-                   "flag: San Marino"},
-        EmojiEntry{EmojiEnum::FlagSenegal, "\xF0\x9F\x87\xB8\xF0\x9F\x87\xB3",
-                   "flag: Senegal"},
-        EmojiEntry{EmojiEnum::FlagSomalia, "\xF0\x9F\x87\xB8\xF0\x9F\x87\xB4",
-                   "flag: Somalia"},
-        EmojiEntry{EmojiEnum::FlagSuriname, "\xF0\x9F\x87\xB8\xF0\x9F\x87\xB7",
-                   "flag: Suriname"},
-        EmojiEntry{EmojiEnum::FlagSouthSudan,
-                   "\xF0\x9F\x87\xB8\xF0\x9F\x87\xB8", "flag: South Sudan"},
-        EmojiEntry{EmojiEnum::FlagSaoTomeAndPrincipe,
-                   "\xF0\x9F\x87\xB8\xF0\x9F\x87\xB9",
-                   "flag: Sao Tome & Principe"},
-        EmojiEntry{EmojiEnum::FlagElSalvador,
-                   "\xF0\x9F\x87\xB8\xF0\x9F\x87\xBB", "flag: El Salvador"},
-        EmojiEntry{EmojiEnum::FlagSintMaarten,
-                   "\xF0\x9F\x87\xB8\xF0\x9F\x87\xBD", "flag: Sint Maarten"},
-        EmojiEntry{EmojiEnum::FlagSyria, "\xF0\x9F\x87\xB8\xF0\x9F\x87\xBE",
-                   "flag: Syria"},
-        EmojiEntry{EmojiEnum::FlagEswatini, "\xF0\x9F\x87\xB8\xF0\x9F\x87\xBF",
-                   "flag: Eswatini"},
-        EmojiEntry{EmojiEnum::FlagTristanDaCunha,
-                   "\xF0\x9F\x87\xB9\xF0\x9F\x87\xA6",
-                   "flag: Tristan da Cunha"},
-        EmojiEntry{EmojiEnum::FlagTurksAndCaicosIslands,
-                   "\xF0\x9F\x87\xB9\xF0\x9F\x87\xA8",
-                   "flag: Turks & Caicos Islands"},
-        EmojiEntry{EmojiEnum::FlagChad, "\xF0\x9F\x87\xB9\xF0\x9F\x87\xA9",
-                   "flag: Chad"},
-        EmojiEntry{EmojiEnum::FlagFrenchSouthernTerritories,
-                   "\xF0\x9F\x87\xB9\xF0\x9F\x87\xAB",
-                   "flag: French Southern Territories"},
-        EmojiEntry{EmojiEnum::FlagTogo, "\xF0\x9F\x87\xB9\xF0\x9F\x87\xAC",
-                   "flag: Togo"},
-        EmojiEntry{EmojiEnum::FlagThailand, "\xF0\x9F\x87\xB9\xF0\x9F\x87\xAD",
-                   "flag: Thailand"},
-        EmojiEntry{EmojiEnum::FlagTajikistan,
-                   "\xF0\x9F\x87\xB9\xF0\x9F\x87\xAF", "flag: Tajikistan"},
-        EmojiEntry{EmojiEnum::FlagTokelau, "\xF0\x9F\x87\xB9\xF0\x9F\x87\xB0",
-                   "flag: Tokelau"},
-        EmojiEntry{EmojiEnum::FlagTimorLeste,
-                   "\xF0\x9F\x87\xB9\xF0\x9F\x87\xB1", "flag: Timor-Leste"},
-        EmojiEntry{EmojiEnum::FlagTurkmenistan,
-                   "\xF0\x9F\x87\xB9\xF0\x9F\x87\xB2", "flag: Turkmenistan"},
-        EmojiEntry{EmojiEnum::FlagTunisia, "\xF0\x9F\x87\xB9\xF0\x9F\x87\xB3",
-                   "flag: Tunisia"},
-        EmojiEntry{EmojiEnum::FlagTonga, "\xF0\x9F\x87\xB9\xF0\x9F\x87\xB4",
-                   "flag: Tonga"},
-        EmojiEntry{EmojiEnum::FlagTurkiye, "\xF0\x9F\x87\xB9\xF0\x9F\x87\xB7",
-                   "flag: Turkiye"},
-        EmojiEntry{EmojiEnum::FlagTrinidadAndTobago,
-                   "\xF0\x9F\x87\xB9\xF0\x9F\x87\xB9",
-                   "flag: Trinidad & Tobago"},
-        EmojiEntry{EmojiEnum::FlagTuvalu, "\xF0\x9F\x87\xB9\xF0\x9F\x87\xBB",
-                   "flag: Tuvalu"},
-        EmojiEntry{EmojiEnum::FlagTaiwan, "\xF0\x9F\x87\xB9\xF0\x9F\x87\xBC",
-                   "flag: Taiwan"},
-        EmojiEntry{EmojiEnum::FlagTanzania, "\xF0\x9F\x87\xB9\xF0\x9F\x87\xBF",
-                   "flag: Tanzania"},
-        EmojiEntry{EmojiEnum::FlagUkraine, "\xF0\x9F\x87\xBA\xF0\x9F\x87\xA6",
-                   "flag: Ukraine"},
-        EmojiEntry{EmojiEnum::FlagUganda, "\xF0\x9F\x87\xBA\xF0\x9F\x87\xAC",
-                   "flag: Uganda"},
-        EmojiEntry{EmojiEnum::FlagUSOutlyingIslands,
-                   "\xF0\x9F\x87\xBA\xF0\x9F\x87\xB2",
-                   "flag: U.S. Outlying Islands"},
-        EmojiEntry{EmojiEnum::FlagUnitedNations,
-                   "\xF0\x9F\x87\xBA\xF0\x9F\x87\xB3", "flag: United Nations"},
-        EmojiEntry{EmojiEnum::FlagUnitedStates,
-                   "\xF0\x9F\x87\xBA\xF0\x9F\x87\xB8", "flag: United States"},
-        EmojiEntry{EmojiEnum::FlagUruguay, "\xF0\x9F\x87\xBA\xF0\x9F\x87\xBE",
-                   "flag: Uruguay"},
-        EmojiEntry{EmojiEnum::FlagUzbekistan,
-                   "\xF0\x9F\x87\xBA\xF0\x9F\x87\xBF", "flag: Uzbekistan"},
-        EmojiEntry{EmojiEnum::FlagVaticanCity,
-                   "\xF0\x9F\x87\xBB\xF0\x9F\x87\xA6", "flag: Vatican City"},
-        EmojiEntry{EmojiEnum::FlagStVincentAndGrenadines,
-                   "\xF0\x9F\x87\xBB\xF0\x9F\x87\xA8",
-                   "flag: St. Vincent & Grenadines"},
-        EmojiEntry{EmojiEnum::FlagVenezuela, "\xF0\x9F\x87\xBB\xF0\x9F\x87\xAA",
-                   "flag: Venezuela"},
-        EmojiEntry{EmojiEnum::FlagBritishVirginIslands,
-                   "\xF0\x9F\x87\xBB\xF0\x9F\x87\xAC",
-                   "flag: British Virgin Islands"},
-        EmojiEntry{EmojiEnum::FlagUSVirginIslands,
-                   "\xF0\x9F\x87\xBB\xF0\x9F\x87\xAE",
-                   "flag: U.S. Virgin Islands"},
-        EmojiEntry{EmojiEnum::FlagVietnam, "\xF0\x9F\x87\xBB\xF0\x9F\x87\xB3",
-                   "flag: Vietnam"},
-        EmojiEntry{EmojiEnum::FlagVanuatu, "\xF0\x9F\x87\xBB\xF0\x9F\x87\xBA",
-                   "flag: Vanuatu"},
-        EmojiEntry{EmojiEnum::FlagWallisAndFutuna,
-                   "\xF0\x9F\x87\xBC\xF0\x9F\x87\xAB", "flag: Wallis & Futuna"},
-        EmojiEntry{EmojiEnum::FlagSamoa, "\xF0\x9F\x87\xBC\xF0\x9F\x87\xB8",
-                   "flag: Samoa"},
-        EmojiEntry{EmojiEnum::FlagKosovo, "\xF0\x9F\x87\xBD\xF0\x9F\x87\xB0",
-                   "flag: Kosovo"},
-        EmojiEntry{EmojiEnum::FlagYemen, "\xF0\x9F\x87\xBE\xF0\x9F\x87\xAA",
-                   "flag: Yemen"},
-        EmojiEntry{EmojiEnum::FlagMayotte, "\xF0\x9F\x87\xBE\xF0\x9F\x87\xB9",
-                   "flag: Mayotte"},
-        EmojiEntry{EmojiEnum::FlagSouthAfrica,
-                   "\xF0\x9F\x87\xBF\xF0\x9F\x87\xA6", "flag: South Africa"},
-        EmojiEntry{EmojiEnum::FlagZambia, "\xF0\x9F\x87\xBF\xF0\x9F\x87\xB2",
-                   "flag: Zambia"},
-        EmojiEntry{EmojiEnum::FlagZimbabwe, "\xF0\x9F\x87\xBF\xF0\x9F\x87\xBC",
-                   "flag: Zimbabwe"},
-        EmojiEntry{EmojiEnum::FlagEngland,
-                   "\xF0\x9F\x8F\xB4\xF3\xA0\x81\xA7\xF3\xA0\x81\xA2\xF3\xA0"
-                   "\x81\xA5\xF3\xA0\x81\xAE\xF3\xA0\x81\xA7\xF3\xA0\x81\xBF",
-                   "flag: England"},
-        EmojiEntry{EmojiEnum::FlagScotland,
-                   "\xF0\x9F\x8F\xB4\xF3\xA0\x81\xA7\xF3\xA0\x81\xA2\xF3\xA0"
-                   "\x81\xB3\xF3\xA0\x81\xA3\xF3\xA0\x81\xB4\xF3\xA0\x81\xBF",
-                   "flag: Scotland"},
-        EmojiEntry{EmojiEnum::FlagWales,
-                   "\xF0\x9F\x8F\xB4\xF3\xA0\x81\xA7\xF3\xA0\x81\xA2\xF3\xA0"
-                   "\x81\xB7\xF3\xA0\x81\xAC\xF3\xA0\x81\xB3\xF3\xA0\x81\xBF",
-                   "flag: Wales"},
+        EmojiEntry{
+            EmojiEnum::PirateFlag,
+            "\xF0\x9F\x8F\xB4\xE2\x80\x8D\xE2\x98\xA0\xEF\xB8\x8F",
+            "pirate flag"},
+        EmojiEntry{
+            EmojiEnum::FlagAscensionIsland,
+            "\xF0\x9F\x87\xA6\xF0\x9F\x87\xA8",
+            "flag: Ascension Island"},
+        EmojiEntry{
+            EmojiEnum::FlagAndorra,
+            "\xF0\x9F\x87\xA6\xF0\x9F\x87\xA9",
+            "flag: Andorra"},
+        EmojiEntry{
+            EmojiEnum::FlagUnitedArabEmirates,
+            "\xF0\x9F\x87\xA6\xF0\x9F\x87\xAA",
+            "flag: United Arab Emirates"},
+        EmojiEntry{
+            EmojiEnum::FlagAfghanistan,
+            "\xF0\x9F\x87\xA6\xF0\x9F\x87\xAB",
+            "flag: Afghanistan"},
+        EmojiEntry{
+            EmojiEnum::FlagAntiguaAndBarbuda,
+            "\xF0\x9F\x87\xA6\xF0\x9F\x87\xAC",
+            "flag: Antigua & Barbuda"},
+        EmojiEntry{
+            EmojiEnum::FlagAnguilla,
+            "\xF0\x9F\x87\xA6\xF0\x9F\x87\xAE",
+            "flag: Anguilla"},
+        EmojiEntry{
+            EmojiEnum::FlagAlbania,
+            "\xF0\x9F\x87\xA6\xF0\x9F\x87\xB1",
+            "flag: Albania"},
+        EmojiEntry{
+            EmojiEnum::FlagArmenia,
+            "\xF0\x9F\x87\xA6\xF0\x9F\x87\xB2",
+            "flag: Armenia"},
+        EmojiEntry{
+            EmojiEnum::FlagAngola,
+            "\xF0\x9F\x87\xA6\xF0\x9F\x87\xB4",
+            "flag: Angola"},
+        EmojiEntry{
+            EmojiEnum::FlagAntarctica,
+            "\xF0\x9F\x87\xA6\xF0\x9F\x87\xB6",
+            "flag: Antarctica"},
+        EmojiEntry{
+            EmojiEnum::FlagArgentina,
+            "\xF0\x9F\x87\xA6\xF0\x9F\x87\xB7",
+            "flag: Argentina"},
+        EmojiEntry{
+            EmojiEnum::FlagAmericanSamoa,
+            "\xF0\x9F\x87\xA6\xF0\x9F\x87\xB8",
+            "flag: American Samoa"},
+        EmojiEntry{
+            EmojiEnum::FlagAustria,
+            "\xF0\x9F\x87\xA6\xF0\x9F\x87\xB9",
+            "flag: Austria"},
+        EmojiEntry{
+            EmojiEnum::FlagAustralia,
+            "\xF0\x9F\x87\xA6\xF0\x9F\x87\xBA",
+            "flag: Australia"},
+        EmojiEntry{
+            EmojiEnum::FlagAruba,
+            "\xF0\x9F\x87\xA6\xF0\x9F\x87\xBC",
+            "flag: Aruba"},
+        EmojiEntry{
+            EmojiEnum::FlagAlandIslands,
+            "\xF0\x9F\x87\xA6\xF0\x9F\x87\xBD",
+            "flag: Aland Islands"},
+        EmojiEntry{
+            EmojiEnum::FlagAzerbaijan,
+            "\xF0\x9F\x87\xA6\xF0\x9F\x87\xBF",
+            "flag: Azerbaijan"},
+        EmojiEntry{
+            EmojiEnum::FlagBosniaAndHerzegovina,
+            "\xF0\x9F\x87\xA7\xF0\x9F\x87\xA6",
+            "flag: Bosnia & Herzegovina"},
+        EmojiEntry{
+            EmojiEnum::FlagBarbados,
+            "\xF0\x9F\x87\xA7\xF0\x9F\x87\xA7",
+            "flag: Barbados"},
+        EmojiEntry{
+            EmojiEnum::FlagBangladesh,
+            "\xF0\x9F\x87\xA7\xF0\x9F\x87\xA9",
+            "flag: Bangladesh"},
+        EmojiEntry{
+            EmojiEnum::FlagBelgium,
+            "\xF0\x9F\x87\xA7\xF0\x9F\x87\xAA",
+            "flag: Belgium"},
+        EmojiEntry{
+            EmojiEnum::FlagBurkinaFaso,
+            "\xF0\x9F\x87\xA7\xF0\x9F\x87\xAB",
+            "flag: Burkina Faso"},
+        EmojiEntry{
+            EmojiEnum::FlagBulgaria,
+            "\xF0\x9F\x87\xA7\xF0\x9F\x87\xAC",
+            "flag: Bulgaria"},
+        EmojiEntry{
+            EmojiEnum::FlagBahrain,
+            "\xF0\x9F\x87\xA7\xF0\x9F\x87\xAD",
+            "flag: Bahrain"},
+        EmojiEntry{
+            EmojiEnum::FlagBurundi,
+            "\xF0\x9F\x87\xA7\xF0\x9F\x87\xAE",
+            "flag: Burundi"},
+        EmojiEntry{
+            EmojiEnum::FlagBenin,
+            "\xF0\x9F\x87\xA7\xF0\x9F\x87\xAF",
+            "flag: Benin"},
+        EmojiEntry{
+            EmojiEnum::FlagStBarthelemy,
+            "\xF0\x9F\x87\xA7\xF0\x9F\x87\xB1",
+            "flag: St. Barthelemy"},
+        EmojiEntry{
+            EmojiEnum::FlagBermuda,
+            "\xF0\x9F\x87\xA7\xF0\x9F\x87\xB2",
+            "flag: Bermuda"},
+        EmojiEntry{
+            EmojiEnum::FlagBrunei,
+            "\xF0\x9F\x87\xA7\xF0\x9F\x87\xB3",
+            "flag: Brunei"},
+        EmojiEntry{
+            EmojiEnum::FlagBolivia,
+            "\xF0\x9F\x87\xA7\xF0\x9F\x87\xB4",
+            "flag: Bolivia"},
+        EmojiEntry{
+            EmojiEnum::FlagCaribbeanNetherlands,
+            "\xF0\x9F\x87\xA7\xF0\x9F\x87\xB6",
+            "flag: Caribbean Netherlands"},
+        EmojiEntry{
+            EmojiEnum::FlagBrazil,
+            "\xF0\x9F\x87\xA7\xF0\x9F\x87\xB7",
+            "flag: Brazil"},
+        EmojiEntry{
+            EmojiEnum::FlagBahamas,
+            "\xF0\x9F\x87\xA7\xF0\x9F\x87\xB8",
+            "flag: Bahamas"},
+        EmojiEntry{
+            EmojiEnum::FlagBhutan,
+            "\xF0\x9F\x87\xA7\xF0\x9F\x87\xB9",
+            "flag: Bhutan"},
+        EmojiEntry{
+            EmojiEnum::FlagBouvetIsland,
+            "\xF0\x9F\x87\xA7\xF0\x9F\x87\xBB",
+            "flag: Bouvet Island"},
+        EmojiEntry{
+            EmojiEnum::FlagBotswana,
+            "\xF0\x9F\x87\xA7\xF0\x9F\x87\xBC",
+            "flag: Botswana"},
+        EmojiEntry{
+            EmojiEnum::FlagBelarus,
+            "\xF0\x9F\x87\xA7\xF0\x9F\x87\xBE",
+            "flag: Belarus"},
+        EmojiEntry{
+            EmojiEnum::FlagBelize,
+            "\xF0\x9F\x87\xA7\xF0\x9F\x87\xBF",
+            "flag: Belize"},
+        EmojiEntry{
+            EmojiEnum::FlagCanada,
+            "\xF0\x9F\x87\xA8\xF0\x9F\x87\xA6",
+            "flag: Canada"},
+        EmojiEntry{
+            EmojiEnum::FlagCocosKeelingIslands,
+            "\xF0\x9F\x87\xA8\xF0\x9F\x87\xA8",
+            "flag: Cocos (Keeling) Islands"},
+        EmojiEntry{
+            EmojiEnum::FlagCongoKinshasa,
+            "\xF0\x9F\x87\xA8\xF0\x9F\x87\xA9",
+            "flag: Congo - Kinshasa"},
+        EmojiEntry{
+            EmojiEnum::FlagCentralAfricanRepublic,
+            "\xF0\x9F\x87\xA8\xF0\x9F\x87\xAB",
+            "flag: Central African Republic"},
+        EmojiEntry{
+            EmojiEnum::FlagCongoBrazzaville,
+            "\xF0\x9F\x87\xA8\xF0\x9F\x87\xAC",
+            "flag: Congo - Brazzaville"},
+        EmojiEntry{
+            EmojiEnum::FlagSwitzerland,
+            "\xF0\x9F\x87\xA8\xF0\x9F\x87\xAD",
+            "flag: Switzerland"},
+        EmojiEntry{
+            EmojiEnum::FlagCoteDivoire,
+            "\xF0\x9F\x87\xA8\xF0\x9F\x87\xAE",
+            "flag: Cote dIvoire"},
+        EmojiEntry{
+            EmojiEnum::FlagCookIslands,
+            "\xF0\x9F\x87\xA8\xF0\x9F\x87\xB0",
+            "flag: Cook Islands"},
+        EmojiEntry{
+            EmojiEnum::FlagChile,
+            "\xF0\x9F\x87\xA8\xF0\x9F\x87\xB1",
+            "flag: Chile"},
+        EmojiEntry{
+            EmojiEnum::FlagCameroon,
+            "\xF0\x9F\x87\xA8\xF0\x9F\x87\xB2",
+            "flag: Cameroon"},
+        EmojiEntry{
+            EmojiEnum::FlagChina,
+            "\xF0\x9F\x87\xA8\xF0\x9F\x87\xB3",
+            "flag: China"},
+        EmojiEntry{
+            EmojiEnum::FlagColombia,
+            "\xF0\x9F\x87\xA8\xF0\x9F\x87\xB4",
+            "flag: Colombia"},
+        EmojiEntry{
+            EmojiEnum::FlagClippertonIsland,
+            "\xF0\x9F\x87\xA8\xF0\x9F\x87\xB5",
+            "flag: Clipperton Island"},
+        EmojiEntry{
+            EmojiEnum::FlagCostaRica,
+            "\xF0\x9F\x87\xA8\xF0\x9F\x87\xB7",
+            "flag: Costa Rica"},
+        EmojiEntry{
+            EmojiEnum::FlagCuba,
+            "\xF0\x9F\x87\xA8\xF0\x9F\x87\xBA",
+            "flag: Cuba"},
+        EmojiEntry{
+            EmojiEnum::FlagCapeVerde,
+            "\xF0\x9F\x87\xA8\xF0\x9F\x87\xBB",
+            "flag: Cape Verde"},
+        EmojiEntry{
+            EmojiEnum::FlagCuracao,
+            "\xF0\x9F\x87\xA8\xF0\x9F\x87\xBC",
+            "flag: Curacao"},
+        EmojiEntry{
+            EmojiEnum::FlagChristmasIsland,
+            "\xF0\x9F\x87\xA8\xF0\x9F\x87\xBD",
+            "flag: Christmas Island"},
+        EmojiEntry{
+            EmojiEnum::FlagCyprus,
+            "\xF0\x9F\x87\xA8\xF0\x9F\x87\xBE",
+            "flag: Cyprus"},
+        EmojiEntry{
+            EmojiEnum::FlagCzechia,
+            "\xF0\x9F\x87\xA8\xF0\x9F\x87\xBF",
+            "flag: Czechia"},
+        EmojiEntry{
+            EmojiEnum::FlagGermany,
+            "\xF0\x9F\x87\xA9\xF0\x9F\x87\xAA",
+            "flag: Germany"},
+        EmojiEntry{
+            EmojiEnum::FlagDiegoGarcia,
+            "\xF0\x9F\x87\xA9\xF0\x9F\x87\xAC",
+            "flag: Diego Garcia"},
+        EmojiEntry{
+            EmojiEnum::FlagDjibouti,
+            "\xF0\x9F\x87\xA9\xF0\x9F\x87\xAF",
+            "flag: Djibouti"},
+        EmojiEntry{
+            EmojiEnum::FlagDenmark,
+            "\xF0\x9F\x87\xA9\xF0\x9F\x87\xB0",
+            "flag: Denmark"},
+        EmojiEntry{
+            EmojiEnum::FlagDominica,
+            "\xF0\x9F\x87\xA9\xF0\x9F\x87\xB2",
+            "flag: Dominica"},
+        EmojiEntry{
+            EmojiEnum::FlagDominicanRepublic,
+            "\xF0\x9F\x87\xA9\xF0\x9F\x87\xB4",
+            "flag: Dominican Republic"},
+        EmojiEntry{
+            EmojiEnum::FlagAlgeria,
+            "\xF0\x9F\x87\xA9\xF0\x9F\x87\xBF",
+            "flag: Algeria"},
+        EmojiEntry{
+            EmojiEnum::FlagCeutaAndMelilla,
+            "\xF0\x9F\x87\xAA\xF0\x9F\x87\xA6",
+            "flag: Ceuta & Melilla"},
+        EmojiEntry{
+            EmojiEnum::FlagEcuador,
+            "\xF0\x9F\x87\xAA\xF0\x9F\x87\xA8",
+            "flag: Ecuador"},
+        EmojiEntry{
+            EmojiEnum::FlagEstonia,
+            "\xF0\x9F\x87\xAA\xF0\x9F\x87\xAA",
+            "flag: Estonia"},
+        EmojiEntry{
+            EmojiEnum::FlagEgypt,
+            "\xF0\x9F\x87\xAA\xF0\x9F\x87\xAC",
+            "flag: Egypt"},
+        EmojiEntry{
+            EmojiEnum::FlagWesternSahara,
+            "\xF0\x9F\x87\xAA\xF0\x9F\x87\xAD",
+            "flag: Western Sahara"},
+        EmojiEntry{
+            EmojiEnum::FlagEritrea,
+            "\xF0\x9F\x87\xAA\xF0\x9F\x87\xB7",
+            "flag: Eritrea"},
+        EmojiEntry{
+            EmojiEnum::FlagSpain,
+            "\xF0\x9F\x87\xAA\xF0\x9F\x87\xB8",
+            "flag: Spain"},
+        EmojiEntry{
+            EmojiEnum::FlagEthiopia,
+            "\xF0\x9F\x87\xAA\xF0\x9F\x87\xB9",
+            "flag: Ethiopia"},
+        EmojiEntry{
+            EmojiEnum::FlagEuropeanUnion,
+            "\xF0\x9F\x87\xAA\xF0\x9F\x87\xBA",
+            "flag: European Union"},
+        EmojiEntry{
+            EmojiEnum::FlagFinland,
+            "\xF0\x9F\x87\xAB\xF0\x9F\x87\xAE",
+            "flag: Finland"},
+        EmojiEntry{
+            EmojiEnum::FlagFiji,
+            "\xF0\x9F\x87\xAB\xF0\x9F\x87\xAF",
+            "flag: Fiji"},
+        EmojiEntry{
+            EmojiEnum::FlagFalklandIslands,
+            "\xF0\x9F\x87\xAB\xF0\x9F\x87\xB0",
+            "flag: Falkland Islands"},
+        EmojiEntry{
+            EmojiEnum::FlagMicronesia,
+            "\xF0\x9F\x87\xAB\xF0\x9F\x87\xB2",
+            "flag: Micronesia"},
+        EmojiEntry{
+            EmojiEnum::FlagFaroeIslands,
+            "\xF0\x9F\x87\xAB\xF0\x9F\x87\xB4",
+            "flag: Faroe Islands"},
+        EmojiEntry{
+            EmojiEnum::FlagFrance,
+            "\xF0\x9F\x87\xAB\xF0\x9F\x87\xB7",
+            "flag: France"},
+        EmojiEntry{
+            EmojiEnum::FlagGabon,
+            "\xF0\x9F\x87\xAC\xF0\x9F\x87\xA6",
+            "flag: Gabon"},
+        EmojiEntry{
+            EmojiEnum::FlagUnitedKingdom,
+            "\xF0\x9F\x87\xAC\xF0\x9F\x87\xA7",
+            "flag: United Kingdom"},
+        EmojiEntry{
+            EmojiEnum::FlagGrenada,
+            "\xF0\x9F\x87\xAC\xF0\x9F\x87\xA9",
+            "flag: Grenada"},
+        EmojiEntry{
+            EmojiEnum::FlagGeorgia,
+            "\xF0\x9F\x87\xAC\xF0\x9F\x87\xAA",
+            "flag: Georgia"},
+        EmojiEntry{
+            EmojiEnum::FlagFrenchGuiana,
+            "\xF0\x9F\x87\xAC\xF0\x9F\x87\xAB",
+            "flag: French Guiana"},
+        EmojiEntry{
+            EmojiEnum::FlagGuernsey,
+            "\xF0\x9F\x87\xAC\xF0\x9F\x87\xAC",
+            "flag: Guernsey"},
+        EmojiEntry{
+            EmojiEnum::FlagGhana,
+            "\xF0\x9F\x87\xAC\xF0\x9F\x87\xAD",
+            "flag: Ghana"},
+        EmojiEntry{
+            EmojiEnum::FlagGibraltar,
+            "\xF0\x9F\x87\xAC\xF0\x9F\x87\xAE",
+            "flag: Gibraltar"},
+        EmojiEntry{
+            EmojiEnum::FlagGreenland,
+            "\xF0\x9F\x87\xAC\xF0\x9F\x87\xB1",
+            "flag: Greenland"},
+        EmojiEntry{
+            EmojiEnum::FlagGambia,
+            "\xF0\x9F\x87\xAC\xF0\x9F\x87\xB2",
+            "flag: Gambia"},
+        EmojiEntry{
+            EmojiEnum::FlagGuinea,
+            "\xF0\x9F\x87\xAC\xF0\x9F\x87\xB3",
+            "flag: Guinea"},
+        EmojiEntry{
+            EmojiEnum::FlagGuadeloupe,
+            "\xF0\x9F\x87\xAC\xF0\x9F\x87\xB5",
+            "flag: Guadeloupe"},
+        EmojiEntry{
+            EmojiEnum::FlagEquatorialGuinea,
+            "\xF0\x9F\x87\xAC\xF0\x9F\x87\xB6",
+            "flag: Equatorial Guinea"},
+        EmojiEntry{
+            EmojiEnum::FlagGreece,
+            "\xF0\x9F\x87\xAC\xF0\x9F\x87\xB7",
+            "flag: Greece"},
+        EmojiEntry{
+            EmojiEnum::FlagSouthGeorgiaAndSouthSandwichIslands,
+            "\xF0\x9F\x87\xAC\xF0\x9F\x87\xB8",
+            "flag: South Georgia & South Sandwich Islands"},
+        EmojiEntry{
+            EmojiEnum::FlagGuatemala,
+            "\xF0\x9F\x87\xAC\xF0\x9F\x87\xB9",
+            "flag: Guatemala"},
+        EmojiEntry{
+            EmojiEnum::FlagGuam,
+            "\xF0\x9F\x87\xAC\xF0\x9F\x87\xBA",
+            "flag: Guam"},
+        EmojiEntry{
+            EmojiEnum::FlagGuineaBissau,
+            "\xF0\x9F\x87\xAC\xF0\x9F\x87\xBC",
+            "flag: Guinea-Bissau"},
+        EmojiEntry{
+            EmojiEnum::FlagGuyana,
+            "\xF0\x9F\x87\xAC\xF0\x9F\x87\xBE",
+            "flag: Guyana"},
+        EmojiEntry{
+            EmojiEnum::FlagHongKongSarChina,
+            "\xF0\x9F\x87\xAD\xF0\x9F\x87\xB0",
+            "flag: Hong Kong SAR China"},
+        EmojiEntry{
+            EmojiEnum::FlagHeardAndMcdonaldIslands,
+            "\xF0\x9F\x87\xAD\xF0\x9F\x87\xB2",
+            "flag: Heard & McDonald Islands"},
+        EmojiEntry{
+            EmojiEnum::FlagHonduras,
+            "\xF0\x9F\x87\xAD\xF0\x9F\x87\xB3",
+            "flag: Honduras"},
+        EmojiEntry{
+            EmojiEnum::FlagCroatia,
+            "\xF0\x9F\x87\xAD\xF0\x9F\x87\xB7",
+            "flag: Croatia"},
+        EmojiEntry{
+            EmojiEnum::FlagHaiti,
+            "\xF0\x9F\x87\xAD\xF0\x9F\x87\xB9",
+            "flag: Haiti"},
+        EmojiEntry{
+            EmojiEnum::FlagHungary,
+            "\xF0\x9F\x87\xAD\xF0\x9F\x87\xBA",
+            "flag: Hungary"},
+        EmojiEntry{
+            EmojiEnum::FlagCanaryIslands,
+            "\xF0\x9F\x87\xAE\xF0\x9F\x87\xA8",
+            "flag: Canary Islands"},
+        EmojiEntry{
+            EmojiEnum::FlagIndonesia,
+            "\xF0\x9F\x87\xAE\xF0\x9F\x87\xA9",
+            "flag: Indonesia"},
+        EmojiEntry{
+            EmojiEnum::FlagIreland,
+            "\xF0\x9F\x87\xAE\xF0\x9F\x87\xAA",
+            "flag: Ireland"},
+        EmojiEntry{
+            EmojiEnum::FlagIsrael,
+            "\xF0\x9F\x87\xAE\xF0\x9F\x87\xB1",
+            "flag: Israel"},
+        EmojiEntry{
+            EmojiEnum::FlagIsleOfMan,
+            "\xF0\x9F\x87\xAE\xF0\x9F\x87\xB2",
+            "flag: Isle of Man"},
+        EmojiEntry{
+            EmojiEnum::FlagIndia,
+            "\xF0\x9F\x87\xAE\xF0\x9F\x87\xB3",
+            "flag: India"},
+        EmojiEntry{
+            EmojiEnum::FlagBritishIndianOceanTerritory,
+            "\xF0\x9F\x87\xAE\xF0\x9F\x87\xB4",
+            "flag: British Indian Ocean Territory"},
+        EmojiEntry{
+            EmojiEnum::FlagIraq,
+            "\xF0\x9F\x87\xAE\xF0\x9F\x87\xB6",
+            "flag: Iraq"},
+        EmojiEntry{
+            EmojiEnum::FlagIran,
+            "\xF0\x9F\x87\xAE\xF0\x9F\x87\xB7",
+            "flag: Iran"},
+        EmojiEntry{
+            EmojiEnum::FlagIceland,
+            "\xF0\x9F\x87\xAE\xF0\x9F\x87\xB8",
+            "flag: Iceland"},
+        EmojiEntry{
+            EmojiEnum::FlagItaly,
+            "\xF0\x9F\x87\xAE\xF0\x9F\x87\xB9",
+            "flag: Italy"},
+        EmojiEntry{
+            EmojiEnum::FlagJersey,
+            "\xF0\x9F\x87\xAF\xF0\x9F\x87\xAA",
+            "flag: Jersey"},
+        EmojiEntry{
+            EmojiEnum::FlagJamaica,
+            "\xF0\x9F\x87\xAF\xF0\x9F\x87\xB2",
+            "flag: Jamaica"},
+        EmojiEntry{
+            EmojiEnum::FlagJordan,
+            "\xF0\x9F\x87\xAF\xF0\x9F\x87\xB4",
+            "flag: Jordan"},
+        EmojiEntry{
+            EmojiEnum::FlagJapan,
+            "\xF0\x9F\x87\xAF\xF0\x9F\x87\xB5",
+            "flag: Japan"},
+        EmojiEntry{
+            EmojiEnum::FlagKenya,
+            "\xF0\x9F\x87\xB0\xF0\x9F\x87\xAA",
+            "flag: Kenya"},
+        EmojiEntry{
+            EmojiEnum::FlagKyrgyzstan,
+            "\xF0\x9F\x87\xB0\xF0\x9F\x87\xAC",
+            "flag: Kyrgyzstan"},
+        EmojiEntry{
+            EmojiEnum::FlagCambodia,
+            "\xF0\x9F\x87\xB0\xF0\x9F\x87\xAD",
+            "flag: Cambodia"},
+        EmojiEntry{
+            EmojiEnum::FlagKiribati,
+            "\xF0\x9F\x87\xB0\xF0\x9F\x87\xAE",
+            "flag: Kiribati"},
+        EmojiEntry{
+            EmojiEnum::FlagComoros,
+            "\xF0\x9F\x87\xB0\xF0\x9F\x87\xB2",
+            "flag: Comoros"},
+        EmojiEntry{
+            EmojiEnum::FlagStKittsAndNevis,
+            "\xF0\x9F\x87\xB0\xF0\x9F\x87\xB3",
+            "flag: St. Kitts & Nevis"},
+        EmojiEntry{
+            EmojiEnum::FlagNorthKorea,
+            "\xF0\x9F\x87\xB0\xF0\x9F\x87\xB5",
+            "flag: North Korea"},
+        EmojiEntry{
+            EmojiEnum::FlagSouthKorea,
+            "\xF0\x9F\x87\xB0\xF0\x9F\x87\xB7",
+            "flag: South Korea"},
+        EmojiEntry{
+            EmojiEnum::FlagKuwait,
+            "\xF0\x9F\x87\xB0\xF0\x9F\x87\xBC",
+            "flag: Kuwait"},
+        EmojiEntry{
+            EmojiEnum::FlagCaymanIslands,
+            "\xF0\x9F\x87\xB0\xF0\x9F\x87\xBE",
+            "flag: Cayman Islands"},
+        EmojiEntry{
+            EmojiEnum::FlagKazakhstan,
+            "\xF0\x9F\x87\xB0\xF0\x9F\x87\xBF",
+            "flag: Kazakhstan"},
+        EmojiEntry{
+            EmojiEnum::FlagLaos,
+            "\xF0\x9F\x87\xB1\xF0\x9F\x87\xA6",
+            "flag: Laos"},
+        EmojiEntry{
+            EmojiEnum::FlagLebanon,
+            "\xF0\x9F\x87\xB1\xF0\x9F\x87\xA7",
+            "flag: Lebanon"},
+        EmojiEntry{
+            EmojiEnum::FlagStLucia,
+            "\xF0\x9F\x87\xB1\xF0\x9F\x87\xA8",
+            "flag: St. Lucia"},
+        EmojiEntry{
+            EmojiEnum::FlagLiechtenstein,
+            "\xF0\x9F\x87\xB1\xF0\x9F\x87\xAE",
+            "flag: Liechtenstein"},
+        EmojiEntry{
+            EmojiEnum::FlagSriLanka,
+            "\xF0\x9F\x87\xB1\xF0\x9F\x87\xB0",
+            "flag: Sri Lanka"},
+        EmojiEntry{
+            EmojiEnum::FlagLiberia,
+            "\xF0\x9F\x87\xB1\xF0\x9F\x87\xB7",
+            "flag: Liberia"},
+        EmojiEntry{
+            EmojiEnum::FlagLesotho,
+            "\xF0\x9F\x87\xB1\xF0\x9F\x87\xB8",
+            "flag: Lesotho"},
+        EmojiEntry{
+            EmojiEnum::FlagLithuania,
+            "\xF0\x9F\x87\xB1\xF0\x9F\x87\xB9",
+            "flag: Lithuania"},
+        EmojiEntry{
+            EmojiEnum::FlagLuxembourg,
+            "\xF0\x9F\x87\xB1\xF0\x9F\x87\xBA",
+            "flag: Luxembourg"},
+        EmojiEntry{
+            EmojiEnum::FlagLatvia,
+            "\xF0\x9F\x87\xB1\xF0\x9F\x87\xBB",
+            "flag: Latvia"},
+        EmojiEntry{
+            EmojiEnum::FlagLibya,
+            "\xF0\x9F\x87\xB1\xF0\x9F\x87\xBE",
+            "flag: Libya"},
+        EmojiEntry{
+            EmojiEnum::FlagMorocco,
+            "\xF0\x9F\x87\xB2\xF0\x9F\x87\xA6",
+            "flag: Morocco"},
+        EmojiEntry{
+            EmojiEnum::FlagMonaco,
+            "\xF0\x9F\x87\xB2\xF0\x9F\x87\xA8",
+            "flag: Monaco"},
+        EmojiEntry{
+            EmojiEnum::FlagMoldova,
+            "\xF0\x9F\x87\xB2\xF0\x9F\x87\xA9",
+            "flag: Moldova"},
+        EmojiEntry{
+            EmojiEnum::FlagMontenegro,
+            "\xF0\x9F\x87\xB2\xF0\x9F\x87\xAA",
+            "flag: Montenegro"},
+        EmojiEntry{
+            EmojiEnum::FlagStMartin,
+            "\xF0\x9F\x87\xB2\xF0\x9F\x87\xAB",
+            "flag: St. Martin"},
+        EmojiEntry{
+            EmojiEnum::FlagMadagascar,
+            "\xF0\x9F\x87\xB2\xF0\x9F\x87\xAC",
+            "flag: Madagascar"},
+        EmojiEntry{
+            EmojiEnum::FlagMarshallIslands,
+            "\xF0\x9F\x87\xB2\xF0\x9F\x87\xAD",
+            "flag: Marshall Islands"},
+        EmojiEntry{
+            EmojiEnum::FlagNorthMacedonia,
+            "\xF0\x9F\x87\xB2\xF0\x9F\x87\xB0",
+            "flag: North Macedonia"},
+        EmojiEntry{
+            EmojiEnum::FlagMali,
+            "\xF0\x9F\x87\xB2\xF0\x9F\x87\xB1",
+            "flag: Mali"},
+        EmojiEntry{
+            EmojiEnum::FlagMyanmarBurma,
+            "\xF0\x9F\x87\xB2\xF0\x9F\x87\xB2",
+            "flag: Myanmar (Burma)"},
+        EmojiEntry{
+            EmojiEnum::FlagMongolia,
+            "\xF0\x9F\x87\xB2\xF0\x9F\x87\xB3",
+            "flag: Mongolia"},
+        EmojiEntry{
+            EmojiEnum::FlagMacaoSarChina,
+            "\xF0\x9F\x87\xB2\xF0\x9F\x87\xB4",
+            "flag: Macao SAR China"},
+        EmojiEntry{
+            EmojiEnum::FlagNorthernMarianaIslands,
+            "\xF0\x9F\x87\xB2\xF0\x9F\x87\xB5",
+            "flag: Northern Mariana Islands"},
+        EmojiEntry{
+            EmojiEnum::FlagMartinique,
+            "\xF0\x9F\x87\xB2\xF0\x9F\x87\xB6",
+            "flag: Martinique"},
+        EmojiEntry{
+            EmojiEnum::FlagMauritania,
+            "\xF0\x9F\x87\xB2\xF0\x9F\x87\xB7",
+            "flag: Mauritania"},
+        EmojiEntry{
+            EmojiEnum::FlagMontserrat,
+            "\xF0\x9F\x87\xB2\xF0\x9F\x87\xB8",
+            "flag: Montserrat"},
+        EmojiEntry{
+            EmojiEnum::FlagMalta,
+            "\xF0\x9F\x87\xB2\xF0\x9F\x87\xB9",
+            "flag: Malta"},
+        EmojiEntry{
+            EmojiEnum::FlagMauritius,
+            "\xF0\x9F\x87\xB2\xF0\x9F\x87\xBA",
+            "flag: Mauritius"},
+        EmojiEntry{
+            EmojiEnum::FlagMaldives,
+            "\xF0\x9F\x87\xB2\xF0\x9F\x87\xBB",
+            "flag: Maldives"},
+        EmojiEntry{
+            EmojiEnum::FlagMalawi,
+            "\xF0\x9F\x87\xB2\xF0\x9F\x87\xBC",
+            "flag: Malawi"},
+        EmojiEntry{
+            EmojiEnum::FlagMexico,
+            "\xF0\x9F\x87\xB2\xF0\x9F\x87\xBD",
+            "flag: Mexico"},
+        EmojiEntry{
+            EmojiEnum::FlagMalaysia,
+            "\xF0\x9F\x87\xB2\xF0\x9F\x87\xBE",
+            "flag: Malaysia"},
+        EmojiEntry{
+            EmojiEnum::FlagMozambique,
+            "\xF0\x9F\x87\xB2\xF0\x9F\x87\xBF",
+            "flag: Mozambique"},
+        EmojiEntry{
+            EmojiEnum::FlagNamibia,
+            "\xF0\x9F\x87\xB3\xF0\x9F\x87\xA6",
+            "flag: Namibia"},
+        EmojiEntry{
+            EmojiEnum::FlagNewCaledonia,
+            "\xF0\x9F\x87\xB3\xF0\x9F\x87\xA8",
+            "flag: New Caledonia"},
+        EmojiEntry{
+            EmojiEnum::FlagNiger,
+            "\xF0\x9F\x87\xB3\xF0\x9F\x87\xAA",
+            "flag: Niger"},
+        EmojiEntry{
+            EmojiEnum::FlagNorfolkIsland,
+            "\xF0\x9F\x87\xB3\xF0\x9F\x87\xAB",
+            "flag: Norfolk Island"},
+        EmojiEntry{
+            EmojiEnum::FlagNigeria,
+            "\xF0\x9F\x87\xB3\xF0\x9F\x87\xAC",
+            "flag: Nigeria"},
+        EmojiEntry{
+            EmojiEnum::FlagNicaragua,
+            "\xF0\x9F\x87\xB3\xF0\x9F\x87\xAE",
+            "flag: Nicaragua"},
+        EmojiEntry{
+            EmojiEnum::FlagNetherlands,
+            "\xF0\x9F\x87\xB3\xF0\x9F\x87\xB1",
+            "flag: Netherlands"},
+        EmojiEntry{
+            EmojiEnum::FlagNorway,
+            "\xF0\x9F\x87\xB3\xF0\x9F\x87\xB4",
+            "flag: Norway"},
+        EmojiEntry{
+            EmojiEnum::FlagNepal,
+            "\xF0\x9F\x87\xB3\xF0\x9F\x87\xB5",
+            "flag: Nepal"},
+        EmojiEntry{
+            EmojiEnum::FlagNauru,
+            "\xF0\x9F\x87\xB3\xF0\x9F\x87\xB7",
+            "flag: Nauru"},
+        EmojiEntry{
+            EmojiEnum::FlagNiue,
+            "\xF0\x9F\x87\xB3\xF0\x9F\x87\xBA",
+            "flag: Niue"},
+        EmojiEntry{
+            EmojiEnum::FlagNewZealand,
+            "\xF0\x9F\x87\xB3\xF0\x9F\x87\xBF",
+            "flag: New Zealand"},
+        EmojiEntry{
+            EmojiEnum::FlagOman,
+            "\xF0\x9F\x87\xB4\xF0\x9F\x87\xB2",
+            "flag: Oman"},
+        EmojiEntry{
+            EmojiEnum::FlagPanama,
+            "\xF0\x9F\x87\xB5\xF0\x9F\x87\xA6",
+            "flag: Panama"},
+        EmojiEntry{
+            EmojiEnum::FlagPeru,
+            "\xF0\x9F\x87\xB5\xF0\x9F\x87\xAA",
+            "flag: Peru"},
+        EmojiEntry{
+            EmojiEnum::FlagFrenchPolynesia,
+            "\xF0\x9F\x87\xB5\xF0\x9F\x87\xAB",
+            "flag: French Polynesia"},
+        EmojiEntry{
+            EmojiEnum::FlagPapuaNewGuinea,
+            "\xF0\x9F\x87\xB5\xF0\x9F\x87\xAC",
+            "flag: Papua New Guinea"},
+        EmojiEntry{
+            EmojiEnum::FlagPhilippines,
+            "\xF0\x9F\x87\xB5\xF0\x9F\x87\xAD",
+            "flag: Philippines"},
+        EmojiEntry{
+            EmojiEnum::FlagPakistan,
+            "\xF0\x9F\x87\xB5\xF0\x9F\x87\xB0",
+            "flag: Pakistan"},
+        EmojiEntry{
+            EmojiEnum::FlagPoland,
+            "\xF0\x9F\x87\xB5\xF0\x9F\x87\xB1",
+            "flag: Poland"},
+        EmojiEntry{
+            EmojiEnum::FlagStPierreAndMiquelon,
+            "\xF0\x9F\x87\xB5\xF0\x9F\x87\xB2",
+            "flag: St. Pierre & Miquelon"},
+        EmojiEntry{
+            EmojiEnum::FlagPitcairnIslands,
+            "\xF0\x9F\x87\xB5\xF0\x9F\x87\xB3",
+            "flag: Pitcairn Islands"},
+        EmojiEntry{
+            EmojiEnum::FlagPuertoRico,
+            "\xF0\x9F\x87\xB5\xF0\x9F\x87\xB7",
+            "flag: Puerto Rico"},
+        EmojiEntry{
+            EmojiEnum::FlagPalestinianTerritories,
+            "\xF0\x9F\x87\xB5\xF0\x9F\x87\xB8",
+            "flag: Palestinian Territories"},
+        EmojiEntry{
+            EmojiEnum::FlagPortugal,
+            "\xF0\x9F\x87\xB5\xF0\x9F\x87\xB9",
+            "flag: Portugal"},
+        EmojiEntry{
+            EmojiEnum::FlagPalau,
+            "\xF0\x9F\x87\xB5\xF0\x9F\x87\xBC",
+            "flag: Palau"},
+        EmojiEntry{
+            EmojiEnum::FlagParaguay,
+            "\xF0\x9F\x87\xB5\xF0\x9F\x87\xBE",
+            "flag: Paraguay"},
+        EmojiEntry{
+            EmojiEnum::FlagQatar,
+            "\xF0\x9F\x87\xB6\xF0\x9F\x87\xA6",
+            "flag: Qatar"},
+        EmojiEntry{
+            EmojiEnum::FlagReunion,
+            "\xF0\x9F\x87\xB7\xF0\x9F\x87\xAA",
+            "flag: Reunion"},
+        EmojiEntry{
+            EmojiEnum::FlagRomania,
+            "\xF0\x9F\x87\xB7\xF0\x9F\x87\xB4",
+            "flag: Romania"},
+        EmojiEntry{
+            EmojiEnum::FlagSerbia,
+            "\xF0\x9F\x87\xB7\xF0\x9F\x87\xB8",
+            "flag: Serbia"},
+        EmojiEntry{
+            EmojiEnum::FlagRussia,
+            "\xF0\x9F\x87\xB7\xF0\x9F\x87\xBA",
+            "flag: Russia"},
+        EmojiEntry{
+            EmojiEnum::FlagRwanda,
+            "\xF0\x9F\x87\xB7\xF0\x9F\x87\xBC",
+            "flag: Rwanda"},
+        EmojiEntry{
+            EmojiEnum::FlagSaudiArabia,
+            "\xF0\x9F\x87\xB8\xF0\x9F\x87\xA6",
+            "flag: Saudi Arabia"},
+        EmojiEntry{
+            EmojiEnum::FlagSolomonIslands,
+            "\xF0\x9F\x87\xB8\xF0\x9F\x87\xA7",
+            "flag: Solomon Islands"},
+        EmojiEntry{
+            EmojiEnum::FlagSeychelles,
+            "\xF0\x9F\x87\xB8\xF0\x9F\x87\xA8",
+            "flag: Seychelles"},
+        EmojiEntry{
+            EmojiEnum::FlagSudan,
+            "\xF0\x9F\x87\xB8\xF0\x9F\x87\xA9",
+            "flag: Sudan"},
+        EmojiEntry{
+            EmojiEnum::FlagSweden,
+            "\xF0\x9F\x87\xB8\xF0\x9F\x87\xAA",
+            "flag: Sweden"},
+        EmojiEntry{
+            EmojiEnum::FlagSingapore,
+            "\xF0\x9F\x87\xB8\xF0\x9F\x87\xAC",
+            "flag: Singapore"},
+        EmojiEntry{
+            EmojiEnum::FlagStHelena,
+            "\xF0\x9F\x87\xB8\xF0\x9F\x87\xAD",
+            "flag: St. Helena"},
+        EmojiEntry{
+            EmojiEnum::FlagSlovenia,
+            "\xF0\x9F\x87\xB8\xF0\x9F\x87\xAE",
+            "flag: Slovenia"},
+        EmojiEntry{
+            EmojiEnum::FlagSvalbardAndJanMayen,
+            "\xF0\x9F\x87\xB8\xF0\x9F\x87\xAF",
+            "flag: Svalbard & Jan Mayen"},
+        EmojiEntry{
+            EmojiEnum::FlagSlovakia,
+            "\xF0\x9F\x87\xB8\xF0\x9F\x87\xB0",
+            "flag: Slovakia"},
+        EmojiEntry{
+            EmojiEnum::FlagSierraLeone,
+            "\xF0\x9F\x87\xB8\xF0\x9F\x87\xB1",
+            "flag: Sierra Leone"},
+        EmojiEntry{
+            EmojiEnum::FlagSanMarino,
+            "\xF0\x9F\x87\xB8\xF0\x9F\x87\xB2",
+            "flag: San Marino"},
+        EmojiEntry{
+            EmojiEnum::FlagSenegal,
+            "\xF0\x9F\x87\xB8\xF0\x9F\x87\xB3",
+            "flag: Senegal"},
+        EmojiEntry{
+            EmojiEnum::FlagSomalia,
+            "\xF0\x9F\x87\xB8\xF0\x9F\x87\xB4",
+            "flag: Somalia"},
+        EmojiEntry{
+            EmojiEnum::FlagSuriname,
+            "\xF0\x9F\x87\xB8\xF0\x9F\x87\xB7",
+            "flag: Suriname"},
+        EmojiEntry{
+            EmojiEnum::FlagSouthSudan,
+            "\xF0\x9F\x87\xB8\xF0\x9F\x87\xB8",
+            "flag: South Sudan"},
+        EmojiEntry{
+            EmojiEnum::FlagSaoTomeAndPrincipe,
+            "\xF0\x9F\x87\xB8\xF0\x9F\x87\xB9",
+            "flag: Sao Tome & Principe"},
+        EmojiEntry{
+            EmojiEnum::FlagElSalvador,
+            "\xF0\x9F\x87\xB8\xF0\x9F\x87\xBB",
+            "flag: El Salvador"},
+        EmojiEntry{
+            EmojiEnum::FlagSintMaarten,
+            "\xF0\x9F\x87\xB8\xF0\x9F\x87\xBD",
+            "flag: Sint Maarten"},
+        EmojiEntry{
+            EmojiEnum::FlagSyria,
+            "\xF0\x9F\x87\xB8\xF0\x9F\x87\xBE",
+            "flag: Syria"},
+        EmojiEntry{
+            EmojiEnum::FlagEswatini,
+            "\xF0\x9F\x87\xB8\xF0\x9F\x87\xBF",
+            "flag: Eswatini"},
+        EmojiEntry{
+            EmojiEnum::FlagTristanDaCunha,
+            "\xF0\x9F\x87\xB9\xF0\x9F\x87\xA6",
+            "flag: Tristan da Cunha"},
+        EmojiEntry{
+            EmojiEnum::FlagTurksAndCaicosIslands,
+            "\xF0\x9F\x87\xB9\xF0\x9F\x87\xA8",
+            "flag: Turks & Caicos Islands"},
+        EmojiEntry{
+            EmojiEnum::FlagChad,
+            "\xF0\x9F\x87\xB9\xF0\x9F\x87\xA9",
+            "flag: Chad"},
+        EmojiEntry{
+            EmojiEnum::FlagFrenchSouthernTerritories,
+            "\xF0\x9F\x87\xB9\xF0\x9F\x87\xAB",
+            "flag: French Southern Territories"},
+        EmojiEntry{
+            EmojiEnum::FlagTogo,
+            "\xF0\x9F\x87\xB9\xF0\x9F\x87\xAC",
+            "flag: Togo"},
+        EmojiEntry{
+            EmojiEnum::FlagThailand,
+            "\xF0\x9F\x87\xB9\xF0\x9F\x87\xAD",
+            "flag: Thailand"},
+        EmojiEntry{
+            EmojiEnum::FlagTajikistan,
+            "\xF0\x9F\x87\xB9\xF0\x9F\x87\xAF",
+            "flag: Tajikistan"},
+        EmojiEntry{
+            EmojiEnum::FlagTokelau,
+            "\xF0\x9F\x87\xB9\xF0\x9F\x87\xB0",
+            "flag: Tokelau"},
+        EmojiEntry{
+            EmojiEnum::FlagTimorLeste,
+            "\xF0\x9F\x87\xB9\xF0\x9F\x87\xB1",
+            "flag: Timor-Leste"},
+        EmojiEntry{
+            EmojiEnum::FlagTurkmenistan,
+            "\xF0\x9F\x87\xB9\xF0\x9F\x87\xB2",
+            "flag: Turkmenistan"},
+        EmojiEntry{
+            EmojiEnum::FlagTunisia,
+            "\xF0\x9F\x87\xB9\xF0\x9F\x87\xB3",
+            "flag: Tunisia"},
+        EmojiEntry{
+            EmojiEnum::FlagTonga,
+            "\xF0\x9F\x87\xB9\xF0\x9F\x87\xB4",
+            "flag: Tonga"},
+        EmojiEntry{
+            EmojiEnum::FlagTurkiye,
+            "\xF0\x9F\x87\xB9\xF0\x9F\x87\xB7",
+            "flag: Turkiye"},
+        EmojiEntry{
+            EmojiEnum::FlagTrinidadAndTobago,
+            "\xF0\x9F\x87\xB9\xF0\x9F\x87\xB9",
+            "flag: Trinidad & Tobago"},
+        EmojiEntry{
+            EmojiEnum::FlagTuvalu,
+            "\xF0\x9F\x87\xB9\xF0\x9F\x87\xBB",
+            "flag: Tuvalu"},
+        EmojiEntry{
+            EmojiEnum::FlagTaiwan,
+            "\xF0\x9F\x87\xB9\xF0\x9F\x87\xBC",
+            "flag: Taiwan"},
+        EmojiEntry{
+            EmojiEnum::FlagTanzania,
+            "\xF0\x9F\x87\xB9\xF0\x9F\x87\xBF",
+            "flag: Tanzania"},
+        EmojiEntry{
+            EmojiEnum::FlagUkraine,
+            "\xF0\x9F\x87\xBA\xF0\x9F\x87\xA6",
+            "flag: Ukraine"},
+        EmojiEntry{
+            EmojiEnum::FlagUganda,
+            "\xF0\x9F\x87\xBA\xF0\x9F\x87\xAC",
+            "flag: Uganda"},
+        EmojiEntry{
+            EmojiEnum::FlagUSOutlyingIslands,
+            "\xF0\x9F\x87\xBA\xF0\x9F\x87\xB2",
+            "flag: U.S. Outlying Islands"},
+        EmojiEntry{
+            EmojiEnum::FlagUnitedNations,
+            "\xF0\x9F\x87\xBA\xF0\x9F\x87\xB3",
+            "flag: United Nations"},
+        EmojiEntry{
+            EmojiEnum::FlagUnitedStates,
+            "\xF0\x9F\x87\xBA\xF0\x9F\x87\xB8",
+            "flag: United States"},
+        EmojiEntry{
+            EmojiEnum::FlagUruguay,
+            "\xF0\x9F\x87\xBA\xF0\x9F\x87\xBE",
+            "flag: Uruguay"},
+        EmojiEntry{
+            EmojiEnum::FlagUzbekistan,
+            "\xF0\x9F\x87\xBA\xF0\x9F\x87\xBF",
+            "flag: Uzbekistan"},
+        EmojiEntry{
+            EmojiEnum::FlagVaticanCity,
+            "\xF0\x9F\x87\xBB\xF0\x9F\x87\xA6",
+            "flag: Vatican City"},
+        EmojiEntry{
+            EmojiEnum::FlagStVincentAndGrenadines,
+            "\xF0\x9F\x87\xBB\xF0\x9F\x87\xA8",
+            "flag: St. Vincent & Grenadines"},
+        EmojiEntry{
+            EmojiEnum::FlagVenezuela,
+            "\xF0\x9F\x87\xBB\xF0\x9F\x87\xAA",
+            "flag: Venezuela"},
+        EmojiEntry{
+            EmojiEnum::FlagBritishVirginIslands,
+            "\xF0\x9F\x87\xBB\xF0\x9F\x87\xAC",
+            "flag: British Virgin Islands"},
+        EmojiEntry{
+            EmojiEnum::FlagUSVirginIslands,
+            "\xF0\x9F\x87\xBB\xF0\x9F\x87\xAE",
+            "flag: U.S. Virgin Islands"},
+        EmojiEntry{
+            EmojiEnum::FlagVietnam,
+            "\xF0\x9F\x87\xBB\xF0\x9F\x87\xB3",
+            "flag: Vietnam"},
+        EmojiEntry{
+            EmojiEnum::FlagVanuatu,
+            "\xF0\x9F\x87\xBB\xF0\x9F\x87\xBA",
+            "flag: Vanuatu"},
+        EmojiEntry{
+            EmojiEnum::FlagWallisAndFutuna,
+            "\xF0\x9F\x87\xBC\xF0\x9F\x87\xAB",
+            "flag: Wallis & Futuna"},
+        EmojiEntry{
+            EmojiEnum::FlagSamoa,
+            "\xF0\x9F\x87\xBC\xF0\x9F\x87\xB8",
+            "flag: Samoa"},
+        EmojiEntry{
+            EmojiEnum::FlagKosovo,
+            "\xF0\x9F\x87\xBD\xF0\x9F\x87\xB0",
+            "flag: Kosovo"},
+        EmojiEntry{
+            EmojiEnum::FlagYemen,
+            "\xF0\x9F\x87\xBE\xF0\x9F\x87\xAA",
+            "flag: Yemen"},
+        EmojiEntry{
+            EmojiEnum::FlagMayotte,
+            "\xF0\x9F\x87\xBE\xF0\x9F\x87\xB9",
+            "flag: Mayotte"},
+        EmojiEntry{
+            EmojiEnum::FlagSouthAfrica,
+            "\xF0\x9F\x87\xBF\xF0\x9F\x87\xA6",
+            "flag: South Africa"},
+        EmojiEntry{
+            EmojiEnum::FlagZambia,
+            "\xF0\x9F\x87\xBF\xF0\x9F\x87\xB2",
+            "flag: Zambia"},
+        EmojiEntry{
+            EmojiEnum::FlagZimbabwe,
+            "\xF0\x9F\x87\xBF\xF0\x9F\x87\xBC",
+            "flag: Zimbabwe"},
+        EmojiEntry{
+            EmojiEnum::FlagEngland,
+            "\xF0\x9F\x8F\xB4\xF3\xA0\x81\xA7\xF3\xA0\x81\xA2\xF3\xA0"
+            "\x81\xA5\xF3\xA0\x81\xAE\xF3\xA0\x81\xA7\xF3\xA0\x81\xBF",
+            "flag: England"},
+        EmojiEntry{
+            EmojiEnum::FlagScotland,
+            "\xF0\x9F\x8F\xB4\xF3\xA0\x81\xA7\xF3\xA0\x81\xA2\xF3\xA0"
+            "\x81\xB3\xF3\xA0\x81\xA3\xF3\xA0\x81\xB4\xF3\xA0\x81\xBF",
+            "flag: Scotland"},
+        EmojiEntry{
+            EmojiEnum::FlagWales,
+            "\xF0\x9F\x8F\xB4\xF3\xA0\x81\xA7\xF3\xA0\x81\xA2\xF3\xA0"
+            "\x81\xB7\xF3\xA0\x81\xAC\xF3\xA0\x81\xB3\xF3\xA0\x81\xBF",
+            "flag: Wales"},
     };
 }
 

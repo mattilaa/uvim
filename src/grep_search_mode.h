@@ -71,8 +71,9 @@ struct GrepSearchMode
     void on_enter(ModeContext& ctx);
     void on_exit(ModeContext& ctx);
 
-    std::optional<ModeState> handle(ModeContext& ctx,
-                                    const ModeKeyEvent& event);
+    std::optional<ModeState> handle(
+        ModeContext& ctx,
+        const ModeKeyEvent& event);
 
     void draw(Editor& editor);
     void refreshFileIndex(Editor& editor);
@@ -97,12 +98,14 @@ private:
     bool performCachedSearch(Editor& editor);
 #endif
     // Worker-thread safe: only touch this object's matches/query.
-    bool performRipgrepSearch(bool respectGitignore,
-                              const std::function<bool()>& cancelled);
+    bool performRipgrepSearch(
+        bool respectGitignore,
+        const std::function<bool()>& cancelled);
     void searchInFile(const std::string& filepath, std::string_view query);
-    static std::vector<FileEntry>
-    collectProjectFiles(bool useGitFileIndex, bool respectGitignore,
-                        const std::function<bool()>& cancelled = {});
+    static std::vector<FileEntry> collectProjectFiles(
+        bool useGitFileIndex,
+        bool respectGitignore,
+        const std::function<bool()>& cancelled = {});
     static bool isTextFile(const std::string& filepath);
     static bool isBinaryFile(const std::string& filepath);
     static std::string trimString(const std::string& str);

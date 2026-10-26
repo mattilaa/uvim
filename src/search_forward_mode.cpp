@@ -13,9 +13,12 @@ namespace
 {
 std::string singleLinePasteText(std::string text)
 {
-    text.erase(std::remove_if(text.begin(), text.end(),
-                              [](char ch) { return ch == '\n' || ch == '\r'; }),
-               text.end());
+    text.erase(
+        std::remove_if(
+            text.begin(),
+            text.end(),
+            [](char ch) { return ch == '\n' || ch == '\r'; }),
+        text.end());
     return text;
 }
 
@@ -62,8 +65,9 @@ void SearchForwardMode::on_exit(ModeContext& /* ctx */)
     Terminal::setCursorBlock();
 }
 
-std::optional<ModeState> SearchForwardMode::handle(ModeContext& ctx,
-                                                   const ModeKeyEvent& event)
+std::optional<ModeState> SearchForwardMode::handle(
+    ModeContext& ctx,
+    const ModeKeyEvent& event)
 {
     const int key = event.key;
     Editor* ed = ctx.editor;

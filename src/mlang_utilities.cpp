@@ -7,49 +7,65 @@
 #include <optional>
 #include <unordered_set>
 
-bool MlangUtilities::findBuiltinType(std::string_view symbol, std::string& path,
-                                     int& line)
+bool MlangUtilities::findBuiltinType(
+    std::string_view symbol,
+    std::string& path,
+    int& line)
 {
     for(const auto& root : stdlibRoots())
     {
-        if(!root.empty() &&
-           text_utils::find_prefixed_marker_in_file(
-               symbol, root / "types.mla", "// @builtin ", path, line))
+        if(!root.empty() && text_utils::find_prefixed_marker_in_file(
+                                symbol,
+                                root / "types.mla",
+                                "// @builtin ",
+                                path,
+                                line))
             return true;
     }
     return false;
 }
 
-bool MlangUtilities::findBuiltinMacro(std::string_view symbol,
-                                      std::string& path, int& line)
+bool MlangUtilities::findBuiltinMacro(
+    std::string_view symbol,
+    std::string& path,
+    int& line)
 {
     for(const auto& root : stdlibRoots())
     {
-        if(!root.empty() &&
-           text_utils::find_prefixed_marker_in_file(
-               symbol, root / "macros.mla", "// @builtin_macro ", path, line))
+        if(!root.empty() && text_utils::find_prefixed_marker_in_file(
+                                symbol,
+                                root / "macros.mla",
+                                "// @builtin_macro ",
+                                path,
+                                line))
             return true;
     }
     return false;
 }
 
-bool MlangUtilities::findBuiltinAttribute(std::string_view symbol,
-                                          std::string& path, int& line)
+bool MlangUtilities::findBuiltinAttribute(
+    std::string_view symbol,
+    std::string& path,
+    int& line)
 {
     for(const auto& root : stdlibRoots())
     {
-        if(!root.empty() &&
-           text_utils::find_prefixed_marker_in_file(
-               symbol, root / "attributes.mla", "// @builtin_attribute ",
-               path, line))
+        if(!root.empty() && text_utils::find_prefixed_marker_in_file(
+                                symbol,
+                                root / "attributes.mla",
+                                "// @builtin_attribute ",
+                                path,
+                                line))
             return true;
     }
     return false;
 }
 
-bool MlangUtilities::findBuiltinFunction(std::string_view symbol,
-                                         std::string& path, int& line,
-                                         std::string_view contextFilePath)
+bool MlangUtilities::findBuiltinFunction(
+    std::string_view symbol,
+    std::string& path,
+    int& line,
+    std::string_view contextFilePath)
 {
     std::string needle = std::string(symbol);
     std::string needleLower = text_utils::ascii_lower(symbol);
@@ -177,10 +193,13 @@ bool MlangUtilities::findBuiltinFunction(std::string_view symbol,
 }
 
 bool MlangUtilities::findTopLevelDefInLines(
-    const std::vector<std::string>& lines, std::string_view symbol, int& outY,
+    const std::vector<std::string>& lines,
+    std::string_view symbol,
+    int& outY,
     int& outX)
 {
-    auto parse_ident_after = [&](const std::string& line, size_t start,
+    auto parse_ident_after = [&](const std::string& line,
+                                 size_t start,
                                  std::string_view kw) -> std::optional<int>
     {
         if(start + kw.size() > line.size())
@@ -262,9 +281,10 @@ std::vector<std::filesystem::path> MlangUtilities::stdlibRoots()
     return roots;
 }
 
-bool MlangUtilities::resolveModuleFile(std::string_view modulePath,
-                                       std::string_view contextFilePath,
-                                       std::string& outPath)
+bool MlangUtilities::resolveModuleFile(
+    std::string_view modulePath,
+    std::string_view contextFilePath,
+    std::string& outPath)
 {
     outPath.clear();
     if(modulePath.empty())
@@ -338,8 +358,10 @@ bool MlangUtilities::resolveModuleFile(std::string_view modulePath,
     return false;
 }
 
-bool MlangUtilities::moduleDeclUnderCursor(std::string_view line, int cursorX,
-                                           std::string& modulePath)
+bool MlangUtilities::moduleDeclUnderCursor(
+    std::string_view line,
+    int cursorX,
+    std::string& modulePath)
 {
     modulePath.clear();
     if(cursorX < 0 || line.empty())

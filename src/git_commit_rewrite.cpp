@@ -32,8 +32,8 @@ GitRun git(const std::string& repoRoot, std::vector<std::string> args)
 
 std::string trim(std::string text)
 {
-    while(!text.empty() && (text.back() == '\n' || text.back() == '\r' ||
-                            text.back() == ' '))
+    while(!text.empty() &&
+          (text.back() == '\n' || text.back() == '\r' || text.back() == ' '))
         text.pop_back();
     return text;
 }
@@ -49,28 +49,38 @@ std::string revParse(const std::string& repoRoot, const std::string& rev)
 struct TempFile
 {
     std::string path;
+
     TempFile(const std::string& stem, const std::string& content)
     {
         path = os_make_temp_file(stem);
         if(!path.empty())
             std::ofstream(path, std::ios::binary | std::ios::trunc) << content;
     }
+
     ~TempFile()
     {
         std::error_code ec;
         if(!path.empty())
             std::filesystem::remove(path, ec);
     }
+
     TempFile(const TempFile&) = delete;
     TempFile& operator=(const TempFile&) = delete;
 };
 } // namespace
 
-std::vector<std::string> plainCommitDiff(const std::string& repoRoot,
-                                         const std::string& hash)
+std::vector<std::string> plainCommitDiff(
+    const std::string& repoRoot,
+    const std::string& hash)
 {
-    GitRun run = git(repoRoot, {"--no-pager", "show", "--format=",
-                                "--no-color", "--no-ext-diff", hash});
+    GitRun run =
+        git(repoRoot,
+            {"--no-pager",
+             "show",
+             "--format=",
+             "--no-color",
+             "--no-ext-diff",
+             hash});
     std::vector<std::string> lines;
     size_t pos = 0;
     while(pos < run.output.size())
@@ -84,8 +94,9 @@ std::vector<std::string> plainCommitDiff(const std::string& repoRoot,
     return lines;
 }
 
-std::string checkRewritable(const std::string& repoRoot,
-                            const std::string& hash)
+std::string checkRewritable(
+    const std::string& repoRoot,
+    const std::string& hash)
 {
     const std::string full = revParse(repoRoot, hash + "^{commit}");
     if(full.empty())
@@ -119,8 +130,8 @@ std::string checkRewritable(const std::string& repoRoot,
     const std::string gitDir =
         trim(git(repoRoot, {"rev-parse", "--absolute-git-dir"}).output);
     std::error_code ec;
-    for(const char* busy : {"rebase-merge", "rebase-apply", "MERGE_HEAD",
-                            "CHERRY_PICK_HEAD"})
+    for(const char* busy :
+        {"rebase-merge", "rebase-apply", "MERGE_HEAD", "CHERRY_PICK_HEAD"})
     {
         if(!gitDir.empty() &&
            std::filesystem::exists(std::filesystem::path(gitDir) / busy, ec))
@@ -132,18 +143,20 @@ std::string checkRewritable(const std::string& repoRoot,
             .empty())
         return "working tree has uncommitted changes; commit or stash first";
 
-    GitRun upstream = git(repoRoot, {"rev-parse", "--abbrev-ref",
-                                     "--symbolic-full-name", "@{u}"});
+    GitRun upstream =
+        git(repoRoot,
+            {"rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"});
     if(upstream.status == 0 &&
-       git(repoRoot, {"merge-base", "--is-ancestor", full, "@{u}"}).status ==
-           0)
+       git(repoRoot, {"merge-base", "--is-ancestor", full, "@{u}"}).status == 0)
         return "commit is already pushed to " + trim(upstream.output) +
                "; rewriting it would need a force push";
     return {};
 }
 
-Result dropFromCommit(const std::string& repoRoot, const std::string& hash,
-                      const std::string& patch)
+Result dropFromCommit(
+    const std::string& repoRoot,
+    const std::string& hash,
+    const std::string& patch)
 {
     Result result;
     if(std::string reason = checkRewritable(repoRoot, hash); !reason.empty())
@@ -165,14 +178,14 @@ Result dropFromCommit(const std::string& repoRoot, const std::string& hash,
     // while the working tree keeps them as unstaged changes.
     auto amendWithoutHunks = [&]() -> bool
     {
-        if(git(repoRoot, {"apply", "-R", "--cached", patchFile.path})
-               .status != 0)
+        if(git(repoRoot, {"apply", "-R", "--cached", patchFile.path}).status !=
+           0)
         {
             result.message = "the dropped hunks do not apply to the commit";
             return false;
         }
-        if(git(repoRoot, {"commit", "--amend", "--no-edit", "--allow-empty",
-                          "--quiet"})
+        if(git(repoRoot,
+               {"commit", "--amend", "--no-edit", "--allow-empty", "--quiet"})
                .status != 0)
         {
             result.message = "git commit --amend failed (hooks?)";
@@ -197,18 +210,23 @@ Result dropFromCommit(const std::string& repoRoot, const std::string& hash,
     // commits on top while the dropped changes wait in a stash.
     const std::string onTop =
         trim(git(repoRoot, {"rev-list", "--count", full + "..HEAD"}).output);
-    TempFile editor("uvim-seq-editor",
-                    "awk 'NR==1{sub(/^pick/,\"edit\")}1' \"$1\" > \"$1.uvim\" "
-                    "&& mv \"$1.uvim\" \"$1\"\n");
+    TempFile editor(
+        "uvim-seq-editor",
+        "awk 'NR==1{sub(/^pick/,\"edit\")}1' \"$1\" > \"$1.uvim\" "
+        "&& mv \"$1.uvim\" \"$1\"\n");
     if(git(repoRoot,
            {"-c",
             // git runs the editor through sh (also on Windows, from Git for
             // Windows), which wants forward slashes. Temp paths have no '.
             "sequence.editor=sh '" +
                 std::filesystem::path(editor.path).generic_string() + "'",
-            "-c", "core.editor=true",
-            "rebase", "-i", "--quiet", full + "^"})
-                   .status != 0 ||
+            "-c",
+            "core.editor=true",
+            "rebase",
+            "-i",
+            "--quiet",
+            full + "^"})
+               .status != 0 ||
        revParse(repoRoot, "HEAD") != full)
     {
         git(repoRoot, {"rebase", "--abort"});
@@ -221,10 +239,13 @@ Result dropFromCommit(const std::string& repoRoot, const std::string& hash,
         return result;
     }
     const std::string rewritten = revParse(repoRoot, "HEAD");
-    const bool stashed =
-        git(repoRoot, {"stash", "push", "--quiet", "-m",
-                       "uvim: hunks dropped from " + full.substr(0, 8)})
-            .status == 0;
+    const bool stashed = git(repoRoot,
+                             {"stash",
+                              "push",
+                              "--quiet",
+                              "-m",
+                              "uvim: hunks dropped from " + full.substr(0, 8)})
+                             .status == 0;
     if(git(repoRoot, {"-c", "core.editor=true", "rebase", "--continue"})
            .status != 0)
     {
@@ -251,8 +272,11 @@ Result dropFromCommit(const std::string& repoRoot, const std::string& hash,
     return result;
 }
 
-bool undoDrop(const std::string& repoRoot, const std::string& originalHead,
-              const std::string& newHead, std::string& message)
+bool undoDrop(
+    const std::string& repoRoot,
+    const std::string& originalHead,
+    const std::string& newHead,
+    std::string& message)
 {
     if(revParse(repoRoot, "HEAD") != newHead)
     {
@@ -263,14 +287,13 @@ bool undoDrop(const std::string& repoRoot, const std::string& originalHead,
     }
     // --mixed moves HEAD and the index back but never touches the working
     // tree, which still holds the dropped changes (= the original content).
-    if(git(repoRoot, {"reset", "--mixed", "--quiet", originalHead}).status !=
-       0)
+    if(git(repoRoot, {"reset", "--mixed", "--quiet", originalHead}).status != 0)
     {
         message = "git reset failed; original was " + originalHead.substr(0, 8);
         return false;
     }
-    message = "Restored the original commit (HEAD " +
-              originalHead.substr(0, 8) + ")";
+    message =
+        "Restored the original commit (HEAD " + originalHead.substr(0, 8) + ")";
     return true;
 }
 } // namespace git_rewrite

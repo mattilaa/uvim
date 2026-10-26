@@ -12,8 +12,10 @@ namespace
 mla::log::FileLogger LSP_LOG("TS");
 }
 
-void Editor::enableTsLspImpl(bool enable, const std::string& serverPath,
-                             const std::vector<std::string>& serverArgs)
+void Editor::enableTsLspImpl(
+    bool enable,
+    const std::string& serverPath,
+    const std::vector<std::string>& serverArgs)
 {
     tsLspEnabled = false;
     this->tsLspPath = serverPath;
@@ -44,7 +46,9 @@ void Editor::enableTsLspImpl(bool enable, const std::string& serverPath,
         args.push_back("--stdio");
 
     lspController->start(
-        "TypeScript", tsLspClient, tsLspEnabled,
+        "TypeScript",
+        tsLspClient,
+        tsLspEnabled,
         [path = this->tsLspPath, rootDir, args](LspClient& client)
         { return client.startServer(path, rootDir, args); });
 #else

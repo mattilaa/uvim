@@ -78,27 +78,29 @@ void Editor::showLspInfo()
     lspInfoLines.push_back("");
 
 #ifdef UVIM_ENABLE_CLANGD_LSP
-    auto appendLsp = [&](const std::string& label, bool running,
-                         bool activeForFile, const std::string& path,
+    auto appendLsp = [&](const std::string& label,
+                         bool running,
+                         bool activeForFile,
+                         const std::string& path,
                          bool starting,
                          bool requiresNode = false,
                          const std::string& version = std::string(),
                          const std::string& statusDetail = std::string())
     {
-        std::string status =
-            starting ? "STARTING"
-                     : running ? (activeForFile ? "ACTIVE" : "ON") : "OFF";
+        std::string status = starting  ? "STARTING"
+                             : running ? (activeForFile ? "ACTIVE" : "ON")
+                                       : "OFF";
         const executable_lookup::Result binary = executable_lookup::find(path);
         const executable_lookup::Result node = executable_lookup::find("node");
         bool hasBinary = binary.found;
         bool hasNode = !requiresNode || node.found;
 
         lspInfoLines.push_back(label + ": " + status);
-        lspInfoLines.push_back("  binary: " +
-                               (binary.found ? binary.path : path));
+        lspInfoLines.push_back(
+            "  binary: " + (binary.found ? binary.path : path));
         if(requiresNode)
-            lspInfoLines.push_back("  runtime: node " +
-                                   (node.found ? node.path : "not found"));
+            lspInfoLines.push_back(
+                "  runtime: node " + (node.found ? node.path : "not found"));
         if(!hasBinary)
             lspInfoLines.push_back("  status: binary not found");
         if(requiresNode && !hasNode)
@@ -128,8 +130,15 @@ void Editor::showLspInfo()
         clangdError.empty()
             ? std::string{}
             : "startup failed: " + clangdError + lspLogDetailSuffix();
-    appendLsp("clangd", clangdRunning, isFileType<FileType::Cpp>(),
-              clangdLspPath, clangdStarting, false, std::string(), clangdStatusDetail);
+    appendLsp(
+        "clangd",
+        clangdRunning,
+        isFileType<FileType::Cpp>(),
+        clangdLspPath,
+        clangdStarting,
+        false,
+        std::string(),
+        clangdStatusDetail);
     if(lspClient)
     {
         int workers = lspClient->workerCount();
@@ -145,10 +154,18 @@ void Editor::showLspInfo()
             lspInfoLines.push_back("  indexing: " + indexing);
         }
     }
-    appendLsp("python", isPythonLspEnabled(), isFileType<FileType::Python>(),
-              pythonLspPath, lspController->starting(pythonLspClient));
-    appendLsp("robot", isRobotLspEnabled(), isFileType<FileType::Robot>(),
-              robotLspPath, lspController->starting(robotLspClient));
+    appendLsp(
+        "python",
+        isPythonLspEnabled(),
+        isFileType<FileType::Python>(),
+        pythonLspPath,
+        lspController->starting(pythonLspClient));
+    appendLsp(
+        "robot",
+        isRobotLspEnabled(),
+        isFileType<FileType::Robot>(),
+        robotLspPath,
+        lspController->starting(robotLspClient));
     std::string mlangLabel = "mlang";
     std::string mlangVersion;
     if(mlangLspClient)
@@ -159,20 +176,50 @@ void Editor::showLspInfo()
            text_utils::contains(mlangLspPath, "mlangd-mla"))
             mlangLabel = "mlang (MLA)";
     }
-    appendLsp(mlangLabel, isMlangLspEnabled(), isFileType<FileType::Mla>(),
-              mlangLspPath, lspController->starting(mlangLspClient), false, mlangVersion);
-    appendLsp("html", isHtmlLspEnabled(), isFileType<FileType::Html>(),
-              htmlLspPath, lspController->starting(htmlLspClient), true);
-    appendLsp("css", isCssLspEnabled(), isFileType<FileType::Css>(), cssLspPath,
-              lspController->starting(cssLspClient), true);
-    appendLsp("json", isJsonLspEnabled(), isFileType<FileType::Json>(),
-              jsonLspPath, lspController->starting(jsonLspClient), true);
-    appendLsp("ts", isTsLspEnabled(),
-              (isFileType<FileType::JavaScript>() ||
-               isFileType<FileType::TypeScript>()),
-              tsLspPath, lspController->starting(tsLspClient), true);
-    appendLsp("csharp", isCSharpLspEnabled(), isFileType<FileType::CSharp>(),
-              csharpLspPath, lspController->starting(csharpLspClient), true);
+    appendLsp(
+        mlangLabel,
+        isMlangLspEnabled(),
+        isFileType<FileType::Mla>(),
+        mlangLspPath,
+        lspController->starting(mlangLspClient),
+        false,
+        mlangVersion);
+    appendLsp(
+        "html",
+        isHtmlLspEnabled(),
+        isFileType<FileType::Html>(),
+        htmlLspPath,
+        lspController->starting(htmlLspClient),
+        true);
+    appendLsp(
+        "css",
+        isCssLspEnabled(),
+        isFileType<FileType::Css>(),
+        cssLspPath,
+        lspController->starting(cssLspClient),
+        true);
+    appendLsp(
+        "json",
+        isJsonLspEnabled(),
+        isFileType<FileType::Json>(),
+        jsonLspPath,
+        lspController->starting(jsonLspClient),
+        true);
+    appendLsp(
+        "ts",
+        isTsLspEnabled(),
+        (isFileType<FileType::JavaScript>() ||
+         isFileType<FileType::TypeScript>()),
+        tsLspPath,
+        lspController->starting(tsLspClient),
+        true);
+    appendLsp(
+        "csharp",
+        isCSharpLspEnabled(),
+        isFileType<FileType::CSharp>(),
+        csharpLspPath,
+        lspController->starting(csharpLspClient),
+        true);
 #else
     lspInfoLines.push_back("clangd: not compiled");
     lspInfoLines.push_back("python: not compiled");
@@ -193,8 +240,7 @@ void Editor::scrollLspInfo(int delta)
 {
     int visibleRows = std::max(0, screenRows - 1); // below the header
     int maxOffset = std::max(0, (int)lspInfoLines.size() - visibleRows);
-    lspInfoScrollOffset =
-        std::clamp(lspInfoScrollOffset + delta, 0, maxOffset);
+    lspInfoScrollOffset = std::clamp(lspInfoScrollOffset + delta, 0, maxOffset);
     needsFullRedraw = true;
 }
 
@@ -238,25 +284,33 @@ void Editor::drawLspInfo()
 
         if(line.rfind("Buffer:", 0) == 0)
         {
-            renderKeyValue("Buffer:", std::string_view(line).substr(7),
-                           theme.uiInfo());
+            renderKeyValue(
+                "Buffer:",
+                std::string_view(line).substr(7),
+                theme.uiInfo());
         }
         else if(line.rfind("Filetype:", 0) == 0)
         {
-            renderKeyValue("Filetype:", std::string_view(line).substr(9),
-                           theme.uiInfo());
+            renderKeyValue(
+                "Filetype:",
+                std::string_view(line).substr(9),
+                theme.uiInfo());
         }
         else if(line.rfind("  binary:", 0) == 0)
         {
             output += "  ";
-            renderKeyValue("binary:", std::string_view(line).substr(9),
-                           theme.uiDim());
+            renderKeyValue(
+                "binary:",
+                std::string_view(line).substr(9),
+                theme.uiDim());
         }
         else if(line.rfind("  version:", 0) == 0)
         {
             output += "  ";
-            renderKeyValue("version:", std::string_view(line).substr(10),
-                           theme.uiDim());
+            renderKeyValue(
+                "version:",
+                std::string_view(line).substr(10),
+                theme.uiDim());
         }
         else if(line.rfind("  runtime:", 0) == 0)
         {
@@ -276,8 +330,10 @@ void Editor::drawLspInfo()
         else if(line.rfind("  workers:", 0) == 0)
         {
             output += "  ";
-            renderKeyValue("workers:", std::string_view(line).substr(10),
-                           theme.uiDim());
+            renderKeyValue(
+                "workers:",
+                std::string_view(line).substr(10),
+                theme.uiDim());
         }
         else if(line.rfind("  indexing:", 0) == 0)
         {
@@ -287,9 +343,8 @@ void Editor::drawLspInfo()
             output += "indexing:";
             output += theme.reset();
             output += " ";
-            output += text_utils::contains(value, "active")
-                          ? theme.uiInfo()
-                          : theme.uiDim();
+            output += text_utils::contains(value, "active") ? theme.uiInfo()
+                                                            : theme.uiDim();
             output += std::string(value);
             output += theme.reset();
         }
@@ -333,8 +388,9 @@ void Editor::drawLspInfo()
                 color = &theme.uiInfo();
             else if(statusStr == "OFF")
                 color = &theme.uiWarning();
-            else if(statusStr.rfind("not", 0) == 0 ||
-                    statusStr.rfind("NOT", 0) == 0)
+            else if(
+                statusStr.rfind("not", 0) == 0 ||
+                statusStr.rfind("NOT", 0) == 0)
                 color = &theme.uiError();
 
             output += " ";

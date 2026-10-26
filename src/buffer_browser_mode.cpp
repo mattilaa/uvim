@@ -13,10 +13,12 @@ namespace
 {
 std::vector<std::string> bufferBrowserHelpTokens()
 {
-    return {"[Enter: switch]", "[Ctrl+X: close]",
-            std::string("[") + Terminal::shiftChordLabel() +
-                "+X: close matches]",
-            "[Esc: cancel]", "[Ctrl+J/K: navigate]"};
+    return {
+        "[Enter: switch]",
+        "[Ctrl+X: close]",
+        std::string("[") + Terminal::shiftChordLabel() + "+X: close matches]",
+        "[Esc: cancel]",
+        "[Ctrl+J/K: navigate]"};
 }
 
 int bufferBrowserVisibleRows(const Editor& editor)
@@ -96,7 +98,9 @@ void BufferBrowserMode::on_enter(ModeContext& ctx)
     updateMatches(*ctx.editor);
 
     auto current = std::find_if(
-        bufferMatches.begin(), bufferMatches.end(), [&](const BufferMatch& m)
+        bufferMatches.begin(),
+        bufferMatches.end(),
+        [&](const BufferMatch& m)
         { return m.bufferIndex == ctx.editor->currentBufferIndex; });
     if(current != bufferMatches.end())
     {
@@ -110,8 +114,9 @@ void BufferBrowserMode::on_enter(ModeContext& ctx)
 
 void BufferBrowserMode::on_exit(ModeContext& /* ctx */) {}
 
-std::optional<ModeState> BufferBrowserMode::handle(ModeContext& ctx,
-                                                   const ModeKeyEvent& event)
+std::optional<ModeState> BufferBrowserMode::handle(
+    ModeContext& ctx,
+    const ModeKeyEvent& event)
 {
     const int key = event.key;
     Editor* ed = ctx.editor;
@@ -153,8 +158,9 @@ std::optional<ModeState> BufferBrowserMode::handle(ModeContext& ctx,
                 bufferOffset = bufferCursor - visible + 1;
         }
     }
-    else if(c == keyCode(control::ControlKey::CTRL_K) ||
-            c == keyCode(navigation::NavigationKey::ARROW_UP))
+    else if(
+        c == keyCode(control::ControlKey::CTRL_K) ||
+        c == keyCode(navigation::NavigationKey::ARROW_UP))
     {
         if(bufferCursor > 0)
         {
@@ -182,9 +188,10 @@ std::optional<ModeState> BufferBrowserMode::handle(ModeContext& ctx,
         if(bufferCursor < bufferOffset)
             bufferOffset = bufferCursor;
     }
-    else if(c == keyCode(control::ControlKey::BACKSPACE) ||
-            c == keyCode(control::ControlKey::DEL) ||
-            c == keyCode(control::ControlKey::CTRL_H))
+    else if(
+        c == keyCode(control::ControlKey::BACKSPACE) ||
+        c == keyCode(control::ControlKey::DEL) ||
+        c == keyCode(control::ControlKey::CTRL_H))
     {
         if(!bufferQuery.empty())
         {
@@ -210,10 +217,11 @@ std::optional<ModeState> BufferBrowserMode::handle(ModeContext& ctx,
         return std::nullopt;
 #endif
     }
-    else if(c == keyCode(control::ControlKey::CTRL_A) ||
-            (c == keyCode(command::CommandKey::KEY_SLASH) &&
-             !editor::helper::isRegexQuery(bufferQuery) &&
-             !bufferQuery.starts_with("fz:")))
+    else if(
+        c == keyCode(control::ControlKey::CTRL_A) ||
+        (c == keyCode(command::CommandKey::KEY_SLASH) &&
+         !editor::helper::isRegexQuery(bufferQuery) &&
+         !bufferQuery.starts_with("fz:")))
     {
 #ifdef UVIM_ENABLE_SEARCH_TOOLS
         return GrepSearchMode{};
@@ -253,14 +261,18 @@ void BufferBrowserMode::draw(Editor& editor) const
     output += Terminal::ESC_BLINK_OFF;
     output += editor.theme.baseFg();
 
-    HeaderHelp::append(output, editor.theme, editor.screenCols,
-                       bufferBrowserHelpTokens());
+    HeaderHelp::append(
+        output,
+        editor.theme,
+        editor.screenCols,
+        bufferBrowserHelpTokens());
 
     int availableRows = bufferBrowserVisibleRows(editor);
     const int numberWidth = decimalWidth(editor.buffers.size());
 
     for(int i = 0;
-        i < availableRows && i + bufferOffset < (int)bufferMatches.size(); i++)
+        i < availableRows && i + bufferOffset < (int)bufferMatches.size();
+        i++)
     {
         output += Terminal::NEWLINE_CLEAR;
         int idx = i + bufferOffset;
@@ -290,7 +302,8 @@ void BufferBrowserMode::draw(Editor& editor) const
         const std::string number = std::to_string(m.bufferIndex + 1);
         std::string prefix = "  ";
         prefix.append(
-            std::max(0, numberWidth - static_cast<int>(number.size())), ' ');
+            std::max(0, numberWidth - static_cast<int>(number.size())),
+            ' ');
         prefix += number;
         prefix += " ";
 
@@ -367,10 +380,11 @@ void BufferBrowserMode::updateMatches(Editor& editor)
         std::string name = editor.buffers[i]->filename.empty()
                                ? "[No Name]"
                                : editor.buffers[i]->filename;
-        std::string base = editor.buffers[i]->filename.empty()
-                               ? name
-                               : std::string(text_utils::basename(
-                                     editor.buffers[i]->filename));
+        std::string base =
+            editor.buffers[i]->filename.empty()
+                ? name
+                : std::string(
+                      text_utils::basename(editor.buffers[i]->filename));
 
         m.display = std::to_string(i + 1);
         if((int)i == editor.currentBufferIndex)
@@ -398,14 +412,18 @@ void BufferBrowserMode::updateMatches(Editor& editor)
         }
 
         std::vector<int> posDisplay;
-        int s1 = editor::helper::fuzzyScoreWithPositions(bufferQuery, m.display,
-                                                         posDisplay);
+        int s1 = editor::helper::fuzzyScoreWithPositions(
+            bufferQuery,
+            m.display,
+            posDisplay);
 
         std::vector<int> posName;
         int s2 = editor.buffers[i]->filename.empty()
                      ? -1
                      : editor::helper::fuzzyScoreWithPositions(
-                           bufferQuery, editor.buffers[i]->filename, posName);
+                           bufferQuery,
+                           editor.buffers[i]->filename,
+                           posName);
         std::vector<int> posBase;
         int s3 =
             editor::helper::fuzzyScoreWithPositions(bufferQuery, base, posBase);
@@ -427,15 +445,19 @@ void BufferBrowserMode::updateMatches(Editor& editor)
 
     if(!bufferQuery.empty())
     {
-        std::sort(bufferMatches.begin(), bufferMatches.end(),
-                  [](const BufferMatch& a, const BufferMatch& b)
-                  { return a.score > b.score; });
+        std::sort(
+            bufferMatches.begin(),
+            bufferMatches.end(),
+            [](const BufferMatch& a, const BufferMatch& b)
+            { return a.score > b.score; });
     }
     else
     {
-        std::sort(bufferMatches.begin(), bufferMatches.end(),
-                  [](const BufferMatch& a, const BufferMatch& b)
-                  { return a.bufferIndex < b.bufferIndex; });
+        std::sort(
+            bufferMatches.begin(),
+            bufferMatches.end(),
+            [](const BufferMatch& a, const BufferMatch& b)
+            { return a.bufferIndex < b.bufferIndex; });
     }
 
     if(bufferCursor >= (int)bufferMatches.size())

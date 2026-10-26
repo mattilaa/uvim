@@ -8,9 +8,8 @@ TEST(RealModeTransitionsTest, GlyphSelectCommandOpensPopup)
     editor.createNewBuffer();
     editor.currentBuffer->lines = {""};
 
-    auto smPtr =
-        std::make_unique<ModeStateMachine>(createModeContext(&editor),
-                                           NormalMode{});
+    auto smPtr = std::make_unique<
+        ModeStateMachine>(createModeContext(&editor), NormalMode{});
     ModeStateMachine* sm = smPtr.get();
     editor.setModeStateMachineForTests(std::move(smPtr));
     dispatch_command(*sm, "glyphselect");
@@ -70,9 +69,8 @@ TEST(RealModeTransitionsTest, AnsiToolsCommandOpensPopup)
     editor.createNewBuffer();
     editor.currentBuffer->lines = {""};
 
-    auto smPtr =
-        std::make_unique<ModeStateMachine>(createModeContext(&editor),
-                                           NormalMode{});
+    auto smPtr = std::make_unique<
+        ModeStateMachine>(createModeContext(&editor), NormalMode{});
     ModeStateMachine* sm = smPtr.get();
     editor.setModeStateMachineForTests(std::move(smPtr));
     dispatch_command(*sm, "ansitools");
@@ -148,9 +146,10 @@ TEST(RealModeTransitionsTest, VisualLeaderColorSelectWrapsSelection)
 
     const std::string code =
         color::rgbLiteralFg(255, 255, 255) + color::rgbLiteralBg(0, 0, 0);
-    EXPECT_EQ(editor.currentBuffer->lines[0],
-              std::string("h") + code + "ell" +
-                  color::literal(color::AnsiColor::Reset) + "o");
+    EXPECT_EQ(
+        editor.currentBuffer->lines[0],
+        std::string("h") + code + "ell" +
+            color::literal(color::AnsiColor::Reset) + "o");
     EXPECT_STREQ(sm.currentStateName(), "NORMAL");
 }
 
@@ -176,9 +175,10 @@ TEST(RealModeTransitionsTest, VisualLeaderColorSelectWrapsUtf8Glyphs)
 
     const std::string code =
         color::rgbLiteralFg(255, 255, 255) + color::rgbLiteralBg(0, 0, 0);
-    EXPECT_EQ(editor.currentBuffer->lines[0],
-              std::string("std::cout << \"") + code + "┌───" +
-                  color::literal(color::AnsiColor::Reset) + "─┐\\n\";");
+    EXPECT_EQ(
+        editor.currentBuffer->lines[0],
+        std::string("std::cout << \"") + code + "┌───" +
+            color::literal(color::AnsiColor::Reset) + "─┐\\n\";");
     EXPECT_STREQ(sm.currentStateName(), "NORMAL");
 }
 
@@ -190,9 +190,8 @@ TEST(RealModeTransitionsTest, VisualCommandColorPickerWrapsSelection)
     *editor.cursorX = 1;
     *editor.cursorY = 0;
 
-    auto smPtr =
-        std::make_unique<ModeStateMachine>(createModeContext(&editor),
-                                           VisualMode{});
+    auto smPtr = std::make_unique<
+        ModeStateMachine>(createModeContext(&editor), VisualMode{});
     ModeStateMachine* sm = smPtr.get();
     editor.setModeStateMachineForTests(std::move(smPtr));
 
@@ -207,14 +206,16 @@ TEST(RealModeTransitionsTest, VisualCommandColorPickerWrapsSelection)
     sm->dispatch('l');
     sm->dispatch(keyCode(control::ControlKey::ENTER));
 
-    EXPECT_EQ(editor.currentBuffer->lines[0],
-              std::string("h") + color::literal(color::AnsiColor::FgBlack) +
-                  "ell" + color::literal(color::AnsiColor::Reset) + "o");
+    EXPECT_EQ(
+        editor.currentBuffer->lines[0],
+        std::string("h") + color::literal(color::AnsiColor::FgBlack) + "ell" +
+            color::literal(color::AnsiColor::Reset) + "o");
     EXPECT_STREQ(sm->currentStateName(), "NORMAL");
 }
 
-TEST(RealModeTransitionsTest,
-     ColorSelectorCommandRemovesAndReinsertsAnsiLiteralBeforeCursor)
+TEST(
+    RealModeTransitionsTest,
+    ColorSelectorCommandRemovesAndReinsertsAnsiLiteralBeforeCursor)
 {
     Editor editor = Editor::createForTests();
     editor.createNewBuffer();
@@ -223,9 +224,8 @@ TEST(RealModeTransitionsTest,
     *editor.cursorY = 0;
     editor.saveState();
 
-    auto smPtr =
-        std::make_unique<ModeStateMachine>(createModeContext(&editor),
-                                           NormalMode{});
+    auto smPtr = std::make_unique<
+        ModeStateMachine>(createModeContext(&editor), NormalMode{});
     ModeStateMachine* sm = smPtr.get();
     editor.setModeStateMachineForTests(std::move(smPtr));
     dispatch_command(*sm, "colorselect");
@@ -241,9 +241,9 @@ TEST(RealModeTransitionsTest,
     sm->dispatch('L');
     sm->dispatch(keyCode(control::ControlKey::ENTER));
 
-    const std::string expected =
-        std::string("a ") + color::rgbLiteralFg(180, 0, 0) +
-        color::rgbLiteralBg(0, 0, 0) + " text";
+    const std::string expected = std::string("a ") +
+                                 color::rgbLiteralFg(180, 0, 0) +
+                                 color::rgbLiteralBg(0, 0, 0) + " text";
     EXPECT_EQ(editor.currentBuffer->lines[0], expected);
     EXPECT_STREQ(sm->currentStateName(), "NORMAL");
 }
@@ -258,9 +258,8 @@ TEST(RealModeTransitionsTest, ColorSelectorCommandReadsRgbPairAtCursor)
     *editor.cursorY = 0;
     editor.saveState();
 
-    auto smPtr =
-        std::make_unique<ModeStateMachine>(createModeContext(&editor),
-                                           NormalMode{});
+    auto smPtr = std::make_unique<
+        ModeStateMachine>(createModeContext(&editor), NormalMode{});
     ModeStateMachine* sm = smPtr.get();
     editor.setModeStateMachineForTests(std::move(smPtr));
     dispatch_command(*sm, "colorselect");
@@ -287,9 +286,8 @@ TEST(RealModeTransitionsTest, ColorSelectorCommandReadsRgbPairAfterCursor)
     *editor.cursorY = 0;
     editor.saveState();
 
-    auto smPtr =
-        std::make_unique<ModeStateMachine>(createModeContext(&editor),
-                                           NormalMode{});
+    auto smPtr = std::make_unique<
+        ModeStateMachine>(createModeContext(&editor), NormalMode{});
     ModeStateMachine* sm = smPtr.get();
     editor.setModeStateMachineForTests(std::move(smPtr));
     dispatch_command(*sm, "colorselect");
@@ -316,9 +314,8 @@ TEST(RealModeTransitionsTest, ColorSelectorCommandReadsActualEscRgbPair)
     *editor.cursorY = 0;
     editor.saveState();
 
-    auto smPtr =
-        std::make_unique<ModeStateMachine>(createModeContext(&editor),
-                                           NormalMode{});
+    auto smPtr = std::make_unique<
+        ModeStateMachine>(createModeContext(&editor), NormalMode{});
     ModeStateMachine* sm = smPtr.get();
     editor.setModeStateMachineForTests(std::move(smPtr));
     dispatch_command(*sm, "colorselect");
@@ -344,9 +341,8 @@ TEST(RealModeTransitionsTest, ColorSelectCommandEscLeavesAnsiLiteralRemoved)
     *editor.cursorY = 0;
     editor.saveState();
 
-    auto smPtr =
-        std::make_unique<ModeStateMachine>(createModeContext(&editor),
-                                           NormalMode{});
+    auto smPtr = std::make_unique<
+        ModeStateMachine>(createModeContext(&editor), NormalMode{});
     ModeStateMachine* sm = smPtr.get();
     editor.setModeStateMachineForTests(std::move(smPtr));
     dispatch_command(*sm, "colorselect");

@@ -30,8 +30,9 @@ void GitShowCommitMode::on_enter(ModeContext& ctx)
 
 void GitShowCommitMode::on_exit(ModeContext&) {}
 
-std::optional<ModeState> GitShowCommitMode::handle(ModeContext& ctx,
-                                                   const ModeKeyEvent&)
+std::optional<ModeState> GitShowCommitMode::handle(
+    ModeContext& ctx,
+    const ModeKeyEvent&)
 {
     return exitMode(ctx);
 }
@@ -49,8 +50,9 @@ void GitLogMode::on_enter(ModeContext& ctx)
 
 void GitLogMode::on_exit(ModeContext&) {}
 
-std::optional<ModeState> GitLogMode::handle(ModeContext& ctx,
-                                            const ModeKeyEvent&)
+std::optional<ModeState> GitLogMode::handle(
+    ModeContext& ctx,
+    const ModeKeyEvent&)
 {
     return exitMode(ctx);
 }
@@ -76,8 +78,10 @@ std::optional<GitLogMode::Entry> GitLogMode::parseGraphEntry(std::string_view)
 
 void GitLogMode::applyGraphConnector(Entry&, std::string_view) {}
 
-GitStageMode::GitStageMode(std::vector<Node> items, std::string root,
-                           std::string dir)
+GitStageMode::GitStageMode(
+    std::vector<Node> items,
+    std::string root,
+    std::string dir)
     : nodes(std::move(items)), repoRoot(std::move(root)),
       repoDir(std::move(dir))
 {
@@ -91,8 +95,9 @@ void GitStageMode::on_enter(ModeContext& ctx)
 
 void GitStageMode::on_exit(ModeContext&) {}
 
-std::optional<ModeState> GitStageMode::handle(ModeContext& ctx,
-                                              const ModeKeyEvent&)
+std::optional<ModeState> GitStageMode::handle(
+    ModeContext& ctx,
+    const ModeKeyEvent&)
 {
     return exitMode(ctx);
 }
@@ -110,8 +115,9 @@ void GitCommitMode::on_enter(ModeContext& ctx)
 
 void GitCommitMode::on_exit(ModeContext&) {}
 
-std::optional<ModeState> GitCommitMode::handle(ModeContext& ctx,
-                                               const ModeKeyEvent&)
+std::optional<ModeState> GitCommitMode::handle(
+    ModeContext& ctx,
+    const ModeKeyEvent&)
 {
     return exitMode(ctx);
 }
@@ -131,8 +137,9 @@ void GitFixupMode::on_enter(ModeContext& ctx)
 
 void GitFixupMode::on_exit(ModeContext&) {}
 
-std::optional<ModeState> GitFixupMode::handle(ModeContext& ctx,
-                                              const ModeKeyEvent&)
+std::optional<ModeState> GitFixupMode::handle(
+    ModeContext& ctx,
+    const ModeKeyEvent&)
 {
     return exitMode(ctx);
 }
@@ -150,8 +157,9 @@ void GitPatchMode::on_enter(ModeContext& ctx)
 
 void GitPatchMode::on_exit(ModeContext&) {}
 
-std::optional<ModeState> GitPatchMode::handle(ModeContext& ctx,
-                                              const ModeKeyEvent&)
+std::optional<ModeState> GitPatchMode::handle(
+    ModeContext& ctx,
+    const ModeKeyEvent&)
 {
     return exitMode(ctx);
 }

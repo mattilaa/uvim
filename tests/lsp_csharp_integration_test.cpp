@@ -46,9 +46,11 @@ TEST(CSharpLspIntegrationTest, DiagnosticsDefinitionAndShutdown)
         "<Project Sdk=\"Microsoft.NET.Sdk\">\n"
         "  <PropertyGroup>\n"
         "    <OutputType>Exe</OutputType>\n"
-        "    <TargetFramework>" + framework + "</TargetFramework>\n"
-        "  </PropertyGroup>\n"
-        "</Project>\n");
+        "    <TargetFramework>" +
+            framework +
+            "</TargetFramework>\n"
+            "  </PropertyGroup>\n"
+            "</Project>\n");
     const fs::path source = root / "Program.cs";
     const std::string text = "class Program\n"
                              "{\n"
@@ -57,12 +59,15 @@ TEST(CSharpLspIntegrationTest, DiagnosticsDefinitionAndShutdown)
                              "    static int Broken() => missing;\n"
                              "}\n";
     uvim_test::write_file(source, text);
-    EXPECT_EQ(csharp_lsp::projectRoot(source.string()),
-              fs::absolute(root).string());
+    EXPECT_EQ(
+        csharp_lsp::projectRoot(source.string()),
+        fs::absolute(root).string());
 
     LspClient client;
-    ASSERT_TRUE(client.startServer(server, root.string(),
-                                   csharp_lsp::serverArgs(server, {})))
+    ASSERT_TRUE(client.startServer(
+        server,
+        root.string(),
+        csharp_lsp::serverArgs(server, {})))
         << client.lastError();
     client.didOpen(source.string(), "csharp", text);
 
@@ -91,12 +96,12 @@ TEST(CSharpLspIntegrationTest, DiagnosticsDefinitionAndShutdown)
             EXPECT_EQ(diag.line, 4);
         }
     }
-    ASSERT_TRUE(missingReported) << "no diagnostic for `missing` from "
-                                 << server;
+    ASSERT_TRUE(missingReported)
+        << "no diagnostic for `missing` from " << server;
 
     const std::string line3 = "    static int Main() => Add(1, 2);";
-    auto location = client.definition(source.string(), 3,
-                                      (int)line3.find("Add("), line3);
+    auto location =
+        client.definition(source.string(), 3, (int)line3.find("Add("), line3);
     ASSERT_TRUE(location.has_value());
     std::error_code ec;
     EXPECT_TRUE(fs::equivalent(location->path, source, ec)) << location->path;

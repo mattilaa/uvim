@@ -39,11 +39,15 @@ struct FunctionSymbol
 
 bool supports(FileType type);
 FileType fileType(const Editor& editor);
-std::vector<FunctionSymbol>
-functionSymbols(const std::vector<std::string>& lines, FileType type);
+std::vector<FunctionSymbol> functionSymbols(
+    const std::vector<std::string>& lines,
+    FileType type);
 // A lexical outline, independent of LSP and the filesystem. Local targets are
 // declarations and calls in the innermost function containing the cursor.
-std::vector<Position> targets(const std::vector<std::string>& lines,
-                              FileType type, Target target, Position cursor);
+std::vector<Position> targets(
+    const std::vector<std::string>& lines,
+    FileType type,
+    Target target,
+    Position cursor);
 bool navigate(Editor& editor, Target target, bool forward, int count = 1);
 } // namespace structural_navigation

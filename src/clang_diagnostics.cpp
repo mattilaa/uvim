@@ -34,8 +34,7 @@ struct CompileCommandEntry
 
 struct CompilerDiagnosticCache
 {
-    std::unordered_map<std::string, std::vector<DiagnosticEntry>>
-        diagnostics;
+    std::unordered_map<std::string, std::vector<DiagnosticEntry>> diagnostics;
     std::unordered_set<std::string> validKeys;
 };
 
@@ -46,8 +45,9 @@ bool isCppCompileCommandFile(const fs::path& path)
            ext == ".h" || ext == ".hh" || ext == ".hpp" || ext == ".hxx";
 }
 
-fs::path detectClangdCompileCommandsDir(const Editor& editor,
-                                        const fs::path& root)
+fs::path detectClangdCompileCommandsDir(
+    const Editor& editor,
+    const fs::path& root)
 {
     if(!editor.clangdLspCompileCommandsDir.empty())
         return EditorPathUtilities::resolveEditorPath(
@@ -105,17 +105,20 @@ std::vector<CompileCommandEntry> collectCompileCommandEntries(
         }
     }
 
-    std::sort(entries.begin(), entries.end(),
-              [](const CompileCommandEntry& a, const CompileCommandEntry& b)
-              {
-                  return a.file < b.file;
-              });
+    std::sort(
+        entries.begin(),
+        entries.end(),
+        [](const CompileCommandEntry& a, const CompileCommandEntry& b)
+        { return a.file < b.file; });
     return entries;
 }
 
-bool parseCompilerDiagnosticLine(const std::string& line, int severity,
-                                 const fs::path& root, const fs::path& baseDir,
-                                 DiagnosticEntry& entry)
+bool parseCompilerDiagnosticLine(
+    const std::string& line,
+    int severity,
+    const fs::path& root,
+    const fs::path& baseDir,
+    DiagnosticEntry& entry)
 {
     static const std::regex diagnosticRe(
         R"(^(.+):([0-9]+):([0-9]+):\s+(warning|error):\s+(.*)$)");
@@ -135,8 +138,8 @@ bool parseCompilerDiagnosticLine(const std::string& line, int severity,
     entry.displayPath = dc::relativeDisplayPath(entry.path, root);
     entry.line = std::max(0, std::stoi(match.str(2)) - 1);
     entry.col = std::max(0, std::stoi(match.str(3)) - 1);
-    entry.rangeText = std::to_string(entry.line + 1) + ":" +
-                      std::to_string(entry.col + 1);
+    entry.rangeText =
+        std::to_string(entry.line + 1) + ":" + std::to_string(entry.col + 1);
     entry.message = match.str(5);
     return true;
 }
@@ -244,22 +247,25 @@ std::string compileCacheEntryKey(const CompileCommandEntry& entry)
            fileMtimeKey(entry.file) + "\t" + hashString(entry.command);
 }
 
-fs::path compilerDiagnosticsCachePath(const fs::path& root,
-                                      const fs::path& ccDir, int severity)
+fs::path compilerDiagnosticsCachePath(
+    const fs::path& root,
+    const fs::path& ccDir,
+    int severity)
 {
     std::error_code ec;
     fs::path dir = fs::temp_directory_path(ec);
     if(ec || dir.empty())
         dir = fs::current_path(ec);
 
-    const std::string key =
-        dc::normalizedPathString(root) + "\n" +
-        dc::normalizedPathString(ccDir) + "\n" + std::to_string(severity);
+    const std::string key = dc::normalizedPathString(root) + "\n" +
+                            dc::normalizedPathString(ccDir) + "\n" +
+                            std::to_string(severity);
     return dir / ("uvim_clang_diag_cache_" + hashString(key) + ".tsv");
 }
 
-CompilerDiagnosticCache readCompilerDiagnosticCache(const fs::path& cachePath,
-                                                    const fs::path& root)
+CompilerDiagnosticCache readCompilerDiagnosticCache(
+    const fs::path& cachePath,
+    const fs::path& root)
 {
     CompilerDiagnosticCache cache;
     for(const std::string& line : dc::readLines(cachePath))
@@ -337,9 +343,10 @@ std::string defaultClangdQueryDriverAllowList()
 #endif
 }
 
-[[maybe_unused]] std::vector<DiagnosticEntry>
-collectClangdCheckDiagnostics(Editor& editor, int severity,
-                              const fs::path& root)
+[[maybe_unused]] std::vector<DiagnosticEntry> collectClangdCheckDiagnostics(
+    Editor& editor,
+    int severity,
+    const fs::path& root)
 {
     std::vector<DiagnosticEntry> results;
     const std::string clangdExe = resolveClangdExecutable(editor);
@@ -362,10 +369,10 @@ collectClangdCheckDiagnostics(Editor& editor, int severity,
     for(const CompileCommandEntry& entry : entries)
     {
         fs::path logPath = dc::makeTempPath("uvim_clangd_check", ".log");
-        std::string cmd = dc::shellQuote(clangdExe) +
-                          " --compile-commands-dir=" +
-                          dc::shellQuote(ccDir.string()) + " --check=" +
-                          dc::shellQuote(entry.file.string());
+        std::string cmd =
+            dc::shellQuote(clangdExe) +
+            " --compile-commands-dir=" + dc::shellQuote(ccDir.string()) +
+            " --check=" + dc::shellQuote(entry.file.string());
         if(!queryDriver.empty())
             cmd += " --query-driver=" + dc::shellQuote(queryDriver);
         cmd += " >" + dc::shellQuote(logPath.string()) + " 2>&1";
@@ -375,8 +382,12 @@ collectClangdCheckDiagnostics(Editor& editor, int severity,
         for(const std::string& line : dc::readLines(logPath))
         {
             DiagnosticEntry parsed;
-            if(parseCompilerDiagnosticLine(line, severity, root,
-                                           entry.directory, parsed))
+            if(parseCompilerDiagnosticLine(
+                   line,
+                   severity,
+                   root,
+                   entry.directory,
+                   parsed))
                 results.push_back(std::move(parsed));
         }
 
@@ -386,9 +397,10 @@ collectClangdCheckDiagnostics(Editor& editor, int severity,
     return results;
 }
 
-[[maybe_unused]] std::vector<DiagnosticEntry>
-collectCompilerCommandDiagnostics(int severity, const fs::path& root,
-                                  const fs::path& ccDir)
+[[maybe_unused]] std::vector<DiagnosticEntry> collectCompilerCommandDiagnostics(
+    int severity,
+    const fs::path& root,
+    const fs::path& ccDir)
 {
     std::vector<DiagnosticEntry> results;
     const std::vector<CompileCommandEntry> entries =
@@ -397,8 +409,7 @@ collectCompilerCommandDiagnostics(int severity, const fs::path& root,
         compilerDiagnosticsCachePath(root, ccDir, severity);
     CompilerDiagnosticCache cache =
         readCompilerDiagnosticCache(cachePath, root);
-    std::vector<std::pair<std::string, std::vector<DiagnosticEntry>>>
-        cacheRows;
+    std::vector<std::pair<std::string, std::vector<DiagnosticEntry>>> cacheRows;
     cacheRows.reserve(entries.size());
 
     for(const CompileCommandEntry& entry : entries)
@@ -413,8 +424,8 @@ collectCompilerCommandDiagnostics(int severity, const fs::path& root,
             std::vector<DiagnosticEntry> diagnostics;
             if(cached != cache.diagnostics.end())
                 diagnostics = cached->second;
-            results.insert(results.end(), diagnostics.begin(),
-                           diagnostics.end());
+            results
+                .insert(results.end(), diagnostics.begin(), diagnostics.end());
             cacheRows.emplace_back(cacheKey, std::move(diagnostics));
             continue;
         }
@@ -422,8 +433,7 @@ collectCompilerCommandDiagnostics(int severity, const fs::path& root,
         std::vector<DiagnosticEntry> diagnostics;
         fs::path logPath = dc::makeTempPath("uvim_compile_check", ".log");
         std::string cmd = "(cd " + dc::shellQuote(entry.directory.string()) +
-                          " && " + entry.command +
-                          " -fsyntax-only) >" +
+                          " && " + entry.command + " -fsyntax-only) >" +
                           dc::shellQuote(logPath.string()) + " 2>&1";
         // Nonzero checker exits still provide useful diagnostics in the log.
         [[maybe_unused]] const int commandStatus = std::system(cmd.c_str());
@@ -431,8 +441,12 @@ collectCompilerCommandDiagnostics(int severity, const fs::path& root,
         for(const std::string& line : dc::readLines(logPath))
         {
             DiagnosticEntry parsed;
-            if(parseCompilerDiagnosticLine(line, severity, root,
-                                           entry.directory, parsed))
+            if(parseCompilerDiagnosticLine(
+                   line,
+                   severity,
+                   root,
+                   entry.directory,
+                   parsed))
                 diagnostics.push_back(std::move(parsed));
         }
 
@@ -451,16 +465,16 @@ collectCompilerCommandDiagnostics(int severity, const fs::path& root,
 {
     const std::vector<CompileCommandEntry> entries =
         collectCompileCommandEntries(ccDir);
-    return std::any_of(entries.begin(), entries.end(),
-                       [](const CompileCommandEntry& entry)
-                       {
-                           return !entry.command.empty();
-                       });
+    return std::any_of(
+        entries.begin(),
+        entries.end(),
+        [](const CompileCommandEntry& entry)
+        { return !entry.command.empty(); });
 }
 
-[[maybe_unused]] void
-mergeAndSortDiagnostics(std::vector<DiagnosticEntry>& target,
-                        std::vector<DiagnosticEntry> extra)
+[[maybe_unused]] void mergeAndSortDiagnostics(
+    std::vector<DiagnosticEntry>& target,
+    std::vector<DiagnosticEntry> extra)
 {
     std::unordered_set<std::string> seen;
     auto makeKey = [](const DiagnosticEntry& entry)
@@ -482,23 +496,26 @@ mergeAndSortDiagnostics(std::vector<DiagnosticEntry>& target,
             merged.push_back(std::move(entry));
     }
 
-    std::sort(merged.begin(), merged.end(),
-              [](const DiagnosticEntry& a, const DiagnosticEntry& b)
-              {
-                  if(a.displayPath != b.displayPath)
-                      return a.displayPath < b.displayPath;
-                  if(a.line != b.line)
-                      return a.line < b.line;
-                  if(a.col != b.col)
-                      return a.col < b.col;
-                  return a.message < b.message;
-              });
+    std::sort(
+        merged.begin(),
+        merged.end(),
+        [](const DiagnosticEntry& a, const DiagnosticEntry& b)
+        {
+            if(a.displayPath != b.displayPath)
+                return a.displayPath < b.displayPath;
+            if(a.line != b.line)
+                return a.line < b.line;
+            if(a.col != b.col)
+                return a.col < b.col;
+            return a.message < b.message;
+        });
     target = std::move(merged);
 }
 
 #ifdef UVIM_ENABLE_CLANGD_LSP
-std::vector<DiagnosticEntry> collectClangLspDiagnostics(Editor& editor,
-                                                        int severity)
+std::vector<DiagnosticEntry> collectClangLspDiagnostics(
+    Editor& editor,
+    int severity)
 {
     std::vector<DiagnosticEntry> results;
     fs::path root;
@@ -534,22 +551,25 @@ std::vector<DiagnosticEntry> collectClangLspDiagnostics(Editor& editor,
         }
     }
 
-    std::sort(results.begin(), results.end(),
-              [](const DiagnosticEntry& a, const DiagnosticEntry& b)
-              {
-                  if(a.displayPath != b.displayPath)
-                      return a.displayPath < b.displayPath;
-                  if(a.line != b.line)
-                      return a.line < b.line;
-                  return a.col < b.col;
-              });
+    std::sort(
+        results.begin(),
+        results.end(),
+        [](const DiagnosticEntry& a, const DiagnosticEntry& b)
+        {
+            if(a.displayPath != b.displayPath)
+                return a.displayPath < b.displayPath;
+            if(a.line != b.line)
+                return a.line < b.line;
+            return a.col < b.col;
+        });
     return results;
 }
 #endif
 } // namespace
 
-std::vector<DiagnosticEntry> collectClangDiagnostics(Editor& editor,
-                                                     int severity)
+std::vector<DiagnosticEntry> collectClangDiagnostics(
+    Editor& editor,
+    int severity)
 {
     std::vector<DiagnosticEntry> results;
 #ifdef UVIM_ENABLE_CLANGD_LSP
@@ -577,19 +597,22 @@ std::vector<DiagnosticEntry> collectClangDiagnostics(Editor& editor,
     if(!ccDir.empty())
     {
         mergeAndSortDiagnostics(
-            results, collectCompilerCommandDiagnostics(severity, root, ccDir));
+            results,
+            collectCompilerCommandDiagnostics(severity, root, ccDir));
         if(!compileCommandsHaveShellCommand(ccDir))
             mergeAndSortDiagnostics(
-                results, collectClangdCheckDiagnostics(editor, severity, root));
+                results,
+                collectClangdCheckDiagnostics(editor, severity, root));
     }
     else
     {
         mergeAndSortDiagnostics(
-            results, collectClangdCheckDiagnostics(editor, severity, root));
+            results,
+            collectClangdCheckDiagnostics(editor, severity, root));
     }
 
-    editor.setStatusMessage("clangd " + severityName + ": " +
-                            std::to_string(results.size()));
+    editor.setStatusMessage(
+        "clangd " + severityName + ": " + std::to_string(results.size()));
 #else
     (void)editor;
     (void)severity;

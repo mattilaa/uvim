@@ -44,22 +44,35 @@ int ctrl(control::ControlKey key)
 constexpr int kSpace = ' ';
 
 // Entry for a normal mode key sequence.
-Entry keys(std::string title, std::string shortcut, std::vector<int> sequence,
-           std::vector<std::string> names = {})
+Entry keys(
+    std::string title,
+    std::string shortcut,
+    std::vector<int> sequence,
+    std::vector<std::string> names = {})
 {
-    return Entry{std::move(title), std::move(shortcut), std::move(names),
-                 std::move(sequence), false};
+    return Entry{
+        std::move(title),
+        std::move(shortcut),
+        std::move(names),
+        std::move(sequence),
+        false};
 }
 
 // Entry for an ex command (names.front() runs).
-Entry ex(std::string title, std::vector<std::string> names,
-         bool takesArgument = false)
+Entry ex(
+    std::string title,
+    std::vector<std::string> names,
+    bool takesArgument = false)
 {
     std::string shortcut;
     for(size_t i = 0; i < names.size(); ++i)
         shortcut += (i ? ", :" : ":") + names[i];
-    return Entry{std::move(title), std::move(shortcut), std::move(names), {},
-                 takesArgument};
+    return Entry{
+        std::move(title),
+        std::move(shortcut),
+        std::move(names),
+        {},
+        takesArgument};
 }
 
 // Lower tier = better match.
@@ -79,25 +92,39 @@ std::vector<Entry> builtinActions()
     std::vector<Entry> a;
     // Files and search.
 #ifdef UVIM_ENABLE_SEARCH_TOOLS
-    a.push_back(keys("Find file", "Ctrl-P", {ctrl(control::ControlKey::CTRL_P)}));
-    a.push_back(keys("Search in project (grep)", "Ctrl-A",
-                     {ctrl(control::ControlKey::CTRL_A)}));
-    a.push_back(keys("Regex search", "Ctrl-X",
-                     {ctrl(control::ControlKey::CTRL_X)}));
+    a.push_back(
+        keys("Find file", "Ctrl-P", {ctrl(control::ControlKey::CTRL_P)}));
+    a.push_back(keys(
+        "Search in project (grep)",
+        "Ctrl-A",
+        {ctrl(control::ControlKey::CTRL_A)}));
+    a.push_back(
+        keys("Regex search", "Ctrl-X", {ctrl(control::ControlKey::CTRL_X)}));
 #endif
 #ifdef UVIM_ENABLE_BROWSER_TOOLS
     a.push_back(keys("Open file browser", "Space x", {kSpace, 'x'}));
-    a.push_back(keys("Change buffer", "Ctrl-W",
-                     {ctrl(control::ControlKey::CTRL_W)}, {"ls", "buffers"}));
+    a.push_back(keys(
+        "Change buffer",
+        "Ctrl-W",
+        {ctrl(control::ControlKey::CTRL_W)},
+        {"ls", "buffers"}));
 #endif
     a.push_back(ex("Open file\xE2\x80\xA6", {"e", "edit"}, true));
-    a.push_back(keys("Next buffer", "Ctrl-L", {ctrl(control::ControlKey::CTRL_L)},
-                     {"bn", "bnext"}));
-    a.push_back(keys("Previous buffer", "Ctrl-H",
-                     {ctrl(control::ControlKey::CTRL_H)},
-                     {"bp", "bprev", "bprevious"}));
-    a.push_back(keys("Close buffer", "Space b d", {kSpace, 'b', 'd'},
-                     {"bd", "bdelete"}));
+    a.push_back(keys(
+        "Next buffer",
+        "Ctrl-L",
+        {ctrl(control::ControlKey::CTRL_L)},
+        {"bn", "bnext"}));
+    a.push_back(keys(
+        "Previous buffer",
+        "Ctrl-H",
+        {ctrl(control::ControlKey::CTRL_H)},
+        {"bp", "bprev", "bprevious"}));
+    a.push_back(keys(
+        "Close buffer",
+        "Space b d",
+        {kSpace, 'b', 'd'},
+        {"bd", "bdelete"}));
     a.push_back(ex("New empty buffer", {"enew"}));
     a.push_back(ex("Save file", {"w"}));
     a.push_back(ex("Save all files", {"wa", "wall"}));
@@ -109,8 +136,8 @@ std::vector<Entry> builtinActions()
     a.push_back(ex("Save all and quit", {"wqa", "wqall", "xa"}));
     // Editing.
 #ifdef UVIM_ENABLE_FORMATTERS
-    a.push_back(keys("Format buffer", "Space f", {kSpace, 'f'},
-                     {"format", "fmt"}));
+    a.push_back(
+        keys("Format buffer", "Space f", {kSpace, 'f'}, {"format", "fmt"}));
 #endif
     a.push_back(keys("Clear search highlight", "Space n", {kSpace, 'n'}));
 #ifdef UVIM_ENABLE_SYSTEM_CLIPBOARD
@@ -125,7 +152,11 @@ std::vector<Entry> builtinActions()
     a.push_back(ex("Compile and browse assembly", {"asm"}));
 #endif
 #ifdef UVIM_ENABLE_BROWSER_TOOLS
-    a.push_back(keys("Browse function signatures", "Space o", {kSpace, 'o'}, {"functions"}));
+    a.push_back(keys(
+        "Browse function signatures",
+        "Space o",
+        {kSpace, 'o'},
+        {"functions"}));
 #endif
     a.push_back(keys("Next function signature", "]f", {']', 'f'}));
     a.push_back(keys("Previous function signature", "[f", {'[', 'f'}));
@@ -134,8 +165,8 @@ std::vector<Entry> builtinActions()
     a.push_back(keys("Go to definition", "Space d", {kSpace, 'd'}));
     a.push_back(keys("Find references", "Space g r", {kSpace, 'g', 'r'}));
     a.push_back(keys("Show signature of symbol", "Space s", {kSpace, 's'}));
-    a.push_back(keys("Diagnostic details on this line", "Space e",
-                     {kSpace, 'e'}));
+    a.push_back(
+        keys("Diagnostic details on this line", "Space e", {kSpace, 'e'}));
     a.push_back(keys("List LSP errors", "Space m e", {kSpace, 'm', 'e'}));
     a.push_back(keys("List LSP warnings", "Space m w", {kSpace, 'm', 'w'}));
     // Windows.
@@ -166,30 +197,37 @@ std::vector<Entry> builtinActions()
     a.push_back(ex("Insert glyph", {"glyphselect"}));
 #endif
 #ifdef UVIM_ENABLE_COLOR_TOOLS
-    a.push_back(keys("Color picker", "Space cp", {kSpace, 'c', 'p'},
-                     {"colorpicker"}));
-    a.push_back(keys("RGB color selector", "Space cs", {kSpace, 'c', 's'},
-                     {"colorselect"}));
+    a.push_back(
+        keys("Color picker", "Space cp", {kSpace, 'c', 'p'}, {"colorpicker"}));
+    a.push_back(keys(
+        "RGB color selector",
+        "Space cs",
+        {kSpace, 'c', 's'},
+        {"colorselect"}));
 #endif
     a.push_back(ex("Change directory\xE2\x80\xA6", {"cd"}, true));
     a.push_back(ex("Show working directory", {"pwd"}));
     return a;
 }
 
-void addExCommands(std::vector<Entry>& entries,
-                   const std::vector<std::string>& commands,
-                   const Describe& describe)
+void addExCommands(
+    std::vector<Entry>& entries,
+    const std::vector<std::string>& commands,
+    const Describe& describe)
 {
     auto covered = [&](const std::string& name, bool takesArgument)
     {
-        return std::any_of(entries.begin(), entries.end(),
-                           [&](const Entry& entry)
-                           {
-                               return entry.takesArgument == takesArgument &&
-                                      std::find(entry.names.begin(),
-                                                entry.names.end(),
-                                                name) != entry.names.end();
-                           });
+        return std::any_of(
+            entries.begin(),
+            entries.end(),
+            [&](const Entry& entry)
+            {
+                return entry.takesArgument == takesArgument &&
+                       std::find(
+                           entry.names.begin(),
+                           entry.names.end(),
+                           name) != entry.names.end();
+            });
     };
 
     const size_t firstNew = entries.size();
@@ -206,13 +244,14 @@ void addExCommands(std::vector<Entry>& entries,
             description += "\xE2\x80\xA6";
 
         // Aliases (same description) share one entry.
-        auto same = std::find_if(entries.begin() + firstNew, entries.end(),
-                                 [&](const Entry& entry)
-                                 {
-                                     return entry.takesArgument ==
-                                                takesArgument &&
-                                            entry.title == description;
-                                 });
+        auto same = std::find_if(
+            entries.begin() + firstNew,
+            entries.end(),
+            [&](const Entry& entry)
+            {
+                return entry.takesArgument == takesArgument &&
+                       entry.title == description;
+            });
         if(same == entries.end())
         {
             entries.push_back(ex(description, {name}, takesArgument));
@@ -225,8 +264,9 @@ void addExCommands(std::vector<Entry>& entries,
     }
 }
 
-std::vector<Match> rank(const std::vector<Entry>& entries,
-                        const std::string& query)
+std::vector<Match> rank(
+    const std::vector<Entry>& entries,
+    const std::string& query)
 {
     std::vector<Match> out;
     if(editor::helper::isRegexQuery(query))
@@ -236,19 +276,26 @@ std::vector<Match> rank(const std::vector<Entry>& entries,
         {
             Match match{i, {}};
             int score = editor::helper::fuzzyScoreWithPositions(
-                query, entries[i].title, match.positions);
+                query,
+                entries[i].title,
+                match.positions);
             for(const auto& name : entries[i].names)
             {
                 std::vector<int> ignored;
-                score = std::max(score, editor::helper::fuzzyScoreWithPositions(
-                                            query, name, ignored));
+                score = std::max(
+                    score,
+                    editor::helper::fuzzyScoreWithPositions(
+                        query,
+                        name,
+                        ignored));
             }
             if(score >= 0)
                 ranked.push_back({std::move(match), score});
         }
-        std::stable_sort(ranked.begin(), ranked.end(),
-                         [](const auto& a, const auto& b)
-                         { return a.second > b.second; });
+        std::stable_sort(
+            ranked.begin(),
+            ranked.end(),
+            [](const auto& a, const auto& b) { return a.second > b.second; });
         for(auto& entry : ranked)
             out.push_back(std::move(entry.first));
         return out;
@@ -308,7 +355,8 @@ std::vector<Match> rank(const std::vector<Entry>& entries,
         for(const std::string& word : queryWords)
         {
             const bool prefix = std::any_of(
-                titleWords.begin(), titleWords.end(),
+                titleWords.begin(),
+                titleWords.end(),
                 [&](const std::string& titleWord)
                 { return titleWord.rfind(word, 0) == 0; });
             allPrefixes = allPrefixes && prefix;
@@ -320,14 +368,18 @@ std::vector<Match> rank(const std::vector<Entry>& entries,
         else if(allContained)
             offer(Words, 1000 - (int)title.size());
 
-        int s = editor::helper::fuzzyScoreWithPositions("fz:" + q, title,
-                                                        positions);
+        int s = editor::helper::fuzzyScoreWithPositions(
+            "fz:" + q,
+            title,
+            positions);
         if(s >= 0)
             offer(Fuzzy, s);
         for(const std::string& name : entry.names)
         {
-            s = editor::helper::fuzzyScoreWithPositions("fz:" + q, lower(name),
-                                                        positions);
+            s = editor::helper::fuzzyScoreWithPositions(
+                "fz:" + q,
+                lower(name),
+                positions);
             if(s >= 0)
                 offer(Fuzzy, s);
         }
@@ -336,21 +388,25 @@ std::vector<Match> rank(const std::vector<Entry>& entries,
             scored.push_back({i, tier, score});
     }
 
-    std::stable_sort(scored.begin(), scored.end(),
-                     [](const Scored& a, const Scored& b)
-                     {
-                         if(a.tier != b.tier)
-                             return a.tier < b.tier;
-                         return a.score > b.score;
-                     });
+    std::stable_sort(
+        scored.begin(),
+        scored.end(),
+        [](const Scored& a, const Scored& b)
+        {
+            if(a.tier != b.tier)
+                return a.tier < b.tier;
+            return a.score > b.score;
+        });
 
     for(const Scored& s : scored)
     {
         Match match{s.entry, {}};
         // Highlight the query's letters in the title when they are there.
         const std::string title = lower(entries[s.entry].title);
-        if(editor::helper::fuzzyScoreWithPositions("fz:" + q, title,
-                                                   positions) >= 0)
+        if(editor::helper::fuzzyScoreWithPositions(
+               "fz:" + q,
+               title,
+               positions) >= 0)
             match.positions = positions;
         out.push_back(std::move(match));
     }

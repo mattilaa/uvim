@@ -48,9 +48,13 @@ struct GitPatchMode
 
     GitPatchMode() = default;
 
-    GitPatchMode(std::vector<Hunk> items, std::string root, std::string dir,
-                 std::string hash, std::vector<std::string> files,
-                 GitStageMode stage)
+    GitPatchMode(
+        std::vector<Hunk> items,
+        std::string root,
+        std::string dir,
+        std::string hash,
+        std::vector<std::string> files,
+        GitStageMode stage)
         : hunks(std::move(items)), repoRoot(std::move(root)),
           repoDir(std::move(dir)), targetHash(std::move(hash)),
           fixupFiles(std::move(files)), returnStage(std::move(stage))
@@ -60,8 +64,9 @@ struct GitPatchMode
     void on_enter(ModeContext& ctx);
     void on_exit(ModeContext& ctx);
 
-    std::optional<ModeState> handle(ModeContext& ctx,
-                                    const ModeKeyEvent& event);
+    std::optional<ModeState> handle(
+        ModeContext& ctx,
+        const ModeKeyEvent& event);
 
     void draw(Editor& editor) const;
 };

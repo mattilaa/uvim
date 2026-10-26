@@ -1,7 +1,7 @@
 #include "editor.h"
 #include "editor_utils.h"
-#include "substitute_command.h"
 #include "mode_state_machine.h"
+#include "substitute_command.h"
 #include "terminal.h"
 #include "text_utils.h"
 
@@ -26,7 +26,8 @@ void CommandPrompt::setInput(std::string value)
 }
 
 bool CommandPrompt::handle(
-    ModeContext& ctx, int key,
+    ModeContext& ctx,
+    int key,
     const std::function<std::optional<ModeState>(std::string_view)>& execute,
     std::optional<ModeState>& nextState)
 {
@@ -79,10 +80,11 @@ bool CommandPrompt::handle(
                         completions = ctx.getHelpCompletions(pathPart);
                         helpCompletion = true;
                     }
-                    else if(cmd == "e" || cmd == "edit" || cmd == "tabe" ||
-                            cmd == "tabnew" || cmd == "w" || cmd == "cd"
+                    else if(
+                        cmd == "e" || cmd == "edit" || cmd == "tabe" ||
+                        cmd == "tabnew" || cmd == "w" || cmd == "cd"
 #ifdef UVIM_ENABLE_DEBUGGER
-                            || cmd == "dbgrun"
+                        || cmd == "dbgrun"
 #endif
                     )
                     {
@@ -104,7 +106,8 @@ bool CommandPrompt::handle(
                             if(command.starts_with("git "))
                                 subcommands.push_back(command.substr(4));
                         completions = editor::helper::fuzzyCompletions(
-                            subcommands, pathPart);
+                            subcommands,
+                            pathPart);
                     }
                 }
                 else
@@ -115,8 +118,9 @@ bool CommandPrompt::handle(
                         completions.insert(completions.begin(), inputText);
                         helpCompletion = true;
                     }
-                    else if(inputText == "loc" || inputText == "loc!" ||
-                            inputText == "loctotal")
+                    else if(
+                        inputText == "loc" || inputText == "loc!" ||
+                        inputText == "loctotal")
                     {
                         completions = ctx.getLocPathCompletions("");
                         if(completions.empty())
@@ -124,9 +128,10 @@ bool CommandPrompt::handle(
                         locCompletion = true;
                         locCommand = inputText;
                     }
-                    else if(inputText == "e" || inputText == "edit" ||
-                            inputText == "tabe" || inputText == "tabnew" ||
-                            inputText == "w" || inputText == "cd")
+                    else if(
+                        inputText == "e" || inputText == "edit" ||
+                        inputText == "tabe" || inputText == "tabnew" ||
+                        inputText == "w" || inputText == "cd")
                     {
                         completions = ctx.getPathCompletionsRecursive("");
                     }

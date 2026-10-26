@@ -25,7 +25,8 @@ int referencesRowsThroughCursor(const Editor& editor, int offset, int cursor)
     int rows = 0;
     std::string lastFile;
     for(int idx = offset;
-        idx <= cursor && idx < (int)editor.referencesList.size(); ++idx)
+        idx <= cursor && idx < (int)editor.referencesList.size();
+        ++idx)
     {
         const auto& ref = editor.referencesList[idx];
         if(ref.displayPath != lastFile)
@@ -56,8 +57,10 @@ void clampReferencesOffsetToCursor(Editor& editor)
 
     int visibleRows = referencesVisibleRows(editor);
     while(editor.referencesOffset < editor.referencesCursor &&
-          referencesRowsThroughCursor(editor, editor.referencesOffset,
-                                      editor.referencesCursor) > visibleRows)
+          referencesRowsThroughCursor(
+              editor,
+              editor.referencesOffset,
+              editor.referencesCursor) > visibleRows)
     {
         ++editor.referencesOffset;
     }
@@ -155,8 +158,11 @@ void EditorReferencesController::findReferences()
     editor.refreshScreen();
 
     // Query references
-    auto refs = client->references(editor.currentBuffer->filename,
-                                   *editor.cursorY, *editor.cursorX, true);
+    auto refs = client->references(
+        editor.currentBuffer->filename,
+        *editor.cursorY,
+        *editor.cursorX,
+        true);
 
     if(refs.empty())
     {
@@ -195,7 +201,8 @@ void EditorReferencesController::findReferences()
 
     // Sort by file then line
     std::stable_sort(
-        editor.referencesList.begin(), editor.referencesList.end(),
+        editor.referencesList.begin(),
+        editor.referencesList.end(),
         [](const Editor::ReferenceEntry& a, const Editor::ReferenceEntry& b)
         {
             if(a.path != b.path)
@@ -215,9 +222,9 @@ void EditorReferencesController::findReferences()
 #endif
 }
 
-std::string
-EditorReferencesController::readLineFromFile(const std::string& path,
-                                             int lineNum)
+std::string EditorReferencesController::readLineFromFile(
+    const std::string& path,
+    int lineNum)
 {
     std::ifstream file(path);
     if(!file)
@@ -360,7 +367,8 @@ void EditorReferencesController::referencesLast()
 
     editor.referencesCursor = (int)editor.referencesList.size() - 1;
     editor.referencesOffset = std::max(
-        0, editor.referencesCursor - referencesVisibleRows(editor) + 1);
+        0,
+        editor.referencesCursor - referencesVisibleRows(editor) + 1);
     clampReferencesOffsetToCursor(editor);
     editor.needsFullRedraw = true;
 }
@@ -410,8 +418,9 @@ void EditorReferencesController::drawReferences()
 
             std::string fileHeader = ref.displayPath;
             if((int)fileHeader.length() > editor.screenCols - 2)
-                fileHeader = "..." + fileHeader.substr(fileHeader.length() -
-                                                       editor.screenCols + 5);
+                fileHeader =
+                    "..." + fileHeader.substr(
+                                fileHeader.length() - editor.screenCols + 5);
 
             output += " " + fileHeader;
             output += editor.theme.reset();

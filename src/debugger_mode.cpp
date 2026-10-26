@@ -120,19 +120,23 @@ bool readableFrameSource(const std::string& path)
 
 bool assemblyRegister(std::string word)
 {
-    std::transform(word.begin(), word.end(), word.begin(), [](unsigned char c)
-                   { return static_cast<char>(std::tolower(c)); });
+    std::transform(
+        word.begin(),
+        word.end(),
+        word.begin(),
+        [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
     if(word.starts_with('%'))
         word.erase(0, 1);
     if(const auto dot = word.find('.'); dot != std::string::npos)
         word.resize(dot);
-    static const std::unordered_set<std::string> names{
-        "rax", "rbx",  "rcx", "rdx", "rsi", "rdi",  "rbp",  "rsp",  "rip",
-        "eax", "ebx",  "ecx", "edx", "esi", "edi",  "ebp",  "esp",  "eip",
-        "ax",  "bx",   "cx",  "dx",  "al",  "bl",   "cl",   "dl",   "ah",
-        "bh",  "ch",   "dh",  "sp",  "lr",  "pc",   "fp",   "ip",   "xzr",
-        "wzr", "zero", "ra",  "gp",  "tp",  "fpcr", "fpsr", "cpsr", "nzcv",
-        "cs",  "ds",   "es",  "fs",  "gs",  "ss"};
+    static const std::unordered_set<std::string>
+        names{"rax", "rbx",  "rcx",  "rdx",  "rsi",  "rdi",  "rbp", "rsp",
+              "rip", "eax",  "ebx",  "ecx",  "edx",  "esi",  "edi", "ebp",
+              "esp", "eip",  "ax",   "bx",   "cx",   "dx",   "al",  "bl",
+              "cl",  "dl",   "ah",   "bh",   "ch",   "dh",   "sp",  "lr",
+              "pc",  "fp",   "ip",   "xzr",  "wzr",  "zero", "ra",  "gp",
+              "tp",  "fpcr", "fpsr", "cpsr", "nzcv", "cs",   "ds",  "es",
+              "fs",  "gs",   "ss"};
     if(names.contains(word))
         return true;
     const auto digit = word.find_first_of("0123456789");
@@ -140,8 +144,24 @@ bool assemblyRegister(std::string word)
         return false;
     const auto prefix = word.substr(0, digit);
     static const std::unordered_set<std::string> numbered{
-        "x", "w", "r",   "v",   "q",   "d",  "s",  "a",  "t",
-        "f", "p", "xmm", "ymm", "zmm", "mm", "cr", "dr", "st"};
+        "x",
+        "w",
+        "r",
+        "v",
+        "q",
+        "d",
+        "s",
+        "a",
+        "t",
+        "f",
+        "p",
+        "xmm",
+        "ymm",
+        "zmm",
+        "mm",
+        "cr",
+        "dr",
+        "st"};
     if(!numbered.contains(prefix))
         return false;
     auto end = digit;
@@ -207,11 +227,12 @@ std::vector<Token> disassemblyTokens(const std::string& line)
             pos = close != std::string::npos && close < end ? close + 1 : end;
             add(TOKEN_FUNCTION, start, pos);
         }
-        else if(std::isdigit(ch) ||
-                (std::string_view("#$+-").find(ch) != std::string_view::npos &&
-                 pos + 1 < end &&
-                 (std::isdigit(static_cast<unsigned char>(line[pos + 1])) ||
-                  line[pos + 1] == '-')))
+        else if(
+            std::isdigit(ch) ||
+            (std::string_view("#$+-").find(ch) != std::string_view::npos &&
+             pos + 1 < end &&
+             (std::isdigit(static_cast<unsigned char>(line[pos + 1])) ||
+              line[pos + 1] == '-')))
         {
             if(line[pos] == '#' || line[pos] == '$')
                 ++pos;
@@ -242,7 +263,8 @@ std::vector<Token> disassemblyTokens(const std::string& line)
                    line[pos] == '_' || line[pos] == '.'))
                 ++pos;
             const auto word = line.substr(start, pos - start);
-            add(assemblyRegister(word) ? TOKEN_MEMBER : TOKEN_FUNCTION, start,
+            add(assemblyRegister(word) ? TOKEN_MEMBER : TOKEN_FUNCTION,
+                start,
                 pos);
         }
         else
@@ -280,8 +302,10 @@ struct DebuggerRect
     int x = 1, y = 3, width = 0, height = 0;
 };
 
-std::array<DebuggerRect, 4> paneRects(const Editor& editor, bool stopped,
-                                      int pane)
+std::array<DebuggerRect, 4> paneRects(
+    const Editor& editor,
+    bool stopped,
+    int pane)
 {
     std::array<DebuggerRect, 4> rects{};
     const int width = std::max(1, editor.screenCols);
@@ -307,7 +331,8 @@ std::filesystem::path debuggerSourcePath(const std::string& path)
 {
     std::error_code error;
     const auto result = std::filesystem::weakly_canonical(
-        EditorPathUtilities::resolveEditorPath(path), error);
+        EditorPathUtilities::resolveEditorPath(path),
+        error);
     return error ? std::filesystem::path(path).lexically_normal() : result;
 }
 
@@ -348,8 +373,13 @@ const std::vector<DebuggerCommandEntry>& debuggerCommands()
     return commands;
 }
 
-void moveMenuCursor(int& cursor, int& offset, int size, int delta,
-                    int screenRows, int maxRows = 8)
+void moveMenuCursor(
+    int& cursor,
+    int& offset,
+    int size,
+    int delta,
+    int screenRows,
+    int maxRows = 8)
 {
     cursor = std::clamp(cursor + delta, 0, std::max(0, size - 1));
     const int rows = std::max(1, std::min(maxRows, screenRows - 2));
@@ -359,8 +389,9 @@ void moveMenuCursor(int& cursor, int& offset, int size, int delta,
         offset = cursor - rows + 1;
 }
 
-std::vector<std::string> wrapLayoutLines(const std::vector<std::string>& lines,
-                                         int screenCols)
+std::vector<std::string> wrapLayoutLines(
+    const std::vector<std::string>& lines,
+    int screenCols)
 {
     const int width = std::max(1, screenCols - 6);
     std::vector<std::string> result;
@@ -393,8 +424,10 @@ std::vector<std::string> wrapLayoutLines(const std::vector<std::string>& lines,
 
 // The shared popup uses absolute row positions. Fold its rows into the frame
 // cache so opening/closing a menu restores only its covered rows.
-void overlayPopupRows(std::vector<std::string>& rows, const std::string& popup,
-                      const Theme& theme)
+void overlayPopupRows(
+    std::vector<std::string>& rows,
+    const std::string& popup,
+    const Theme& theme)
 {
     size_t start = 0;
     int active = -1;
@@ -402,8 +435,12 @@ void overlayPopupRows(std::vector<std::string>& rows, const std::string& popup,
         position = popup.find("\x1b[", position + 2))
     {
         int row = 0, column = 0, length = 0;
-        if(std::sscanf(popup.c_str() + position, "\x1b[%d;%dH%n", &row, &column,
-                       &length) != 2 ||
+        if(std::sscanf(
+               popup.c_str() + position,
+               "\x1b[%d;%dH%n",
+               &row,
+               &column,
+               &length) != 2 ||
            length == 0)
             continue;
         if(active >= 0 && active < static_cast<int>(rows.size()))
@@ -445,21 +482,25 @@ struct FramePreviewViewport
     int rows = 0, base = 0, maximum = 0;
 };
 
-FramePreviewViewport framePreviewViewport(const Editor& editor, int line,
-                                          size_t count)
+FramePreviewViewport framePreviewViewport(
+    const Editor& editor,
+    int line,
+    size_t count)
 {
     const auto source = paneRects(editor, true, 0)[0];
     const int rows = std::max(0, source.height - 2);
     const int visible =
-        rows > 0 ? std::clamp(editor.screenRows -
-                                  framePickerRows(editor.screenRows) - 1 -
-                                  (source.y + 1),
-                              1, rows)
+        rows > 0 ? std::clamp(
+                       editor.screenRows - framePickerRows(editor.screenRows) -
+                           1 - (source.y + 1),
+                       1,
+                       rows)
                  : 0;
     const int maximum = std::max(0, static_cast<int>(count) - visible);
-    return {visible,
-            std::clamp(line > 0 ? line - 1 - visible / 2 : 0, 0, maximum),
-            maximum};
+    return {
+        visible,
+        std::clamp(line > 0 ? line - 1 - visible / 2 : 0, 0, maximum),
+        maximum};
 }
 
 std::optional<uint64_t> codeAddress(std::string_view text)
@@ -512,8 +553,9 @@ struct DebuggerTransport
 #endif
     }
 
-    void start(const std::vector<std::string>& args,
-               const std::string& directory)
+    void start(
+        const std::vector<std::string>& args,
+        const std::string& directory)
     {
 #ifdef _WIN32
         (void)args;
@@ -579,8 +621,9 @@ struct DebuggerTransport
 #endif
             if(n > 0)
                 outgoing.erase(0, n);
-            else if(n < 0 && errno != EAGAIN && errno != EWOULDBLOCK &&
-                    errno != EINTR)
+            else if(
+                n < 0 && errno != EAGAIN && errno != EWOULDBLOCK &&
+                errno != EINTR)
                 ended = true;
         }
         char buffer[8192];
@@ -649,9 +692,10 @@ void DebuggerMode::on_enter(ModeContext& ctx)
             if(!programArguments.empty() && programArguments[0] == "--")
                 programArguments.erase(programArguments.begin());
         }
-        output.push_back(attach ? "Attaching to process " + target
-                                : "Launching and stopping at entry. :b "
-                                  "file:line sets breakpoints; :c continues.");
+        output.push_back(
+            attach ? "Attaching to process " + target
+                   : "Launching and stopping at entry. :b "
+                     "file:line sets breakpoints; :c continues.");
     }
     catch(const std::exception& error)
     {
@@ -697,16 +741,23 @@ void DebuggerMode::processIdle(Editor& editor)
 #else
         std::string interpreter = python && *python ? python : "python3";
 #endif
-        std::vector<std::string> args{interpreter, "-u",
-                                      "-c",        debuggerBridge,
-                                      backend,     attach ? "attach" : "run",
-                                      target};
-        args.insert(args.end(), programArguments.begin(),
-                    programArguments.end());
+        std::vector<std::string> args{
+            interpreter,
+            "-u",
+            "-c",
+            debuggerBridge,
+            backend,
+            attach ? "attach" : "run",
+            target};
+        args.insert(
+            args.end(),
+            programArguments.begin(),
+            programArguments.end());
         try
         {
             transport->start(
-                args, EditorPathUtilities::currentWorkingDirectory().string());
+                args,
+                EditorPathUtilities::currentWorkingDirectory().string());
         }
         catch(const std::exception& error)
         {
@@ -783,15 +834,16 @@ void DebuggerMode::applyMessage(const std::string& message)
     const int outputStart = static_cast<int>(output.size());
     assemblyOutputLines.resize(output.size(), false);
     strings("output", output, true);
-    assemblyOutputLines.resize(output.size(),
-                               json_utils::get_string(*doc, "outputKind") ==
-                                   "assembly");
+    assemblyOutputLines.resize(
+        output.size(),
+        json_utils::get_string(*doc, "outputKind") == "assembly");
     const int discarded = std::max(0, static_cast<int>(output.size()) - 2000);
     if(output.size() > 2000)
     {
         output.erase(output.begin(), output.end() - 2000);
-        assemblyOutputLines.erase(assemblyOutputLines.begin(),
-                                  assemblyOutputLines.begin() + discarded);
+        assemblyOutputLines.erase(
+            assemblyOutputLines.begin(),
+            assemblyOutputLines.begin() + discarded);
     }
     if(json_utils::get_bool(*doc, "inspection"))
     {
@@ -840,8 +892,10 @@ void DebuggerMode::applyMessage(const std::string& message)
                     {TOKEN_NUMBER, 2, static_cast<int>(id.size() + 1)}};
                 const auto append = [&](TokenType type, const std::string& text)
                 {
-                    colors.push_back({type, static_cast<int>(label.size()),
-                                      static_cast<int>(text.size())});
+                    colors.push_back(
+                        {type,
+                         static_cast<int>(label.size()),
+                         static_cast<int>(text.size())});
                     label += text;
                 };
                 const auto returnType =
@@ -879,9 +933,17 @@ void DebuggerMode::applyMessage(const std::string& message)
                     append(TOKEN_TYPE, "  [" + module + "]");
                 if(!address.empty())
                     append(TOKEN_COMMENT, "  " + address);
-                stackFrames.push_back({id, std::move(label), symbol, path,
-                                       address, module, line, selected,
-                                       sourceAvailable, std::move(colors)});
+                stackFrames.push_back(
+                    {id,
+                     std::move(label),
+                     symbol,
+                     path,
+                     address,
+                     module,
+                     line,
+                     selected,
+                     sourceAvailable,
+                     std::move(colors)});
             }
         }
         filterFrames(true);
@@ -896,8 +958,9 @@ void DebuggerMode::applyMessage(const std::string& message)
         const auto error = safe(json_utils::get_string(*preview, "error"));
         if(!error.empty())
             framePreviewLines.push_back(error);
-        else if(auto lines = json_utils::find(*preview, "lines");
-                lines && lines->IsArray())
+        else if(
+            auto lines = json_utils::find(*preview, "lines");
+            lines && lines->IsArray())
             for(const auto& line : lines->GetArray())
                 if(line.IsString())
                     framePreviewLines.push_back(safe(line.GetString()));
@@ -1002,9 +1065,10 @@ void DebuggerMode::applyMessage(const std::string& message)
         for(int i = 0; i < static_cast<int>(breakpoints.size()); ++i)
             if(breakpoints[i].id == selected)
                 breakpointCursor = i;
-        breakpointCursor =
-            std::clamp(breakpointCursor, 0,
-                       std::max(0, static_cast<int>(breakpoints.size()) - 1));
+        breakpointCursor = std::clamp(
+            breakpointCursor,
+            0,
+            std::max(0, static_cast<int>(breakpoints.size()) - 1));
     }
     updateBreakpointLines();
     if(breakpointListOpen && json_utils::has(*doc, "breakpoints"))
@@ -1049,8 +1113,10 @@ void DebuggerMode::followSelectedBreakpoint()
     {
         sourcePinned = true;
         pane = 0;
-        cursor[0] = std::clamp(location.line - 1, 0,
-                               static_cast<int>(source.size()) - 1);
+        cursor[0] = std::clamp(
+            location.line - 1,
+            0,
+            static_cast<int>(source.size()) - 1);
         offset[0] = std::max(0, cursor[0] - 5);
     }
     else if(!selectSourceFile(location.path, location.line))
@@ -1076,8 +1142,9 @@ bool DebuggerMode::selectSourceFile(const std::string& path, int line)
         if(text.find('\0') != std::string::npos || bytes > 20 * 1024 * 1024 ||
            contents.size() >= 200000)
         {
-            output.push_back("Choose a text source file smaller than 20 MB and "
-                             "200000 lines");
+            output.push_back(
+                "Choose a text source file smaller than 20 MB and "
+                "200000 lines");
             return false;
         }
         contents.push_back(sourceTextLine(text));
@@ -1113,10 +1180,11 @@ void DebuggerMode::inspectSelectedVariable(char action)
         return;
     }
     const auto& expression = variableExpressions[row];
-    execute(action == 'a'                    ? "disasm " + expression
-            : action == 'm'                  ? "mem &(" + expression + ")"
-            : action == 's' || action == 'i' ? "layout " + expression
-                                             : "p " + expression);
+    execute(
+        action == 'a'                    ? "disasm " + expression
+        : action == 'm'                  ? "mem &(" + expression + ")"
+        : action == 's' || action == 'i' ? "layout " + expression
+                                         : "p " + expression);
 }
 
 void DebuggerMode::toggleSelectedBreakpoint()
@@ -1196,18 +1264,23 @@ void DebuggerMode::filterFrames(bool selectCurrent)
     {
         int score = query.empty() ? 0
                                   : editor::helper::fuzzyScoreWithPositions(
-                                        query, stackFrames[i].label, positions);
+                                        query,
+                                        stackFrames[i].label,
+                                        positions);
         if(!query.empty())
         {
             const int symbolScore = editor::helper::fuzzyScoreWithPositions(
-                query, stackFrames[i].symbol, positions);
+                query,
+                stackFrames[i].symbol,
+                positions);
             if(symbolScore >= 0)
             {
                 const bool prefix =
                     !positions.empty() && positions.front() == 0 &&
                     positions.back() == static_cast<int>(query.size()) - 1;
-                score = std::max(score,
-                                 100000 + symbolScore + (prefix ? 10000 : 0));
+                score = std::max(
+                    score,
+                    100000 + symbolScore + (prefix ? 10000 : 0));
             }
         }
         if(query == stackFrames[i].id || query == "#" + stackFrames[i].id)
@@ -1215,9 +1288,10 @@ void DebuggerMode::filterFrames(bool selectCurrent)
         if(score >= 0)
             ranked.emplace_back(i, score);
     }
-    std::stable_sort(ranked.begin(), ranked.end(),
-                     [](const auto& a, const auto& b)
-                     { return a.second > b.second; });
+    std::stable_sort(
+        ranked.begin(),
+        ranked.end(),
+        [](const auto& a, const auto& b) { return a.second > b.second; });
     for(const auto& [index, score] : ranked)
     {
         (void)score;
@@ -1275,8 +1349,9 @@ void DebuggerMode::updateFramePreview()
         framePreviewHighlight = {};
         framePreviewLines = {"Loading frame assembly..."};
         if(transport && !transport->ended && state == "stopped")
-            transport->send("frame-disasm " + frame->id + " " +
-                            std::to_string(framePreviewToken));
+            transport->send(
+                "frame-disasm " + frame->id + " " +
+                std::to_string(framePreviewToken));
         else
             framePreviewLines = {
                 "Assembly preview requires a connected, stopped debugger"};
@@ -1342,15 +1417,18 @@ void DebuggerMode::updatePromptMenu()
     {
         const auto& entry = commands[i];
         int score = editor::helper::fuzzyScoreWithPositions(
-            prompt, entry.command, positions);
+            prompt,
+            entry.command,
+            positions);
         if(!prompt.empty() && prompt == entry.alias)
             score = 100000;
         if(score >= 0)
             ranked.emplace_back(i, score);
     }
-    std::stable_sort(ranked.begin(), ranked.end(),
-                     [](const auto& a, const auto& b)
-                     { return a.second > b.second; });
+    std::stable_sort(
+        ranked.begin(),
+        ranked.end(),
+        [](const auto& a, const auto& b) { return a.second > b.second; });
     for(const auto& [index, score] : ranked)
     {
         (void)score;
@@ -1359,8 +1437,10 @@ void DebuggerMode::updatePromptMenu()
         promptMenuEntries.push_back(
             std::string(entry.command) +
             std::string(
-                std::max(2, 14 - static_cast<int>(
-                                     std::string_view(entry.command).size())),
+                std::max(
+                    2,
+                    14 - static_cast<int>(
+                             std::string_view(entry.command).size())),
                 ' ') +
             entry.description);
     }
@@ -1431,8 +1511,10 @@ void DebuggerMode::clamp(const Editor& editor)
     const auto rects =
         paneRects(editor, hasStoppedSnapshot || state == "stopped", pane);
     const std::array<int, 4> sizes{
-        static_cast<int>(source.size()), static_cast<int>(output.size()),
-        static_cast<int>(variables.size()), static_cast<int>(threads.size())};
+        static_cast<int>(source.size()),
+        static_cast<int>(output.size()),
+        static_cast<int>(variables.size()),
+        static_cast<int>(threads.size())};
     for(int i = 0; i < 4; ++i)
     {
         const int rows = std::max(1, rects[i].height - 2);
@@ -1452,10 +1534,11 @@ std::string DebuggerMode::selectedDisassembly() const
     if(framePickerOpen && framePreviewAssembly && framePreviewCursor >= 0 &&
        framePreviewCursor < static_cast<int>(framePreviewLines.size()))
         instruction = framePreviewLines[framePreviewCursor];
-    else if(!promptActive && !framePickerOpen && pane == 1 && cursor[1] >= 0 &&
-            cursor[1] < static_cast<int>(output.size()) &&
-            cursor[1] < static_cast<int>(assemblyOutputLines.size()) &&
-            assemblyOutputLines[cursor[1]])
+    else if(
+        !promptActive && !framePickerOpen && pane == 1 && cursor[1] >= 0 &&
+        cursor[1] < static_cast<int>(output.size()) &&
+        cursor[1] < static_cast<int>(assemblyOutputLines.size()) &&
+        assemblyOutputLines[cursor[1]])
         instruction = output[cursor[1]];
     if(!codeAddress(instruction))
         return {};
@@ -1511,8 +1594,9 @@ void DebuggerMode::updateAssemblyHelp(Editor& editor, bool immediate)
     }
 }
 
-std::optional<ModeState> DebuggerMode::handle(ModeContext& ctx,
-                                              const ModeKeyEvent& event)
+std::optional<ModeState> DebuggerMode::handle(
+    ModeContext& ctx,
+    const ModeKeyEvent& event)
 {
     const int key = event.key;
     ctx.editor->needsFullRedraw = true;
@@ -1528,8 +1612,9 @@ std::optional<ModeState> DebuggerMode::handle(ModeContext& ctx,
                index < static_cast<int>(filePicker->matches.size()))
             {
                 const auto query = parsePickerQuery(filePicker->query);
-                close = selectSourceFile(filePicker->matches[index].file.path,
-                                         query.hasLine ? query.line : 1);
+                close = selectSourceFile(
+                    filePicker->matches[index].file.path,
+                    query.hasLine ? query.line : 1);
                 if(!close && !output.empty())
                     ctx.setStatusMessage(output.back());
             }
@@ -1561,21 +1646,27 @@ std::optional<ModeState> DebuggerMode::handle(ModeContext& ctx,
             if(key == 'j' || key == keyCode(control::ControlKey::CTRL_J) ||
                key == keyCode(navigation::NavigationKey::ARROW_DOWN))
                 delta = 1;
-            else if(key == 'k' || key == keyCode(control::ControlKey::CTRL_K) ||
-                    key == keyCode(navigation::NavigationKey::ARROW_UP))
+            else if(
+                key == 'k' || key == keyCode(control::ControlKey::CTRL_K) ||
+                key == keyCode(navigation::NavigationKey::ARROW_UP))
                 delta = -1;
             else if(key == keyCode(navigation::NavigationKey::PAGE_DOWN))
                 delta = page;
             else if(key == keyCode(navigation::NavigationKey::PAGE_UP))
                 delta = -page;
-            else if(key == 'g' ||
-                    key == keyCode(navigation::NavigationKey::HOME))
+            else if(
+                key == 'g' || key == keyCode(navigation::NavigationKey::HOME))
                 delta = -count;
-            else if(key == 'G' ||
-                    key == keyCode(navigation::NavigationKey::END))
+            else if(
+                key == 'G' || key == keyCode(navigation::NavigationKey::END))
                 delta = count;
-            moveMenuCursor(sizePopupCursor, sizePopupOffset, count, delta,
-                           ctx.editor->screenRows, 18);
+            moveMenuCursor(
+                sizePopupCursor,
+                sizePopupOffset,
+                count,
+                delta,
+                ctx.editor->screenRows,
+                18);
         }
         return {};
     }
@@ -1599,8 +1690,9 @@ std::optional<ModeState> DebuggerMode::handle(ModeContext& ctx,
                             key == keyCode(control::ControlKey::CTRL_K)))
     {
         assemblyHelpOffset = std::max(
-            0, assemblyHelpOffset +
-                   (key == keyCode(control::ControlKey::CTRL_J) ? 1 : -1));
+            0,
+            assemblyHelpOffset +
+                (key == keyCode(control::ControlKey::CTRL_J) ? 1 : -1));
         return {};
     }
     if(promptActive)
@@ -1612,19 +1704,23 @@ std::optional<ModeState> DebuggerMode::handle(ModeContext& ctx,
                 key == keyCode(control::ControlKey::SHIFT_CTRL_K)))
             {
                 const auto viewport = framePreviewViewport(
-                    *ctx.editor, framePreviewLine, framePreviewLines.size());
+                    *ctx.editor,
+                    framePreviewLine,
+                    framePreviewLines.size());
                 framePreviewCursor = std::clamp(
                     framePreviewCursor +
                         (key == keyCode(control::ControlKey::SHIFT_CTRL_J)
                              ? 1
                              : -1),
                     0,
-                    std::max(0,
-                             static_cast<int>(framePreviewLines.size()) - 1));
-                framePreviewScroll =
-                    std::clamp(framePreviewCursor - viewport.rows / 2, 0,
-                               viewport.maximum) -
-                    viewport.base;
+                    std::max(
+                        0,
+                        static_cast<int>(framePreviewLines.size()) - 1));
+                framePreviewScroll = std::clamp(
+                                         framePreviewCursor - viewport.rows / 2,
+                                         0,
+                                         viewport.maximum) -
+                                     viewport.base;
                 if(assemblyHelpOpen)
                     updateAssemblyHelp(*ctx.editor);
                 return {};
@@ -1654,10 +1750,13 @@ std::optional<ModeState> DebuggerMode::handle(ModeContext& ctx,
                                 keyCode(navigation::NavigationKey::ARROW_DOWN)
                         ? 1
                         : -1;
-                moveMenuCursor(framePickerCursor, framePickerOffset,
-                               frameMatches.size(), delta,
-                               ctx.editor->screenRows,
-                               framePickerRows(ctx.editor->screenRows));
+                moveMenuCursor(
+                    framePickerCursor,
+                    framePickerOffset,
+                    frameMatches.size(),
+                    delta,
+                    ctx.editor->screenRows,
+                    framePickerRows(ctx.editor->screenRows));
                 updateFramePreview();
                 return {};
             }
@@ -1700,16 +1799,26 @@ std::optional<ModeState> DebuggerMode::handle(ModeContext& ctx,
             completions.clear();
             updatePromptMenu();
         }
-        else if((key == keyCode(control::ControlKey::CTRL_J) ||
-                 key == keyCode(navigation::NavigationKey::ARROW_DOWN)) &&
-                !promptCommands.empty())
-            moveMenuCursor(promptMenuCursor, promptMenuOffset,
-                           promptCommands.size(), 1, ctx.editor->screenRows);
-        else if((key == keyCode(control::ControlKey::CTRL_K) ||
-                 key == keyCode(navigation::NavigationKey::ARROW_UP)) &&
-                !promptCommands.empty())
-            moveMenuCursor(promptMenuCursor, promptMenuOffset,
-                           promptCommands.size(), -1, ctx.editor->screenRows);
+        else if(
+            (key == keyCode(control::ControlKey::CTRL_J) ||
+             key == keyCode(navigation::NavigationKey::ARROW_DOWN)) &&
+            !promptCommands.empty())
+            moveMenuCursor(
+                promptMenuCursor,
+                promptMenuOffset,
+                promptCommands.size(),
+                1,
+                ctx.editor->screenRows);
+        else if(
+            (key == keyCode(control::ControlKey::CTRL_K) ||
+             key == keyCode(navigation::NavigationKey::ARROW_UP)) &&
+            !promptCommands.empty())
+            moveMenuCursor(
+                promptMenuCursor,
+                promptMenuOffset,
+                promptCommands.size(),
+                -1,
+                ctx.editor->screenRows);
         else if(key == keyCode(control::ControlKey::ENTER))
         {
             bool exact = false;
@@ -1768,14 +1877,24 @@ std::optional<ModeState> DebuggerMode::handle(ModeContext& ctx,
         const int previous = breakpointCursor;
         if(key == 27 || key == 'q')
             breakpointListOpen = false;
-        else if(key == 'j' || key == keyCode(control::ControlKey::CTRL_J) ||
-                key == keyCode(navigation::NavigationKey::ARROW_DOWN))
-            moveMenuCursor(breakpointCursor, breakpointOffset,
-                           breakpoints.size(), 1, ctx.editor->screenRows);
-        else if(key == 'k' || key == keyCode(control::ControlKey::CTRL_K) ||
-                key == keyCode(navigation::NavigationKey::ARROW_UP))
-            moveMenuCursor(breakpointCursor, breakpointOffset,
-                           breakpoints.size(), -1, ctx.editor->screenRows);
+        else if(
+            key == 'j' || key == keyCode(control::ControlKey::CTRL_J) ||
+            key == keyCode(navigation::NavigationKey::ARROW_DOWN))
+            moveMenuCursor(
+                breakpointCursor,
+                breakpointOffset,
+                breakpoints.size(),
+                1,
+                ctx.editor->screenRows);
+        else if(
+            key == 'k' || key == keyCode(control::ControlKey::CTRL_K) ||
+            key == keyCode(navigation::NavigationKey::ARROW_UP))
+            moveMenuCursor(
+                breakpointCursor,
+                breakpointOffset,
+                breakpoints.size(),
+                -1,
+                ctx.editor->screenRows);
         else if(key == 'd' && !breakpoints.empty())
             execute("delete " + breakpoints[breakpointCursor].id);
         else if(key == ':')
@@ -1816,8 +1935,9 @@ std::optional<ModeState> DebuggerMode::handle(ModeContext& ctx,
         pane = (pane + 1) % paneCount;
     else if(key == keyCode(control::ControlKey::SHIFT_TAB))
         pane = (pane + paneCount - 1) % paneCount;
-    else if(pane == 1 && (key == keyCode(control::ControlKey::SHIFT_CTRL_J) ||
-                          key == keyCode(control::ControlKey::SHIFT_CTRL_K)))
+    else if(
+        pane == 1 && (key == keyCode(control::ControlKey::SHIFT_CTRL_J) ||
+                      key == keyCode(control::ControlKey::SHIFT_CTRL_K)))
         cursor[1] += key == keyCode(control::ControlKey::SHIFT_CTRL_J) ? 1 : -1;
     else if(key == 'v' && paneCount == 4)
         pane = 2;
@@ -1827,14 +1947,16 @@ std::optional<ModeState> DebuggerMode::handle(ModeContext& ctx,
         ++cursor[pane];
     else if(key == 'k' || key == keyCode(navigation::NavigationKey::ARROW_UP))
         --cursor[pane];
-    else if(pane == 2 &&
-            (key == 'p' || key == 'a' || key == 'm' || key == 'i' ||
-             key == 's' || key == keyCode(control::ControlKey::ENTER)))
-        inspectSelectedVariable(key == keyCode(control::ControlKey::ENTER)
-                                    ? 'p'
-                                    : static_cast<char>(key));
-    else if(key == keyCode(control::ControlKey::ENTER) && state == "stopped" &&
-            pane == 3 && cursor[3] < static_cast<int>(threadIds.size()))
+    else if(
+        pane == 2 && (key == 'p' || key == 'a' || key == 'm' || key == 'i' ||
+                      key == 's' || key == keyCode(control::ControlKey::ENTER)))
+        inspectSelectedVariable(
+            key == keyCode(control::ControlKey::ENTER)
+                ? 'p'
+                : static_cast<char>(key));
+    else if(
+        key == keyCode(control::ControlKey::ENTER) && state == "stopped" &&
+        pane == 3 && cursor[3] < static_cast<int>(threadIds.size()))
         execute("thread " + threadIds[cursor[3]]);
     else if(key == 'b')
         toggleSelectedBreakpoint();
@@ -1882,9 +2004,10 @@ void DebuggerMode::drawContent(Editor& editor)
     const int width = std::max(1, editor.screenCols);
     const auto* preview = framePickerOpen ? previewFrame() : nullptr;
     const bool previewing = preview != nullptr;
-    const auto rects =
-        paneRects(editor, hasStoppedSnapshot || state == "stopped",
-                  previewing ? 0 : pane);
+    const auto rects = paneRects(
+        editor,
+        hasStoppedSnapshot || state == "stopped",
+        previewing ? 0 : pane);
     clamp(editor);
     if(assemblyHelpOpen)
     {
@@ -1903,11 +2026,12 @@ void DebuggerMode::drawContent(Editor& editor)
     const auto viewport =
         framePreviewViewport(editor, shownLine, shownSource.size());
     const int sourceOffset =
-        previewing
-            ? std::clamp(viewport.base +
+        previewing ? std::clamp(
+                         viewport.base +
                              (framePreviewAssembly ? framePreviewScroll : 0),
-                         0, viewport.maximum)
-            : offset[0];
+                         0,
+                         viewport.maximum)
+                   : offset[0];
     if(previewing && framePreviewAssembly)
     {
         shownHighlight.tokens.clear();
@@ -1916,9 +2040,12 @@ void DebuggerMode::drawContent(Editor& editor)
     }
     else
         editor.highlightPreviewLines(
-            shownHighlight, shownPath, shownSource,
-            std::min(shownSource.size(),
-                     static_cast<size_t>(sourceOffset + sourceRows)));
+            shownHighlight,
+            shownPath,
+            shownSource,
+            std::min(
+                shownSource.size(),
+                static_cast<size_t>(sourceOffset + sourceRows)));
     auto shownBreakpoints = breakpointLines;
     if(previewing)
     {
@@ -1947,26 +2074,30 @@ void DebuggerMode::drawContent(Editor& editor)
         activeRow = row - 1;
         out += Terminal::cursorPos(row, column);
     };
-    const std::array<std::string, 4> names{"Source", "Output", "Variables",
-                                           "Threads"};
+    const std::array<std::string, 4>
+        names{"Source", "Output", "Variables", "Threads"};
     auto header = [&](int row, const std::string& text)
     {
         atPosition(row, 1);
         out += editor.theme.reset() + editor.theme.uiAccent() +
                fit(safe(text), width);
     };
-    header(1, " Debugger [" + backend + "] " + displayState +
-                  "  Focus: " + names[pane] + "  " + target);
-    header(2, framePickerOpen
-                  ? " Ctrl-J/K frames   Ctrl+D source/assembly   " +
-                        std::string(Terminal::shiftChordLabel()) +
-                        "+J/K browse assembly   Ctrl-I help   Enter selects   "
-                        "Esc cancels"
-                  : " j/k rows   b breakpoint   Ctrl-P file   Tab next pane   "
-                    "Shift-Tab previous pane   v variables   t threads   : "
-                    "command   q quit");
-    const std::array<const std::vector<std::string>*, 4> lists{
-        &shownSource, &output, &variables, &threads};
+    header(
+        1,
+        " Debugger [" + backend + "] " + displayState +
+            "  Focus: " + names[pane] + "  " + target);
+    header(
+        2,
+        framePickerOpen
+            ? " Ctrl-J/K frames   Ctrl+D source/assembly   " +
+                  std::string(Terminal::shiftChordLabel()) +
+                  "+J/K browse assembly   Ctrl-I help   Enter selects   "
+                  "Esc cancels"
+            : " j/k rows   b breakpoint   Ctrl-P file   Tab next pane   "
+              "Shift-Tab previous pane   v variables   t threads   : "
+              "command   q quit");
+    const std::array<const std::vector<std::string>*, 4>
+        lists{&shownSource, &output, &variables, &threads};
     for(int which = 0; which < 4; ++which)
     {
         const auto& rect = rects[which];
@@ -1981,10 +2112,11 @@ void DebuggerMode::drawContent(Editor& editor)
             std::string(pane == which ? "> " : " ") + names[which];
         if(which == 0 && previewing)
         {
-            title = " " +
-                    std::string(framePreviewAssembly ? "Assembly preview #"
-                                                     : "Preview #") +
-                    preview->id;
+            title =
+                " " +
+                std::string(
+                    framePreviewAssembly ? "Assembly preview #" : "Preview #") +
+                preview->id;
             if(framePreviewAssembly)
             {
                 title += " " + (preview->module.empty() ? preview->symbol
@@ -2057,14 +2189,14 @@ void DebuggerMode::drawContent(Editor& editor)
                 const bool alternate =
                     index < static_cast<int>(lines.size()) && index % 2 != 0;
                 if(which == 0)
-                    return editor.theme.debuggerRow(Theme::DebuggerRow::Source,
-                                                    alternate);
+                    return editor.theme
+                        .debuggerRow(Theme::DebuggerRow::Source, alternate);
                 if(which == 2)
-                    return editor.theme.debuggerRow(
-                        Theme::DebuggerRow::Variables, alternate);
+                    return editor.theme
+                        .debuggerRow(Theme::DebuggerRow::Variables, alternate);
                 if(which == 3)
-                    return editor.theme.debuggerRow(Theme::DebuggerRow::Threads,
-                                                    alternate);
+                    return editor.theme
+                        .debuggerRow(Theme::DebuggerRow::Threads, alternate);
                 return {};
             }();
             out += rowBackground;
@@ -2092,13 +2224,15 @@ void DebuggerMode::drawContent(Editor& editor)
                 const auto prefix = which == 0 && previewing &&
                                             (framePreviewAssembly ||
                                              !framePreviewSourceAvailable)
-                                        ? std::string(executing  ? "> "
-                                                      : selected ? "+ "
-                                                                 : "  ")
+                                        ? std::string(
+                                              executing  ? "> "
+                                              : selected ? "+ "
+                                                         : "  ")
                                     : which == 0
-                                        ? std::string(executing  ? ">"
-                                                      : selected ? "+"
-                                                                 : " ") +
+                                        ? std::string(
+                                              executing  ? ">"
+                                              : selected ? "+"
+                                                         : " ") +
                                               std::to_string(index + 1) + " "
                                         : std::string(selected ? "> " : "  ");
                 const int prefixWidth =
@@ -2124,9 +2258,10 @@ void DebuggerMode::drawContent(Editor& editor)
                 if(which == 0 &&
                    index < static_cast<int>(shownHighlight.tokens.size()))
                     tokens = &shownHighlight.tokens[index];
-                else if(which == 1 &&
-                        index < static_cast<int>(assemblyOutputLines.size()) &&
-                        assemblyOutputLines[index])
+                else if(
+                    which == 1 &&
+                    index < static_cast<int>(assemblyOutputLines.size()) &&
+                    assemblyOutputLines[index])
                 {
                     assemblyTokens = disassemblyTokens(lines[index]);
                     tokens = &assemblyTokens;
@@ -2136,8 +2271,9 @@ void DebuggerMode::drawContent(Editor& editor)
                     std::vector<TokenType> colors(text.size(), TOKEN_NORMAL);
                     for(const auto& token : *tokens)
                         for(int c = std::max(0, token.start);
-                            c < std::min(static_cast<int>(text.size()),
-                                         token.start + token.length);
+                            c < std::min(
+                                    static_cast<int>(text.size()),
+                                    token.start + token.length);
                             ++c)
                             colors[c] = token.type;
                     TokenType previous = TOKEN_NORMAL;
@@ -2177,8 +2313,13 @@ void DebuggerMode::drawContent(Editor& editor)
     if(sizePopupOpen)
     {
         menuEntries = wrapLayoutLines(sizePopupLines, width);
-        moveMenuCursor(sizePopupCursor, sizePopupOffset, menuEntries.size(), 0,
-                       editor.screenRows, 18);
+        moveMenuCursor(
+            sizePopupCursor,
+            sizePopupOffset,
+            menuEntries.size(),
+            0,
+            editor.screenRows,
+            18);
         menuCursor = sizePopupCursor;
         menuOffset = sizePopupOffset;
         menuTitle = sizePopupTitle + "  " +
@@ -2187,9 +2328,13 @@ void DebuggerMode::drawContent(Editor& editor)
     }
     else if(framePickerOpen)
     {
-        moveMenuCursor(framePickerCursor, framePickerOffset,
-                       frameMatches.size(), 0, editor.screenRows,
-                       framePickerRows(editor.screenRows));
+        moveMenuCursor(
+            framePickerCursor,
+            framePickerOffset,
+            frameMatches.size(),
+            0,
+            editor.screenRows,
+            framePickerRows(editor.screenRows));
         for(const int index : frameMatches)
         {
             menuEntries.push_back(stackFrames[index].label);
@@ -2199,13 +2344,13 @@ void DebuggerMode::drawContent(Editor& editor)
                                                     : editor.theme.uiInfo());
             auto& spans = menuSpans.emplace_back();
             for(const auto& token : stackFrames[index].colors)
-                spans.push_back({static_cast<size_t>(token.start),
-                                 static_cast<size_t>(token.length),
-                                 token.type == TOKEN_COMMENT
-                                     ? editor.theme.uiDim()
-                                 : !stackFrames[index].sourceAvailable
-                                     ? editor.theme.dimmedSyntax(token.type, 2)
-                                     : editor.theme.syntax(token.type)});
+                spans.push_back(
+                    {static_cast<size_t>(token.start),
+                     static_cast<size_t>(token.length),
+                     token.type == TOKEN_COMMENT ? editor.theme.uiDim()
+                     : !stackFrames[index].sourceAvailable
+                         ? editor.theme.dimmedSyntax(token.type, 2)
+                         : editor.theme.syntax(token.type)});
         }
         menuCursor = framePickerCursor;
         menuOffset = framePickerOffset;
@@ -2221,8 +2366,12 @@ void DebuggerMode::drawContent(Editor& editor)
     }
     else if(breakpointListOpen)
     {
-        moveMenuCursor(breakpointCursor, breakpointOffset, breakpoints.size(),
-                       0, editor.screenRows);
+        moveMenuCursor(
+            breakpointCursor,
+            breakpointOffset,
+            breakpoints.size(),
+            0,
+            editor.screenRows);
         for(const auto& bp : breakpoints)
         {
             std::string location = bp.description;
@@ -2269,9 +2418,10 @@ void DebuggerMode::drawContent(Editor& editor)
         std::string popup;
         widgets::drawCommandPopup(
             popup,
-            {.frame = {.theme = editor.theme,
-                       .screenRows = editor.screenRows,
-                       .screenCols = width},
+            {.frame =
+                 {.theme = editor.theme,
+                  .screenRows = editor.screenRows,
+                  .screenCols = width},
              .entries = menuEntries,
              .filtered = filtered,
              .offset = menuOffset,
@@ -2298,7 +2448,10 @@ void DebuggerMode::drawContent(Editor& editor)
     {
         std::string popup;
         assembly_instruction_help::draw(
-            popup, editor, *assemblyHelp, assemblyHelpOffset,
+            popup,
+            editor,
+            *assemblyHelp,
+            assemblyHelpOffset,
             framePickerOpen ? "Ctrl-I/Esc: close | Ctrl-J/K: scroll"
                             : "i/Esc: close | Ctrl-J/K: scroll");
         overlayPopupRows(rows, popup, editor.theme);
@@ -2314,28 +2467,32 @@ void DebuggerMode::drawContent(Editor& editor)
             ? backend
             : "frame #" + std::to_string(frameIndex) + " " + frameFunction;
     status.state = displayState;
-    status.flags.push_back(sizePopupOpen        ? "Size/padding"
-                           : framePickerOpen    ? "Stack frames"
-                           : breakpointListOpen ? "Breakpoints"
-                                                : names[pane]);
-    status.flags.push_back(sizePopupOpen ? "Esc closes popup"
-                           : attach      ? "q detaches"
-                                         : "q ends session");
+    status.flags.push_back(
+        sizePopupOpen        ? "Size/padding"
+        : framePickerOpen    ? "Stack frames"
+        : breakpointListOpen ? "Breakpoints"
+                             : names[pane]);
+    status.flags.push_back(
+        sizePopupOpen ? "Esc closes popup"
+        : attach      ? "q detaches"
+                      : "q ends session");
     editor.appendViewStatusBar(out, std::move(status));
     out += Terminal::cursorPos(editor.screenRows + 2, 1);
     out += editor.theme.reset();
     out += Terminal::ESC_CLEAR_LINE;
     if(assemblyHelpOpen && !promptActive)
-        out += fit(framePickerOpen
-                       ? " Instruction help: Ctrl-I/Esc close  Ctrl-J/K scroll "
-                         " Ctrl+Shift-J/K or Alt-J/K browse instructions"
-                       : " Instruction help: i/Esc close  Ctrl-J/K scroll  j/k "
-                         "browse instructions",
-                   width);
+        out +=
+            fit(framePickerOpen
+                    ? " Instruction help: Ctrl-I/Esc close  Ctrl-J/K scroll "
+                      " Ctrl+Shift-J/K or Alt-J/K browse instructions"
+                    : " Instruction help: i/Esc close  Ctrl-J/K scroll  j/k "
+                      "browse instructions",
+                width);
     else if(sizePopupOpen)
-        out += fit(" Size/padding: j/k or Ctrl-J/K scroll  PgUp/PgDn page  "
-                   "g/G first/last  Esc/Enter close",
-                   width);
+        out +=
+            fit(" Size/padding: j/k or Ctrl-J/K scroll  PgUp/PgDn page  "
+                "g/G first/last  Esc/Enter close",
+                width);
     else if(promptActive)
     {
         out += fit(safe(":" + prompt), width);
@@ -2345,28 +2502,33 @@ void DebuggerMode::drawContent(Editor& editor)
         out += Terminal::ESC_SHOW_CURSOR;
     }
     else if(breakpointListOpen)
-        out += fit(breakpointSourceError.empty()
-                       ? " Breakpoints: Ctrl-J/K previews file/line  d deletes "
-                         " Esc closes"
-                       : " " + breakpointSourceError +
-                             "  Ctrl-J/K browse  Esc closes",
-                   width);
+        out +=
+            fit(breakpointSourceError.empty()
+                    ? " Breakpoints: Ctrl-J/K previews file/line  d deletes "
+                      " Esc closes"
+                    : " " + breakpointSourceError +
+                          "  Ctrl-J/K browse  Esc closes",
+                width);
     else if(pane == 2)
-        out += fit(" Variables: j/k select  p/Enter print  a disassemble  "
-                   "m raw bytes  s size/padding",
-                   width);
+        out +=
+            fit(" Variables: j/k select  p/Enter print  a disassemble  "
+                "m raw bytes  s size/padding",
+                width);
     else if(pane == 1 && !selectedDisassembly().empty())
-        out += fit(" Disassembly: j/k rows  i instruction help  Tab next pane  "
-                   ": command",
-                   width);
+        out +=
+            fit(" Disassembly: j/k rows  i instruction help  Tab next pane  "
+                ": command",
+                width);
     else if(sourcePinned)
-        out += fit(" Browsing source: j/k row  b toggle breakpoint  Ctrl-P "
-                   "file  n/step or thread/frame returns to execution",
-                   width);
+        out +=
+            fit(" Browsing source: j/k row  b toggle breakpoint  Ctrl-P "
+                "file  n/step or thread/frame returns to execution",
+                width);
     else if(displayRunning && hasStoppedSnapshot)
-        out += fit(" Running; source, variables and threads show the last "
-                   "stop. Ctrl-C interrupts.",
-                   width);
+        out +=
+            fit(" Running; source, variables and threads show the last "
+                "stop. Ctrl-C interrupts.",
+                width);
     else if(displayState == "stopped")
     {
         std::string hint =

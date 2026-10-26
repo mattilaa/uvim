@@ -71,8 +71,15 @@ struct ColorSelectorMode;
 #endif
 
 using ModeState = std::variant<
-    WelcomeMode, NormalMode, InsertMode, ReplaceMode, VisualMode,
-    VisualLineMode, VisualBlockMode, CommandMode, SearchForwardMode,
+    WelcomeMode,
+    NormalMode,
+    InsertMode,
+    ReplaceMode,
+    VisualMode,
+    VisualLineMode,
+    VisualBlockMode,
+    CommandMode,
+    SearchForwardMode,
     SearchBackwardMode,
 #ifdef UVIM_ENABLE_BROWSER_TOOLS
     FileBrowserMode,
@@ -85,33 +92,48 @@ using ModeState = std::variant<
     FunctionBrowserMode,
 #endif
 #ifdef UVIM_ENABLE_SEARCH_TOOLS
-    GrepSearchMode, RegexSearchMode,
+    GrepSearchMode,
+    RegexSearchMode,
 #endif
     OperatorPendingMode
 #ifdef UVIM_ENABLE_ASM_VIEW
-    , AssemblyMode
+    ,
+    AssemblyMode
 #endif
 #ifdef UVIM_ENABLE_AUXILIARY_VIEWS
     ,
-    ReferencesMode, LspInfoMode, ToolInfoMode, TaskListMode, CommandPaletteMode,
+    ReferencesMode,
+    LspInfoMode,
+    ToolInfoMode,
+    TaskListMode,
+    CommandPaletteMode,
     LocListMode,
-    MlangFormatErrorsMode, HelpMode
+    MlangFormatErrorsMode,
+    HelpMode
 #endif
 #ifdef UVIM_ENABLE_GIT_TOOLS
     ,
-    GitShowCommitMode, GitLogMode, GitStageMode, GitCommitMode, GitFixupMode,
+    GitShowCommitMode,
+    GitLogMode,
+    GitStageMode,
+    GitCommitMode,
+    GitFixupMode,
     GitPatchMode
 #endif
 #ifdef UVIM_ENABLE_AUXILIARY_VIEWS
     ,
-    CommandOutputMode, GlyphSelectMode
+    CommandOutputMode,
+    GlyphSelectMode
 #endif
 #ifdef UVIM_ENABLE_DEBUGGER
-    , DebuggerMode
+    ,
+    DebuggerMode
 #endif
 #ifdef UVIM_ENABLE_COLOR_TOOLS
     ,
-    AnsiToolsMode, ColorPickerMode, ColorSelectorMode
+    AnsiToolsMode,
+    ColorPickerMode,
+    ColorSelectorMode
 #endif
     >;
 

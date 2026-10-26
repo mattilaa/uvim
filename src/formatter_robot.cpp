@@ -28,8 +28,8 @@ static std::string normalize_robot_line(const std::string& line, int spaceCount)
     auto first_non_ws = line.find_first_not_of(" \t");
     if(text_utils::is_not_found(first_non_ws))
         return line;
-    std::string_view trimmed(line.c_str() + first_non_ws,
-                             line.size() - first_non_ws);
+    std::string_view
+        trimmed(line.c_str() + first_non_ws, line.size() - first_non_ws);
     if(trimmed.rfind("***", 0) == 0 || trimmed.rfind("#", 0) == 0)
         return line;
 
@@ -109,8 +109,9 @@ static std::string_view trim_robot_header(std::string_view line)
     return line;
 }
 
-static bool ascii_starts_with(std::string_view value,
-                              std::string_view prefix) noexcept
+static bool ascii_starts_with(
+    std::string_view value,
+    std::string_view prefix) noexcept
 {
     if(value.size() < prefix.size())
         return false;
@@ -122,9 +123,11 @@ static bool ascii_starts_with(std::string_view value,
     return true;
 }
 
-static bool split_robot_first_cell(std::string_view line, size_t start,
-                                   std::string_view& first,
-                                   std::string_view& rest)
+static bool split_robot_first_cell(
+    std::string_view line,
+    size_t start,
+    std::string_view& first,
+    std::string_view& rest)
 {
     size_t i = start;
     while(i < line.size())
@@ -157,10 +160,10 @@ static bool split_robot_first_cell(std::string_view line, size_t start,
     return false;
 }
 
-static bool
-match_robot_setting_prefix(std::string_view line,
-                           const std::unordered_set<std::string>& settings,
-                           size_t& matchLen)
+static bool match_robot_setting_prefix(
+    std::string_view line,
+    const std::unordered_set<std::string>& settings,
+    size_t& matchLen)
 {
     matchLen = 0;
     if(settings.empty())
@@ -183,9 +186,10 @@ match_robot_setting_prefix(std::string_view line,
     return matchLen > 0;
 }
 
-static std::vector<std::string>
-normalize_robot_spacing(const std::vector<std::string>& input, int spaceCount,
-                        const std::unordered_set<std::string>& settings)
+static std::vector<std::string> normalize_robot_spacing(
+    const std::vector<std::string>& input,
+    int spaceCount,
+    const std::unordered_set<std::string>& settings)
 {
     enum class Section
     {
@@ -321,8 +325,11 @@ normalize_robot_spacing(const std::vector<std::string>& input, int spaceCount,
                 {
                     std::string_view firstCell;
                     std::string_view restCell;
-                    if(split_robot_first_cell(trimmedLine, 0, firstCell,
-                                              restCell))
+                    if(split_robot_first_cell(
+                           trimmedLine,
+                           0,
+                           firstCell,
+                           restCell))
                     {
                         std::string rebuilt = prefix;
                         rebuilt += firstCell;

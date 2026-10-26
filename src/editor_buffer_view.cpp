@@ -19,8 +19,9 @@ void EditorBufferView::draw()
         if(editor.currentBuffer && editor.isFileType<FileType::Cpp>() &&
            editor.isClangdLspEnabled() && editor.lspClient)
             diagnosticsClient = editor.lspClient.get();
-        else if(editor.currentBuffer && editor.isFileType<FileType::Mla>() &&
-                editor.isMlangLspEnabled() && editor.mlangLspClient)
+        else if(
+            editor.currentBuffer && editor.isFileType<FileType::Mla>() &&
+            editor.isMlangLspEnabled() && editor.mlangLspClient)
             diagnosticsClient = editor.mlangLspClient.get();
 
         if(diagnosticsClient && !editor.currentBuffer->filename.empty())
@@ -115,8 +116,9 @@ void EditorBufferView::draw()
             Terminal::write(Terminal::ESC_SYNC_UPDATE_END);
         Terminal::flush();
     }
-    else if(scrollDelta != 0 && std::abs(scrollDelta) <= 5 &&
-            editor.currentMode == NORMAL && !Terminal::isTmux())
+    else if(
+        scrollDelta != 0 && std::abs(scrollDelta) <= 5 &&
+        editor.currentMode == NORMAL && !Terminal::isTmux())
     {
         editor.drawScrollUpdate(scrollDelta);
     }

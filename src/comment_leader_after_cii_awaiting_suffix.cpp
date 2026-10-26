@@ -8,7 +8,8 @@
 namespace editor::statemachine
 {
 std::optional<ModeState> CommentLeaderAfterCiiAwaitingSuffix::handle(
-    CommentLeaderPendingMachine& machine, ModeContext& ctx,
+    CommentLeaderPendingMachine& machine,
+    ModeContext& ctx,
     const ModeKeyEvent& event)
 {
     const int key = event.key;

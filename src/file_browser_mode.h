@@ -106,6 +106,7 @@ struct FileBrowserMode
             int offsetX = 0;
             int offsetY = 0;
         };
+
         struct SplitNode
         {
             bool leaf = true;
@@ -114,6 +115,7 @@ struct FileBrowserMode
             int first = -1;
             int second = -1;
         };
+
         bool splitActive = false;
         bool splitVertical = true;
         int activePane = 0;
@@ -130,14 +132,16 @@ struct FileBrowserMode
 
     FileBrowserMode() = default;
 
-    explicit FileBrowserMode(std::string startDir, std::string prevFile = {},
-                             bool focusPrevious = false,
-                             bool acceptLeaderXContinuation = false)
+    explicit FileBrowserMode(
+        std::string startDir,
+        std::string prevFile = {},
+        bool focusPrevious = false,
+        bool acceptLeaderXContinuation = false)
         : currentDirectory(std::move(startDir)),
           previousFile(std::move(prevFile)), focusPreviousFile(focusPrevious),
           acceptSecondLeaderX(acceptLeaderXContinuation),
-          secondLeaderXDeadline(std::chrono::steady_clock::now() +
-                                std::chrono::milliseconds(300))
+          secondLeaderXDeadline(
+              std::chrono::steady_clock::now() + std::chrono::milliseconds(300))
     {
     }
 
@@ -151,8 +155,9 @@ struct FileBrowserMode
     void ensureCursorVisibleInRows(int visibleRows);
     void prepareEditorPanesForOpen(Editor& editor);
 
-    std::optional<ModeState> handle(ModeContext& ctx,
-                                    const ModeKeyEvent& event);
+    std::optional<ModeState> handle(
+        ModeContext& ctx,
+        const ModeKeyEvent& event);
 
     void draw(Editor& editor) const;
 
@@ -167,7 +172,8 @@ private:
     const FileEntry* entryAt(int index) const;
     std::string formatFileSize(size_t size) const;
     std::string formatFileTime(time_t time) const;
-    std::optional<ModeState> executeCommand(ModeContext& ctx,
-                                            std::string_view commandLine);
+    std::optional<ModeState> executeCommand(
+        ModeContext& ctx,
+        std::string_view commandLine);
 };
 } // namespace editor::statemachine

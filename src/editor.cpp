@@ -1,10 +1,9 @@
+#include "editor.h"
 #include "ascii.h"
 #include "config_parser.h"
 #include "constants.h"
 #include "cpp_navigation_utilities.h"
-#include "editor.h"
 #include "csharp_lsp.h"
-#include "process_pipe.h"
 #include "editor_buffer_controller.h"
 #include "editor_command_controller.h"
 #include "editor_cursor_controller.h"
@@ -29,6 +28,7 @@
 #include "gitignore.h"
 #include "mlang_utilities.h"
 #include "mode_state_machine.h"
+#include "process_pipe.h"
 #include "robot_utilities.h"
 #include "stdlib_goto.h"
 #include "symbol_popup_utilities.h"
@@ -68,10 +68,12 @@ namespace fs = std::filesystem;
 
 #ifdef UVIM_ENABLE_CLANGD_LSP
 template <FileType... Types, typename EnableFn>
-void ensure_lsp_for_file_type(Editor& editor, bool enabled,
-                              const std::string& path,
-                              const std::vector<std::string>& args,
-                              EnableFn&& enableFn)
+void ensure_lsp_for_file_type(
+    Editor& editor,
+    bool enabled,
+    const std::string& path,
+    const std::vector<std::string>& args,
+    EnableFn&& enableFn)
 {
     if(enabled || !((editor.isFileType<Types>()) || ...))
         return;
@@ -80,6 +82,7 @@ void ensure_lsp_for_file_type(Editor& editor, bool enabled,
 }
 #endif
 
+using editor::config::parseTomlMap;
 using editor::helper::ascii_lower;
 using editor::helper::collect_js_ts_imports;
 using editor::helper::collectLocFiles;
@@ -115,7 +118,6 @@ using editor::helper::longestCommonPrefix;
 using editor::helper::parse_int;
 using editor::helper::parse_token_type;
 using editor::helper::parse_ts_type_name;
-using editor::config::parseTomlMap;
 using editor::helper::python_def_line;
 using editor::helper::resolve_js_ts_from_dir;
 using editor::helper::resolve_js_ts_module;
@@ -176,8 +178,10 @@ void Editor::setIsKitty(bool value)
     needsFullRedraw = true;
 }
 
-Editor::Editor(bool skipInitialBuffer, const std::string& configPath,
-               const std::string& themePath)
+Editor::Editor(
+    bool skipInitialBuffer,
+    const std::string& configPath,
+    const std::string& themePath)
 {
     needsFullRedraw.bind(this);
     Terminal::enableRawMode();
@@ -378,8 +382,8 @@ Editor::Editor(bool skipInitialBuffer, const std::string& configPath,
                 if(setting == values.end())
                     setting = values.find(option);
                 if(setting != values.end())
-                    handleSetCommandImpl(std::string("set ") + option + "=" +
-                                         setting->second);
+                    handleSetCommandImpl(
+                        std::string("set ") + option + "=" + setting->second);
             }
             statusMessage = previousStatus;
             auto ittg = values.find("editor.autotags");
@@ -584,8 +588,9 @@ Editor::Editor(bool skipInitialBuffer, const std::string& configPath,
             {
                 if(setting->second == "float" || setting->second == "floating")
                     pickerFloating = true;
-                else if(setting->second == "fullscreen" ||
-                        setting->second == "full")
+                else if(
+                    setting->second == "fullscreen" ||
+                    setting->second == "full")
                     pickerFloating = false;
             }
             auto parsePercent = [&](const char* key, int& out)
@@ -611,8 +616,9 @@ Editor::Editor(bool skipInitialBuffer, const std::string& configPath,
                 if(setting->second == "true" || setting->second == "1" ||
                    setting->second == "on")
                     pickerPreview = true;
-                else if(setting->second == "false" || setting->second == "0" ||
-                        setting->second == "off")
+                else if(
+                    setting->second == "false" || setting->second == "0" ||
+                    setting->second == "off")
                     pickerPreview = false;
             }
             auto itps = values.find("editor.progressstyle");
@@ -935,22 +941,27 @@ Editor::Editor(bool skipInitialBuffer, const std::string& configPath,
             set_token("syntax.markup.italic_token", markupItalicToken);
             set_token("editor.syntax.markup.code_token", markupCodeToken);
             set_token("syntax.markup.code_token", markupCodeToken);
-            set_token("editor.syntax.markup.blockquote_token",
-                      markupBlockquoteToken);
+            set_token(
+                "editor.syntax.markup.blockquote_token",
+                markupBlockquoteToken);
             set_token("syntax.markup.blockquote_token", markupBlockquoteToken);
             set_token("editor.syntax.markup.fence_token", markupFenceToken);
             set_token("syntax.markup.fence_token", markupFenceToken);
-            set_token("editor.syntax.markup.link_text_token",
-                      markupLinkTextToken);
+            set_token(
+                "editor.syntax.markup.link_text_token",
+                markupLinkTextToken);
             set_token("syntax.markup.link_text_token", markupLinkTextToken);
-            set_token("editor.syntax.markup.link_url_token",
-                      markupLinkUrlToken);
+            set_token(
+                "editor.syntax.markup.link_url_token",
+                markupLinkUrlToken);
             set_token("syntax.markup.link_url_token", markupLinkUrlToken);
-            set_token("editor.syntax.markup.link_title_token",
-                      markupLinkTitleToken);
+            set_token(
+                "editor.syntax.markup.link_title_token",
+                markupLinkTitleToken);
             set_token("syntax.markup.link_title_token", markupLinkTitleToken);
-            set_token("editor.syntax.markup.rdoc_topic_token",
-                      markupRdocTopicToken);
+            set_token(
+                "editor.syntax.markup.rdoc_topic_token",
+                markupRdocTopicToken);
             set_token("syntax.markup.rdoc_topic_token", markupRdocTopicToken);
 
             set_token("editor.syntax.cpp.locals_color", syntaxCppLocalToken);
@@ -1039,42 +1050,52 @@ void Editor::setModeStateMachineForTests(std::unique_ptr<ModeStateMachine> sm)
     modeStateMachine = std::move(sm);
 }
 
-std::string
-Editor::testInferTsTypeForIdentifier(const std::vector<std::string>& lines,
-                                     std::string_view ident, int startY)
+std::string Editor::testInferTsTypeForIdentifier(
+    const std::vector<std::string>& lines,
+    std::string_view ident,
+    int startY)
 {
     return find_ts_type_for_identifier(lines, ident, startY);
 }
 
 std::string Editor::testInferTsTypeFromArrayMethodLine(
-    std::string_view line, std::string_view param,
-    const std::vector<std::string>& lines, int lineNo)
+    std::string_view line,
+    std::string_view param,
+    const std::vector<std::string>& lines,
+    int lineNo)
 {
     return infer_ts_type_from_array_method_line(line, param, lines, lineNo);
 }
 
-bool Editor::testFindTsTypeDefinition(const std::vector<std::string>& lines,
-                                      std::string_view typeName, int& outY,
-                                      int& outX)
+bool Editor::testFindTsTypeDefinition(
+    const std::vector<std::string>& lines,
+    std::string_view typeName,
+    int& outY,
+    int& outX)
 {
     return find_ts_type_definition(lines, typeName, outY, outX);
 }
 
-bool Editor::testFindTsMemberInType(const std::vector<std::string>& lines,
-                                    int typeStartY, std::string_view member,
-                                    int& outY, int& outX)
+bool Editor::testFindTsMemberInType(
+    const std::vector<std::string>& lines,
+    int typeStartY,
+    std::string_view member,
+    int& outY,
+    int& outX)
 {
     return find_ts_member_in_type(lines, typeStartY, member, outY, outX);
 }
 
-std::string Editor::testResolveJsTsModule(const std::string& fromFile,
-                                          std::string_view module)
+std::string Editor::testResolveJsTsModule(
+    const std::string& fromFile,
+    std::string_view module)
 {
     return resolve_js_ts_module(fromFile, module);
 }
 
-std::string Editor::testResolveMlangModule(const std::string& fromFile,
-                                           std::string_view modulePath)
+std::string Editor::testResolveMlangModule(
+    const std::string& fromFile,
+    std::string_view modulePath)
 {
     std::string out;
     if(MlangUtilities::resolveModuleFile(modulePath, fromFile, out))
@@ -1087,15 +1108,16 @@ std::string Editor::testResolveMlangModule(const std::string& fromFile,
 bool Editor::isFileType(FileType type) const
 {
     if(fileTypeMaskOverride_)
-        return (*fileTypeMaskOverride_ & (1ull << static_cast<unsigned>(type))) !=
-               0;
+        return (*fileTypeMaskOverride_ &
+                (1ull << static_cast<unsigned>(type))) != 0;
     return fileTypeController && fileTypeController->isFileType(type);
 }
 
-void Editor::highlightPreviewLines(PreviewHighlight& cache,
-                                   const std::string& path,
-                                   const std::vector<std::string>& previewLines,
-                                   size_t upTo)
+void Editor::highlightPreviewLines(
+    PreviewHighlight& cache,
+    const std::string& path,
+    const std::vector<std::string>& previewLines,
+    size_t upTo)
 {
     if(!syntaxHighlighter || !fileTypeController)
         return;
@@ -1114,19 +1136,25 @@ void Editor::highlightPreviewLines(PreviewHighlight& cache,
     struct OverrideGuard
     {
         std::optional<uint64_t>& slot;
+
         ~OverrideGuard()
         {
             slot.reset();
         }
     } guard{fileTypeMaskOverride_};
+
     fileTypeMaskOverride_ = cache.fileTypeMask;
 
     cache.tokens.reserve(end);
     for(size_t i = cache.tokens.size(); i < end; ++i)
     {
         cache.tokens.push_back(syntaxHighlighter->tokenizeLine(
-            previewLines[i], cache.inBlockComment, cache.inTomlMultiline,
-            cache.tomlQuote, cache.inMarkupFence, cache.markupFenceChar));
+            previewLines[i],
+            cache.inBlockComment,
+            cache.inTomlMultiline,
+            cache.tomlQuote,
+            cache.inMarkupFence,
+            cache.markupFenceChar));
     }
 }
 
@@ -1233,8 +1261,8 @@ void Editor::ensureMlangTokensLoaded() const
         syntaxHighlighter->ensureMlangTokensLoaded();
 }
 
-std::optional<TokenType>
-Editor::lookupMlangTokenType(std::string_view word) const
+std::optional<TokenType> Editor::lookupMlangTokenType(
+    std::string_view word) const
 {
     if(!syntaxHighlighter)
         return std::nullopt;
@@ -1248,27 +1276,41 @@ std::string Editor::getColorCode(TokenType type) const
     return syntaxHighlighter->getColorCode(type);
 }
 
-std::vector<Token>
-Editor::tokenizeLine(const std::string& line, bool& inBlockComment,
-                     bool& inTomlMultiline, char& tomlQuote,
-                     bool& inMarkupFence, char& markupFenceChar,
-                     bool inCppMethodContext, bool inCppFunctionContext,
-                     bool inCppParamListContext) const
+std::vector<Token> Editor::tokenizeLine(
+    const std::string& line,
+    bool& inBlockComment,
+    bool& inTomlMultiline,
+    char& tomlQuote,
+    bool& inMarkupFence,
+    char& markupFenceChar,
+    bool inCppMethodContext,
+    bool inCppFunctionContext,
+    bool inCppParamListContext) const
 {
     if(!syntaxHighlighter)
         return {};
     return syntaxHighlighter->tokenizeLine(
-        line, inBlockComment, inTomlMultiline, tomlQuote, inMarkupFence,
-        markupFenceChar, inCppMethodContext, inCppFunctionContext,
+        line,
+        inBlockComment,
+        inTomlMultiline,
+        tomlQuote,
+        inMarkupFence,
+        markupFenceChar,
+        inCppMethodContext,
+        inCppFunctionContext,
         inCppParamListContext);
 }
 
-void Editor::renderLineWithSyntax(std::string& output, const std::string& line,
-                                  int start, int len, int fileRow)
+void Editor::renderLineWithSyntax(
+    std::string& output,
+    const std::string& line,
+    int start,
+    int len,
+    int fileRow)
 {
     if(syntaxHighlighter)
-        syntaxHighlighter->renderLineWithSyntax(output, line, start, len,
-                                                fileRow);
+        syntaxHighlighter
+            ->renderLineWithSyntax(output, line, start, len, fileRow);
 }
 
 bool Editor::isRobotKeyword(std::string_view word) const
@@ -1300,12 +1342,17 @@ Editor::~Editor()
     Terminal::moveCursor(1, 1);
 }
 
-void Editor::enableClangdLsp(bool enable, const std::string& compileCommandsDir,
-                             const std::string& clangdPath,
-                             const std::string& queryDriverAllowList)
+void Editor::enableClangdLsp(
+    bool enable,
+    const std::string& compileCommandsDir,
+    const std::string& clangdPath,
+    const std::string& queryDriverAllowList)
 {
-    lspController->enableClangdLsp(enable, compileCommandsDir, clangdPath,
-                                   queryDriverAllowList);
+    lspController->enableClangdLsp(
+        enable,
+        compileCommandsDir,
+        clangdPath,
+        queryDriverAllowList);
 }
 
 bool Editor::isClangdLspEnabled() const
@@ -1313,8 +1360,10 @@ bool Editor::isClangdLspEnabled() const
     return lspController->isClangdLspEnabled();
 }
 
-void Editor::enableRobotLsp(bool enable, const std::string& serverPath,
-                            const std::vector<std::string>& serverArgs)
+void Editor::enableRobotLsp(
+    bool enable,
+    const std::string& serverPath,
+    const std::vector<std::string>& serverArgs)
 {
     lspController->enableRobotLsp(enable, serverPath, serverArgs);
 }
@@ -1324,8 +1373,10 @@ bool Editor::isRobotLspEnabled() const
     return lspController->isRobotLspEnabled();
 }
 
-void Editor::enablePythonLsp(bool enable, const std::string& serverPath,
-                             const std::vector<std::string>& serverArgs)
+void Editor::enablePythonLsp(
+    bool enable,
+    const std::string& serverPath,
+    const std::vector<std::string>& serverArgs)
 {
     lspController->enablePythonLsp(enable, serverPath, serverArgs);
 }
@@ -1335,8 +1386,10 @@ bool Editor::isPythonLspEnabled() const
     return lspController->isPythonLspEnabled();
 }
 
-void Editor::enableMlangLsp(bool enable, const std::string& serverPath,
-                            const std::vector<std::string>& serverArgs)
+void Editor::enableMlangLsp(
+    bool enable,
+    const std::string& serverPath,
+    const std::vector<std::string>& serverArgs)
 {
     lspController->enableMlangLsp(enable, serverPath, serverArgs);
 }
@@ -1411,8 +1464,10 @@ bool Editor::hasReferences() const
     return referencesController->hasReferences();
 }
 
-void Editor::enableHtmlLsp(bool enable, const std::string& serverPath,
-                           const std::vector<std::string>& serverArgs)
+void Editor::enableHtmlLsp(
+    bool enable,
+    const std::string& serverPath,
+    const std::vector<std::string>& serverArgs)
 {
     lspController->enableHtmlLsp(enable, serverPath, serverArgs);
 }
@@ -1422,8 +1477,10 @@ bool Editor::isHtmlLspEnabled() const
     return lspController->isHtmlLspEnabled();
 }
 
-void Editor::enableCssLsp(bool enable, const std::string& serverPath,
-                          const std::vector<std::string>& serverArgs)
+void Editor::enableCssLsp(
+    bool enable,
+    const std::string& serverPath,
+    const std::vector<std::string>& serverArgs)
 {
     lspController->enableCssLsp(enable, serverPath, serverArgs);
 }
@@ -1433,8 +1490,10 @@ bool Editor::isCssLspEnabled() const
     return lspController->isCssLspEnabled();
 }
 
-void Editor::enableJsonLsp(bool enable, const std::string& serverPath,
-                           const std::vector<std::string>& serverArgs)
+void Editor::enableJsonLsp(
+    bool enable,
+    const std::string& serverPath,
+    const std::vector<std::string>& serverArgs)
 {
     lspController->enableJsonLsp(enable, serverPath, serverArgs);
 }
@@ -1444,8 +1503,10 @@ bool Editor::isJsonLspEnabled() const
     return lspController->isJsonLspEnabled();
 }
 
-void Editor::enableTsLsp(bool enable, const std::string& serverPath,
-                         const std::vector<std::string>& serverArgs)
+void Editor::enableTsLsp(
+    bool enable,
+    const std::string& serverPath,
+    const std::vector<std::string>& serverArgs)
 {
     lspController->enableTsLsp(enable, serverPath, serverArgs);
 }
@@ -1455,8 +1516,10 @@ bool Editor::isTsLspEnabled() const
     return lspController->isTsLspEnabled();
 }
 
-void Editor::enableCSharpLsp(bool enable, const std::string& serverPath,
-                             const std::vector<std::string>& serverArgs)
+void Editor::enableCSharpLsp(
+    bool enable,
+    const std::string& serverPath,
+    const std::vector<std::string>& serverArgs)
 {
     lspController->enableCSharpLsp(enable, serverPath, serverArgs);
 }
@@ -1471,15 +1534,29 @@ void Editor::enterOperatorPending(char op)
     operatorController->enterOperatorPending(op);
 }
 
-bool Editor::getTextObjectRange(char objChar, bool around, int& outStartY,
-                                int& outStartX, int& outEndY, int& outEndX)
+bool Editor::getTextObjectRange(
+    char objChar,
+    bool around,
+    int& outStartY,
+    int& outStartX,
+    int& outEndY,
+    int& outEndX)
 {
-    return operatorController->getTextObjectRange(objChar, around, outStartY,
-                                                  outStartX, outEndY, outEndX);
+    return operatorController->getTextObjectRange(
+        objChar,
+        around,
+        outStartY,
+        outStartX,
+        outEndY,
+        outEndX);
 }
 
-void Editor::applyOperatorToRange(char op, int startY, int startX, int endY,
-                                  int endX)
+void Editor::applyOperatorToRange(
+    char op,
+    int startY,
+    int startX,
+    int endY,
+    int endX)
 {
     operatorController->applyOperatorToRange(op, startY, startX, endY, endX);
 }
@@ -1661,7 +1738,8 @@ bool Editor::prewarmColdOpenFile(std::string_view fname)
     while(coldOpenCache.size() > coldOpenCacheMaxEntries)
     {
         auto oldest = std::min_element(
-            coldOpenCache.begin(), coldOpenCache.end(),
+            coldOpenCache.begin(),
+            coldOpenCache.end(),
             [](const auto& a, const auto& b)
             { return a.second.lastTouched < b.second.lastTouched; });
         if(oldest == coldOpenCache.end())
@@ -1778,8 +1856,8 @@ void Editor::openFile(std::string_view fname, bool notifyLspOnOpen)
             if(rgCached.size != currentSize || rgCached.mtime != currentMtime)
                 continue;
 
-            fs::path cachedPath = EditorPathUtilities::resolveEditorPath(
-                fs::path(rgCached.path));
+            fs::path cachedPath =
+                EditorPathUtilities::resolveEditorPath(fs::path(rgCached.path));
             if(coldOpenCacheKeyForPath(cachedPath) != path)
                 continue;
 
@@ -1840,33 +1918,47 @@ void Editor::openFile(std::string_view fname, bool notifyLspOnOpen)
     if(notifyLspOnOpen)
     {
         ensure_lsp_for_file_type<FileType::Html>(
-            *this, isHtmlLspEnabled() || lspController->starting(htmlLspClient),
-            htmlLspPath, htmlLspArgs,
-            [&](bool on, const std::string& p,
+            *this,
+            isHtmlLspEnabled() || lspController->starting(htmlLspClient),
+            htmlLspPath,
+            htmlLspArgs,
+            [&](bool on,
+                const std::string& p,
                 const std::vector<std::string>& a)
             { enableHtmlLsp(on, p, a); });
         ensure_lsp_for_file_type<FileType::Css>(
-            *this, isCssLspEnabled() || lspController->starting(cssLspClient),
-            cssLspPath, cssLspArgs,
-            [&](bool on, const std::string& p,
+            *this,
+            isCssLspEnabled() || lspController->starting(cssLspClient),
+            cssLspPath,
+            cssLspArgs,
+            [&](bool on,
+                const std::string& p,
                 const std::vector<std::string>& a) { enableCssLsp(on, p, a); });
         ensure_lsp_for_file_type<FileType::Json>(
-            *this, isJsonLspEnabled() || lspController->starting(jsonLspClient),
-            jsonLspPath, jsonLspArgs,
-            [&](bool on, const std::string& p,
+            *this,
+            isJsonLspEnabled() || lspController->starting(jsonLspClient),
+            jsonLspPath,
+            jsonLspArgs,
+            [&](bool on,
+                const std::string& p,
                 const std::vector<std::string>& a)
             { enableJsonLsp(on, p, a); });
         ensure_lsp_for_file_type<FileType::JavaScript, FileType::TypeScript>(
-            *this, isTsLspEnabled() || lspController->starting(tsLspClient),
-            tsLspPath, tsLspArgs,
-            [&](bool on, const std::string& p,
+            *this,
+            isTsLspEnabled() || lspController->starting(tsLspClient),
+            tsLspPath,
+            tsLspArgs,
+            [&](bool on,
+                const std::string& p,
                 const std::vector<std::string>& a) { enableTsLsp(on, p, a); });
         // csharp-ls may only be in ~/.dotnet/tools, or OmniSharp is used.
         ensure_lsp_for_file_type<FileType::CSharp>(
             *this,
             isCSharpLspEnabled() || lspController->starting(csharpLspClient),
-            csharpLspPath, csharpLspArgs,
-            [&](bool on, const std::string& p,
+            csharpLspPath,
+            csharpLspArgs,
+            [&](bool on,
+                const std::string& p,
                 const std::vector<std::string>& a)
             { enableCSharpLsp(on, p, a); });
     }
@@ -1885,11 +1977,12 @@ void Editor::openFile(std::string_view fname, bool notifyLspOnOpen)
     currentBuffer->savedUndoIndex = currentBuffer->undoIndex;
 
     needsFullRedraw = true;
-
 }
 
-void Editor::openFileBrowser(std::string_view path, bool focusCurrentFile,
-                             bool acceptSecondLeaderX)
+void Editor::openFileBrowser(
+    std::string_view path,
+    bool focusCurrentFile,
+    bool acceptSecondLeaderX)
 {
 #ifndef UVIM_ENABLE_BROWSER_TOOLS
     (void)path;
@@ -1907,8 +2000,11 @@ void Editor::openFileBrowser(std::string_view path, bool focusCurrentFile,
     if(modeStateMachine)
     {
         modeStateMachine->transitionTo(
-            FileBrowserMode{std::string(path), prev, focusCurrentFile,
-                            acceptSecondLeaderX});
+            FileBrowserMode{
+                std::string(path),
+                prev,
+                focusCurrentFile,
+                acceptSecondLeaderX});
         modeController->syncModeFromStateMachine();
     }
     else
@@ -2015,8 +2111,11 @@ bool Editor::isInVisualBlock(int row, int col)
     return visualController->isInVisualBlock(row, col);
 }
 
-void Editor::getVisualBlockBounds(int& startY, int& startX, int& endY,
-                                  int& endX)
+void Editor::getVisualBlockBounds(
+    int& startY,
+    int& startX,
+    int& endY,
+    int& endX)
 {
     visualController->getVisualBlockBounds(startY, startX, endY, endX);
 }
@@ -2232,7 +2331,8 @@ void Editor::reloadGitLog(editor::statemachine::GitLogMode& log)
     (void)log;
 #else
     auto entries = gitController->reloadGitLogEntries(
-        log.repoRoot, log.fileOnly ? log.filePath : std::string{});
+        log.repoRoot,
+        log.fileOnly ? log.filePath : std::string{});
     if(entries.empty())
         return;
     log.entries = std::move(entries);
@@ -2249,8 +2349,9 @@ void Editor::openUnsavedChangesMode()
     gitController->openUnsavedChangesMode();
 }
 
-std::vector<std::string> Editor::unsavedChangesDiff(std::string& title,
-                                                   std::string& message)
+std::vector<std::string> Editor::unsavedChangesDiff(
+    std::string& title,
+    std::string& message)
 {
     return gitController->unsavedChangesDiff(title, message);
 }
@@ -2320,8 +2421,9 @@ bool Editor::insertTodoBlockComment(int row)
     return indentController->insertTodoBlockComment(row);
 }
 
-void Editor::syncClangdDiagnosticsIfNeeded(bool force,
-                                           bool updateDiagnosticPopup)
+void Editor::syncClangdDiagnosticsIfNeeded(
+    bool force,
+    bool updateDiagnosticPopup)
 {
 #ifdef UVIM_ENABLE_CLANGD_LSP
     if(!currentBuffer || !isClangdLspEnabled() ||
@@ -2330,8 +2432,7 @@ void Editor::syncClangdDiagnosticsIfNeeded(bool force,
     if(currentBuffer->lspOpenDeferred)
     {
         if(!force &&
-           std::chrono::steady_clock::now() <
-               currentBuffer->lspOpenDeferUntil)
+           std::chrono::steady_clock::now() < currentBuffer->lspOpenDeferUntil)
             return;
         currentBuffer->lspOpenDeferred = false;
     }
@@ -2398,9 +2499,11 @@ void Editor::syncClangdDiagnosticsIfNeeded(bool force,
                 if(length <= 0)
                     continue;
                 bool isDecl = lspClient->semanticTokenHasModifier(
-                    token.modifiers, "declaration");
+                    token.modifiers,
+                    "declaration");
                 bool isDef = lspClient->semanticTokenHasModifier(
-                    token.modifiers, "definition");
+                    token.modifiers,
+                    "definition");
                 currentBuffer->lspSemanticTokens[token.line].push_back(
                     {startByte, length, token.tokenType, isDecl, isDef});
             }
@@ -2433,8 +2536,9 @@ void Editor::syncClangdDiagnosticsIfNeeded(bool force,
 #endif
 }
 
-void Editor::syncMlangSemanticTokensIfNeeded(bool force,
-                                             bool updateDiagnosticPopup)
+void Editor::syncMlangSemanticTokensIfNeeded(
+    bool force,
+    bool updateDiagnosticPopup)
 {
 #ifdef UVIM_ENABLE_CLANGD_LSP
     if(!currentBuffer || !isMlangLspEnabled() || !isFileType<FileType::Mla>() ||
@@ -2516,9 +2620,11 @@ void Editor::syncMlangSemanticTokensIfNeeded(bool force,
                 if(length <= 0)
                     continue;
                 bool isDecl = mlangLspClient->semanticTokenHasModifier(
-                    token.modifiers, "declaration");
+                    token.modifiers,
+                    "declaration");
                 bool isDef = mlangLspClient->semanticTokenHasModifier(
-                    token.modifiers, "definition");
+                    token.modifiers,
+                    "definition");
                 currentBuffer->lspSemanticTokens[token.line].push_back(
                     {startByte, length, token.tokenType, isDecl, isDef});
             }
@@ -2725,8 +2831,11 @@ void Editor::restoreBufferState()
     bufferController->restoreBufferState();
 }
 
-bool Editor::searchDefinitionInBuffer(Buffer* buf, const std::string& symbol,
-                                      int& outY, int& outX)
+bool Editor::searchDefinitionInBuffer(
+    Buffer* buf,
+    const std::string& symbol,
+    int& outY,
+    int& outX)
 {
     for(int y = 0; static_cast<size_t>(y) < buf->lines.size(); ++y)
     {
@@ -2809,18 +2918,23 @@ void Editor::openSymbolPopupForCursor()
     }
 
     auto resolve_return_type_for_function =
-        [&](const std::string& funcName, const std::string& candidate,
+        [&](const std::string& funcName,
+            const std::string& candidate,
             const std::vector<std::string>& currentLines) -> std::string
     {
         if(funcName.empty())
             return "";
         int y = -1;
         int x = 0;
-        if(SymbolPopupUtilities::findDeclarationInLines(currentLines, funcName,
-                                                        y, x))
+        if(SymbolPopupUtilities::findDeclarationInLines(
+               currentLines,
+               funcName,
+               y,
+               x))
         {
             std::string type = SymbolPopupUtilities::extractTypeBeforeName(
-                currentLines[y], funcName);
+                currentLines[y],
+                funcName);
             if(!type.empty())
                 return type;
         }
@@ -2831,12 +2945,16 @@ void Editor::openSymbolPopupForCursor()
             std::vector<std::string> altLines;
             if(SymbolPopupUtilities::loadFileLines(alternate, altLines))
             {
-                if(SymbolPopupUtilities::findDeclarationInLines(altLines,
-                                                                funcName, y, x))
+                if(SymbolPopupUtilities::findDeclarationInLines(
+                       altLines,
+                       funcName,
+                       y,
+                       x))
                 {
                     std::string type =
-                        SymbolPopupUtilities::extractTypeBeforeName(altLines[y],
-                                                                    funcName);
+                        SymbolPopupUtilities::extractTypeBeforeName(
+                            altLines[y],
+                            funcName);
                     if(!type.empty())
                         return type;
                 }
@@ -2857,15 +2975,20 @@ void Editor::openSymbolPopupForCursor()
                 if(!headerPath.empty())
                 {
                     std::vector<std::string> headerLines;
-                    if(SymbolPopupUtilities::loadFileLines(headerPath,
-                                                           headerLines))
+                    if(SymbolPopupUtilities::loadFileLines(
+                           headerPath,
+                           headerLines))
                     {
                         if(SymbolPopupUtilities::findDeclarationInLines(
-                               headerLines, funcName, y, x))
+                               headerLines,
+                               funcName,
+                               y,
+                               x))
                         {
                             std::string type =
                                 SymbolPopupUtilities::extractTypeBeforeName(
-                                    headerLines[y], funcName);
+                                    headerLines[y],
+                                    funcName);
                             if(!type.empty())
                                 return type;
                         }
@@ -2902,13 +3025,22 @@ void Editor::openSymbolPopupForCursor()
         int objY = -1;
         int objX = 0;
         if(CppNavigationUtilities::searchLocalDefinition(
-               *lines, memberObject, *cursorY, *cursorX, objY, objX) ||
-           CppNavigationUtilities::searchMemberDefinition(*lines, memberObject,
-                                                          objY, objX))
+               *lines,
+               memberObject,
+               *cursorY,
+               *cursorX,
+               objY,
+               objX) ||
+           CppNavigationUtilities::searchMemberDefinition(
+               *lines,
+               memberObject,
+               objY,
+               objX))
         {
             std::string declLine = (*lines)[objY];
             std::string typeToken = SymbolPopupUtilities::extractTypeBeforeName(
-                declLine, memberObject);
+                declLine,
+                memberObject);
             if(typeToken == "auto")
             {
                 typeToken = infer_auto_type_from_decl(declLine, *lines);
@@ -2925,15 +3057,21 @@ void Editor::openSymbolPopupForCursor()
                     if(!headerPath.empty())
                     {
                         std::vector<std::string> headerLines;
-                        if(SymbolPopupUtilities::loadFileLines(headerPath,
-                                                               headerLines))
+                        if(SymbolPopupUtilities::loadFileLines(
+                               headerPath,
+                               headerLines))
                         {
                             if(SymbolPopupUtilities::findDeclarationInLines(
-                                   headerLines, symbol, defY, defX))
+                                   headerLines,
+                                   symbol,
+                                   defY,
+                                   defX))
                             {
                                 signature =
                                     SymbolPopupUtilities::collectSignatureLine(
-                                        headerLines, defY, 3);
+                                        headerLines,
+                                        defY,
+                                        3);
                             }
                         }
                     }
@@ -2959,10 +3097,15 @@ void Editor::openSymbolPopupForCursor()
                 if(SymbolPopupUtilities::loadFileLines(headerPath, headerLines))
                 {
                     if(SymbolPopupUtilities::findDeclarationInLines(
-                           headerLines, symbol, defY, defX))
+                           headerLines,
+                           symbol,
+                           defY,
+                           defX))
                     {
                         signature = SymbolPopupUtilities::collectSignatureLine(
-                            headerLines, defY, 3);
+                            headerLines,
+                            defY,
+                            3);
                     }
                 }
             }
@@ -2978,29 +3121,47 @@ void Editor::openSymbolPopupForCursor()
             if(SymbolPopupUtilities::loadFileLines(alternate, altLines))
             {
                 if(SymbolPopupUtilities::findDeclarationInLines(
-                       altLines, symbol, defY, defX))
+                       altLines,
+                       symbol,
+                       defY,
+                       defX))
                     signature = SymbolPopupUtilities::collectSignatureLine(
-                        altLines, defY, 3);
+                        altLines,
+                        defY,
+                        3);
             }
         }
     }
 
     if(signature.empty())
     {
-        if(SymbolPopupUtilities::findDeclarationInLines(*lines, symbol, defY,
-                                                        defX))
+        if(SymbolPopupUtilities::findDeclarationInLines(
+               *lines,
+               symbol,
+               defY,
+               defX))
         {
             signature =
                 SymbolPopupUtilities::collectSignatureLine(*lines, defY, 3);
         }
-        else if(CppNavigationUtilities::searchMemberDefinition(*lines, symbol,
-                                                               defY, defX))
+        else if(
+            CppNavigationUtilities::searchMemberDefinition(
+                *lines,
+                symbol,
+                defY,
+                defX))
         {
             signature =
                 SymbolPopupUtilities::collectSignatureLine(*lines, defY, 1);
         }
-        else if(CppNavigationUtilities::searchLocalDefinition(
-                    *lines, symbol, *cursorY, *cursorX, defY, defX))
+        else if(
+            CppNavigationUtilities::searchLocalDefinition(
+                *lines,
+                symbol,
+                *cursorY,
+                *cursorX,
+                defY,
+                defX))
         {
             signature =
                 SymbolPopupUtilities::collectSignatureLine(*lines, defY, 1);
@@ -3389,7 +3550,8 @@ void Editor::jumpToRequestedLine(int line)
     else if(line < 1)
     {
         moveToLine(0);
-        message = "line " + std::to_string(line) + " not found: jumped to start";
+        message =
+            "line " + std::to_string(line) + " not found: jumped to start";
     }
     else
     {
@@ -3398,8 +3560,8 @@ void Editor::jumpToRequestedLine(int line)
     // Replace (or clear) only our own previous message, never others.
     if(!message.empty())
         setStatusMessage(message);
-    else if(!lastLineJumpMessage_.empty() &&
-            statusMessage == lastLineJumpMessage_)
+    else if(
+        !lastLineJumpMessage_.empty() && statusMessage == lastLineJumpMessage_)
         setStatusMessage("");
     lastLineJumpMessage_ = message;
     centerScreen();
@@ -3731,8 +3893,9 @@ std::vector<std::string> Editor::getCommandCompletions(std::string_view prefix)
     return commandController->getCommandCompletions(prefix);
 }
 
-std::vector<std::string> Editor::getCommandCompletions(std::string_view prefix,
-                                                       Mode mode)
+std::vector<std::string> Editor::getCommandCompletions(
+    std::string_view prefix,
+    Mode mode)
 {
     return commandController->getCommandCompletions(prefix, mode);
 }
@@ -3752,8 +3915,8 @@ std::vector<std::string> Editor::getPathCompletions(std::string_view path)
     return commandController->getPathCompletions(path);
 }
 
-std::vector<std::string>
-Editor::getPathCompletionsRecursive(std::string_view path)
+std::vector<std::string> Editor::getPathCompletionsRecursive(
+    std::string_view path)
 {
     return commandController->getPathCompletionsRecursive(path);
 }

@@ -7,8 +7,9 @@
 
 namespace widgets
 {
-void drawCommandHistoryPopup(std::string& output,
-                             const CommandHistoryPopupView& view)
+void drawCommandHistoryPopup(
+    std::string& output,
+    const CommandHistoryPopupView& view)
 {
     const PopupFrameView& frame = view.frame;
     output += frame.theme.baseFg();
@@ -40,9 +41,11 @@ void drawCommandHistoryPopup(std::string& output,
     }
 
     int totalH = rows + 2;
-    const PopupPlacement placement =
-        placeBottomLeftPopup(frame.screenRows, frame.screenCols, totalW,
-                             totalH);
+    const PopupPlacement placement = placeBottomLeftPopup(
+        frame.screenRows,
+        frame.screenCols,
+        totalW,
+        totalH);
     int top = placement.top;
     int left = placement.left;
 

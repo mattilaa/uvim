@@ -65,11 +65,11 @@ struct ViewStatusBarView
     std::vector<std::string> flags{}; // dim tags, e.g. "gitignore"
     std::string toolLabel{};          // backing tool, styled like [clangd]
     int toolGap = 7;
-    int index = 0;                // 1-based selected row; ruler hidden if
-    int count = -1;               //   count < 0
-    std::string progress{};       // background task progress (fixed width)
+    int index = 0;          // 1-based selected row; ruler hidden if
+    int count = -1;         //   count < 0
+    std::string progress{}; // background task progress (fixed width)
     int* progressColumn = nullptr;
-    int progressReserve = 0;      // see StatusBarView::progressReserve
+    int progressReserve = 0; // see StatusBarView::progressReserve
 };
 
 void appendStatusBar(std::string& output, const StatusBarView& view);

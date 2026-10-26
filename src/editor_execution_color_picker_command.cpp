@@ -7,8 +7,8 @@
 
 namespace command::execution
 {
-bool ColorPickerCommand::execute(Editor& editor,
-                                 const CommandRequest& request) const
+bool ColorPickerCommand::execute(Editor& editor, const CommandRequest& request)
+    const
 {
     if(request.text != "colorpicker")
         return false;

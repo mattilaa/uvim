@@ -26,8 +26,9 @@ namespace uvim_test
 template <typename InitialState>
 ModeStateMachine makeMachine(Editor& editor, InitialState&& initial)
 {
-    return ModeStateMachine(createModeContext(&editor),
-                            std::forward<InitialState>(initial));
+    return ModeStateMachine(
+        createModeContext(&editor),
+        std::forward<InitialState>(initial));
 }
 
 inline std::filesystem::path make_temp_dir(const std::string& prefix)
@@ -39,8 +40,9 @@ inline std::filesystem::path make_temp_dir(const std::string& prefix)
     return base;
 }
 
-inline void write_file(const std::filesystem::path& path,
-                       std::string_view content)
+inline void write_file(
+    const std::filesystem::path& path,
+    std::string_view content)
 {
     std::filesystem::create_directories(path.parent_path());
     std::ofstream out(path);
@@ -50,8 +52,9 @@ inline void write_file(const std::filesystem::path& path,
 inline std::string read_file(const std::filesystem::path& path)
 {
     std::ifstream in(path, std::ios::binary);
-    return std::string(std::istreambuf_iterator<char>(in),
-                       std::istreambuf_iterator<char>());
+    return std::string(
+        std::istreambuf_iterator<char>(in),
+        std::istreambuf_iterator<char>());
 }
 
 inline void dispatch_command(ModeStateMachine& sm, std::string_view cmd)

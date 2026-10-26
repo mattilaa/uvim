@@ -123,9 +123,10 @@ void Editor::enableSplitImpl(bool vertical)
         PaneState state;
         if(!splitPanes.empty())
         {
-            const int paneIndex =
-                std::clamp(activePane, 0,
-                           static_cast<int>(splitPanes.size()) - 1);
+            const int paneIndex = std::clamp(
+                activePane,
+                0,
+                static_cast<int>(splitPanes.size()) - 1);
             state = splitPanes[paneIndex];
         }
         int restoredTabBarOffset = tabBarOffset;
@@ -141,7 +142,9 @@ void Editor::enableSplitImpl(bool vertical)
         splitPaneLayouts.clear();
         activePane = 0;
         currentBufferIndex = std::clamp(
-            state.bufferIndex, 0, static_cast<int>(buffers.size()) - 1);
+            state.bufferIndex,
+            0,
+            static_cast<int>(buffers.size()) - 1);
         tabBarOffset = restoredTabBarOffset;
         updateCurrentBufferPointers();
         if(currentBuffer)
@@ -215,9 +218,10 @@ void Editor::enableBrowserSplitImpl(bool vertical)
         PaneState state;
         if(!splitPanes.empty())
         {
-            const int paneIndex =
-                std::clamp(activePane, 0,
-                           static_cast<int>(splitPanes.size()) - 1);
+            const int paneIndex = std::clamp(
+                activePane,
+                0,
+                static_cast<int>(splitPanes.size()) - 1);
             state = splitPanes[paneIndex];
         }
         int restoredTabBarOffset = tabBarOffset;

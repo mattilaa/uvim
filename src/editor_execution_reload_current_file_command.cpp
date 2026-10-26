@@ -27,8 +27,9 @@ using editor::helper::parse_int;
 using editor::helper::trim_view;
 using namespace detail;
 
-bool ReloadCurrentFileCommand::execute(Editor& editor,
-                                       const CommandRequest& request) const
+bool ReloadCurrentFileCommand::execute(
+    Editor& editor,
+    const CommandRequest& request) const
 {
     bool force = false;
     if(!matches(request.text, force))

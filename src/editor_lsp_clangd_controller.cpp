@@ -26,8 +26,8 @@ std::string path_for_clangd_glob(std::filesystem::path path)
 }
 #endif
 
-[[maybe_unused]] std::string
-detect_compile_commands_dir(const std::string& rootDir)
+[[maybe_unused]] std::string detect_compile_commands_dir(
+    const std::string& rootDir)
 {
     namespace fs = std::filesystem;
     std::error_code ec;
@@ -56,8 +56,8 @@ detect_compile_commands_dir(const std::string& rootDir)
         ec.clear();
     }
 
-    fs::recursive_directory_iterator it(
-        root, fs::directory_options::skip_permission_denied, ec);
+    fs::recursive_directory_iterator
+        it(root, fs::directory_options::skip_permission_denied, ec);
     fs::recursive_directory_iterator end;
     for(; it != end; it.increment(ec))
     {
@@ -84,10 +84,11 @@ detect_compile_commands_dir(const std::string& rootDir)
 }
 } // namespace
 
-void Editor::enableClangdLspImpl(bool enable,
-                                 const std::string& compileCommandsDir,
-                                 const std::string& clangdPath,
-                                 const std::string& queryDriverAllowList)
+void Editor::enableClangdLspImpl(
+    bool enable,
+    const std::string& compileCommandsDir,
+    const std::string& clangdPath,
+    const std::string& queryDriverAllowList)
 {
     clangdLspEnabled = false;
     clangdLspCompileCommandsDir = compileCommandsDir;
@@ -126,12 +127,14 @@ void Editor::enableClangdLspImpl(bool enable,
     if(qd.empty())
     {
 #ifdef _WIN32
-        std::vector<std::string> globs = {
-            "C:/Program Files/LLVM/bin/*clang*.exe",
-            "C:/Program Files/LLVM/bin/clang++.exe",
-            "C:/Program Files/LLVM/bin/clang-cl.exe",
-            "C:/Program Files/Microsoft Visual Studio/*/*/VC/Tools/MSVC/*/bin/*/*/cl.exe",
-            "C:/PROGRA~1/Microsoft Visual Studio/*/*/VC/Tools/MSVC/*/bin/*/*/cl.exe"};
+        std::vector<std::string> globs =
+            {"C:/Program Files/LLVM/bin/*clang*.exe",
+             "C:/Program Files/LLVM/bin/clang++.exe",
+             "C:/Program Files/LLVM/bin/clang-cl.exe",
+             "C:/Program Files/Microsoft Visual "
+             "Studio/*/*/VC/Tools/MSVC/*/bin/*/*/cl.exe",
+             "C:/PROGRA~1/Microsoft Visual "
+             "Studio/*/*/VC/Tools/MSVC/*/bin/*/*/cl.exe"};
         std::filesystem::path clangdDir =
             std::filesystem::path(clangdLspPath).parent_path();
         if(!clangdDir.empty())
@@ -158,7 +161,9 @@ void Editor::enableClangdLspImpl(bool enable,
 
     auto ccdir = std::make_shared<std::string>(compileCommandsDir);
     lspController->start(
-        "clangd", lspClient, clangdLspEnabled,
+        "clangd",
+        lspClient,
+        clangdLspEnabled,
         [path = clangdLspPath, rootDir, ccdir, qd](LspClient& client)
         {
             if(ccdir->empty())

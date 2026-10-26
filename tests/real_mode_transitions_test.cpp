@@ -13,18 +13,23 @@ using namespace uvim_test;
 
 namespace
 {
-bool contains_command(const std::vector<std::string>& commands,
-                      const std::string& expected)
+bool contains_command(
+    const std::vector<std::string>& commands,
+    const std::string& expected)
 {
     return std::find(commands.begin(), commands.end(), expected) !=
            commands.end();
 }
 
-bool contains_help_text(const std::vector<std::string>& lines,
-                        std::string_view expected)
+bool contains_help_text(
+    const std::vector<std::string>& lines,
+    std::string_view expected)
 {
-    return std::any_of(lines.begin(), lines.end(), [&](const std::string& line)
-                       { return line.find(expected) != std::string::npos; });
+    return std::any_of(
+        lines.begin(),
+        lines.end(),
+        [&](const std::string& line)
+        { return line.find(expected) != std::string::npos; });
 }
 } // namespace
 
@@ -70,34 +75,42 @@ TEST(RealModeTransitionsTest, CommandPopupIncludesRegisteredExCommands)
     EXPECT_TRUE(contains_command(editor.getCommandCompletions("sc"), "sc"));
     EXPECT_FALSE(
         contains_command(editor.getCommandCompletions("clo"), "close"));
-    EXPECT_TRUE(contains_command(editor.getCommandCompletions("showchanges"),
-                                 "showchanges"));
+    EXPECT_TRUE(contains_command(
+        editor.getCommandCompletions("showchanges"),
+        "showchanges"));
     EXPECT_TRUE(contains_command(editor.getCommandCompletions("se"), "se"));
     EXPECT_TRUE(contains_command(editor.getCommandCompletions("ve"), "ve"));
-    EXPECT_FALSE(
-        contains_command(editor.getCommandCompletions("se", FILE_BROWSER),
-                         "se"));
-    EXPECT_FALSE(
-        contains_command(editor.getCommandCompletions("ve", FILE_BROWSER),
-                         "ve"));
-    EXPECT_TRUE(
-        contains_command(editor.getCommandCompletions("run", FILE_BROWSER),
-                         "run "));
+    EXPECT_FALSE(contains_command(
+        editor.getCommandCompletions("se", FILE_BROWSER),
+        "se"));
+    EXPECT_FALSE(contains_command(
+        editor.getCommandCompletions("ve", FILE_BROWSER),
+        "ve"));
+    EXPECT_TRUE(contains_command(
+        editor.getCommandCompletions("run", FILE_BROWSER),
+        "run "));
     EXPECT_FALSE(
         contains_command(editor.getCommandCompletions("vsplit"), "vsplit"));
     EXPECT_FALSE(
         contains_command(editor.getCommandCompletions("hsplit"), "hsplit"));
     for(const char* obsolete :
-        {"write", "quit", "new", "vnew", "only", "tabclose", "syntax",
-         "noh", "nohlsearch"})
+        {"write",
+         "quit",
+         "new",
+         "vnew",
+         "only",
+         "tabclose",
+         "syntax",
+         "noh",
+         "nohlsearch"})
     {
-        EXPECT_FALSE(contains_command(editor.getCommandCompletions(obsolete),
-                                      obsolete));
+        EXPECT_FALSE(
+            contains_command(editor.getCommandCompletions(obsolete), obsolete));
     }
 #ifdef UVIM_ENABLE_RG_CACHE
-    EXPECT_TRUE(
-        contains_command(editor.getSetCompletions("set rgup"),
-                         "set rgupdate=300"));
+    EXPECT_TRUE(contains_command(
+        editor.getSetCompletions("set rgup"),
+        "set rgupdate=300"));
 #endif
 }
 
@@ -200,7 +213,11 @@ TEST(RealModeTransitionsTest, CommandPopupDocumentsHsAsHorizontalSplit)
     std::vector<std::string> entries = {"hs"};
     std::vector<int> filtered = {0};
     widgets::CommandPopupView view{
-        widgets::PopupFrameView{editor.theme, 20, 80}, entries, filtered, 0, 0};
+        widgets::PopupFrameView{editor.theme, 20, 80},
+        entries,
+        filtered,
+        0,
+        0};
 
     std::string output;
     widgets::drawCommandPopup(output, view);
@@ -249,7 +266,8 @@ TEST(RealModeTransitionsTest, VsSplitsFileBrowserVertically)
 
     Editor editor = Editor::createForTests();
     auto smPtr = std::make_unique<ModeStateMachine>(
-        createModeContext(&editor), FileBrowserMode{root.string()});
+        createModeContext(&editor),
+        FileBrowserMode{root.string()});
     auto& sm = *smPtr;
     editor.setModeStateMachineForTests(std::move(smPtr));
 
@@ -281,7 +299,8 @@ TEST(RealModeTransitionsTest, VsFromStartupBrowserCreatesVerticalSplit)
 
     Editor editor = Editor::createForTests();
     auto smPtr = std::make_unique<ModeStateMachine>(
-        createModeContext(&editor), FileBrowserMode{root.string()});
+        createModeContext(&editor),
+        FileBrowserMode{root.string()});
     auto& sm = *smPtr;
     editor.setModeStateMachineForTests(std::move(smPtr));
 
@@ -305,7 +324,8 @@ TEST(RealModeTransitionsTest, HsFromStartupBrowserCreatesHorizontalSplit)
 
     Editor editor = Editor::createForTests();
     auto smPtr = std::make_unique<ModeStateMachine>(
-        createModeContext(&editor), FileBrowserMode{root.string()});
+        createModeContext(&editor),
+        FileBrowserMode{root.string()});
     auto& sm = *smPtr;
     editor.setModeStateMachineForTests(std::move(smPtr));
 
@@ -329,7 +349,8 @@ TEST(RealModeTransitionsTest, BrowserHsDoesNotFallBackToEditorSplitCommand)
 
     Editor editor = Editor::createForTests();
     auto smPtr = std::make_unique<ModeStateMachine>(
-        createModeContext(&editor), FileBrowserMode{root.string()});
+        createModeContext(&editor),
+        FileBrowserMode{root.string()});
     auto& sm = *smPtr;
     editor.setModeStateMachineForTests(std::move(smPtr));
 
@@ -354,7 +375,8 @@ TEST(RealModeTransitionsTest, BrowserSplitCommandsWorkAfterBrowserIsSplit)
 
     Editor editor = Editor::createForTests();
     auto smPtr = std::make_unique<ModeStateMachine>(
-        createModeContext(&editor), FileBrowserMode{root.string()});
+        createModeContext(&editor),
+        FileBrowserMode{root.string()});
     auto& sm = *smPtr;
     editor.setModeStateMachineForTests(std::move(smPtr));
 
@@ -385,7 +407,8 @@ TEST(RealModeTransitionsTest, BrowserSplitDrawsWithoutCreatingBuffer)
 
     Editor editor = Editor::createForTests();
     auto smPtr = std::make_unique<ModeStateMachine>(
-        createModeContext(&editor), FileBrowserMode{root.string()});
+        createModeContext(&editor),
+        FileBrowserMode{root.string()});
     auto& sm = *smPtr;
     editor.setModeStateMachineForTests(std::move(smPtr));
 
@@ -408,7 +431,8 @@ TEST(RealModeTransitionsTest, BrowserSplitCommandWorksAfterDraw)
 
     Editor editor = Editor::createForTests();
     auto smPtr = std::make_unique<ModeStateMachine>(
-        createModeContext(&editor), FileBrowserMode{root.string()});
+        createModeContext(&editor),
+        FileBrowserMode{root.string()});
     auto& sm = *smPtr;
     editor.setModeStateMachineForTests(std::move(smPtr));
 
@@ -604,8 +628,9 @@ TEST(RealModeTransitionsTest, FileBrowserOpenSeparatesEditorAndBrowserPanes)
     ASSERT_STREQ(sm.currentStateName(), "NORMAL");
     EXPECT_FALSE(editor.splitActive);
     ASSERT_TRUE(editor.currentBuffer != nullptr);
-    EXPECT_EQ(std::filesystem::weakly_canonical(editor.currentBuffer->filename),
-              std::filesystem::weakly_canonical(root / "alpha.txt"));
+    EXPECT_EQ(
+        std::filesystem::weakly_canonical(editor.currentBuffer->filename),
+        std::filesystem::weakly_canonical(root / "alpha.txt"));
 
     dispatch_command(sm, "e " + root.string());
 
@@ -736,8 +761,9 @@ TEST(RealModeTransitionsTest, FileBrowserCapitalQClosesAllSplitPanesToNormal)
 
     Editor editor = Editor::createForTests();
     editor.openFile((root / "alpha.txt").string());
-    auto sm = makeMachine(editor, FileBrowserMode{root.string(),
-                                                  (root / "alpha.txt").string()});
+    auto sm = makeMachine(
+        editor,
+        FileBrowserMode{root.string(), (root / "alpha.txt").string()});
 
     dispatch_command(sm, "vs");
     ASSERT_TRUE(editor.splitActive);
@@ -768,16 +794,17 @@ TEST(RealModeTransitionsTest, BareHelpOpensIndexAndFuzzySearchJumpsToRow)
     EXPECT_EQ(help->lines.front(), "# uvim Help");
     ASSERT_GE(help->selectedLine, 0);
     ASSERT_LT(help->selectedLine, (int)help->lines.size());
-    EXPECT_TRUE(text_utils::is_found(help->lines[help->selectedLine].find(
-        "`:help`")));
+    EXPECT_TRUE(
+        text_utils::is_found(help->lines[help->selectedLine].find("`:help`")));
 
     sm.dispatch(keyCode(typed::TypedKey::KEY_J));
     help = sm.getState<HelpMode>();
     ASSERT_NE(help, nullptr);
     ASSERT_GE(help->selectedLine, 0);
     ASSERT_LT(help->selectedLine, (int)help->lines.size());
-    EXPECT_TRUE(text_utils::is_found(help->lines[help->selectedLine].find(
-        "`:help commands`")));
+    EXPECT_TRUE(
+        text_utils::is_found(
+            help->lines[help->selectedLine].find("`:help commands`")));
 
     sm.dispatch(keyCode(control::ControlKey::ENTER));
     help = sm.getState<HelpMode>();
@@ -826,19 +853,23 @@ TEST(RealModeTransitionsTest, BareHelpOpensIndexAndFuzzySearchJumpsToRow)
     help = sm.getState<HelpMode>();
     ASSERT_NE(help, nullptr);
     ASSERT_FALSE(help->searchMatches.empty());
-    EXPECT_TRUE(std::any_of(help->searchMatches.begin(),
-                            help->searchMatches.end(),
-                            [](const HelpMode::HelpSearchMatch& match)
-                            { return !match.topicOnly; }));
+    EXPECT_TRUE(
+        std::any_of(
+            help->searchMatches.begin(),
+            help->searchMatches.end(),
+            [](const HelpMode::HelpSearchMatch& match)
+            { return !match.topicOnly; }));
 
     sm.dispatch(keyCode(control::ControlKey::CTRL_I));
     help = sm.getState<HelpMode>();
     ASSERT_NE(help, nullptr);
     EXPECT_FALSE(help->searchDocumentation);
-    EXPECT_TRUE(std::none_of(help->searchMatches.begin(),
-                             help->searchMatches.end(),
-                             [](const HelpMode::HelpSearchMatch& match)
-                             { return !match.topicOnly; }));
+    EXPECT_TRUE(
+        std::none_of(
+            help->searchMatches.begin(),
+            help->searchMatches.end(),
+            [](const HelpMode::HelpSearchMatch& match)
+            { return !match.topicOnly; }));
 
     sm.dispatch(keyCode(control::ControlKey::CTRL_I));
     help = sm.getState<HelpMode>();
@@ -865,8 +896,7 @@ TEST(RealModeTransitionsTest, BareHelpOpensIndexAndFuzzySearchJumpsToRow)
     EXPECT_EQ(help->selectedLine, jumpedLine);
 
     bool visibleMatch = false;
-    const int last =
-        std::min((int)help->lines.size(), help->scrollOffset + 8);
+    const int last = std::min((int)help->lines.size(), help->scrollOffset + 8);
     for(int i = help->scrollOffset; i < last; ++i)
     {
         if(text_utils::is_found(help->lines[i].find("git stage")) ||
@@ -1393,8 +1423,8 @@ TEST(RealModeTransitionsTest, ToolInfoCommandOpensViewAndQuitReturnsWelcome)
     EXPECT_TRUE(
         contains_help_text(editor.toolInfoLines, "python (JSON/YAML):"));
 #else
-    EXPECT_TRUE(contains_help_text(editor.toolInfoLines,
-                                   "formatters: not compiled"));
+    EXPECT_TRUE(
+        contains_help_text(editor.toolInfoLines, "formatters: not compiled"));
 #endif
 
     sm.dispatch('q');
@@ -1518,7 +1548,9 @@ TEST(RealModeTransitionsTest, BDoesNotTurnFollowingDeleteIntoBufferCommand)
     EXPECT_STREQ(sm.currentStateName(), "OP_PENDING");
 }
 
-TEST(RealModeTransitionsTest, NormalNavigationKeysDoNotOverlapWithFollowingInput)
+TEST(
+    RealModeTransitionsTest,
+    NormalNavigationKeysDoNotOverlapWithFollowingInput)
 {
     struct MotionCase
     {
@@ -1547,7 +1579,12 @@ TEST(RealModeTransitionsTest, NormalNavigationKeysDoNotOverlapWithFollowingInput
         {"left", {keyCode(navigation::NavigationKey::ARROW_LEFT)}, 1, 7, 1, 6},
         {"down", {keyCode(navigation::NavigationKey::ARROW_DOWN)}, 0, 4, 1, 4},
         {"up", {keyCode(navigation::NavigationKey::ARROW_UP)}, 1, 7, 0, 7},
-        {"right", {keyCode(navigation::NavigationKey::ARROW_RIGHT)}, 1, 7, 1, 8},
+        {"right",
+         {keyCode(navigation::NavigationKey::ARROW_RIGHT)},
+         1,
+         7,
+         1,
+         8},
         {"2h", {'2', 'h'}, 1, 7, 1, 5},
         {"2l", {'2', 'l'}, 1, 7, 1, 9},
         {"2j", {'2', 'j'}, 0, 4, 2, 0},
@@ -1563,8 +1600,12 @@ TEST(RealModeTransitionsTest, NormalNavigationKeysDoNotOverlapWithFollowingInput
         SCOPED_TRACE(motion.label);
         Editor editor = Editor::createForTests();
         editor.createNewBuffer();
-        *editor.lines = {"  one two three", "  four five six", "",
-                         "  seven eight nine", "  ten eleven twelve"};
+        *editor.lines =
+            {"  one two three",
+             "  four five six",
+             "",
+             "  seven eight nine",
+             "  ten eleven twelve"};
         *editor.cursorY = motion.startY;
         *editor.cursorX = *editor.wantedX = motion.startX;
         auto sm = makeMachine(editor, NormalMode{});
@@ -1580,11 +1621,19 @@ TEST(RealModeTransitionsTest, NormalNavigationKeysDoNotOverlapWithFollowingInput
     }
 }
 
-TEST(RealModeTransitionsTest, ScreenAndScrollNavigationDoNotConsumeFollowingInput)
+TEST(
+    RealModeTransitionsTest,
+    ScreenAndScrollNavigationDoNotConsumeFollowingInput)
 {
-    struct MotionCase { int key, endY; };
+    struct MotionCase
+    {
+        int key, endY;
+    };
+
     const MotionCase cases[] = {
-        {'H', 10}, {'M', 19}, {'L', 28},
+        {'H', 10},
+        {'M', 19},
+        {'L', 28},
         {keyCode(control::ControlKey::CTRL_D), 30},
         {keyCode(control::ControlKey::CTRL_U), 10},
         {keyCode(control::ControlKey::CTRL_F), 39},
@@ -1613,7 +1662,9 @@ TEST(RealModeTransitionsTest, ScreenAndScrollNavigationDoNotConsumeFollowingInpu
     }
 }
 
-TEST(RealModeTransitionsTest, VerticalNavigationKeepsColumnsAcrossUtf8AndShortLines)
+TEST(
+    RealModeTransitionsTest,
+    VerticalNavigationKeepsColumnsAcrossUtf8AndShortLines)
 {
     Editor editor = Editor::createForTests();
     editor.createNewBuffer();
@@ -1646,9 +1697,17 @@ TEST(RealModeTransitionsTest, VerticalNavigationKeepsColumnsAcrossUtf8AndShortLi
 
 TEST(RealModeTransitionsTest, CharacterSearchConsumesOnlyItsTargetKey)
 {
-    struct MotionCase { char key; int startX, endX; };
-    for(const auto& motion : {MotionCase{'f', 0, 2}, MotionCase{'F', 6, 2},
-                              MotionCase{'t', 0, 1}, MotionCase{'T', 6, 3}})
+    struct MotionCase
+    {
+        char key;
+        int startX, endX;
+    };
+
+    for(const auto& motion :
+        {MotionCase{'f', 0, 2},
+         MotionCase{'F', 6, 2},
+         MotionCase{'t', 0, 1},
+         MotionCase{'T', 6, 3}})
     {
         SCOPED_TRACE(motion.key);
         Editor editor = Editor::createForTests();
@@ -1759,23 +1818,27 @@ TEST(RealModeTransitionsTest, NormalCtrlJAndCtrlKMoveCurrentLineWithUndoRedo)
     auto sm = makeMachine(editor, NormalMode{});
 
     sm.dispatch(keyCode(control::ControlKey::CTRL_J));
-    EXPECT_EQ(editor.currentBuffer->lines,
-              (std::vector<std::string>{"one", "three", "two"}));
+    EXPECT_EQ(
+        editor.currentBuffer->lines,
+        (std::vector<std::string>{"one", "three", "two"}));
     EXPECT_EQ(*editor.cursorY, 2);
 
     sm.dispatch(keyCode(typed::TypedKey::KEY_U));
-    EXPECT_EQ(editor.currentBuffer->lines,
-              (std::vector<std::string>{"one", "two", "three"}));
+    EXPECT_EQ(
+        editor.currentBuffer->lines,
+        (std::vector<std::string>{"one", "two", "three"}));
     EXPECT_EQ(*editor.cursorY, 1);
 
     sm.dispatch(keyCode(control::ControlKey::CTRL_R));
-    EXPECT_EQ(editor.currentBuffer->lines,
-              (std::vector<std::string>{"one", "three", "two"}));
+    EXPECT_EQ(
+        editor.currentBuffer->lines,
+        (std::vector<std::string>{"one", "three", "two"}));
     EXPECT_EQ(*editor.cursorY, 2);
 
     sm.dispatch(keyCode(control::ControlKey::CTRL_K));
-    EXPECT_EQ(editor.currentBuffer->lines,
-              (std::vector<std::string>{"one", "two", "three"}));
+    EXPECT_EQ(
+        editor.currentBuffer->lines,
+        (std::vector<std::string>{"one", "two", "three"}));
     EXPECT_EQ(*editor.cursorY, 1);
 }
 
@@ -1797,16 +1860,18 @@ TEST(RealModeTransitionsTest, VisualLineCtrlJAndCtrlKMoveSelection)
     ASSERT_EQ(editor.currentBuffer->visualEndY, 2);
 
     sm.dispatch(keyCode(control::ControlKey::CTRL_J));
-    EXPECT_EQ(editor.currentBuffer->lines,
-              (std::vector<std::string>{"a", "d", "b", "c", "e"}));
+    EXPECT_EQ(
+        editor.currentBuffer->lines,
+        (std::vector<std::string>{"a", "d", "b", "c", "e"}));
     EXPECT_EQ(editor.currentBuffer->visualStartY, 2);
     EXPECT_EQ(editor.currentBuffer->visualEndY, 3);
     EXPECT_EQ(*editor.cursorY, 3);
     EXPECT_STREQ(sm.currentStateName(), "VISUAL LINE");
 
     sm.dispatch(keyCode(control::ControlKey::CTRL_K));
-    EXPECT_EQ(editor.currentBuffer->lines,
-              (std::vector<std::string>{"a", "b", "c", "d", "e"}));
+    EXPECT_EQ(
+        editor.currentBuffer->lines,
+        (std::vector<std::string>{"a", "b", "c", "d", "e"}));
     EXPECT_EQ(editor.currentBuffer->visualStartY, 1);
     EXPECT_EQ(editor.currentBuffer->visualEndY, 2);
     EXPECT_EQ(*editor.cursorY, 2);
@@ -1827,17 +1892,20 @@ TEST(RealModeTransitionsTest, VisualLineMoveCanUndoAndRedo)
     sm.dispatch(keyCode(typed::TypedKey::KEY_CAP_V));
     sm.dispatch(keyCode(typed::TypedKey::KEY_J));
     sm.dispatch(keyCode(control::ControlKey::CTRL_J));
-    EXPECT_EQ(editor.currentBuffer->lines,
-              (std::vector<std::string>{"a", "d", "b", "c"}));
+    EXPECT_EQ(
+        editor.currentBuffer->lines,
+        (std::vector<std::string>{"a", "d", "b", "c"}));
 
     sm.dispatch(keyCode(control::ControlKey::ESC));
     sm.dispatch(keyCode(typed::TypedKey::KEY_U));
-    EXPECT_EQ(editor.currentBuffer->lines,
-              (std::vector<std::string>{"a", "b", "c", "d"}));
+    EXPECT_EQ(
+        editor.currentBuffer->lines,
+        (std::vector<std::string>{"a", "b", "c", "d"}));
 
     sm.dispatch(keyCode(control::ControlKey::CTRL_R));
-    EXPECT_EQ(editor.currentBuffer->lines,
-              (std::vector<std::string>{"a", "d", "b", "c"}));
+    EXPECT_EQ(
+        editor.currentBuffer->lines,
+        (std::vector<std::string>{"a", "d", "b", "c"}));
 }
 
 #ifdef UVIM_ENABLE_AUXILIARY_VIEWS
@@ -1876,8 +1944,9 @@ void failUnexpectedExit()
 {
     if(exitIsAFailure)
     {
-        std::fputs("FAILURE: the editor exited (std::exit) during a test\n",
-                   stderr);
+        std::fputs(
+            "FAILURE: the editor exited (std::exit) during a test\n",
+            stderr);
         std::_Exit(1);
     }
 }
@@ -1907,9 +1976,9 @@ TEST(RealModeTransitionsTest, QuitRefusesWithUnsavedChanges)
             sm.dispatch(c);
         sm.dispatch(keyCode(control::ControlKey::ENTER));
         EXPECT_STREQ(sm.currentStateName(), "NORMAL") << command;
-        EXPECT_TRUE(text_utils::is_found(editor.statusMessage.find("unsaved")) ||
-                    text_utils::is_found(
-                        editor.statusMessage.find("No write since")))
+        EXPECT_TRUE(
+            text_utils::is_found(editor.statusMessage.find("unsaved")) ||
+            text_utils::is_found(editor.statusMessage.find("No write since")))
             << command << ": " << editor.statusMessage;
     }
     exitIsAFailure = false;
@@ -1933,7 +2002,8 @@ TEST(RealModeTransitionsTest, SetIsKittyTogglesAltChords)
     EXPECT_TRUE(Terminal::altChords());
     EXPECT_STREQ(Terminal::shiftChordLabel(), "Alt");
     run("set iskitty?");
-    EXPECT_TRUE(text_utils::is_found(editor.statusMessage.find("iskitty=false")))
+    EXPECT_TRUE(
+        text_utils::is_found(editor.statusMessage.find("iskitty=false")))
         << editor.statusMessage;
 
     run("set iskitty=true");
@@ -1951,7 +2021,8 @@ TEST(RealModeTransitionsTest, SetIsKittyTogglesAltChords)
 namespace
 {
 std::vector<std::string> paletteTitles(
-    const std::vector<command_palette::Entry>& entries, const std::string& query)
+    const std::vector<command_palette::Entry>& entries,
+    const std::string& query)
 {
     std::vector<std::string> out;
     for(const auto& match : command_palette::rank(entries, query))
@@ -1959,11 +2030,13 @@ std::vector<std::string> paletteTitles(
     return out;
 }
 
-TEST(RegexFuzzyQueryTest,
-     PaletteMatchesTitlesAndAliasesWithoutLowercasingRegexEscapes)
+TEST(
+    RegexFuzzyQueryTest,
+    PaletteMatchesTitlesAndAliasesWithoutLowercasingRegexEscapes)
 {
     const std::vector<command_palette::Entry> entries{
-        {"Open file", "", {"edit"}, {}}, {"Run tests 123", "", {"test123"}, {}}};
+        {"Open file", "", {"edit"}, {}},
+        {"Run tests 123", "", {"test123"}, {}}};
     auto matches = command_palette::rank(entries, "re:^Open.*file$");
     ASSERT_EQ(matches.size(), 1u);
     EXPECT_EQ(matches[0].entry, 0);
@@ -1998,7 +2071,8 @@ TEST(CommandPaletteTest, ActionsAndExCommandsRankByMeaning)
 {
     auto entries = command_palette::builtinActions();
     command_palette::addExCommands(
-        entries, {"w", "wa", "qa", "qall", "pwd", "tabn", "tabnext"},
+        entries,
+        {"w", "wa", "qa", "qall", "pwd", "tabn", "tabnext"},
         [](std::string_view command) -> std::string
         {
             if(command == "qa" || command == "qall")
@@ -2010,15 +2084,19 @@ TEST(CommandPaletteTest, ActionsAndExCommandsRankByMeaning)
 
     // Ex commands an action already covers are not repeated; the rest are
     // grouped by description, shortcut listing the spellings.
-    const auto quitAll = std::find_if(entries.begin(), entries.end(),
-                                      [](const auto& entry)
-                                      { return entry.title == "Quit all windows"; });
+    const auto quitAll = std::find_if(
+        entries.begin(),
+        entries.end(),
+        [](const auto& entry) { return entry.title == "Quit all windows"; });
     ASSERT_NE(quitAll, entries.end());
     EXPECT_EQ(quitAll->shortcut, ":qa, :qall");
-    EXPECT_EQ(std::count_if(entries.begin(), entries.end(),
-                            [](const auto& entry)
-                            { return entry.title == "Show working directory"; }),
-              1);
+    EXPECT_EQ(
+        std::count_if(
+            entries.begin(),
+            entries.end(),
+            [](const auto& entry)
+            { return entry.title == "Show working directory"; }),
+        1);
 
     EXPECT_EQ(paletteTitles(entries, "file br").front(), "Open file browser");
     EXPECT_EQ(paletteTitles(entries, "change buf").front(), "Change buffer");
@@ -2045,7 +2123,8 @@ TEST(CommandPaletteTest, ActionsRunTheirKeysAndCommands)
     }
     {
         auto sm = makeMachine(editor, NormalMode{});
-        runPalette(sm, editor, "find references"); // Space g r reads its next key
+        runPalette(sm, editor, "find references"); // Space g r reads its next
+                                                   // key
         EXPECT_EQ(Terminal::bufferedKeyCount(), 0) << "replayed keys all used";
     }
     {
@@ -2116,7 +2195,8 @@ TEST(CommandPaletteTest, NavigationAndLeaving)
 #ifdef UVIM_ENABLE_AUXILIARY_VIEWS
 TEST(CommandPaletteTest, SpaceSpaceOpensPaletteFromVisualModes)
 {
-    for(char visualKey : {'v', 'V', static_cast<char>(keyCode(control::ControlKey::CTRL_V))})
+    for(char visualKey :
+        {'v', 'V', static_cast<char>(keyCode(control::ControlKey::CTRL_V))})
     {
         Editor editor = Editor::createForTests();
         editor.createNewBuffer();
@@ -2218,8 +2298,9 @@ TEST(RealModeTransitionsTest, AssemblyCommandFollowsBuildFlag)
     sm.dispatch(keyCode(control::ControlKey::ESC));
     dispatch_command(sm, "asm .");
     EXPECT_STREQ(sm.currentStateName(), "NORMAL");
-    EXPECT_NE(editor.statusMessage.find("Not an editor command"),
-              std::string::npos);
+    EXPECT_NE(
+        editor.statusMessage.find("Not an editor command"),
+        std::string::npos);
 #endif
 }
 

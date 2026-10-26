@@ -274,8 +274,9 @@ bool has_staged_rows(const GitStageMode& stage)
     return false;
 }
 
-std::optional<ModeState> start_fixup_from_stage(Editor& editor,
-                                                GitStageMode& stage)
+std::optional<ModeState> start_fixup_from_stage(
+    Editor& editor,
+    GitStageMode& stage)
 {
     std::vector<std::string> files;
     files.reserve(stage.fixupMarked.size());
@@ -289,7 +290,11 @@ std::optional<ModeState> start_fixup_from_stage(Editor& editor,
     }
 
     return GitFixupMode{
-        {}, stage.repoRoot, stage.repoDir, std::move(files), stage};
+        {},
+        stage.repoRoot,
+        stage.repoDir,
+        std::move(files),
+        stage};
 }
 
 bool is_ansi_start(std::string_view text, size_t i)
@@ -394,8 +399,10 @@ std::string slice_with_ansi(std::string_view text, int startCol, int width)
     return out;
 }
 
-void append_diff_line(std::string& output, const Editor& editor,
-                      const std::string& line)
+void append_diff_line(
+    std::string& output,
+    const Editor& editor,
+    const std::string& line)
 {
     if(editor.gitUseDefaultColors)
     {
@@ -435,8 +442,10 @@ void append_diff_line(std::string& output, const Editor& editor,
 }
 } // namespace
 
-GitStageMode::GitStageMode(std::vector<Node> items, std::string root,
-                           std::string dir)
+GitStageMode::GitStageMode(
+    std::vector<Node> items,
+    std::string root,
+    std::string dir)
     : nodes(std::move(items)), repoRoot(std::move(root)),
       repoDir(std::move(dir))
 {
@@ -580,15 +589,21 @@ bool GitStageMode::refreshStatus(Editor& editor)
             unstagedEntries.push_back(entry);
     }
 
-    std::sort(stagedEntries.begin(), stagedEntries.end(),
-              [](const StatusEntry& a, const StatusEntry& b)
-              { return a.path < b.path; });
-    std::sort(unstagedEntries.begin(), unstagedEntries.end(),
-              [](const StatusEntry& a, const StatusEntry& b)
-              { return a.path < b.path; });
-    std::sort(untrackedEntries.begin(), untrackedEntries.end(),
-              [](const StatusEntry& a, const StatusEntry& b)
-              { return a.path < b.path; });
+    std::sort(
+        stagedEntries.begin(),
+        stagedEntries.end(),
+        [](const StatusEntry& a, const StatusEntry& b)
+        { return a.path < b.path; });
+    std::sort(
+        unstagedEntries.begin(),
+        unstagedEntries.end(),
+        [](const StatusEntry& a, const StatusEntry& b)
+        { return a.path < b.path; });
+    std::sort(
+        untrackedEntries.begin(),
+        untrackedEntries.end(),
+        [](const StatusEntry& a, const StatusEntry& b)
+        { return a.path < b.path; });
 
     auto add_row = [&](StatusRow row)
     {
@@ -604,45 +619,68 @@ bool GitStageMode::refreshStatus(Editor& editor)
     if(entries.empty())
     {
         add_row({RowKind::Blank, FileGroup::None, "", ""});
-        add_row({RowKind::Summary, FileGroup::None,
-                 "nothing to commit, working tree clean", ""});
+        add_row(
+            {RowKind::Summary,
+             FileGroup::None,
+             "nothing to commit, working tree clean",
+             ""});
     }
     else
     {
         if(!stagedEntries.empty())
         {
             add_row({RowKind::Blank, FileGroup::None, "", ""});
-            add_row({RowKind::Header, FileGroup::None,
-                     "Changes to be committed:", ""});
-            add_row({RowKind::Hint, FileGroup::None,
-                     "  (use \"git restore --staged <file>...\" to unstage)",
-                     ""});
+            add_row(
+                {RowKind::Header,
+                 FileGroup::None,
+                 "Changes to be committed:",
+                 ""});
+            add_row(
+                {RowKind::Hint,
+                 FileGroup::None,
+                 "  (use \"git restore --staged <file>...\" to unstage)",
+                 ""});
             for(const auto& entry : stagedEntries)
             {
-                add_row({RowKind::File, FileGroup::Staged,
-                         "        " + staged_label(entry.indexStatus),
-                         entry.path, entry.indexStatus, entry.worktreeStatus});
+                add_row(
+                    {RowKind::File,
+                     FileGroup::Staged,
+                     "        " + staged_label(entry.indexStatus),
+                     entry.path,
+                     entry.indexStatus,
+                     entry.worktreeStatus});
             }
         }
 
         if(!unstagedEntries.empty())
         {
             add_row({RowKind::Blank, FileGroup::None, "", ""});
-            add_row({RowKind::Header, FileGroup::None,
-                     "Changes not staged for commit:", ""});
-            add_row({RowKind::Hint, FileGroup::None,
-                     "  (use \"git add <file>...\" to update what will be "
-                     "committed)",
-                     ""});
-            add_row({RowKind::Hint, FileGroup::None,
-                     "  (use \"git restore <file>...\" to discard changes in "
-                     "working directory)",
-                     ""});
+            add_row(
+                {RowKind::Header,
+                 FileGroup::None,
+                 "Changes not staged for commit:",
+                 ""});
+            add_row(
+                {RowKind::Hint,
+                 FileGroup::None,
+                 "  (use \"git add <file>...\" to update what will be "
+                 "committed)",
+                 ""});
+            add_row(
+                {RowKind::Hint,
+                 FileGroup::None,
+                 "  (use \"git restore <file>...\" to discard changes in "
+                 "working directory)",
+                 ""});
             for(const auto& entry : unstagedEntries)
             {
-                add_row({RowKind::File, FileGroup::Unstaged,
-                         "        " + unstaged_label(entry.worktreeStatus),
-                         entry.path, entry.indexStatus, entry.worktreeStatus});
+                add_row(
+                    {RowKind::File,
+                     FileGroup::Unstaged,
+                     "        " + unstaged_label(entry.worktreeStatus),
+                     entry.path,
+                     entry.indexStatus,
+                     entry.worktreeStatus});
             }
         }
 
@@ -650,14 +688,21 @@ bool GitStageMode::refreshStatus(Editor& editor)
         {
             add_row({RowKind::Blank, FileGroup::None, "", ""});
             add_row({RowKind::Header, FileGroup::None, "Untracked files:", ""});
-            add_row({RowKind::Hint, FileGroup::None,
-                     "  (use \"git add <file>...\" to include in what will be "
-                     "committed)",
-                     ""});
+            add_row(
+                {RowKind::Hint,
+                 FileGroup::None,
+                 "  (use \"git add <file>...\" to include in what will be "
+                 "committed)",
+                 ""});
             for(const auto& entry : untrackedEntries)
             {
-                add_row({RowKind::File, FileGroup::Untracked, "        ",
-                         entry.path, entry.indexStatus, entry.worktreeStatus});
+                add_row(
+                    {RowKind::File,
+                     FileGroup::Untracked,
+                     "        ",
+                     entry.path,
+                     entry.indexStatus,
+                     entry.worktreeStatus});
             }
         }
     }
@@ -726,12 +771,12 @@ void GitStageMode::refreshDiff(Editor& editor)
         return;
     }
 
-    std::vector<std::string> args = {"git", "-C", repoDir, "--no-pager",
-                                     "diff"};
+    std::vector<std::string> args =
+        {"git", "-C", repoDir, "--no-pager", "diff"};
     if(row.group == FileGroup::Staged)
         args.push_back("--cached");
-    args.push_back(editor.gitUseDefaultColors ? "--color=always"
-                                              : "--no-color");
+    args.push_back(
+        editor.gitUseDefaultColors ? "--color=always" : "--no-color");
     args.push_back("--");
     args.push_back(row.path);
 
@@ -766,8 +811,9 @@ void GitStageMode::refreshDiff(Editor& editor)
     diffDirty = false;
 }
 
-std::optional<ModeState> GitStageMode::handle(ModeContext& ctx,
-                                              const ModeKeyEvent& event)
+std::optional<ModeState> GitStageMode::handle(
+    ModeContext& ctx,
+    const ModeKeyEvent& event)
 {
     const int key = event.key;
     Editor* ed = ctx.editor;
@@ -861,11 +907,18 @@ std::optional<ModeState> GitStageMode::handle(ModeContext& ctx,
             std::vector<std::string> args;
             if(row.group == FileGroup::Staged)
             {
-                args = {"git",      "-C", repoDir, "restore",
-                        "--staged", "--", row.path};
+                args =
+                    {"git",
+                     "-C",
+                     repoDir,
+                     "restore",
+                     "--staged",
+                     "--",
+                     row.path};
             }
-            else if(row.group == FileGroup::Unstaged ||
-                    row.group == FileGroup::Untracked)
+            else if(
+                row.group == FileGroup::Unstaged ||
+                row.group == FileGroup::Untracked)
             {
                 args = {"git", "-C", repoDir, "add", "--", row.path};
             }
@@ -895,8 +948,9 @@ std::optional<ModeState> GitStageMode::handle(ModeContext& ctx,
             keepCursorVisible(*ed);
         }
     }
-    else if(c == keyCode(typed::TypedKey::KEY_K) ||
-            c == keyCode(navigation::NavigationKey::ARROW_UP))
+    else if(
+        c == keyCode(typed::TypedKey::KEY_K) ||
+        c == keyCode(navigation::NavigationKey::ARROW_UP))
     {
         if(cursor > 0)
         {
@@ -912,11 +966,12 @@ std::optional<ModeState> GitStageMode::handle(ModeContext& ctx,
         if(diffVisible)
         {
             int maxScroll = std::max(
-                0, (int)diffLines.size() -
-                       git_stage_content_rows(
-                           ed->screenRows,
-                           (int)wrap_help(git_stage_help_text(), ed->screenCols)
-                               .size()));
+                0,
+                (int)diffLines.size() -
+                    git_stage_content_rows(
+                        ed->screenRows,
+                        (int)wrap_help(git_stage_help_text(), ed->screenCols)
+                            .size()));
             if(diffOffset < maxScroll)
                 ++diffOffset;
         }
@@ -940,8 +995,9 @@ std::optional<ModeState> GitStageMode::handle(ModeContext& ctx,
             if(diffWidth < 20)
                 listWidth = ed->screenCols;
         }
-        listHorizontalOffset = std::min(maxListHorizontalOffset(listWidth),
-                                        listHorizontalOffset + 1);
+        listHorizontalOffset = std::min(
+            maxListHorizontalOffset(listWidth),
+            listHorizontalOffset + 1);
     }
     else if(c == keyCode(control::ControlKey::CTRL_H))
     {
@@ -958,8 +1014,9 @@ std::optional<ModeState> GitStageMode::handle(ModeContext& ctx,
             {
                 int diffViewWidth = std::max(0, diffWidth - 1);
                 int maxDiffOffset = std::max(
-                    0, max_diff_width(diffLines, ed->gitUseDefaultColors) -
-                           diffViewWidth);
+                    0,
+                    max_diff_width(diffLines, ed->gitUseDefaultColors) -
+                        diffViewWidth);
                 diffHorizontalOffset =
                     std::min(maxDiffOffset, diffHorizontalOffset + 1);
             }
@@ -1051,9 +1108,9 @@ void GitStageMode::draw(Editor& editor) const
     int listOff = std::min(listHorizontalOffset, maxListOffset);
     self->listHorizontalOffset = listOff;
     int diffViewWidth = std::max(0, diffWidth - 1);
-    int maxDiffOffset =
-        std::max(0, max_diff_width(diffLines, editor.gitUseDefaultColors) -
-                        diffViewWidth);
+    int maxDiffOffset = std::max(
+        0,
+        max_diff_width(diffLines, editor.gitUseDefaultColors) - diffViewWidth);
     int hOff = std::min(diffHorizontalOffset, maxDiffOffset);
     self->diffHorizontalOffset = hOff;
 
@@ -1174,7 +1231,9 @@ void GitStageMode::draw(Editor& editor) const
                 if(editor.gitUseDefaultColors)
                 {
                     std::string clipped = slice_with_ansi(
-                        diffLines[diffIdx], hOff, visibleDiffWidth);
+                        diffLines[diffIdx],
+                        hOff,
+                        visibleDiffWidth);
                     output += clipped;
                     output += editor.theme.reset();
                     output += editor.theme.base();
@@ -1228,7 +1287,8 @@ void GitStageMode::draw(Editor& editor) const
 int GitStageMode::testContentRows(int screenRows, int screenCols)
 {
     return git_stage_content_rows(
-        screenRows, (int)wrap_help(git_stage_help_text(), screenCols).size());
+        screenRows,
+        (int)wrap_help(git_stage_help_text(), screenCols).size());
 }
 #endif
 } // namespace editor::statemachine

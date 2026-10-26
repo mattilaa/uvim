@@ -22,8 +22,9 @@ int main(int argc, char** argv)
                 args[i] == "-arch") &&
                i + 1 < args.size())
                 target = args[++i];
-            else if(args[i].starts_with("--target=") ||
-                    args[i].starts_with("-target="))
+            else if(
+                args[i].starts_with("--target=") ||
+                args[i].starts_with("-target="))
                 target = args[i].substr(args[i].find('=') + 1);
         }
         std::cout << target << '\n';

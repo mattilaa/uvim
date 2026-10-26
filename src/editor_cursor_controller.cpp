@@ -1,5 +1,5 @@
-#include "editor.h"
 #include "editor_cursor_controller.h"
+#include "editor.h"
 #include "key_enums.h"
 #include "text_utils.h"
 
@@ -56,8 +56,9 @@ inline int line_len(const std::vector<std::string>& ls, int y) noexcept
     return static_cast<int>(ls[static_cast<size_t>(y)].size());
 }
 
-inline std::string_view line_view(const std::vector<std::string>& ls,
-                                  int y) noexcept
+inline std::string_view line_view(
+    const std::vector<std::string>& ls,
+    int y) noexcept
 {
     if(y < 0 || y >= line_count(ls))
         return {};
@@ -178,8 +179,11 @@ void EditorCursorController::moveUp(int count)
     cy = std::clamp(cy, 0, n - 1);
 
     cy = std::max(0, cy - std::max(0, count));
-    cx = verticalColumn(line_view(*editor.lines, cy), wx, editor.utf8Mode,
-                         editor.currentMode == NORMAL);
+    cx = verticalColumn(
+        line_view(*editor.lines, cy),
+        wx,
+        editor.utf8Mode,
+        editor.currentMode == NORMAL);
 }
 
 void EditorCursorController::moveDown(int count)
@@ -195,8 +199,11 @@ void EditorCursorController::moveDown(int count)
     cy = std::clamp(cy, 0, n - 1);
 
     cy = std::min(n - 1, cy + std::max(0, count));
-    cx = verticalColumn(line_view(*editor.lines, cy), wx, editor.utf8Mode,
-                         editor.currentMode == NORMAL);
+    cx = verticalColumn(
+        line_view(*editor.lines, cy),
+        wx,
+        editor.utf8Mode,
+        editor.currentMode == NORMAL);
 }
 
 void EditorCursorController::moveWordForward()
@@ -962,7 +969,8 @@ void EditorCursorController::scrollPageUp()
         *editor.offsetY = 0;
     if(*editor.cursorY < (int)editor.lines->size())
         *editor.cursorX = std::min(
-            *editor.wantedX, (int)(*editor.lines)[*editor.cursorY].length());
+            *editor.wantedX,
+            (int)(*editor.lines)[*editor.cursorY].length());
     editor.needsFullRedraw = true;
 }
 
@@ -979,7 +987,8 @@ void EditorCursorController::scrollPageDown()
         *editor.offsetY = maxOffset;
     if(*editor.cursorY >= 0 && *editor.cursorY < (int)editor.lines->size())
         *editor.cursorX = std::min(
-            *editor.wantedX, (int)(*editor.lines)[*editor.cursorY].length());
+            *editor.wantedX,
+            (int)(*editor.lines)[*editor.cursorY].length());
     editor.needsFullRedraw = true;
 }
 
@@ -1089,8 +1098,10 @@ void EditorCursorController::adjustViewport()
     ox = std::clamp(ox, 0, std::max(0, cx));
 }
 
-void EditorCursorController::adjustViewportForPane(Editor::PaneState& pane,
-                                                   int rows, int cols)
+void EditorCursorController::adjustViewportForPane(
+    Editor::PaneState& pane,
+    int rows,
+    int cols)
 {
     if(!editor.lines || editor.lines->empty())
     {

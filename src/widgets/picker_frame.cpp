@@ -52,12 +52,14 @@ PickerLayout computePickerLayout(const PickerLayoutOptions& options)
 
     const int boxCols = std::min(
         screenCols,
-        std::max(kMinBoxCols, screenCols * std::clamp(options.widthPercent, 10,
-                                                      100) / 100));
+        std::max(
+            kMinBoxCols,
+            screenCols * std::clamp(options.widthPercent, 10, 100) / 100));
     const int boxRows = std::min(
         screenRows,
-        std::max(kMinBoxRows, screenRows * std::clamp(options.heightPercent, 10,
-                                                      100) / 100));
+        std::max(
+            kMinBoxRows,
+            screenRows * std::clamp(options.heightPercent, 10, 100) / 100));
 
     // Too small for a box (or disabled): use the whole area.
     if(!options.floating || screenCols < kMinBoxCols + 2 ||
@@ -93,14 +95,19 @@ PickerLayout computePickerLayout(const PickerLayoutOptions& options)
     return layout;
 }
 
-PickerCanvas::PickerCanvas(std::string& out, const PickerLayout& layout,
-                           const Theme& theme, bool unicode)
+PickerCanvas::PickerCanvas(
+    std::string& out,
+    const PickerLayout& layout,
+    const Theme& theme,
+    bool unicode)
     : out_(out), layout_(layout), theme_(theme), unicode_(unicode)
 {
 }
 
-void PickerCanvas::frame(std::string_view title, std::string_view footer,
-                         int headerRows)
+void PickerCanvas::frame(
+    std::string_view title,
+    std::string_view footer,
+    int headerRows)
 {
     headerRows_ = std::clamp(headerRows, 0, layout_.rows);
     if(!layout_.floating)
@@ -112,8 +119,11 @@ void PickerCanvas::frame(std::string_view title, std::string_view footer,
     const int dividerCol = layout_.preview ? layout_.previewLeft - 1 : -1;
 
     // One horizontal edge; `tee` marks where the pane divider meets it.
-    auto edge = [&](int row, const char* leftCorner, const char* rightCorner,
-                    std::string_view label, const char* tee)
+    auto edge = [&](int row,
+                    const char* leftCorner,
+                    const char* rightCorner,
+                    std::string_view label,
+                    const char* tee)
     {
         out_ += Terminal::cursorPos(row, layout_.boxLeft);
         out_ += theme_.reset();
@@ -155,15 +165,20 @@ void PickerCanvas::frame(std::string_view title, std::string_view footer,
         if(headerRows_ > 0 && row == headerRows_)
         {
             // Separator between the header and the panes.
-            edge(screenRow, unicode_ ? "├" : "+", unicode_ ? "┤" : "+", {},
-                 unicode_ ? "┬" : "+");
+            edge(
+                screenRow,
+                unicode_ ? "├" : "+",
+                unicode_ ? "┤" : "+",
+                {},
+                unicode_ ? "┬" : "+");
             continue;
         }
         out_ += theme_.uiAccent();
         out_ += Terminal::cursorPos(screenRow, layout_.boxLeft);
         out_ += vertical;
-        out_ += Terminal::cursorPos(screenRow,
-                                    layout_.boxLeft + layout_.boxCols - 1);
+        out_ += Terminal::cursorPos(
+            screenRow,
+            layout_.boxLeft + layout_.boxCols - 1);
         out_ += vertical;
         if(dividerCol > 0 && row > headerRows_)
         {
@@ -172,8 +187,12 @@ void PickerCanvas::frame(std::string_view title, std::string_view footer,
         }
         out_ += theme_.reset();
     }
-    edge(bottom, unicode_ ? "╰" : "+", unicode_ ? "╯" : "+", footer,
-         unicode_ ? "┴" : "+");
+    edge(
+        bottom,
+        unicode_ ? "╰" : "+",
+        unicode_ ? "╯" : "+",
+        footer,
+        unicode_ ? "┴" : "+");
 }
 
 int PickerCanvas::bodyTop() const
@@ -220,8 +239,12 @@ void PickerCanvas::endRow(int usedWidth)
     out_ += theme_.reset();
 }
 
-void PickerCanvas::previewRow(int row, int lineNumber, std::string_view text,
-                              bool current, const std::vector<Span>& spans)
+void PickerCanvas::previewRow(
+    int row,
+    int lineNumber,
+    std::string_view text,
+    bool current,
+    const std::vector<Span>& spans)
 {
     if(!layout_.preview || row < 0 || row >= bodyRows())
         return;
@@ -253,8 +276,8 @@ void PickerCanvas::previewRow(int row, int lineNumber, std::string_view text,
         // Clip to the pane by display width (one column per code point).
         while(pos < to && used < textWidth)
         {
-            const size_t len = std::min(utf8SequenceLength(text[pos]),
-                                        text.size() - pos);
+            const size_t len =
+                std::min(utf8SequenceLength(text[pos]), text.size() - pos);
             out_.append(text, pos, len);
             ++used;
             pos += len;
@@ -265,10 +288,10 @@ void PickerCanvas::previewRow(int row, int lineNumber, std::string_view text,
     {
         if(used >= textWidth)
             break;
-        const size_t start = std::min<size_t>(std::max(0, span.start),
-                                              text.size());
-        const size_t end = std::min<size_t>(
-            start + std::max(0, span.length), text.size());
+        const size_t start =
+            std::min<size_t>(std::max(0, span.start), text.size());
+        const size_t end =
+            std::min<size_t>(start + std::max(0, span.length), text.size());
         if(end <= pos)
             continue; // overlapping span; keep the earlier colour
         emitTo(start);
@@ -305,20 +328,21 @@ void PickerCanvas::scrollbar(size_t totalRows, size_t firstVisibleRow)
         return;
     const int trackRows = bodyRows();
     const int thumbRows = std::max(
-        1, static_cast<int>(static_cast<size_t>(trackRows) * trackRows /
-                            totalRows));
+        1,
+        static_cast<int>(
+            static_cast<size_t>(trackRows) * trackRows / totalRows));
     const size_t maxOffset = totalRows - trackRows;
     const int thumbTop = static_cast<int>(
         std::min(firstVisibleRow, maxOffset) * (trackRows - thumbRows) /
         maxOffset);
     for(int row = 0; row < trackRows; ++row)
     {
-        out_ += Terminal::cursorPos(bodyTop() + row,
-                                    layout_.boxLeft + layout_.boxCols - 1);
+        out_ += Terminal::cursorPos(
+            bodyTop() + row,
+            layout_.boxLeft + layout_.boxCols - 1);
         const bool thumb = row >= thumbTop && row < thumbTop + thumbRows;
         out_ += thumb ? theme_.uiInfo() : theme_.uiDim();
-        out_ += thumb ? (unicode_ ? "█" : "#")
-                      : (unicode_ ? "│" : "|");
+        out_ += thumb ? (unicode_ ? "█" : "#") : (unicode_ ? "│" : "|");
     }
     out_ += theme_.reset();
 }
@@ -334,8 +358,9 @@ void PickerCanvas::previewMessage(int row, std::string_view text)
     endPreviewRow(text_utils::utf8DisplayWidth(clipped));
 }
 
-std::vector<std::string> loadPreviewLines(const std::string& path,
-                                          size_t maxLines)
+std::vector<std::string> loadPreviewLines(
+    const std::string& path,
+    size_t maxLines)
 {
     std::ifstream file(path, std::ios::binary);
     if(!file)

@@ -34,8 +34,9 @@ public:
           context_(std::move(ctx))
     {
         // Enter initial state
-        std::visit([this](auto& state) { state.on_enter(context_); },
-                   currentState_);
+        std::visit(
+            [this](auto& state) { state.on_enter(context_); },
+            currentState_);
     }
 
     // Dispatch an event to the current state.
@@ -53,7 +54,8 @@ public:
     {
         auto newState = std::visit(
             [this, &event](auto& state) -> std::optional<StateVariant>
-            { return state.handle(context_, event); }, currentState_);
+            { return state.handle(context_, event); },
+            currentState_);
 
         if(newState)
         {
@@ -64,8 +66,9 @@ public:
     // Get current state name
     const char* currentStateName() const
     {
-        return std::visit([](const auto& state) { return state.name(); },
-                          currentState_);
+        return std::visit(
+            [](const auto& state) { return state.name(); },
+            currentState_);
     }
 
     // Check if in a specific state
@@ -121,14 +124,16 @@ private:
     void transition(StateVariant&& newState)
     {
         // Exit current state
-        std::visit([this](auto& state) { state.on_exit(context_); },
-                   currentState_);
+        std::visit(
+            [this](auto& state) { state.on_exit(context_); },
+            currentState_);
 
         currentState_ = std::move(newState);
 
         // Enter new state
-        std::visit([this](auto& state) { state.on_enter(context_); },
-                   currentState_);
+        std::visit(
+            [this](auto& state) { state.on_enter(context_); },
+            currentState_);
     }
 
     StateVariant currentState_;
@@ -167,8 +172,8 @@ protected:
     template <typename InitialSubState>
     void initSubMachine(SubContext ctx, InitialSubState&& initial)
     {
-        subMachine_.emplace(std::move(ctx),
-                            std::forward<InitialSubState>(initial));
+        subMachine_
+            .emplace(std::move(ctx), std::forward<InitialSubState>(initial));
     }
 
     void clearSubMachine()
@@ -217,8 +222,13 @@ struct TabEvent
 };
 
 // Composite event that can be any of the above
-using InputEvent = std::variant<int, CharEvent, EscapeEvent, EnterEvent,
-                                BackspaceEvent, TabEvent>;
+using InputEvent = std::variant<
+    int,
+    CharEvent,
+    EscapeEvent,
+    EnterEvent,
+    BackspaceEvent,
+    TabEvent>;
 
 // ============================================================================
 // State Concept (C++20) - Documents expected interface

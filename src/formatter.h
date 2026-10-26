@@ -18,8 +18,9 @@ public:
 
 private:
     size_t byteOffsetForPosition(int y, int x) const;
-    bool formatWithArgs(const std::string& extraArgs,
-                        const std::string& successMessage);
+    bool formatWithArgs(
+        const std::string& extraArgs,
+        const std::string& successMessage);
     bool formatVisualSelection();
     bool formatVisualBlockSelection();
 
@@ -91,13 +92,13 @@ public:
     void pythonLintBuffer();
 
 private:
-    using FormatterVariant =
-        std::variant<std::reference_wrapper<ClangFormatter>,
-                     std::reference_wrapper<PythonFormatter>,
-                     std::reference_wrapper<RobotFormatter>,
-                     std::reference_wrapper<JsonFormatter>,
-                     std::reference_wrapper<YamlFormatter>,
-                     std::reference_wrapper<MlangFormatter>>;
+    using FormatterVariant = std::variant<
+        std::reference_wrapper<ClangFormatter>,
+        std::reference_wrapper<PythonFormatter>,
+        std::reference_wrapper<RobotFormatter>,
+        std::reference_wrapper<JsonFormatter>,
+        std::reference_wrapper<YamlFormatter>,
+        std::reference_wrapper<MlangFormatter>>;
 
     FormatterVariant formatterFor(FileType type);
 

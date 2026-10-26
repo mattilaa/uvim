@@ -72,11 +72,12 @@ struct ProbeRequest
     long long expectedValue = 0;
 };
 
-int findTypeDefinitionLine(const std::vector<std::string>& lines,
-                           const std::string& typeName);
-std::optional<TypeDefinition>
-findTypeDefinition(const std::vector<SourceDocument>& documents,
-                   const std::string& typeName);
+int findTypeDefinitionLine(
+    const std::vector<std::string>& lines,
+    const std::string& typeName);
+std::optional<TypeDefinition> findTypeDefinition(
+    const std::vector<SourceDocument>& documents,
+    const std::string& typeName);
 std::string trimCopy(std::string_view text);
 
 std::string shellQuote(std::string_view value)
@@ -99,8 +100,10 @@ bool isCSource(std::string_view path)
            text_utils::iequals_ascii(path.substr(path.size() - 2), ".c");
 }
 
-std::string bufferTextWithProbe(const std::vector<std::string>& lines,
-                                int insertAfterLine, std::string_view assertion)
+std::string bufferTextWithProbe(
+    const std::vector<std::string>& lines,
+    int insertAfterLine,
+    std::string_view assertion)
 {
     std::string text;
     for(int y = 0; y < static_cast<int>(lines.size()); ++y)
@@ -135,9 +138,9 @@ std::vector<std::string> readLinesFromFile(const fs::path& path)
     return result;
 }
 
-std::vector<SourceDocument>
-collectSourceDocuments(const std::vector<std::string>& lines,
-                       const std::string& filePath)
+std::vector<SourceDocument> collectSourceDocuments(
+    const std::vector<std::string>& lines,
+    const std::string& filePath)
 {
     std::vector<SourceDocument> documents;
     documents.push_back({filePath, lines});
@@ -186,7 +189,8 @@ collectSourceDocuments(const std::vector<std::string>& lines,
 
     constexpr size_t maxDocuments = 16;
     for(size_t index = 0;
-        index < pending.size() && documents.size() < maxDocuments; ++index)
+        index < pending.size() && documents.size() < maxDocuments;
+        ++index)
     {
         const fs::path path = pending[index];
         std::vector<std::string> includeLines = readLinesFromFile(path);
@@ -202,15 +206,16 @@ collectSourceDocuments(const std::vector<std::string>& lines,
     return documents;
 }
 
-std::unordered_map<long long, long long>
-parseProbeResultsFromClangOutput(const std::string& output)
+std::unordered_map<long long, long long> parseProbeResultsFromClangOutput(
+    const std::string& output)
 {
     std::unordered_map<long long, long long> results;
     static const std::regex evalPattern(
         R"(expression evaluates to '([0-9]+) == (-?[0-9]+)')");
 
     for(std::sregex_iterator it(output.begin(), output.end(), evalPattern), end;
-        it != end; ++it)
+        it != end;
+        ++it)
     {
         if(it->size() < 3)
             continue;
@@ -229,8 +234,10 @@ parseProbeResultsFromClangOutput(const std::string& output)
 }
 
 std::vector<std::optional<long long>> runAssertionProbes(
-    const std::vector<std::string>& lines, const std::string& filePath,
-    const std::vector<ProbeRequest>& requests, int insertAfterLine)
+    const std::vector<std::string>& lines,
+    const std::string& filePath,
+    const std::vector<ProbeRequest>& requests,
+    int insertAfterLine)
 {
     std::vector<std::optional<long long>> values(requests.size());
     if(requests.empty())
@@ -292,10 +299,11 @@ std::vector<std::optional<long long>> runAssertionProbes(
     return values;
 }
 
-std::vector<std::optional<long long>>
-runSizeProbes(const std::vector<std::string>& lines,
-              const std::string& filePath,
-              const std::vector<std::string>& expressions, int insertAfterLine)
+std::vector<std::optional<long long>> runSizeProbes(
+    const std::vector<std::string>& lines,
+    const std::string& filePath,
+    const std::vector<std::string>& expressions,
+    int insertAfterLine)
 {
     std::vector<ProbeRequest> requests;
     requests.reserve(expressions.size());
@@ -317,8 +325,10 @@ std::vector<std::string> sizeExpressionsForSymbol(std::string_view symbol)
     return expressions;
 }
 
-std::string cursorExpressionAt(const std::vector<std::string>& lines,
-                               int cursorY, int cursorX)
+std::string cursorExpressionAt(
+    const std::vector<std::string>& lines,
+    int cursorY,
+    int cursorX)
 {
     if(cursorY < 0 || cursorY >= static_cast<int>(lines.size()))
         return {};
@@ -373,8 +383,10 @@ std::string cursorExpressionAt(const std::vector<std::string>& lines,
         }
     }
 
-    return trimCopy(std::string_view(line).substr(
-        static_cast<size_t>(left), static_cast<size_t>(right - left)));
+    return trimCopy(
+        std::string_view(line).substr(
+            static_cast<size_t>(left),
+            static_cast<size_t>(right - left)));
 }
 
 std::string stripTypeKeyword(std::string expression)
@@ -412,9 +424,9 @@ std::string typeNameFromExpression(std::string expression)
     return base.empty() ? expression : base;
 }
 
-std::optional<std::string>
-findResolvableTypeName(const std::vector<SourceDocument>& documents,
-                       const std::vector<std::string>& candidates)
+std::optional<std::string> findResolvableTypeName(
+    const std::vector<SourceDocument>& documents,
+    const std::vector<std::string>& candidates)
 {
     for(const std::string& candidate : candidates)
     {
@@ -427,14 +439,21 @@ findResolvableTypeName(const std::vector<SourceDocument>& documents,
     return std::nullopt;
 }
 
-std::optional<std::string>
-resolveLocalVariableType(const std::vector<std::string>& lines,
-                         const std::string& symbol, int cursorY, int cursorX)
+std::optional<std::string> resolveLocalVariableType(
+    const std::vector<std::string>& lines,
+    const std::string& symbol,
+    int cursorY,
+    int cursorX)
 {
     int y = -1;
     int x = 0;
-    if(!CppNavigationUtilities::searchLocalDefinition(lines, symbol, cursorY,
-                                                      cursorX, y, x))
+    if(!CppNavigationUtilities::searchLocalDefinition(
+           lines,
+           symbol,
+           cursorY,
+           cursorX,
+           y,
+           x))
     {
         for(int row = std::min(cursorY, (int)lines.size() - 1); row >= 0; --row)
         {
@@ -458,9 +477,9 @@ resolveLocalVariableType(const std::vector<std::string>& lines,
                 continue;
             if(pos > 0 && text_utils::is_found(lines[row].rfind('.', pos - 1)))
                 continue;
-            std::string prefix =
-                trimCopy(std::string_view(lines[row])
-                             .substr(0, static_cast<size_t>(pos)));
+            std::string prefix = trimCopy(
+                std::string_view(lines[row])
+                    .substr(0, static_cast<size_t>(pos)));
             if(prefix == "return" || prefix == "co_return" || prefix == "throw")
                 continue;
             y = row;
@@ -504,8 +523,9 @@ resolveLocalVariableType(const std::vector<std::string>& lines,
     return type;
 }
 
-void pushUniqueExpression(std::vector<std::string>& expressions,
-                          const std::string& expression)
+void pushUniqueExpression(
+    std::vector<std::string>& expressions,
+    const std::string& expression)
 {
     if(expression.empty())
         return;
@@ -514,11 +534,13 @@ void pushUniqueExpression(std::vector<std::string>& expressions,
         expressions.push_back(expression);
 }
 
-SizeProbeResult resolveSizeExpression(const std::vector<std::string>& lines,
-                                      const std::string& filePath,
-                                      const std::string& symbol,
-                                      const std::string& cursorExpression,
-                                      int cursorY, int cursorX)
+SizeProbeResult resolveSizeExpression(
+    const std::vector<std::string>& lines,
+    const std::string& filePath,
+    const std::string& symbol,
+    const std::string& cursorExpression,
+    int cursorY,
+    int cursorX)
 {
     const int currentLine = std::clamp(cursorY, 0, (int)lines.size() - 1);
     SizeProbeResult result;
@@ -537,7 +559,8 @@ SizeProbeResult resolveSizeExpression(const std::vector<std::string>& lines,
     const std::vector<std::optional<long long>> currentLineSizes =
         runSizeProbes(lines, filePath, currentLineExpressions, currentLine);
     for(size_t i = 0;
-        i < currentLineExpressions.size() && i < currentLineSizes.size(); ++i)
+        i < currentLineExpressions.size() && i < currentLineSizes.size();
+        ++i)
     {
         if(currentLineSizes[i])
         {
@@ -566,8 +589,9 @@ SizeProbeResult resolveSizeExpression(const std::vector<std::string>& lines,
     return result;
 }
 
-int findTypeDefinitionLine(const std::vector<std::string>& lines,
-                           const std::string& typeName)
+int findTypeDefinitionLine(
+    const std::vector<std::string>& lines,
+    const std::string& typeName)
 {
     for(int y = 0; y < (int)lines.size(); ++y)
     {
@@ -585,9 +609,9 @@ int findTypeDefinitionLine(const std::vector<std::string>& lines,
     return -1;
 }
 
-std::optional<TypeDefinition>
-findTypeDefinition(const std::vector<SourceDocument>& documents,
-                   const std::string& typeName)
+std::optional<TypeDefinition> findTypeDefinition(
+    const std::vector<SourceDocument>& documents,
+    const std::string& typeName)
 {
     for(const SourceDocument& document : documents)
     {
@@ -667,8 +691,9 @@ std::vector<std::string> splitTopLevel(std::string_view text, char delimiter)
             ++brace;
         else if(ch == '}' && brace > 0)
             --brace;
-        else if(ch == delimiter && angle == 0 && paren == 0 && bracket == 0 &&
-                brace == 0)
+        else if(
+            ch == delimiter && angle == 0 && paren == 0 && bracket == 0 &&
+            brace == 0)
         {
             parts.emplace_back(text.substr(start, i - start));
             start = i + 1;
@@ -727,8 +752,8 @@ std::optional<std::string> memberNameFromDeclarator(std::string declarator)
     return name;
 }
 
-std::optional<ParsedMember>
-parseNestedTypeDeclaration(std::string_view statement)
+std::optional<ParsedMember> parseNestedTypeDeclaration(
+    std::string_view statement)
 {
     for(std::string_view keyword : {"struct ", "class ", "union "})
     {
@@ -763,8 +788,9 @@ parseNestedTypeDeclaration(std::string_view statement)
     return std::nullopt;
 }
 
-std::string typeNameFromMemberStatement(const std::string& statement,
-                                        const std::string& memberName)
+std::string typeNameFromMemberStatement(
+    const std::string& statement,
+    const std::string& memberName)
 {
     std::string type =
         SymbolPopupUtilities::extractTypeBeforeName(statement, memberName);
@@ -818,18 +844,23 @@ std::vector<ParsedMember> parseMembers(const std::string& body)
     return members;
 }
 
-std::vector<MemberInfo>
-resolveMembersForType(const std::vector<SourceDocument>& documents,
-                      const std::vector<std::string>& lines,
-                      const std::string& filePath, const std::string& typeName,
-                      int insertAfterLine, int indent, int depth);
+std::vector<MemberInfo> resolveMembersForType(
+    const std::vector<SourceDocument>& documents,
+    const std::vector<std::string>& lines,
+    const std::string& filePath,
+    const std::string& typeName,
+    int insertAfterLine,
+    int indent,
+    int depth);
 
-void appendChildMembers(MemberInfo& parent,
-                        const std::vector<SourceDocument>& documents,
-                        const std::vector<std::string>& lines,
-                        const std::string& filePath,
-                        const std::string& typeName, int insertAfterLine,
-                        int depth)
+void appendChildMembers(
+    MemberInfo& parent,
+    const std::vector<SourceDocument>& documents,
+    const std::vector<std::string>& lines,
+    const std::string& filePath,
+    const std::string& typeName,
+    int insertAfterLine,
+    int depth)
 {
     if(typeName.empty())
         return;
@@ -848,16 +879,24 @@ void appendChildMembers(MemberInfo& parent,
         return;
     }
 
-    parent.children =
-        resolveMembersForType(documents, lines, filePath, typeName,
-                              insertAfterLine, parent.indent + 1, depth + 1);
+    parent.children = resolveMembersForType(
+        documents,
+        lines,
+        filePath,
+        typeName,
+        insertAfterLine,
+        parent.indent + 1,
+        depth + 1);
 }
 
-std::vector<MemberInfo>
-resolveMembersForType(const std::vector<SourceDocument>& documents,
-                      const std::vector<std::string>& lines,
-                      const std::string& filePath, const std::string& typeName,
-                      int insertAfterLine, int indent, int depth)
+std::vector<MemberInfo> resolveMembersForType(
+    const std::vector<SourceDocument>& documents,
+    const std::vector<std::string>& lines,
+    const std::string& filePath,
+    const std::string& typeName,
+    int insertAfterLine,
+    int indent,
+    int depth)
 {
     std::vector<MemberInfo> members;
     const std::optional<TypeDefinition> definition =
@@ -911,7 +950,8 @@ resolveMembersForType(const std::vector<SourceDocument>& documents,
 
     std::vector<std::optional<long long>> offsetsByMember(parsedMembers.size());
     for(size_t i = 0;
-        i < offsetMemberIndexes.size() && i < memberOffsets.size(); ++i)
+        i < offsetMemberIndexes.size() && i < memberOffsets.size();
+        ++i)
     {
         offsetsByMember[offsetMemberIndexes[i]] = memberOffsets[i];
     }
@@ -926,8 +966,14 @@ resolveMembersForType(const std::vector<SourceDocument>& documents,
             info.indent = indent;
             if(i < memberSizes.size())
                 info.size = memberSizes[i];
-            appendChildMembers(info, documents, lines, filePath,
-                               parsed.nestedTypeName, insertAfterLine, depth);
+            appendChildMembers(
+                info,
+                documents,
+                lines,
+                filePath,
+                parsed.nestedTypeName,
+                insertAfterLine,
+                depth);
             if(info.size || !info.children.empty())
                 members.push_back(std::move(info));
             continue;
@@ -939,8 +985,14 @@ resolveMembersForType(const std::vector<SourceDocument>& documents,
         if(i < memberSizes.size())
             info.size = memberSizes[i];
         info.offset = offsetsByMember[i];
-        appendChildMembers(info, documents, lines, filePath, parsed.typeName,
-                           insertAfterLine, depth);
+        appendChildMembers(
+            info,
+            documents,
+            lines,
+            filePath,
+            parsed.typeName,
+            insertAfterLine,
+            depth);
         if(info.size)
             members.push_back(std::move(info));
     }
@@ -948,11 +1000,12 @@ resolveMembersForType(const std::vector<SourceDocument>& documents,
     return members;
 }
 
-std::vector<MemberInfo> resolveMembers(const std::vector<std::string>& lines,
-                                       const std::string& filePath,
-                                       const std::string& typeExpression,
-                                       const std::string& symbol,
-                                       int insertAfterLine)
+std::vector<MemberInfo> resolveMembers(
+    const std::vector<std::string>& lines,
+    const std::string& filePath,
+    const std::string& typeExpression,
+    const std::string& symbol,
+    int insertAfterLine)
 {
     const std::vector<SourceDocument> documents =
         collectSourceDocuments(lines, filePath);
@@ -961,12 +1014,20 @@ std::vector<MemberInfo> resolveMembers(const std::vector<std::string>& lines,
     if(!resolvedTypeName)
         return {};
 
-    return resolveMembersForType(documents, lines, filePath, *resolvedTypeName,
-                                 insertAfterLine, 0, 0);
+    return resolveMembersForType(
+        documents,
+        lines,
+        filePath,
+        *resolvedTypeName,
+        insertAfterLine,
+        0,
+        0);
 }
 
-std::string buildSizePopupText(const std::string& expression, long long total,
-                               const std::vector<MemberInfo>& members)
+std::string buildSizePopupText(
+    const std::string& expression,
+    long long total,
+    const std::vector<MemberInfo>& members)
 {
     std::ostringstream out;
     out << "sizeof(" << expression << ") = " << total << " bytes";
@@ -1036,9 +1097,13 @@ void Editor::openSizePopupForCursor()
 
     const std::string cursorExpression =
         cursorExpressionAt(*lines, *cursorY, *cursorX);
-    SizeProbeResult result =
-        resolveSizeExpression(*lines, currentBuffer->filename, symbol,
-                              cursorExpression, *cursorY, *cursorX);
+    SizeProbeResult result = resolveSizeExpression(
+        *lines,
+        currentBuffer->filename,
+        symbol,
+        cursorExpression,
+        *cursorY,
+        *cursorX);
 
     if(!result.size)
     {
@@ -1050,9 +1115,12 @@ void Editor::openSizePopupForCursor()
     const std::string memberTypeExpression = result.memberTypeExpression.empty()
                                                  ? result.expression
                                                  : result.memberTypeExpression;
-    const std::vector<MemberInfo> members =
-        resolveMembers(*lines, currentBuffer->filename, memberTypeExpression,
-                       symbol, result.insertAfterLine);
+    const std::vector<MemberInfo> members = resolveMembers(
+        *lines,
+        currentBuffer->filename,
+        memberTypeExpression,
+        symbol,
+        result.insertAfterLine);
 
     symbolPopupText =
         buildSizePopupText(result.expression, *result.size, members);

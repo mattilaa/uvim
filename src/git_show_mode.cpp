@@ -19,9 +19,12 @@ namespace
 // View kinds: 0 plain diff, 1 :showchanges, 2 commit from git log.
 std::vector<std::string> gitShowHelpTokens(int kind)
 {
-    std::vector<std::string> tokens = {"[q: quit]", "[j/k: scroll]",
-                                       "[gg/G: top/bottom]",
-                                       "[n/N ]/[: hunks]", "[ctrl-h/l: pan]"};
+    std::vector<std::string> tokens =
+        {"[q: quit]",
+         "[j/k: scroll]",
+         "[gg/G: top/bottom]",
+         "[n/N ]/[: hunks]",
+         "[ctrl-h/l: pan]"};
     if(kind == 1)
     {
         tokens.push_back("[d: drop hunk]");
@@ -123,8 +126,9 @@ std::vector<DiffHunk> parseHunks(const std::vector<std::string>& lines)
             hunk.end = (int)lines.size();
             hunks.push_back(hunk);
         }
-        else if(text.rfind("diff --git", 0) == 0 && !hunks.empty() &&
-                hunks.back().end > i)
+        else if(
+            text.rfind("diff --git", 0) == 0 && !hunks.empty() &&
+            hunks.back().end > i)
         {
             hunks.back().end = i;
         }
@@ -244,9 +248,12 @@ std::string slice_with_ansi(std::string_view text, int startCol, int width)
     return out;
 }
 
-void append_highlighted(std::string& out, std::string_view text,
-                        std::string_view query, const std::string& normalSeq,
-                        const std::string& matchSeq)
+void append_highlighted(
+    std::string& out,
+    std::string_view text,
+    std::string_view query,
+    const std::string& normalSeq,
+    const std::string& matchSeq)
 {
     if(query.empty())
     {
@@ -288,8 +295,9 @@ void GitShowCommitMode::on_exit(ModeContext& ctx)
     ctx.requestFullRedraw();
 }
 
-std::optional<ModeState> GitShowCommitMode::handle(ModeContext& ctx,
-                                                   const ModeKeyEvent& event)
+std::optional<ModeState> GitShowCommitMode::handle(
+    ModeContext& ctx,
+    const ModeKeyEvent& event)
 {
     const int key = event.key;
     int c = keyCode(key);
@@ -347,8 +355,11 @@ std::optional<ModeState> GitShowCommitMode::handle(ModeContext& ctx,
         {
             searchIndex = found;
             int maxScroll = std::max(
-                0, (int)lines.size() -
-                       gitShowContentRows(ctx.screenRows(), ctx.screenCols(), viewKind()));
+                0,
+                (int)lines.size() - gitShowContentRows(
+                                        ctx.screenRows(),
+                                        ctx.screenCols(),
+                                        viewKind()));
             scrollOffset = std::clamp(found, 0, maxScroll);
             return true;
         }
@@ -418,11 +429,12 @@ std::optional<ModeState> GitShowCommitMode::handle(ModeContext& ctx,
                 if(found >= 0)
                 {
                     searchIndex = found;
-                    int maxScroll =
-                        std::max(0, (int)lines.size() -
-                                        gitShowContentRows(ctx.screenRows(),
-                                                           ctx.screenCols(),
-                                                           viewKind()));
+                    int maxScroll = std::max(
+                        0,
+                        (int)lines.size() - gitShowContentRows(
+                                                ctx.screenRows(),
+                                                ctx.screenCols(),
+                                                viewKind()));
                     scrollOffset = std::clamp(found, 0, maxScroll);
                 }
                 else
@@ -487,10 +499,10 @@ std::optional<ModeState> GitShowCommitMode::handle(ModeContext& ctx,
         {
             // Pending drops would be lost: ask once.
             confirmQuit = true;
-            ctx.setStatusMessage("Discard " +
-                                 std::to_string(droppedOriginal.size()) +
-                                 " pending dropped hunk(s)? q again to quit, "
-                                 "c to rewrite the commit");
+            ctx.setStatusMessage(
+                "Discard " + std::to_string(droppedOriginal.size()) +
+                " pending dropped hunk(s)? q again to quit, "
+                "c to rewrite the commit");
             ctx.requestFullRedraw();
             return std::nullopt;
         }
@@ -506,9 +518,10 @@ std::optional<ModeState> GitShowCommitMode::handle(ModeContext& ctx,
         return NormalMode{};
     }
 
-    int maxScroll =
-        std::max(0, (int)lines.size() -
-                        gitShowContentRows(ctx.screenRows(), ctx.screenCols(), viewKind()));
+    int maxScroll = std::max(
+        0,
+        (int)lines.size() -
+            gitShowContentRows(ctx.screenRows(), ctx.screenCols(), viewKind()));
 
     if(c == keyCode(typed::TypedKey::KEY_J) ||
        c == keyCode(navigation::NavigationKey::ARROW_DOWN))
@@ -516,35 +529,44 @@ std::optional<ModeState> GitShowCommitMode::handle(ModeContext& ctx,
         if(scrollOffset < maxScroll)
             scrollOffset++;
     }
-    else if(c == keyCode(typed::TypedKey::KEY_K) ||
-            c == keyCode(navigation::NavigationKey::ARROW_UP))
+    else if(
+        c == keyCode(typed::TypedKey::KEY_K) ||
+        c == keyCode(navigation::NavigationKey::ARROW_UP))
     {
         if(scrollOffset > 0)
             scrollOffset--;
     }
     else if(c == keyCode(control::ControlKey::CTRL_D))
     {
-        int half = gitShowContentRows(ctx.screenRows(), ctx.screenCols(), viewKind()) / 2;
+        int half =
+            gitShowContentRows(ctx.screenRows(), ctx.screenCols(), viewKind()) /
+            2;
         scrollOffset = std::min(scrollOffset + half, maxScroll);
     }
     else if(c == keyCode(control::ControlKey::CTRL_U))
     {
-        int half = gitShowContentRows(ctx.screenRows(), ctx.screenCols(), viewKind()) / 2;
+        int half =
+            gitShowContentRows(ctx.screenRows(), ctx.screenCols(), viewKind()) /
+            2;
         scrollOffset = std::max(scrollOffset - half, 0);
     }
     else if(c == keyCode(navigation::NavigationKey::PAGE_DOWN))
     {
-        scrollOffset =
-            std::min(scrollOffset +
-                         gitShowContentRows(ctx.screenRows(), ctx.screenCols(), viewKind()),
-                     maxScroll);
+        scrollOffset = std::min(
+            scrollOffset + gitShowContentRows(
+                               ctx.screenRows(),
+                               ctx.screenCols(),
+                               viewKind()),
+            maxScroll);
     }
     else if(c == keyCode(navigation::NavigationKey::PAGE_UP))
     {
-        scrollOffset =
-            std::max(scrollOffset -
-                         gitShowContentRows(ctx.screenRows(), ctx.screenCols(), viewKind()),
-                     0);
+        scrollOffset = std::max(
+            scrollOffset - gitShowContentRows(
+                               ctx.screenRows(),
+                               ctx.screenCols(),
+                               viewKind()),
+            0);
     }
     else if(c == keyCode(typed::TypedKey::KEY_CAP_G))
     {
@@ -556,8 +578,9 @@ std::optional<ModeState> GitShowCommitMode::handle(ModeContext& ctx,
         if(nextChar == keyCode(typed::TypedKey::KEY_G))
             scrollOffset = 0;
     }
-    else if(c == keyCode(command::CommandKey::KEY_SLASH) ||
-            c == keyCode(command::CommandKey::KEY_QUESTION))
+    else if(
+        c == keyCode(command::CommandKey::KEY_SLASH) ||
+        c == keyCode(command::CommandKey::KEY_QUESTION))
     {
         searchActive = true;
         searchForward = (c == keyCode(command::CommandKey::KEY_SLASH));
@@ -566,8 +589,9 @@ std::optional<ModeState> GitShowCommitMode::handle(ModeContext& ctx,
         searchPrevScroll = scrollOffset;
         ctx.lastEscTime() = std::chrono::steady_clock::time_point();
     }
-    else if(c == keyCode(control::ControlKey::CTRL_H) ||
-            c == keyCode(control::ControlKey::CTRL_L))
+    else if(
+        c == keyCode(control::ControlKey::CTRL_H) ||
+        c == keyCode(control::ControlKey::CTRL_L))
     {
         int viewWidth = std::max(0, ctx.screenCols() - 2);
         int maxW = max_line_width(lines, ctx.editor->gitUseDefaultColors);
@@ -577,29 +601,33 @@ std::optional<ModeState> GitShowCommitMode::handle(ModeContext& ctx,
         else
             horizontalOffset = std::min(maxOffset, horizontalOffset + 1);
     }
-    else if((c == keyCode(typed::TypedKey::KEY_N) ||
-             c == keyCode(typed::TypedKey::KEY_CAP_N)) &&
-            !searchQuery.empty())
+    else if(
+        (c == keyCode(typed::TypedKey::KEY_N) ||
+         c == keyCode(typed::TypedKey::KEY_CAP_N)) &&
+        !searchQuery.empty())
     {
         bool forward = (c == keyCode(typed::TypedKey::KEY_N)) ? searchForward
                                                               : !searchForward;
         if(!findNextMatch(forward))
             ctx.setStatusMessage("search: not found");
     }
-    else if(c == keyCode(typed::TypedKey::KEY_N) ||
-            c == keyCode(typed::TypedKey::KEY_CAP_N) ||
-            c == keyCode(command::CommandKey::KEY_RIGHT_BRACKET) ||
-            c == keyCode(command::CommandKey::KEY_LEFT_BRACKET))
+    else if(
+        c == keyCode(typed::TypedKey::KEY_N) ||
+        c == keyCode(typed::TypedKey::KEY_CAP_N) ||
+        c == keyCode(command::CommandKey::KEY_RIGHT_BRACKET) ||
+        c == keyCode(command::CommandKey::KEY_LEFT_BRACKET))
     {
         // Hunk navigation (n/N while no search is active, ]/[ always).
-        const bool forward = c == keyCode(typed::TypedKey::KEY_N) ||
-                             c == keyCode(command::CommandKey::KEY_RIGHT_BRACKET);
+        const bool forward =
+            c == keyCode(typed::TypedKey::KEY_N) ||
+            c == keyCode(command::CommandKey::KEY_RIGHT_BRACKET);
         jumpToHunk(ctx, forward);
     }
-    else if(c == keyCode(typed::TypedKey::KEY_D) ||
-            c == keyCode(typed::TypedKey::KEY_U) ||
-            c == keyCode(typed::TypedKey::KEY_V) ||
-            c == keyCode(typed::TypedKey::KEY_C))
+    else if(
+        c == keyCode(typed::TypedKey::KEY_D) ||
+        c == keyCode(typed::TypedKey::KEY_U) ||
+        c == keyCode(typed::TypedKey::KEY_V) ||
+        c == keyCode(typed::TypedKey::KEY_C))
     {
         const bool drop = c == keyCode(typed::TypedKey::KEY_D);
         const bool undo = c == keyCode(typed::TypedKey::KEY_U);
@@ -623,8 +651,9 @@ std::optional<ModeState> GitShowCommitMode::handle(ModeContext& ctx,
         }
         else if(drop || undo)
         {
-            ctx.setStatusMessage("d/u work in :showchanges and on commits "
-                                 "opened from :git log");
+            ctx.setStatusMessage(
+                "d/u work in :showchanges and on commits "
+                "opened from :git log");
         }
     }
 
@@ -647,8 +676,7 @@ bool GitShowCommitMode::commitEditable() const
 namespace
 {
 // [start, end) of the file section ("diff --git" ... ) holding `line`.
-std::pair<int, int> fileSection(const std::vector<std::string>& lines,
-                                int line)
+std::pair<int, int> fileSection(const std::vector<std::string>& lines, int line)
 {
     int start = line;
     while(start > 0 && stripAnsi(lines[start]).rfind("diff --git", 0) != 0)
@@ -661,24 +689,26 @@ std::pair<int, int> fileSection(const std::vector<std::string>& lines,
 }
 
 // New/deleted/renamed files can only be dropped as a whole.
-bool isWholeFileSection(const std::vector<std::string>& lines, int start,
-                        int firstHunk)
+bool isWholeFileSection(
+    const std::vector<std::string>& lines,
+    int start,
+    int firstHunk)
 {
     for(int i = start; i < firstHunk && i < (int)lines.size(); ++i)
     {
         const std::string text = stripAnsi(lines[i]);
         if(text.rfind("new file mode", 0) == 0 ||
            text.rfind("deleted file mode", 0) == 0 ||
-           text.rfind("rename from", 0) == 0 ||
-           text.rfind("copy from", 0) == 0)
+           text.rfind("rename from", 0) == 0 || text.rfind("copy from", 0) == 0)
             return true;
     }
     return false;
 }
 
 // Plain-diff lines with git-like colors, for the "dropped changes" view.
-std::vector<std::string> colorPlainDiff(const std::vector<std::string>& in,
-                                        bool ansi)
+std::vector<std::string> colorPlainDiff(
+    const std::vector<std::string>& in,
+    bool ansi)
 {
     if(!ansi)
         return in;
@@ -706,8 +736,9 @@ void GitShowCommitMode::dropCommitHunk(ModeContext& ctx)
 {
     if(showDropped)
     {
-        ctx.setStatusMessage("Showing dropped changes; v to go back to the "
-                             "new commit");
+        ctx.setStatusMessage(
+            "Showing dropped changes; v to go back to the "
+            "new commit");
         return;
     }
     const auto hunks = parseHunks(lines);
@@ -745,9 +776,9 @@ void GitShowCommitMode::dropCommitHunk(ModeContext& ctx)
         if(hunks[i].header > secStart && hunks[i].header < secEnd)
             inSection.push_back(i);
     }
-    const bool wholeFile = inSection.size() <= 1 ||
-                           isWholeFileSection(lines, secStart,
-                                              hunks[inSection.front()].header);
+    const bool wholeFile =
+        inSection.size() <= 1 ||
+        isWholeFileSection(lines, secStart, hunks[inSection.front()].header);
 
     std::vector<int> removed = wholeFile ? inSection : std::vector<int>{index};
     for(int k : removed)
@@ -783,15 +814,19 @@ void GitShowCommitMode::undoCommitEdit(ModeContext& ctx)
         hunkMap = std::move(last.hunkMap);
         droppedOriginal = std::move(last.dropped);
         currentHunk = -1;
-        ctx.setStatusMessage("Restored hunk (pending: " +
-                             std::to_string(droppedOriginal.size()) + ")");
+        ctx.setStatusMessage(
+            "Restored hunk (pending: " +
+            std::to_string(droppedOriginal.size()) + ")");
         return;
     }
     if(!rewriteNewHead.empty())
     {
         std::string message;
-        if(git_rewrite::undoDrop(repoRoot, rewriteOriginalHead, rewriteNewHead,
-                                 message))
+        if(git_rewrite::undoDrop(
+               repoRoot,
+               rewriteOriginalHead,
+               rewriteNewHead,
+               message))
         {
             commitHash = rewrittenFrom;
             auto restored = ctx.editor->loadGitShowLines(commitHash);
@@ -882,8 +917,9 @@ void GitShowCommitMode::toggleDroppedView(ModeContext& ctx)
     showDropped = true;
     currentHunk = -1;
     scrollOffset = 0;
-    ctx.setStatusMessage("Dropped changes (they stay in the working tree); "
-                         "v: back to the new commit");
+    ctx.setStatusMessage(
+        "Dropped changes (they stay in the working tree); "
+        "v: back to the new commit");
 }
 
 void GitShowCommitMode::startRewrite(ModeContext& ctx)
@@ -900,10 +936,11 @@ void GitShowCommitMode::startRewrite(ModeContext& ctx)
         return;
     }
     confirmRewrite = true;
-    ctx.setStatusMessage("Rewrite " + commitHash.substr(0, 8) + " without " +
-                         std::to_string(droppedOriginal.size()) +
-                         " hunk(s)? Dropped changes stay unstaged in the "
-                         "working tree. y/n");
+    ctx.setStatusMessage(
+        "Rewrite " + commitHash.substr(0, 8) + " without " +
+        std::to_string(droppedOriginal.size()) +
+        " hunk(s)? Dropped changes stay unstaged in the "
+        "working tree. y/n");
 }
 
 void GitShowCommitMode::performRewrite(ModeContext& ctx)
@@ -1011,8 +1048,9 @@ void GitShowCommitMode::jumpToHunk(ModeContext& ctx, bool forward)
         }
     }
     scrollToHunk(ctx, target);
-    ctx.setStatusMessage("Hunk " + std::to_string(target + 1) + "/" +
-                         std::to_string(hunks.size()) + wrapped);
+    ctx.setStatusMessage(
+        "Hunk " + std::to_string(target + 1) + "/" +
+        std::to_string(hunks.size()) + wrapped);
 }
 
 void GitShowCommitMode::reloadChanges(ModeContext& ctx)
@@ -1023,8 +1061,10 @@ void GitShowCommitMode::reloadChanges(ModeContext& ctx)
     std::vector<std::string> diff = ed->unsavedChangesDiff(title, message);
     if(diff.empty())
     {
-        lines = {"No unsaved changes left.", "",
-                 "u: undo the last drop    q: back to the buffer"};
+        lines =
+            {"No unsaved changes left.",
+             "",
+             "u: undo the last drop    q: back to the buffer"};
         currentHunk = -1;
         scrollOffset = 0;
         return;
@@ -1074,8 +1114,8 @@ void GitShowCommitMode::dropCurrentHunk(ModeContext& ctx)
         ctx.setStatusMessage("Cannot drop hunk: buffer changed");
         return;
     }
-    buffer.erase(buffer.begin() + start,
-                 buffer.begin() + start + hunk.newCount);
+    buffer
+        .erase(buffer.begin() + start, buffer.begin() + start + hunk.newCount);
     buffer.insert(buffer.begin() + start, savedSide.begin(), savedSide.end());
     if(buffer.empty())
         buffer.emplace_back();
@@ -1086,8 +1126,8 @@ void GitShowCommitMode::dropCurrentHunk(ModeContext& ctx)
 
     currentHunk = index;
     reloadChanges(ctx);
-    ctx.setStatusMessage("Dropped hunk " + std::to_string(index + 1) +
-                         " (u to undo)");
+    ctx.setStatusMessage(
+        "Dropped hunk " + std::to_string(index + 1) + " (u to undo)");
 }
 
 void GitShowCommitMode::undoDrop(ModeContext& ctx)
@@ -1119,8 +1159,11 @@ void GitShowCommitMode::draw(Editor& editor) const
     if(!commitHash.empty())
         output += " " + commitHash;
     output += editor.theme.reset();
-    HeaderHelp::append(output, editor.theme, editor.screenCols,
-                       gitShowHelpTokens(viewKind()));
+    HeaderHelp::append(
+        output,
+        editor.theme,
+        editor.screenCols,
+        gitShowHelpTokens(viewKind()));
 
     int availableRows =
         gitShowContentRows(editor.screenRows, editor.screenCols, viewKind());
@@ -1153,19 +1196,23 @@ void GitShowCommitMode::draw(Editor& editor) const
                 if(line.rfind("diff --git", 0) == 0 ||
                    line.rfind("--- ", 0) == 0 || line.rfind("+++ ", 0) == 0)
                     lineSeq = &editor.theme.uiAccent();
-                else if(line.rfind("index ", 0) == 0 ||
-                        line.rfind("commit ", 0) == 0)
+                else if(
+                    line.rfind("index ", 0) == 0 ||
+                    line.rfind("commit ", 0) == 0)
                     lineSeq = &editor.theme.uiDim();
                 else if(line.rfind("@@ ", 0) == 0)
                     lineSeq = &editor.theme.uiInfo();
-                else if(line.rfind("Author:", 0) == 0 ||
-                        line.rfind("Date:", 0) == 0)
+                else if(
+                    line.rfind("Author:", 0) == 0 ||
+                    line.rfind("Date:", 0) == 0)
                     lineSeq = &editor.theme.uiDim();
-                else if(!line.empty() &&
-                        line[0] == keyCode(command::CommandKey::KEY_PLUS))
+                else if(
+                    !line.empty() &&
+                    line[0] == keyCode(command::CommandKey::KEY_PLUS))
                     lineSeq = &editor.theme.uiSuccess();
-                else if(!line.empty() &&
-                        line[0] == keyCode(command::CommandKey::KEY_MINUS))
+                else if(
+                    !line.empty() &&
+                    line[0] == keyCode(command::CommandKey::KEY_MINUS))
                     lineSeq = &editor.theme.uiError();
 
                 std::string normalSeq = editor.theme.reset() + *lineSeq;
@@ -1173,8 +1220,12 @@ void GitShowCommitMode::draw(Editor& editor) const
                     normalSeq = editor.theme.reset() +
                                 editor.theme.selection() + *lineSeq;
                 std::string sliced = slice_plain(line, hOff, viewWidth);
-                append_highlighted(output, sliced, searchQuery, normalSeq,
-                                   editor.theme.searchMatch());
+                append_highlighted(
+                    output,
+                    sliced,
+                    searchQuery,
+                    normalSeq,
+                    editor.theme.searchMatch());
                 output += editor.theme.reset();
             }
         }
@@ -1197,10 +1248,11 @@ void GitShowCommitMode::draw(Editor& editor) const
         status += " | NEW COMMIT (" + std::to_string(droppedOriginal.size()) +
                   " dropped, c: rewrite)";
 
-    std::string right = " " + std::to_string(scrollOffset + 1) + "-" +
-                        std::to_string(std::min(scrollOffset + availableRows,
-                                                (int)lines.size())) +
-                        "/" + std::to_string(lines.size()) + " ";
+    std::string right =
+        " " + std::to_string(scrollOffset + 1) + "-" +
+        std::to_string(
+            std::min(scrollOffset + availableRows, (int)lines.size())) +
+        "/" + std::to_string(lines.size()) + " ";
     if(!hunks.empty())
         right = " hunk " +
                 (currentHunk >= 0 ? std::to_string(selectedHunk + 1) : "-") +
@@ -1230,10 +1282,11 @@ void GitShowCommitMode::draw(Editor& editor) const
 }
 
 #ifdef UVIM_TESTING
-std::string GitShowCommitMode::testRenderLine(const Theme& theme,
-                                              std::string_view line,
-                                              std::string_view query,
-                                              bool useDefaultColors)
+std::string GitShowCommitMode::testRenderLine(
+    const Theme& theme,
+    std::string_view line,
+    std::string_view query,
+    bool useDefaultColors)
 {
     if(useDefaultColors)
         return std::string(line);

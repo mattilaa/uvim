@@ -23,8 +23,9 @@ bool is_mlang_symbol(char ch)
     return std::isalnum(u) || ch == '_';
 }
 
-[[maybe_unused]] std::vector<int>
-mlang_lsp_query_columns(const std::string& line, int cursorX)
+[[maybe_unused]] std::vector<int> mlang_lsp_query_columns(
+    const std::string& line,
+    int cursorX)
 {
     std::vector<int> columns;
     auto push = [&](int x)
@@ -100,8 +101,9 @@ mlang_lsp_query_columns(const std::string& line, int cursorX)
             ++right;
         if(left >= 0 && is_mlang_symbol(line[left]))
             lspX = left;
-        else if(right < static_cast<int>(line.size()) &&
-                is_mlang_symbol(line[right]))
+        else if(
+            right < static_cast<int>(line.size()) &&
+            is_mlang_symbol(line[right]))
             lspX = right;
     }
 
@@ -165,20 +167,24 @@ bool EditorDefinitionController::goToMlangDefinition(const std::string& symbol)
     {
         const std::string& line = (*editor.lines)[*editor.cursorY];
         std::string modulePath;
-        if(MlangUtilities::moduleDeclUnderCursor(line, *editor.cursorX,
-                                                 modulePath))
+        if(MlangUtilities::moduleDeclUnderCursor(
+               line,
+               *editor.cursorX,
+               modulePath))
         {
             std::string moduleFile;
             if(MlangUtilities::resolveModuleFile(
-                   modulePath, editor.currentBuffer->filename, moduleFile))
+                   modulePath,
+                   editor.currentBuffer->filename,
+                   moduleFile))
             {
                 editor.pushJumpLocation();
                 editor.openFile(moduleFile);
                 *editor.cursorY = 0;
                 *editor.cursorX = 0;
                 applyViewport();
-                editor.setStatusMessage(std::string("gd (mlang mod)") +
-                                        gdArrow + moduleFile);
+                editor.setStatusMessage(
+                    std::string("gd (mlang mod)") + gdArrow + moduleFile);
                 return true;
             }
         }
@@ -191,21 +197,27 @@ bool EditorDefinitionController::goToMlangDefinition(const std::string& symbol)
         if(*editor.cursorY >= 0 &&
            *editor.cursorY < static_cast<int>(editor.lines->size()))
         {
-            queryXs = mlang_lsp_query_columns((*editor.lines)[*editor.cursorY],
-                                              *editor.cursorX);
+            queryXs = mlang_lsp_query_columns(
+                (*editor.lines)[*editor.cursorY],
+                *editor.cursorX);
         }
         if(queryXs.empty())
             queryXs.push_back(*editor.cursorX);
 
-        editor.mlangLspClient->didChange(editor.currentBuffer->filename,
-                                         bufferText(), "mlang");
+        editor.mlangLspClient
+            ->didChange(editor.currentBuffer->filename, bufferText(), "mlang");
         for(int queryX : queryXs)
         {
             auto loc = editor.mlangLspClient->definition(
-                editor.currentBuffer->filename, *editor.cursorY, queryX);
+                editor.currentBuffer->filename,
+                *editor.cursorY,
+                queryX);
             if(loc)
-                return jumpToLocation(loc->path, loc->line, loc->character,
-                                      "mlang");
+                return jumpToLocation(
+                    loc->path,
+                    loc->line,
+                    loc->character,
+                    "mlang");
         }
     }
 #endif
@@ -225,9 +237,9 @@ bool EditorDefinitionController::goToMlangDefinition(const std::string& symbol)
             *editor.cursorX = 0;
             clampCursor();
             applyViewport();
-            editor.setStatusMessage("gd (" + std::string(label) + ")" +
-                                    gdArrow + hit.path + ":" +
-                                    std::to_string(hit.line + 1));
+            editor.setStatusMessage(
+                "gd (" + std::string(label) + ")" + gdArrow + hit.path + ":" +
+                std::to_string(hit.line + 1));
             return true;
         };
 
@@ -271,27 +283,38 @@ bool EditorDefinitionController::goToMlangDefinition(const std::string& symbol)
 
     std::string fnPath;
     int fnLine = 0;
-    if(MlangUtilities::findBuiltinFunction(symbol, fnPath, fnLine,
-                                           editor.currentBuffer->filename))
+    if(MlangUtilities::findBuiltinFunction(
+           symbol,
+           fnPath,
+           fnLine,
+           editor.currentBuffer->filename))
         return jumpToLocation(fnPath, fnLine, 0, "mlang fn");
 
     int defY = -1;
     int defX = 0;
-    if(MlangUtilities::findTopLevelDefInLines(*editor.lines, symbol, defY,
-                                              defX))
+    if(MlangUtilities::findTopLevelDefInLines(
+           *editor.lines,
+           symbol,
+           defY,
+           defX))
     {
         editor.pushJumpLocation();
         *editor.cursorY = defY;
         *editor.cursorX = defX;
         applyViewport();
-        editor.setStatusMessage(std::string("gd (mlang local)") + gdArrow +
-                                *editor.filename + ":" +
-                                std::to_string(defY + 1));
+        editor.setStatusMessage(
+            std::string("gd (mlang local)") + gdArrow + *editor.filename + ":" +
+            std::to_string(defY + 1));
         return true;
     }
 
     if(CppNavigationUtilities::searchLocalDefinition(
-           *editor.lines, symbol, *editor.cursorY, *editor.cursorX, defY, defX))
+           *editor.lines,
+           symbol,
+           *editor.cursorY,
+           *editor.cursorX,
+           defY,
+           defX))
     {
         if(defY != *editor.cursorY || defX != *editor.cursorX)
         {
@@ -299,23 +322,26 @@ bool EditorDefinitionController::goToMlangDefinition(const std::string& symbol)
             *editor.cursorY = defY;
             *editor.cursorX = defX;
             applyViewport();
-            editor.setStatusMessage(std::string("gd (mlang local)") + gdArrow +
-                                    *editor.filename + ":" +
-                                    std::to_string(defY + 1));
+            editor.setStatusMessage(
+                std::string("gd (mlang local)") + gdArrow + *editor.filename +
+                ":" + std::to_string(defY + 1));
             return true;
         }
     }
 
-    if(CppNavigationUtilities::searchMemberDefinition(*editor.lines, symbol,
-                                                      defY, defX))
+    if(CppNavigationUtilities::searchMemberDefinition(
+           *editor.lines,
+           symbol,
+           defY,
+           defX))
     {
         editor.pushJumpLocation();
         *editor.cursorY = defY;
         *editor.cursorX = defX;
         applyViewport();
-        editor.setStatusMessage(std::string("gd (mlang member)") + gdArrow +
-                                *editor.filename + ":" +
-                                std::to_string(defY + 1));
+        editor.setStatusMessage(
+            std::string("gd (mlang member)") + gdArrow + *editor.filename +
+            ":" + std::to_string(defY + 1));
         return true;
     }
 

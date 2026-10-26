@@ -29,19 +29,37 @@ enum JsonType
 using SizeType = std::size_t;
 
 struct Alloc
-{};
+{
+};
 
 class Name
 {
 public:
     Name() = default;
+
     explicit Name(const char* text) : text_(text ? text : "") {}
+
     explicit Name(std::string_view text) : text_(text) {}
 
-    bool IsString() const { return true; }
-    const char* GetString() const { return text_.c_str(); }
-    SizeType GetStringLength() const { return text_.size(); }
-    bool equals(const char* key) const { return text_ == (key ? key : ""); }
+    bool IsString() const
+    {
+        return true;
+    }
+
+    const char* GetString() const
+    {
+        return text_.c_str();
+    }
+
+    SizeType GetStringLength() const
+    {
+        return text_.size();
+    }
+
+    bool equals(const char* key) const
+    {
+        return text_ == (key ? key : "");
+    }
 
 private:
     std::string text_;
@@ -180,10 +198,15 @@ struct Value::Data
 
 inline Value::Value() : data_(std::make_shared<Data>()) {}
 
-inline Value::Value(JsonType type) : Value() { set_type(type); }
+inline Value::Value(JsonType type) : Value()
+{
+    set_type(type);
+}
 
-inline Value::Value(const char* text) : Value(std::string_view(text ? text : ""))
-{}
+inline Value::Value(const char* text)
+    : Value(std::string_view(text ? text : ""))
+{
+}
 
 inline Value::Value(std::string_view text) : Value()
 {
@@ -235,7 +258,8 @@ inline Value::Value(const char* text, SizeType len, Alloc&) : Value()
 
 inline Value::Value(const Value& other)
     : data_(std::make_shared<Data>(other.data()))
-{}
+{
+}
 
 inline Value& Value::operator=(const Value& other)
 {
@@ -244,17 +268,33 @@ inline Value& Value::operator=(const Value& other)
     return *this;
 }
 
-inline Value::Data& Value::data() { return *data_; }
-inline const Value::Data& Value::data() const { return *data_; }
+inline Value::Data& Value::data()
+{
+    return *data_;
+}
 
-inline bool Value::IsNull() const { return data().type == Type::Null; }
-inline bool Value::IsBool() const { return data().type == Type::Bool; }
+inline const Value::Data& Value::data() const
+{
+    return *data_;
+}
+
+inline bool Value::IsNull() const
+{
+    return data().type == Type::Null;
+}
+
+inline bool Value::IsBool() const
+{
+    return data().type == Type::Bool;
+}
+
 inline bool Value::IsInt() const
 {
     if(data().type == Type::Int)
         return data().intValue >= INT32_MIN && data().intValue <= INT32_MAX;
     return data().type == Type::Uint && data().uintValue <= INT32_MAX;
 }
+
 inline bool Value::IsUint() const
 {
     if(data().type == Type::Uint)
@@ -262,51 +302,74 @@ inline bool Value::IsUint() const
     return data().type == Type::Int && data().intValue >= 0 &&
            static_cast<std::uint64_t>(data().intValue) <= UINT32_MAX;
 }
+
 inline bool Value::IsInt64() const
 {
     return data().type == Type::Int ||
            (data().type == Type::Uint &&
             data().uintValue <= static_cast<std::uint64_t>(INT64_MAX));
 }
+
 inline bool Value::IsUint64() const
 {
     return data().type == Type::Uint ||
            (data().type == Type::Int && data().intValue >= 0);
 }
+
 inline bool Value::IsDouble() const
 {
     return data().type == Type::Double || data().type == Type::Int ||
            data().type == Type::Uint;
 }
-inline bool Value::IsString() const { return data().type == Type::String; }
-inline bool Value::IsObject() const { return data().type == Type::Object; }
-inline bool Value::IsArray() const { return data().type == Type::Array; }
 
-inline bool Value::GetBool() const { return data().boolValue; }
+inline bool Value::IsString() const
+{
+    return data().type == Type::String;
+}
+
+inline bool Value::IsObject() const
+{
+    return data().type == Type::Object;
+}
+
+inline bool Value::IsArray() const
+{
+    return data().type == Type::Array;
+}
+
+inline bool Value::GetBool() const
+{
+    return data().boolValue;
+}
+
 inline int Value::GetInt() const
 {
     if(data().type == Type::Uint)
         return static_cast<int>(data().uintValue);
     return static_cast<int>(data().intValue);
 }
+
 inline unsigned Value::GetUint() const
 {
     if(data().type == Type::Int)
         return static_cast<unsigned>(data().intValue);
     return static_cast<unsigned>(data().uintValue);
 }
+
 inline std::int64_t Value::GetInt64() const
 {
     if(data().type == Type::Uint)
         return static_cast<std::int64_t>(data().uintValue);
     return data().intValue;
 }
+
 inline std::uint64_t Value::GetUint64() const
 {
     if(data().type == Type::Int)
         return static_cast<std::uint64_t>(data().intValue);
     return data().uintValue;
 }
+
 inline double Value::GetDouble() const
 {
     if(data().type == Type::Int)
@@ -315,7 +378,12 @@ inline double Value::GetDouble() const
         return static_cast<double>(data().uintValue);
     return data().doubleValue;
 }
-inline const char* Value::GetString() const { return data().stringValue.c_str(); }
+
+inline const char* Value::GetString() const
+{
+    return data().stringValue.c_str();
+}
+
 inline SizeType Value::GetStringLength() const
 {
     return data().stringValue.size();
@@ -357,16 +425,26 @@ inline void Value::SetString(const char* text, SizeType len, Alloc&)
     data().stringValue.assign(text ? text : "", len);
 }
 
-inline Value::Array& Value::GetArray() { return data().arrayValue; }
-inline const Value::Array& Value::GetArray() const { return data().arrayValue; }
+inline Value::Array& Value::GetArray()
+{
+    return data().arrayValue;
+}
+
+inline const Value::Array& Value::GetArray() const
+{
+    return data().arrayValue;
+}
+
 inline Value& Value::operator[](SizeType index)
 {
     return data().arrayValue[index];
 }
+
 inline const Value& Value::operator[](SizeType index) const
 {
     return data().arrayValue[index];
 }
+
 inline SizeType Value::Size() const
 {
     if(data().type == Type::Array)
@@ -375,30 +453,47 @@ inline SizeType Value::Size() const
         return data().objectValue.size();
     return 0;
 }
-inline bool Value::Empty() const { return Size() == 0; }
 
-inline Value::iterator Value::MemberBegin() { return data().objectValue.begin(); }
-inline Value::iterator Value::MemberEnd() { return data().objectValue.end(); }
+inline bool Value::Empty() const
+{
+    return Size() == 0;
+}
+
+inline Value::iterator Value::MemberBegin()
+{
+    return data().objectValue.begin();
+}
+
+inline Value::iterator Value::MemberEnd()
+{
+    return data().objectValue.end();
+}
+
 inline Value::const_iterator Value::MemberBegin() const
 {
     return data().objectValue.begin();
 }
+
 inline Value::const_iterator Value::MemberEnd() const
 {
     return data().objectValue.end();
 }
+
 inline Value::iterator Value::FindMember(const char* key)
 {
-    for(auto it = data().objectValue.begin(); it != data().objectValue.end(); ++it)
+    for(auto it = data().objectValue.begin(); it != data().objectValue.end();
+        ++it)
     {
         if(it->name.equals(key))
             return it;
     }
     return data().objectValue.end();
 }
+
 inline Value::const_iterator Value::FindMember(const char* key) const
 {
-    for(auto it = data().objectValue.begin(); it != data().objectValue.end(); ++it)
+    for(auto it = data().objectValue.begin(); it != data().objectValue.end();
+        ++it)
     {
         if(it->name.equals(key))
             return it;
@@ -435,8 +530,10 @@ inline void Value::AddMember(const char* key, const char* value, Alloc& alloc)
     AddMember(key, Value(value), alloc);
 }
 
-inline void Value::AddMember(const char* key, std::string_view value,
-                             Alloc& alloc)
+inline void Value::AddMember(
+    const char* key,
+    std::string_view value,
+    Alloc& alloc)
 {
     AddMember(key, Value(value), alloc);
 }
@@ -517,8 +614,15 @@ inline void Value::PushBack(double value, Alloc& alloc)
     PushBack(Value(value), alloc);
 }
 
-inline void Value::CopyFrom(const Value& other, Alloc&) { *this = other; }
-inline Value::Type Value::type() const { return data().type; }
+inline void Value::CopyFrom(const Value& other, Alloc&)
+{
+    *this = other;
+}
+
+inline Value::Type Value::type() const
+{
+    return data().type;
+}
 
 inline void Value::set_type(JsonType type)
 {
@@ -559,10 +663,18 @@ class Document : public Value
 {
 public:
     Document() = default;
+
     explicit Document(JsonType type) : Value(type) {}
 
-    Alloc& GetAllocator() { return alloc_; }
-    const Alloc& GetAllocator() const { return alloc_; }
+    Alloc& GetAllocator()
+    {
+        return alloc_;
+    }
+
+    const Alloc& GetAllocator() const
+    {
+        return alloc_;
+    }
 
 private:
     Alloc alloc_;
@@ -581,8 +693,8 @@ inline Value convert(yyjson_val* value)
     if(yyjson_is_real(value))
         return Value(yyjson_get_real(value));
     if(yyjson_is_str(value))
-        return Value(std::string_view(yyjson_get_str(value),
-                                      yyjson_get_len(value)));
+        return Value(
+            std::string_view(yyjson_get_str(value), yyjson_get_len(value)));
     if(yyjson_is_arr(value))
     {
         Value out(kArrayType);
@@ -676,8 +788,12 @@ inline void append_escaped(std::string& out, std::string_view text)
     out.push_back('"');
 }
 
-inline void stringify_into(const Value& value, std::string& out,
-                           unsigned indent, unsigned depth, bool pretty)
+inline void stringify_into(
+    const Value& value,
+    std::string& out,
+    unsigned indent,
+    unsigned depth,
+    bool pretty)
 {
     auto newline_indent = [&]()
     {
@@ -706,10 +822,12 @@ inline void stringify_into(const Value& value, std::string& out,
         out += std::to_string(value.GetDouble());
         break;
     case Value::Type::String:
-        append_escaped(out, std::string_view(value.GetString(),
-                                             value.GetStringLength()));
+        append_escaped(
+            out,
+            std::string_view(value.GetString(), value.GetStringLength()));
         break;
-    case Value::Type::Array: {
+    case Value::Type::Array:
+    {
         out.push_back('[');
         const auto& arr = value.GetArray();
         for(std::size_t i = 0; i < arr.size(); ++i)
@@ -728,7 +846,8 @@ inline void stringify_into(const Value& value, std::string& out,
         out.push_back(']');
         break;
     }
-    case Value::Type::Object: {
+    case Value::Type::Object:
+    {
         out.push_back('{');
         bool first = true;
         for(auto it = value.MemberBegin(); it != value.MemberEnd(); ++it)
@@ -741,8 +860,11 @@ inline void stringify_into(const Value& value, std::string& out,
                 out.push_back('\n');
                 out.append((depth + 1) * indent, ' ');
             }
-            append_escaped(out, std::string_view(it->name.GetString(),
-                                                 it->name.GetStringLength()));
+            append_escaped(
+                out,
+                std::string_view(
+                    it->name.GetString(),
+                    it->name.GetStringLength()));
             out.push_back(':');
             if(pretty)
                 out.push_back(' ');
@@ -785,8 +907,10 @@ inline bool has(const Value& obj, const char* key)
     return find(obj, key) != nullptr;
 }
 
-inline std::string get_string(const Value& obj, const char* key,
-                              std::string_view def = {})
+inline std::string get_string(
+    const Value& obj,
+    const char* key,
+    std::string_view def = {})
 {
     auto v = find(obj, key);
     if(v && v->IsString())

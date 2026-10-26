@@ -34,18 +34,21 @@ std::string_view locFileColor(const Theme& theme, std::string_view path)
         return theme.uiInfo();
     }
 
-    if(constants::is_filetype<constants::no_pattern,
-                              constants::python_suffixes>(path) ||
+    if(constants::is_filetype<
+           constants::no_pattern,
+           constants::python_suffixes>(path) ||
        constants::is_filetype<constants::no_pattern, constants::robot_suffixes>(
            path))
     {
         return theme.uiSuccess();
     }
 
-    if(constants::is_filetype<constants::no_pattern,
-                              constants::javascript_suffixes>(path) ||
-       constants::is_filetype<constants::no_pattern,
-                              constants::typescript_suffixes>(path))
+    if(constants::is_filetype<
+           constants::no_pattern,
+           constants::javascript_suffixes>(path) ||
+       constants::is_filetype<
+           constants::no_pattern,
+           constants::typescript_suffixes>(path))
     {
         return theme.uiWarning();
     }
@@ -74,8 +77,9 @@ std::string_view locFileColor(const Theme& theme, std::string_view path)
         return theme.uiPrompt();
     }
 
-    if(constants::is_filetype<constants::cmake_prefixes,
-                              constants::cmake_suffixes>(path) ||
+    if(constants::is_filetype<
+           constants::cmake_prefixes,
+           constants::cmake_suffixes>(path) ||
        constants::is_filetype<constants::no_pattern, constants::shell_suffixes>(
            path))
     {
@@ -104,8 +108,9 @@ void LocListMode::on_exit(ModeContext& /* ctx */)
     Terminal::setCursorBlock();
 }
 
-std::optional<ModeState> LocListMode::handle(ModeContext& ctx,
-                                             const ModeKeyEvent& event)
+std::optional<ModeState> LocListMode::handle(
+    ModeContext& ctx,
+    const ModeKeyEvent& event)
 {
     const int key = event.key;
     Editor* ed = ctx.editor;
@@ -119,7 +124,8 @@ std::optional<ModeState> LocListMode::handle(ModeContext& ctx,
             if(sortMode != SortMode::Normal)
             {
                 std::sort(
-                    ed->locList.begin(), ed->locList.end(),
+                    ed->locList.begin(),
+                    ed->locList.end(),
                     [](const Editor::LocEntry& a, const Editor::LocEntry& b)
                     { return a.displayPath < b.displayPath; });
                 sortMode = SortMode::Normal;
@@ -153,30 +159,36 @@ std::optional<ModeState> LocListMode::handle(ModeContext& ctx,
     {
         if(sortMode == SortMode::Normal || sortMode == SortMode::Asc)
         {
-            std::sort(ed->locList.begin(), ed->locList.end(),
-                      [](const Editor::LocEntry& a, const Editor::LocEntry& b)
-                      {
-                          if(a.loc != b.loc)
-                              return a.loc > b.loc;
-                          return a.displayPath < b.displayPath;
-                      });
+            std::sort(
+                ed->locList.begin(),
+                ed->locList.end(),
+                [](const Editor::LocEntry& a, const Editor::LocEntry& b)
+                {
+                    if(a.loc != b.loc)
+                        return a.loc > b.loc;
+                    return a.displayPath < b.displayPath;
+                });
             sortMode = SortMode::Desc;
         }
         else
         {
-            std::sort(ed->locList.begin(), ed->locList.end(),
-                      [](const Editor::LocEntry& a, const Editor::LocEntry& b)
-                      {
-                          if(a.loc != b.loc)
-                              return a.loc < b.loc;
-                          return a.displayPath < b.displayPath;
-                      });
+            std::sort(
+                ed->locList.begin(),
+                ed->locList.end(),
+                [](const Editor::LocEntry& a, const Editor::LocEntry& b)
+                {
+                    if(a.loc != b.loc)
+                        return a.loc < b.loc;
+                    return a.displayPath < b.displayPath;
+                });
             sortMode = SortMode::Asc;
         }
         cursor = std::clamp(cursor, 0, (int)ed->locList.size() - 1);
         int visible = ed->screenRows - 1;
-        offset = std::clamp(offset, 0,
-                            std::max(0, (int)ed->locList.size() - visible));
+        offset = std::clamp(
+            offset,
+            0,
+            std::max(0, (int)ed->locList.size() - visible));
         countWidth = computeCountWidth(ed->locList);
         ed->needsFullRedraw = true;
         return std::nullopt;
@@ -194,9 +206,10 @@ std::optional<ModeState> LocListMode::handle(ModeContext& ctx,
                 offset = cursor - visible + 1;
         }
     }
-    else if(c == keyCode(typed::TypedKey::KEY_K) ||
-            c == keyCode(control::ControlKey::CTRL_P) ||
-            c == keyCode(navigation::NavigationKey::ARROW_UP))
+    else if(
+        c == keyCode(typed::TypedKey::KEY_K) ||
+        c == keyCode(control::ControlKey::CTRL_P) ||
+        c == keyCode(navigation::NavigationKey::ARROW_UP))
     {
         if(cursor > 0)
         {
@@ -205,8 +218,9 @@ std::optional<ModeState> LocListMode::handle(ModeContext& ctx,
                 offset = cursor;
         }
     }
-    else if(c == keyCode(control::ControlKey::CTRL_D) ||
-            c == keyCode(navigation::NavigationKey::PAGE_DOWN))
+    else if(
+        c == keyCode(control::ControlKey::CTRL_D) ||
+        c == keyCode(navigation::NavigationKey::PAGE_DOWN))
     {
         int half = (ed->screenRows - 1) / 2;
         cursor += half;
@@ -216,8 +230,9 @@ std::optional<ModeState> LocListMode::handle(ModeContext& ctx,
         if(cursor >= offset + visible)
             offset = cursor - visible + 1;
     }
-    else if(c == keyCode(control::ControlKey::CTRL_U) ||
-            c == keyCode(navigation::NavigationKey::PAGE_UP))
+    else if(
+        c == keyCode(control::ControlKey::CTRL_U) ||
+        c == keyCode(navigation::NavigationKey::PAGE_UP))
     {
         int half = (ed->screenRows - 1) / 2;
         cursor -= half;
@@ -263,8 +278,9 @@ void LocListMode::draw(Editor& editor) const
     if(!editor.locListRoot.empty())
         header += " - " + editor.locListRoot;
     if((int)header.length() < editor.screenCols)
-        header += std::string(editor.screenCols - header.length(),
-                              keyChar(control::ControlKey::SPACE));
+        header += std::string(
+            editor.screenCols - header.length(),
+            keyChar(control::ControlKey::SPACE));
     output += header;
     output += editor.theme.reset();
     output += "\r\n";
@@ -284,8 +300,10 @@ void LocListMode::draw(Editor& editor) const
 
         std::string countStr = std::to_string(std::max(0, entry.loc));
         if((int)countStr.size() < countWidth)
-            countStr.insert(0, countWidth - countStr.size(),
-                            keyChar(control::ControlKey::SPACE));
+            countStr.insert(
+                0,
+                countWidth - countStr.size(),
+                keyChar(control::ControlKey::SPACE));
 
         output += " ";
         output += editor.theme.baseFg();
@@ -299,8 +317,9 @@ void LocListMode::draw(Editor& editor) const
         {
             if(maxPathLen > 3)
             {
-                displayPath = "..." + displayPath.substr(displayPath.length() -
-                                                         maxPathLen + 3);
+                displayPath =
+                    "..." +
+                    displayPath.substr(displayPath.length() - maxPathLen + 3);
             }
             else
             {

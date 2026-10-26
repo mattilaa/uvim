@@ -42,22 +42,24 @@ struct ColorSelectorMode : widgets::PopupBase
     {
     }
 
-    static ColorSelectorMode fromAnsiColor(color::AnsiColor ansi,
-                                           bool useBackground);
+    static ColorSelectorMode fromAnsiColor(
+        color::AnsiColor ansi,
+        bool useBackground);
     static std::optional<ColorSelectorMode> fromAnsiLiteralAtCursor(
         const Editor& editor);
     static std::optional<ColorSelectorMode> fromAnsiLiteralAtCursorAndRemove(
         Editor& editor);
-    static ColorSelectorMode forVisualRange(VisualColorRange range,
-                                            bool useBackground = false);
+    static ColorSelectorMode forVisualRange(
+        VisualColorRange range,
+        bool useBackground = false);
 
     void on_enter(ModeContext& ctx);
     void on_exit(ModeContext& ctx);
 
-    std::optional<ModeState> handle(ModeContext& ctx,
-                                    const ModeKeyEvent& event);
+    std::optional<ModeState> handle(
+        ModeContext& ctx,
+        const ModeKeyEvent& event);
 
     void draw(Editor& editor);
-
 };
 } // namespace editor::statemachine

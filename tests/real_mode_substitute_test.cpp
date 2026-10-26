@@ -39,11 +39,13 @@ TEST(SubstituteTest, CurrentLineFirstMatchAndWholeBufferGlobal)
     *editor.cursorY = 1;
     auto sm = makeMachine(editor, NormalMode{});
     dispatch_command(sm, "s/foo/bar/");
-    EXPECT_EQ(*editor.lines,
-              (std::vector<std::string>{"foo foo", "bar foo", "FOO"}));
+    EXPECT_EQ(
+        *editor.lines,
+        (std::vector<std::string>{"foo foo", "bar foo", "FOO"}));
     dispatch_command(sm, "%s/foo/baz/g");
-    EXPECT_EQ(*editor.lines,
-              (std::vector<std::string>{"baz baz", "bar baz", "FOO"}));
+    EXPECT_EQ(
+        *editor.lines,
+        (std::vector<std::string>{"baz baz", "bar baz", "FOO"}));
     EXPECT_EQ(editor.statusMessage, "3 substitutions on 2 lines");
     EXPECT_TRUE(*editor.dirty);
 }
@@ -99,8 +101,14 @@ TEST(SubstituteTest, InvalidInputIsAtomicAndDoesNotCreateUndoEntries)
     const auto original = *editor.lines;
     const int undo = editor.currentBuffer->undoIndex;
     for(const std::string command :
-        {"s/foo/bar", "s/[/bar/", "s/foo/bar/z", "3s/foo/bar/", "0s/foo/bar/",
-         "2,1s/foo/bar/", "999999999999999999s/foo/bar/", "s/missing/bar/",
+        {"s/foo/bar",
+         "s/[/bar/",
+         "s/foo/bar/z",
+         "3s/foo/bar/",
+         "0s/foo/bar/",
+         "2,1s/foo/bar/",
+         "999999999999999999s/foo/bar/",
+         "s/missing/bar/",
          "s//bar/"})
     {
         SCOPED_TRACE(command);
@@ -164,8 +172,9 @@ TEST(SubstituteTest, WelcomePromptReportsNoBufferWithoutOpeningOne)
     EXPECT_EQ(editor.statusMessage, "substitute: No buffer");
 }
 
-TEST(SubstituteTest,
-     ProjectStagesOnlyMatchingFilesAndHonorsIgnoreAndBinaryRules)
+TEST(
+    SubstituteTest,
+    ProjectStagesOnlyMatchingFilesAndHonorsIgnoreAndBinaryRules)
 {
     const auto root = make_temp_dir("uvim_project_substitute_");
     write_file(root / ".gitignore", "ignored/\n");
@@ -180,24 +189,29 @@ TEST(SubstituteTest,
     editor.respectGitignore = true;
     editor.executeCommand("%%s/foo/bar/g");
     ASSERT_EQ(editor.buffers.size(), 2u);
-    EXPECT_NE(editor.statusMessage.find("3 substitutions in 2 project files"),
-              std::string::npos);
+    EXPECT_NE(
+        editor.statusMessage.find("3 substitutions in 2 project files"),
+        std::string::npos);
     for(const auto& buffer : editor.buffers)
         EXPECT_TRUE(buffer->dirty);
     EXPECT_EQ(read_file(root / "first.txt"), nativeFileText("foo foo\n"));
-    EXPECT_EQ(read_file(root / "nested" / "second.cpp"),
-              nativeFileText("foo\n"));
+    EXPECT_EQ(
+        read_file(root / "nested" / "second.cpp"),
+        nativeFileText("foo\n"));
     editor.executeCommand("wa");
     EXPECT_EQ(read_file(root / "first.txt"), nativeFileText("bar bar\n"));
-    EXPECT_EQ(read_file(root / "nested" / "second.cpp"),
-              nativeFileText("bar\n"));
-    EXPECT_EQ(read_file(root / "ignored" / "skip.txt"),
-              nativeFileText("foo\n"));
+    EXPECT_EQ(
+        read_file(root / "nested" / "second.cpp"),
+        nativeFileText("bar\n"));
+    EXPECT_EQ(
+        read_file(root / "ignored" / "skip.txt"),
+        nativeFileText("foo\n"));
     EXPECT_EQ(read_file(root / ".hidden.txt"), nativeFileText("foo\n"));
 }
 
-TEST(SubstituteTest,
-     ProjectUsesUnsavedBuffersKeepsSelectionAndAllowsPerFileUndo)
+TEST(
+    SubstituteTest,
+    ProjectUsesUnsavedBuffersKeepsSelectionAndAllowsPerFileUndo)
 {
     const auto root = make_temp_dir("uvim_project_substitute_dirty_");
     const auto first = root / "first.txt";
@@ -227,8 +241,9 @@ TEST(SubstituteTest, ProjectCountOnlyDoesNotOpenOrModifyBuffers)
     auto sm = makeMachine(editor, WelcomeMode{});
     dispatch_command(sm, "%%s/foo/bar/gin");
     EXPECT_TRUE(editor.buffers.empty());
-    EXPECT_NE(editor.statusMessage.find("2 matches in 1 project files"),
-              std::string::npos);
+    EXPECT_NE(
+        editor.statusMessage.find("2 matches in 1 project files"),
+        std::string::npos);
     EXPECT_EQ(read_file(root / "file.txt"), nativeFileText("foo FOO\n"));
 }
 
@@ -255,8 +270,13 @@ TEST(SubstituteTest, ProjectNeverFollowsSymlinksOutsideRootEvenForOpenBuffers)
 
 TEST(SubstituteTest, RecognitionDoesNotInterceptExistingCommands)
 {
-    for(const std::string text : {"s/foo/bar/g", "%s#foo#bar#", "%%s/a/b/",
-                                  "2,5s/", "'<,'>s/", "substitute/a/b/"})
+    for(const std::string text :
+        {"s/foo/bar/g",
+         "%s#foo#bar#",
+         "%%s/a/b/",
+         "2,5s/",
+         "'<,'>s/",
+         "substitute/a/b/"})
         EXPECT_TRUE(command::execution::isSubstituteCommand(text)) << text;
     for(const std::string text :
         {"set", "split", "sc", "se", "shtio", "git stash", ""})
@@ -452,8 +472,9 @@ TEST(SubstituteTest, BatchPickerCancelDiscardsAllSelectionsAndCreatesNoUndo)
         EXPECT_EQ(editor.lines->front(), "foo foo");
         EXPECT_FALSE(*editor.dirty);
         EXPECT_EQ(editor.currentBuffer->undoIndex, before);
-        EXPECT_EQ(editor.statusMessage,
-                  "substitute: Replacement selection cancelled");
+        EXPECT_EQ(
+            editor.statusMessage,
+            "substitute: Replacement selection cancelled");
         EXPECT_EQ(Terminal::bufferedKeyCount(), 0);
     }
 }
@@ -480,9 +501,10 @@ TEST(SubstituteTest, BatchPickerRespectsRangesFirstMatchAndCaptureReplacements)
     contents(editor, {"foo1 foo2", "foo3 foo4", "foo5 foo6"});
     confirmKeys(" j \r");
     editor.executeCommand(R"(2,3s/foo([0-9])/\1\n&/p)");
-    EXPECT_EQ(*editor.lines,
-              (std::vector<std::string>{"foo1 foo2", "3", "foo3 foo4", "5",
-                                        "foo5 foo6"}));
+    EXPECT_EQ(
+        *editor.lines,
+        (std::vector<
+            std::string>{"foo1 foo2", "3", "foo3 foo4", "5", "foo5 foo6"}));
     EXPECT_EQ(Terminal::bufferedKeyCount(), 0);
 }
 
@@ -495,8 +517,9 @@ TEST(SubstituteTest, BatchPickerScrollsToMatchesBeyondFirstPage)
     confirmKeys(std::string(39, 'j') + " \r");
     editor.executeCommand("%s/foo/bar/gp");
     EXPECT_EQ(editor.lines->back(), "bar");
-    EXPECT_EQ(std::count(editor.lines->begin(), editor.lines->end(), "foo"),
-              39);
+    EXPECT_EQ(
+        std::count(editor.lines->begin(), editor.lines->end(), "foo"),
+        39);
     EXPECT_EQ(Terminal::bufferedKeyCount(), 0);
 }
 
@@ -511,12 +534,14 @@ TEST(SubstituteTest, ProjectBatchPickerOnlyOpensSelectedChangedFiles)
     editor.executeCommand("%%s/foo/bar/gp");
     ASSERT_EQ(editor.buffers.size(), 1u);
     EXPECT_EQ(editor.lines->front(), "bar");
-    EXPECT_EQ(editor.currentBuffer->filename,
-              std::filesystem::canonical(root / "b.txt").string());
+    EXPECT_EQ(
+        editor.currentBuffer->filename,
+        std::filesystem::canonical(root / "b.txt").string());
     EXPECT_EQ(read_file(root / "a.txt"), nativeFileText("foo foo\n"));
     EXPECT_EQ(read_file(root / "b.txt"), nativeFileText("foo\n"));
-    EXPECT_NE(editor.statusMessage.find("1 substitutions in 1 project files"),
-              std::string::npos);
+    EXPECT_NE(
+        editor.statusMessage.find("1 substitutions in 1 project files"),
+        std::string::npos);
     editor.undo();
     EXPECT_EQ(editor.lines->front(), "foo");
     EXPECT_FALSE(*editor.dirty);
@@ -549,8 +574,9 @@ TEST(SubstituteTest, BatchPickerKeepsNoOpMatchesInProjectReplayOrder)
     confirmKeys("j \r");
     editor.executeCommand("%%s/foo|bar/foo/gp");
     ASSERT_EQ(editor.buffers.size(), 1u);
-    EXPECT_EQ(editor.currentBuffer->filename,
-              std::filesystem::canonical(root / "b.txt").string());
+    EXPECT_EQ(
+        editor.currentBuffer->filename,
+        std::filesystem::canonical(root / "b.txt").string());
     EXPECT_EQ(editor.lines->front(), "foo");
     EXPECT_EQ(Terminal::bufferedKeyCount(), 0);
 }

@@ -27,8 +27,8 @@ using editor::helper::parse_int;
 using editor::helper::trim_view;
 using namespace detail;
 
-bool GitDiffCommand::execute(Editor& editor,
-                             const CommandRequest& request) const
+bool GitDiffCommand::execute(Editor& editor, const CommandRequest& request)
+    const
 {
     if(request.trimmed != "git diff")
         return false;

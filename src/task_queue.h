@@ -40,9 +40,9 @@ public:
 
     private:
         friend class TaskQueue;
-        Context(TaskQueue& queue, TaskId id) : queue_(queue), id_(id)
-        {
-        }
+
+        Context(TaskQueue& queue, TaskId id) : queue_(queue), id_(id) {}
+
         TaskQueue& queue_;
         TaskId id_;
     };
@@ -55,8 +55,8 @@ public:
         std::string label;
         std::string channel; // empty: own channel (never serialized)
         Work work;
-        Done done;           // main thread, only when work did not throw
-        Done onAbort;        // main thread, when cancelled or failed instead
+        Done done;    // main thread, only when work did not throw
+        Done onAbort; // main thread, when cancelled or failed instead
         bool showProgress = true; // false: listed in :tasks, no status bar
     };
 
@@ -126,8 +126,10 @@ public:
     // Main thread. Blocks until `id` finished running, calling `pump` about
     // every 20 ms so the UI can animate and buffer input. Does not run any
     // completion callbacks. On Failed, `error` (if given) gets the message.
-    WaitResult wait(TaskId id, const std::function<void()>& pump,
-                    std::string* error = nullptr);
+    WaitResult wait(
+        TaskId id,
+        const std::function<void()>& pump,
+        std::string* error = nullptr);
 
     // Every job not yet retired, in submission order.
     std::vector<TaskInfo> snapshot() const;

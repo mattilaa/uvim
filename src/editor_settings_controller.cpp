@@ -1,7 +1,7 @@
 #include "editor_settings_controller.h"
 #include "editor.h"
-#include "terminal.h"
 #include "editor_utils.h"
+#include "terminal.h"
 #ifdef UVIM_ENABLE_CLANGD_LSP
 #include "lsp_client.h"
 #endif
@@ -28,16 +28,17 @@ bool Editor::handleSetCommandImpl(std::string_view cmd)
     std::string opt = std::string(cmd.substr(4));
     if(opt == "collectionindentwidth?")
     {
-        setStatusMessage("collectionindentwidth=" +
-                         std::to_string(collectionIndentSpaces));
+        setStatusMessage(
+            "collectionindentwidth=" + std::to_string(collectionIndentSpaces));
         return true;
     }
     if(opt == "collectionindentkey?")
     {
-        setStatusMessage(std::string("collectionindentkey=") +
-                         (collectionIndentKey == 20   ? "ctrl-t"
-                          : collectionIndentKey == 25 ? "ctrl-y"
-                                                      : "off"));
+        setStatusMessage(
+            std::string("collectionindentkey=") +
+            (collectionIndentKey == 20   ? "ctrl-t"
+             : collectionIndentKey == 25 ? "ctrl-y"
+                                         : "off"));
         return true;
     }
     if(opt.starts_with("collectionindentkey="))
@@ -75,69 +76,73 @@ bool Editor::handleSetCommandImpl(std::string_view cmd)
         catch(...)
         {
         }
-        setStatusMessage("collectionindentwidth: expected 0-16 (0 uses the "
-                         "buffer indent width)");
+        setStatusMessage(
+            "collectionindentwidth: expected 0-16 (0 uses the "
+            "buffer indent width)");
         return true;
     }
 
     if(opt == "autobraces?")
     {
-        setStatusMessage(std::string("autobraces=") +
-                         (autoBraces ? "true" : "false"));
+        setStatusMessage(
+            std::string("autobraces=") + (autoBraces ? "true" : "false"));
         return true;
     }
     if(opt == "autoquotes?")
     {
-        setStatusMessage(std::string("autoquotes=") +
-                         (autoQuotes ? "true" : "false"));
+        setStatusMessage(
+            std::string("autoquotes=") + (autoQuotes ? "true" : "false"));
         return true;
     }
     if(opt == "autobracesinstrings?")
     {
-        setStatusMessage(std::string("autobracesinstrings=") +
-                         (autoBracesInStrings ? "true" : "false"));
+        setStatusMessage(
+            std::string("autobracesinstrings=") +
+            (autoBracesInStrings ? "true" : "false"));
         return true;
     }
     if(opt == "splitbraces?")
     {
-        setStatusMessage(std::string("splitbraces=") +
-                         (splitBraces ? "true" : "false"));
+        setStatusMessage(
+            std::string("splitbraces=") + (splitBraces ? "true" : "false"));
         return true;
     }
     if(opt == "autobrackets?")
     {
-        setStatusMessage(std::string("autobrackets=") +
-                         (autoBrackets ? "true" : "false"));
+        setStatusMessage(
+            std::string("autobrackets=") + (autoBrackets ? "true" : "false"));
         return true;
     }
     if(opt == "splitbrackets?")
     {
-        setStatusMessage(std::string("splitbrackets=") +
-                         (splitBrackets ? "true" : "false"));
+        setStatusMessage(
+            std::string("splitbrackets=") + (splitBrackets ? "true" : "false"));
         return true;
     }
     if(opt == "continuationindent?")
     {
-        setStatusMessage(std::string("continuationindent=") +
-                         (continuationIndent ? "true" : "false"));
+        setStatusMessage(
+            std::string("continuationindent=") +
+            (continuationIndent ? "true" : "false"));
         return true;
     }
     if(opt == "asmdimunmapped?")
     {
-        setStatusMessage(std::string("asmdimunmapped=") +
-                         (asmDimUnmapped ? "true" : "false"));
+        setStatusMessage(
+            std::string("asmdimunmapped=") +
+            (asmDimUnmapped ? "true" : "false"));
         return true;
     }
     if(opt == "asmdocsapi?")
     {
-        setStatusMessage(std::string("asmdocsapi=") +
-                         (asmDocsApi ? "true" : "false"));
+        setStatusMessage(
+            std::string("asmdocsapi=") + (asmDocsApi ? "true" : "false"));
         return true;
     }
     if(opt == "autotags?")
     {
-        setStatusMessage(std::string("autotags=") +
-                         (autoTags ? "true" : "false"));
+        setStatusMessage(
+            std::string("autotags=") + (autoTags ? "true" : "false"));
         return true;
     }
     if(opt == "tabspaces?")
@@ -147,26 +152,27 @@ bool Editor::handleSetCommandImpl(std::string_view cmd)
     }
     if(opt == "autocomplete?")
     {
-        setStatusMessage(std::string("autocomplete=") +
-                         (autoCompletion ? "true" : "false"));
+        setStatusMessage(
+            std::string("autocomplete=") + (autoCompletion ? "true" : "false"));
         return true;
     }
     if(opt == "completionautoparens?")
     {
-        setStatusMessage(std::string("completionautoparens=") +
-                         (completionAutoParens ? "true" : "false"));
+        setStatusMessage(
+            std::string("completionautoparens=") +
+            (completionAutoParens ? "true" : "false"));
         return true;
     }
     if(opt == "showtabs?")
     {
-        setStatusMessage(std::string("showtabs=") +
-                         (showTabs ? "true" : "false"));
+        setStatusMessage(
+            std::string("showtabs=") + (showTabs ? "true" : "false"));
         return true;
     }
     if(opt == "tabnumbers?")
     {
-        setStatusMessage(std::string("tabnumbers=") +
-                         (showTabNumbers ? "true" : "false"));
+        setStatusMessage(
+            std::string("tabnumbers=") + (showTabNumbers ? "true" : "false"));
         return true;
     }
     if(opt == "utf8?")
@@ -176,31 +182,33 @@ bool Editor::handleSetCommandImpl(std::string_view cmd)
     }
     if(opt == "gitblameinfo?")
     {
-        setStatusMessage(std::string("gitblameinfo=") +
-                         (showGitBlameInfo ? "true" : "false"));
+        setStatusMessage(
+            std::string("gitblameinfo=") +
+            (showGitBlameInfo ? "true" : "false"));
         return true;
     }
     if(opt == "gitdefaultcolors?")
     {
-        setStatusMessage(std::string("gitdefaultcolors=") +
-                         (gitUseDefaultColors ? "true" : "false"));
+        setStatusMessage(
+            std::string("gitdefaultcolors=") +
+            (gitUseDefaultColors ? "true" : "false"));
         return true;
     }
     if(opt == "commenttogglepartial?")
     {
-        setStatusMessage(std::string("commenttogglepartial=") +
-                         (commentTogglePartial ? "true" : "false"));
+        setStatusMessage(
+            std::string("commenttogglepartial=") +
+            (commentTogglePartial ? "true" : "false"));
         return true;
     }
     if(opt == "iskitty?")
     {
-        setStatusMessage(std::string("iskitty=") + (isKitty ? "true" : "false") +
-                         " (" + Terminal::shiftChordLabel() +
-                         "+h/j/k/l/x chords)");
+        setStatusMessage(
+            std::string("iskitty=") + (isKitty ? "true" : "false") + " (" +
+            Terminal::shiftChordLabel() + "+h/j/k/l/x chords)");
         return true;
     }
-    if(opt == "iskitty" || opt == "noiskitty" ||
-       opt.rfind("iskitty=", 0) == 0)
+    if(opt == "iskitty" || opt == "noiskitty" || opt.rfind("iskitty=", 0) == 0)
     {
         std::string value = opt == "iskitty"     ? "true"
                             : opt == "noiskitty" ? "false"
@@ -214,52 +222,55 @@ bool Editor::handleSetCommandImpl(std::string_view cmd)
             setStatusMessage("iskitty: expected true/false");
             return true;
         }
-        setStatusMessage(std::string("iskitty=") + (isKitty ? "true" : "false") +
-                         " (" + Terminal::shiftChordLabel() +
-                         "+h/j/k/l/x chords)");
+        setStatusMessage(
+            std::string("iskitty=") + (isKitty ? "true" : "false") + " (" +
+            Terminal::shiftChordLabel() + "+h/j/k/l/x chords)");
         return true;
     }
     if(opt == "gitignore?")
     {
-        setStatusMessage(std::string("gitignore=") +
-                         (respectGitignore ? "true" : "false"));
+        setStatusMessage(
+            std::string("gitignore=") + (respectGitignore ? "true" : "false"));
         return true;
     }
     if(opt == "searchcontrast?")
     {
-        setStatusMessage("searchcontrast=" +
-                         std::to_string(searchMatchContrast));
+        setStatusMessage(
+            "searchcontrast=" + std::to_string(searchMatchContrast));
         return true;
     }
     if(opt == "formatoninsertleave?")
     {
-        setStatusMessage(std::string("formatoninsertleave=") +
-                         (formatOnInsertLeave ? "true" : "false"));
+        setStatusMessage(
+            std::string("formatoninsertleave=") +
+            (formatOnInsertLeave ? "true" : "false"));
         return true;
     }
     if(opt == "autodetectlsps?")
     {
-        setStatusMessage(std::string("autodetectlsps=") +
-                         (autoDetectLsps ? "true" : "false"));
+        setStatusMessage(
+            std::string("autodetectlsps=") +
+            (autoDetectLsps ? "true" : "false"));
         return true;
     }
     if(opt == "emitlsp?")
     {
-        setStatusMessage(std::string("emitlsp=") +
-                         (emitLspDiagnostics ? "true" : "false"));
+        setStatusMessage(
+            std::string("emitlsp=") + (emitLspDiagnostics ? "true" : "false"));
         return true;
     }
     if(opt == "filebrowser.fuzzy?")
     {
-        setStatusMessage(std::string("filebrowser.fuzzy=") +
-                         (fileBrowserFuzzy ? "true" : "false"));
+        setStatusMessage(
+            std::string("filebrowser.fuzzy=") +
+            (fileBrowserFuzzy ? "true" : "false"));
         return true;
     }
 #ifdef UVIM_ENABLE_RG_CACHE
     if(opt == "rgcache?")
     {
-        setStatusMessage(std::string("rgcache=") +
-                         (rgCacheEnabled ? "true" : "false"));
+        setStatusMessage(
+            std::string("rgcache=") + (rgCacheEnabled ? "true" : "false"));
         return true;
     }
     if(opt == "rgupdate?")
@@ -270,28 +281,31 @@ bool Editor::handleSetCommandImpl(std::string_view cmd)
 #endif
     if(opt == "pickerstyle?")
     {
-        setStatusMessage(std::string("pickerstyle=") +
-                         (pickerFloating ? "float" : "fullscreen"));
+        setStatusMessage(
+            std::string("pickerstyle=") +
+            (pickerFloating ? "float" : "fullscreen"));
         return true;
     }
     if(opt == "picker.width?" || opt == "picker.height?")
     {
         const bool width = opt == "picker.width?";
-        setStatusMessage(std::string(width ? "picker.width=" : "picker.height=") +
-                         std::to_string(width ? pickerWidthPercent
-                                              : pickerHeightPercent));
+        setStatusMessage(
+            std::string(width ? "picker.width=" : "picker.height=") +
+            std::to_string(width ? pickerWidthPercent : pickerHeightPercent));
         return true;
     }
     if(opt == "picker.preview?")
     {
-        setStatusMessage(std::string("picker.preview=") +
-                         (pickerPreview ? "true" : "false"));
+        setStatusMessage(
+            std::string("picker.preview=") +
+            (pickerPreview ? "true" : "false"));
         return true;
     }
     if(opt == "progressstyle?")
     {
-        setStatusMessage("progressstyle=" +
-                         std::string(widgets::progressStyleName(progressStyle)));
+        setStatusMessage(
+            "progressstyle=" +
+            std::string(widgets::progressStyleName(progressStyle)));
         return true;
     }
     if(opt == "status.lspgap?")
@@ -301,26 +315,28 @@ bool Editor::handleSetCommandImpl(std::string_view cmd)
     }
     if(opt == "commandline.messageprefix?")
     {
-        setStatusMessage(std::string("commandline.messageprefix=") +
-                         (commandLineMessagePrefix ? "true" : "false"));
+        setStatusMessage(
+            std::string("commandline.messageprefix=") +
+            (commandLineMessagePrefix ? "true" : "false"));
         return true;
     }
     if(opt == "formatonsave?")
     {
-        setStatusMessage(std::string("formatonsave=") +
-                         (formatOnSave ? "true" : "false"));
+        setStatusMessage(
+            std::string("formatonsave=") + (formatOnSave ? "true" : "false"));
         return true;
     }
     if(opt == "gdcenter?")
     {
-        setStatusMessage(std::string("gdcenter=") +
-                         (gdCenterScreen ? "true" : "false"));
+        setStatusMessage(
+            std::string("gdcenter=") + (gdCenterScreen ? "true" : "false"));
         return true;
     }
     if(opt == "formatondoubleesctimeoutms?")
     {
-        setStatusMessage("formatondoubleesctimeoutms=" +
-                         std::to_string(formatOnDoubleEscTimeoutMs));
+        setStatusMessage(
+            "formatondoubleesctimeoutms=" +
+            std::to_string(formatOnDoubleEscTimeoutMs));
         return true;
     }
     if(opt == "python.formatter?")
@@ -335,128 +351,139 @@ bool Editor::handleSetCommandImpl(std::string_view cmd)
     }
     if(opt == "syntax.cpp.highlight_system_includes?")
     {
-        setStatusMessage(std::string("syntax.cpp.highlight_system_includes=") +
-                         (syntaxCppHighlightSystemIncludes ? "true" : "false"));
+        setStatusMessage(
+            std::string("syntax.cpp.highlight_system_includes=") +
+            (syntaxCppHighlightSystemIncludes ? "true" : "false"));
         return true;
     }
     if(opt == "syntax.cpp.highlight_param_types?")
     {
-        setStatusMessage(std::string("syntax.cpp.highlight_param_types=") +
-                         (syntaxCppHighlightParamTypes ? "true" : "false"));
+        setStatusMessage(
+            std::string("syntax.cpp.highlight_param_types=") +
+            (syntaxCppHighlightParamTypes ? "true" : "false"));
         return true;
     }
     if(opt == "syntax.cpp.semantic_tokens?")
     {
-        setStatusMessage(std::string("syntax.cpp.semantic_tokens=") +
-                         (syntaxCppSemanticTokens ? "true" : "false"));
+        setStatusMessage(
+            std::string("syntax.cpp.semantic_tokens=") +
+            (syntaxCppSemanticTokens ? "true" : "false"));
         return true;
     }
     if(opt == "syntax.mlang.semantic_tokens?")
     {
-        setStatusMessage(std::string("syntax.mlang.semantic_tokens=") +
-                         (syntaxMlangSemanticTokens ? "true" : "false"));
+        setStatusMessage(
+            std::string("syntax.mlang.semantic_tokens=") +
+            (syntaxMlangSemanticTokens ? "true" : "false"));
         return true;
     }
     if(opt == "syntax.cpp.locals_color?")
     {
-        setStatusMessage("syntax.cpp.locals_color=" +
-                         std::string(token_type_name(syntaxCppLocalToken)));
+        setStatusMessage(
+            "syntax.cpp.locals_color=" +
+            std::string(token_type_name(syntaxCppLocalToken)));
         return true;
     }
     if(opt == "syntax.cpp.member_color?")
     {
-        setStatusMessage("syntax.cpp.member_color=" +
-                         std::string(token_type_name(syntaxCppMemberToken)));
+        setStatusMessage(
+            "syntax.cpp.member_color=" +
+            std::string(token_type_name(syntaxCppMemberToken)));
         return true;
     }
     if(opt == "syntax.mlang.highlight_types?")
     {
-        setStatusMessage(std::string("syntax.mlang.highlight_types=") +
-                         (syntaxMlangHighlightTypes ? "true" : "false"));
+        setStatusMessage(
+            std::string("syntax.mlang.highlight_types=") +
+            (syntaxMlangHighlightTypes ? "true" : "false"));
         return true;
     }
     if(opt == "syntax.mlang.highlight_builtin_docs?")
     {
-        setStatusMessage(std::string("syntax.mlang.highlight_builtin_docs=") +
-                         (syntaxMlangHighlightBuiltinDocs ? "true" : "false"));
+        setStatusMessage(
+            std::string("syntax.mlang.highlight_builtin_docs=") +
+            (syntaxMlangHighlightBuiltinDocs ? "true" : "false"));
         return true;
     }
 
     auto set_flag = [&](bool value)
     {
         autoBraces = value;
-        setStatusMessage(std::string("autobraces=") +
-                         (autoBraces ? "true" : "false"));
+        setStatusMessage(
+            std::string("autobraces=") + (autoBraces ? "true" : "false"));
     };
 
     auto set_auto_quotes = [&](bool value)
     {
         autoQuotes = value;
-        setStatusMessage(std::string("autoquotes=") +
-                         (autoQuotes ? "true" : "false"));
+        setStatusMessage(
+            std::string("autoquotes=") + (autoQuotes ? "true" : "false"));
     };
 
     auto set_auto_braces_in_strings = [&](bool value)
     {
         autoBracesInStrings = value;
-        setStatusMessage(std::string("autobracesinstrings=") +
-                         (autoBracesInStrings ? "true" : "false"));
+        setStatusMessage(
+            std::string("autobracesinstrings=") +
+            (autoBracesInStrings ? "true" : "false"));
     };
 
     auto set_split_braces = [&](bool value)
     {
         splitBraces = value;
-        setStatusMessage(std::string("splitbraces=") +
-                         (splitBraces ? "true" : "false"));
+        setStatusMessage(
+            std::string("splitbraces=") + (splitBraces ? "true" : "false"));
     };
 
     auto set_auto_brackets = [&](bool value)
     {
         autoBrackets = value;
-        setStatusMessage(std::string("autobrackets=") +
-                         (autoBrackets ? "true" : "false"));
+        setStatusMessage(
+            std::string("autobrackets=") + (autoBrackets ? "true" : "false"));
     };
 
     auto set_split_brackets = [&](bool value)
     {
         splitBrackets = value;
-        setStatusMessage(std::string("splitbrackets=") +
-                         (splitBrackets ? "true" : "false"));
+        setStatusMessage(
+            std::string("splitbrackets=") + (splitBrackets ? "true" : "false"));
     };
 
     auto set_continuation_indent = [&](bool value)
     {
         continuationIndent = value;
-        setStatusMessage(std::string("continuationindent=") +
-                         (continuationIndent ? "true" : "false"));
+        setStatusMessage(
+            std::string("continuationindent=") +
+            (continuationIndent ? "true" : "false"));
     };
 
     auto set_asm_dim_unmapped = [&](bool value)
     {
         asmDimUnmapped = value;
-        setStatusMessage(std::string("asmdimunmapped=") +
-                         (asmDimUnmapped ? "true" : "false"));
+        setStatusMessage(
+            std::string("asmdimunmapped=") +
+            (asmDimUnmapped ? "true" : "false"));
     };
 
     auto set_asm_docs_api = [&](bool value)
     {
         asmDocsApi = value;
-        setStatusMessage(std::string("asmdocsapi=") +
-                         (asmDocsApi ? "true" : "false"));
+        setStatusMessage(
+            std::string("asmdocsapi=") + (asmDocsApi ? "true" : "false"));
     };
 
     auto set_autotags = [&](bool value)
     {
         autoTags = value;
-        setStatusMessage(std::string("autotags=") +
-                         (autoTags ? "true" : "false"));
+        setStatusMessage(
+            std::string("autotags=") + (autoTags ? "true" : "false"));
     };
 
     auto set_gdcenter = [&](bool value)
     {
         gdCenterScreen = value;
-        setStatusMessage(std::string("gdcenter=") +
-                         (gdCenterScreen ? "true" : "false"));
+        setStatusMessage(
+            std::string("gdcenter=") + (gdCenterScreen ? "true" : "false"));
     };
 
     auto set_emit_lsp = [&](bool value)
@@ -485,8 +512,8 @@ bool Editor::handleSetCommandImpl(std::string_view cmd)
         if(!value)
             closeDiagnosticPopup();
         needsFullRedraw = true;
-        setStatusMessage(std::string("emitlsp=") +
-                         (emitLspDiagnostics ? "true" : "false"));
+        setStatusMessage(
+            std::string("emitlsp=") + (emitLspDiagnostics ? "true" : "false"));
     };
 
     if(opt == "autobraces")
@@ -648,8 +675,9 @@ bool Editor::handleSetCommandImpl(std::string_view cmd)
         std::string value =
             opt.substr(std::string("syntax.cpp.locals_color=").length());
         syntaxCppLocalToken = parse_token_type(value, syntaxCppLocalToken);
-        setStatusMessage("syntax.cpp.locals_color=" +
-                         std::string(token_type_name(syntaxCppLocalToken)));
+        setStatusMessage(
+            "syntax.cpp.locals_color=" +
+            std::string(token_type_name(syntaxCppLocalToken)));
         needsFullRedraw = true;
         return true;
     }
@@ -658,8 +686,9 @@ bool Editor::handleSetCommandImpl(std::string_view cmd)
         std::string value =
             opt.substr(std::string("syntax.cpp.member_color=").length());
         syntaxCppMemberToken = parse_token_type(value, syntaxCppMemberToken);
-        setStatusMessage("syntax.cpp.member_color=" +
-                         std::string(token_type_name(syntaxCppMemberToken)));
+        setStatusMessage(
+            "syntax.cpp.member_color=" +
+            std::string(token_type_name(syntaxCppMemberToken)));
         needsFullRedraw = true;
         return true;
     }
@@ -907,14 +936,13 @@ bool Editor::handleSetCommandImpl(std::string_view cmd)
             setStatusMessage("searchcontrast: expected 0-100");
             return true;
         }
-        searchMatchContrast = direction == 0
-                                  ? amount
-                                  : std::clamp(searchMatchContrast +
-                                                   direction * amount,
-                                               0, 100);
+        searchMatchContrast =
+            direction == 0
+                ? amount
+                : std::clamp(searchMatchContrast + direction * amount, 0, 100);
         needsFullRedraw = true;
-        setStatusMessage("searchcontrast=" +
-                         std::to_string(searchMatchContrast));
+        setStatusMessage(
+            "searchcontrast=" + std::to_string(searchMatchContrast));
         return true;
     };
     if(opt.rfind("searchcontrast+=", 0) == 0)
@@ -958,8 +986,9 @@ bool Editor::handleSetCommandImpl(std::string_view cmd)
             if(ms > 0 && ms <= 5000)
             {
                 formatOnDoubleEscTimeoutMs = ms;
-                setStatusMessage("formatondoubleesctimeoutms=" +
-                                 std::to_string(formatOnDoubleEscTimeoutMs));
+                setStatusMessage(
+                    "formatondoubleesctimeoutms=" +
+                    std::to_string(formatOnDoubleEscTimeoutMs));
             }
             else
             {
@@ -1049,7 +1078,8 @@ bool Editor::handleSetCommandImpl(std::string_view cmd)
     }
     if(opt.rfind("pickerstyle=", 0) == 0)
     {
-        const std::string value = opt.substr(std::string("pickerstyle=").length());
+        const std::string value =
+            opt.substr(std::string("pickerstyle=").length());
         if(value == "float" || value == "floating")
             pickerFloating = true;
         else if(value == "fullscreen" || value == "full")
@@ -1059,18 +1089,21 @@ bool Editor::handleSetCommandImpl(std::string_view cmd)
             setStatusMessage("pickerstyle: expected float or fullscreen");
             return true;
         }
-        setStatusMessage(std::string("pickerstyle=") +
-                         (pickerFloating ? "float" : "fullscreen"));
+        setStatusMessage(
+            std::string("pickerstyle=") +
+            (pickerFloating ? "float" : "fullscreen"));
         needsFullRedraw = true;
         return true;
     }
-    if(opt.rfind("picker.width=", 0) == 0 || opt.rfind("picker.height=", 0) == 0)
+    if(opt.rfind("picker.width=", 0) == 0 ||
+       opt.rfind("picker.height=", 0) == 0)
     {
         const bool width = opt.rfind("picker.width=", 0) == 0;
         const std::string key = width ? "picker.width" : "picker.height";
         int value = 0;
         if(!editor::helper::parse_int(
-               std::string_view(opt).substr(key.length() + 1), value) ||
+               std::string_view(opt).substr(key.length() + 1),
+               value) ||
            value < 10 || value > 100)
         {
             setStatusMessage(key + ": expected 10-100 (percent)");
@@ -1094,8 +1127,9 @@ bool Editor::handleSetCommandImpl(std::string_view cmd)
             setStatusMessage("picker.preview: expected true/false");
             return true;
         }
-        setStatusMessage(std::string("picker.preview=") +
-                         (pickerPreview ? "true" : "false"));
+        setStatusMessage(
+            std::string("picker.preview=") +
+            (pickerPreview ? "true" : "false"));
         needsFullRedraw = true;
         return true;
     }
@@ -1123,8 +1157,8 @@ bool Editor::handleSetCommandImpl(std::string_view cmd)
             if(gap >= 0 && gap <= 20)
             {
                 lspStatusGap = gap;
-                setStatusMessage("status.lspgap=" +
-                                 std::to_string(lspStatusGap));
+                setStatusMessage(
+                    "status.lspgap=" + std::to_string(lspStatusGap));
             }
             else
             {
@@ -1350,15 +1384,16 @@ bool Editor::handleSetCommandImpl(std::string_view cmd)
     auto set_auto_completion = [&](bool value)
     {
         autoCompletion = value;
-        setStatusMessage(std::string("autocomplete=") +
-                         (autoCompletion ? "true" : "false"));
+        setStatusMessage(
+            std::string("autocomplete=") + (autoCompletion ? "true" : "false"));
     };
 
     auto set_completion_auto_parens = [&](bool value)
     {
         completionAutoParens = value;
-        setStatusMessage(std::string("completionautoparens=") +
-                         (completionAutoParens ? "true" : "false"));
+        setStatusMessage(
+            std::string("completionautoparens=") +
+            (completionAutoParens ? "true" : "false"));
     };
 
     if(opt == "autocomplete")

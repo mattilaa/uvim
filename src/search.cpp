@@ -44,8 +44,8 @@ void Editor::findAllMatches()
             if(!std::regex_search(start, line.cend(), match, pattern))
                 break;
 
-            int col = static_cast<int>(std::distance(line.cbegin(), start) +
-                                       match.position());
+            int col = static_cast<int>(
+                std::distance(line.cbegin(), start) + match.position());
             int len = static_cast<int>(match.length());
             if(len > 0)
             {
@@ -216,8 +216,9 @@ void Editor::searchPrevious()
     currentMatchIndex = static_cast<int>(
         (currentMatchIndex - 1 + searchMatches.size()) % searchMatches.size());
     jumpToMatch(currentMatchIndex);
-    setStatusMessage("Match " + std::to_string(currentMatchIndex + 1) + " of " +
-                     std::to_string(searchMatches.size()));
+    setStatusMessage(
+        "Match " + std::to_string(currentMatchIndex + 1) + " of " +
+        std::to_string(searchMatches.size()));
     needsFullRedraw = true;
 }
 

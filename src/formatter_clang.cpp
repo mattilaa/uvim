@@ -27,8 +27,9 @@ std::string findClangFormatFile(const std::string& filename)
         ec.clear();
     }
 
-    std::filesystem::path dir =
-        path.has_parent_path() ? path.parent_path() : std::filesystem::path(".");
+    std::filesystem::path dir = path.has_parent_path()
+                                    ? path.parent_path()
+                                    : std::filesystem::path(".");
     while(!dir.empty())
     {
         const auto stylePath = dir / ".clang-format";
@@ -74,8 +75,9 @@ size_t ClangFormatter::byteOffsetForPosition(int y, int x) const
     return off;
 }
 
-bool ClangFormatter::formatWithArgs(const std::string& extraArgs,
-                                    const std::string& successMessage)
+bool ClangFormatter::formatWithArgs(
+    const std::string& extraArgs,
+    const std::string& successMessage)
 {
     if(!editor.lines || !editor.filename)
         return false;
@@ -83,8 +85,8 @@ bool ClangFormatter::formatWithArgs(const std::string& extraArgs,
     if(!editor.isFileType<FileType::Cpp>() ||
        editor.isFileType<FileType::Mla>())
     {
-        editor.setStatusMessage("clang-format: not a C/C++ file (" +
-                                *editor.filename + ")");
+        editor.setStatusMessage(
+            "clang-format: not a C/C++ file (" + *editor.filename + ")");
         return false;
     }
 
@@ -114,11 +116,10 @@ bool ClangFormatter::formatWithArgs(const std::string& extraArgs,
 
     auto buildArgs = [&](const std::string& exe) -> std::vector<std::string>
     {
-        std::vector<std::string> args = {exe,
-                                         styleFile.empty()
-                                             ? "-style=file"
-                                             : "-style=file:" + styleFile,
-                                         "-assume-filename=" + absFilename};
+        std::vector<std::string> args =
+            {exe,
+             styleFile.empty() ? "-style=file" : "-style=file:" + styleFile,
+             "-assume-filename=" + absFilename};
         if(!extraArgs.empty())
         {
             std::istringstream iss(extraArgs);
@@ -133,8 +134,9 @@ bool ClangFormatter::formatWithArgs(const std::string& extraArgs,
     std::string clangFormat = "clang-format";
 #ifdef __APPLE__
     std::error_code clangFormatEc;
-    if(std::filesystem::is_regular_file("/opt/homebrew/bin/clang-format",
-                                       clangFormatEc))
+    if(std::filesystem::is_regular_file(
+           "/opt/homebrew/bin/clang-format",
+           clangFormatEc))
         clangFormat = "/opt/homebrew/bin/clang-format";
 #endif
     ProcessPipe pipe(buildArgs(clangFormat));
@@ -222,10 +224,12 @@ bool ClangFormatter::formatVisualSelection()
 
     if(editor.currentMode == VISUAL_LINE)
     {
-        const int startY = std::min(editor.currentBuffer->visualStartY,
-                                    editor.currentBuffer->visualEndY);
-        const int endY = std::max(editor.currentBuffer->visualStartY,
-                                  editor.currentBuffer->visualEndY);
+        const int startY = std::min(
+            editor.currentBuffer->visualStartY,
+            editor.currentBuffer->visualEndY);
+        const int endY = std::max(
+            editor.currentBuffer->visualStartY,
+            editor.currentBuffer->visualEndY);
 
         const int startLine = startY + 1;
         const int endLine = endY + 1;

@@ -2,11 +2,11 @@
 #include "ascii.h"
 
 #include "editor.h"
-#include "widgets/popup_base.h"
 #include "terminal.h"
 #include "text_utils.h"
 #include "theme.h"
 #include "token_type.h"
+#include "widgets/popup_base.h"
 #include <algorithm>
 #include <cctype>
 
@@ -121,8 +121,10 @@ static std::string buildCompletionBrief(const CompletionEntry& entry)
     return {};
 }
 
-static std::vector<std::string> wrapTextLines(const std::string& text,
-                                              int width, int maxLines)
+static std::vector<std::string> wrapTextLines(
+    const std::string& text,
+    int width,
+    int maxLines)
 {
     std::vector<std::string> out;
     if(text.empty() || width <= 4 || maxLines <= 0)
@@ -259,8 +261,9 @@ void drawCompletionPopup(std::string& output, const Editor& editor)
     {
         const auto& e = editor.completionAll[editor.completionFiltered[i]];
         maxLeftW = std::max(
-            maxLeftW, text_utils::displayWidth(e.label) +
-                          text_utils::displayWidth(buildCompletionExtras(e)));
+            maxLeftW,
+            text_utils::displayWidth(e.label) +
+                text_utils::displayWidth(buildCompletionExtras(e)));
 
         std::string brief = buildCompletionBrief(e);
         if(!brief.empty())
@@ -309,9 +312,8 @@ void drawCompletionPopup(std::string& output, const Editor& editor)
             bool docWasTruncated = false;
             if(!selEntry.documentation.empty())
             {
-                docWasTruncated =
-                    (int)selEntry.documentation.size() >
-                    kMaxCompletionDocumentationChars;
+                docWasTruncated = (int)selEntry.documentation.size() >
+                                  kMaxCompletionDocumentationChars;
                 docText = limitCompletionDocumentation(selEntry.documentation);
             }
             else if(!selEntry.detail.empty())
@@ -356,8 +358,12 @@ void drawCompletionPopup(std::string& output, const Editor& editor)
 
     const int totalH = maxRows + 2 + docRows;
     const widgets::PopupPlacement placement =
-        widgets::placePopupNearEditorCursor(editor, totalW, totalH, totalH,
-                                            false);
+        widgets::placePopupNearEditorCursor(
+            editor,
+            totalW,
+            totalH,
+            totalH,
+            false);
     const int top = placement.top;
     const int left = placement.left;
 
@@ -365,8 +371,10 @@ void drawCompletionPopup(std::string& output, const Editor& editor)
 
     moveTo(top, left);
     text_utils::appendU8(output, ascii::BOX_LIGHT_TOP_LEFT);
-    text_utils::appendUtf8Repeat(output, ascii::BOX_LIGHT_HORIZONTAL,
-                                 innerW + 2);
+    text_utils::appendUtf8Repeat(
+        output,
+        ascii::BOX_LIGHT_HORIZONTAL,
+        innerW + 2);
     text_utils::appendU8(output, ascii::BOX_LIGHT_TOP_RIGHT);
 
     auto kindColor = [&](int kind) -> const std::string&
@@ -410,7 +418,8 @@ void drawCompletionPopup(std::string& output, const Editor& editor)
     };
 
     auto appendSyntaxRow = [&](const std::string& label,
-                               const std::string& extra, bool selected,
+                               const std::string& extra,
+                               bool selected,
                                int kind)
     {
         if(!editor.isFileType<FileType::Cpp>())
@@ -433,9 +442,13 @@ void drawCompletionPopup(std::string& output, const Editor& editor)
         char tomlQuote = 0;
         bool inMarkupFence = false;
         char markupFenceChar = 0;
-        std::vector<Token> tokens =
-            editor.tokenizeLine(label, inBlockComment, inTomlMultiline,
-                                tomlQuote, inMarkupFence, markupFenceChar);
+        std::vector<Token> tokens = editor.tokenizeLine(
+            label,
+            inBlockComment,
+            inTomlMultiline,
+            tomlQuote,
+            inMarkupFence,
+            markupFenceChar);
         std::vector<TokenType> colors(label.size(), TOKEN_NORMAL);
         bool hasColor = false;
 
@@ -445,7 +458,8 @@ void drawCompletionPopup(std::string& output, const Editor& editor)
                 hasColor = true;
             int tokenEnd = token.start + token.length;
             for(int pos = token.start;
-                pos < tokenEnd && pos < (int)label.size(); pos++)
+                pos < tokenEnd && pos < (int)label.size();
+                pos++)
             {
                 colors[pos] = token.type;
             }
@@ -564,8 +578,10 @@ void drawCompletionPopup(std::string& output, const Editor& editor)
 
     moveTo(top + 1 + docRows + maxRows, left);
     text_utils::appendU8(output, ascii::BOX_LIGHT_BOTTOM_LEFT);
-    text_utils::appendUtf8Repeat(output, ascii::BOX_LIGHT_HORIZONTAL,
-                                 innerW + 2);
+    text_utils::appendUtf8Repeat(
+        output,
+        ascii::BOX_LIGHT_HORIZONTAL,
+        innerW + 2);
     text_utils::appendU8(output, ascii::BOX_LIGHT_BOTTOM_RIGHT);
 }
 } // namespace widgets

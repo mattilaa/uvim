@@ -21,12 +21,15 @@ void EditorLspController::retire(std::unique_ptr<LspClient> client)
     if(!client)
         return;
     auto owned = std::shared_ptr<LspClient>(std::move(client));
-    editor.submitTask("stopping LSP", "",
-                      [owned](TaskQueue::Context&) { owned->stop(); });
+    editor.submitTask(
+        "stopping LSP",
+        "",
+        [owned](TaskQueue::Context&) { owned->stop(); });
 }
 
-void EditorLspController::disable(std::unique_ptr<LspClient>& slot,
-                                  bool& enabled)
+void EditorLspController::disable(
+    std::unique_ptr<LspClient>& slot,
+    bool& enabled)
 {
     ++generations[&slot];
     pending[&slot] = false;
@@ -35,7 +38,9 @@ void EditorLspController::disable(std::unique_ptr<LspClient>& slot,
 }
 
 void EditorLspController::start(
-    const std::string& label, std::unique_ptr<LspClient>& slot, bool& enabled,
+    const std::string& label,
+    std::unique_ptr<LspClient>& slot,
+    bool& enabled,
     std::function<bool(LspClient&)> launch,
     std::function<void(bool, const std::string&)> completed)
 {
@@ -64,9 +69,10 @@ void EditorLspController::start(
         }
     };
     editor.submitTask(
-        "starting " + label + " LSP", "lsp-start:" + label,
-        [result, launch = std::move(launch), diagnostics,
-         label](TaskQueue::Context& ctx)
+        "starting " + label + " LSP",
+        "lsp-start:" + label,
+        [result, launch = std::move(launch), diagnostics, label](
+            TaskQueue::Context& ctx)
         {
             if(ctx.cancelled())
                 return;
@@ -81,7 +87,12 @@ void EditorLspController::start(
                                     ? "failed to start"
                                     : client->lastError();
         },
-        [this, &slot, &enabled, generation, result, label,
+        [this,
+         &slot,
+         &enabled,
+         generation,
+         result,
+         label,
          completed = std::move(completed)]
         {
             if(generations[&slot] != generation)
@@ -117,11 +128,16 @@ void EditorLspController::start(
 #endif
 
 void EditorLspController::enableClangdLsp(
-    bool enable, const std::string& compileCommandsDir,
-    const std::string& clangdPath, const std::string& queryDriverAllowList)
+    bool enable,
+    const std::string& compileCommandsDir,
+    const std::string& clangdPath,
+    const std::string& queryDriverAllowList)
 {
-    editor.enableClangdLspImpl(enable, compileCommandsDir, clangdPath,
-                               queryDriverAllowList);
+    editor.enableClangdLspImpl(
+        enable,
+        compileCommandsDir,
+        clangdPath,
+        queryDriverAllowList);
 }
 
 bool EditorLspController::isClangdLspEnabled() const
@@ -130,7 +146,8 @@ bool EditorLspController::isClangdLspEnabled() const
 }
 
 void EditorLspController::enableRobotLsp(
-    bool enable, const std::string& robotLspPath,
+    bool enable,
+    const std::string& robotLspPath,
     const std::vector<std::string>& robotLspArgs)
 {
     editor.enableRobotLspImpl(enable, robotLspPath, robotLspArgs);
@@ -142,7 +159,8 @@ bool EditorLspController::isRobotLspEnabled() const
 }
 
 void EditorLspController::enablePythonLsp(
-    bool enable, const std::string& pythonLspPath,
+    bool enable,
+    const std::string& pythonLspPath,
     const std::vector<std::string>& pythonLspArgs)
 {
     editor.enablePythonLspImpl(enable, pythonLspPath, pythonLspArgs);
@@ -154,7 +172,8 @@ bool EditorLspController::isPythonLspEnabled() const
 }
 
 void EditorLspController::enableMlangLsp(
-    bool enable, const std::string& mlangLspPath,
+    bool enable,
+    const std::string& mlangLspPath,
     const std::vector<std::string>& mlangLspArgs)
 {
     editor.enableMlangLspImpl(enable, mlangLspPath, mlangLspArgs);
@@ -166,7 +185,8 @@ bool EditorLspController::isMlangLspEnabled() const
 }
 
 void EditorLspController::enableHtmlLsp(
-    bool enable, const std::string& htmlLspPath,
+    bool enable,
+    const std::string& htmlLspPath,
     const std::vector<std::string>& htmlLspArgs)
 {
     editor.enableHtmlLspImpl(enable, htmlLspPath, htmlLspArgs);
@@ -178,7 +198,8 @@ bool EditorLspController::isHtmlLspEnabled() const
 }
 
 void EditorLspController::enableCssLsp(
-    bool enable, const std::string& cssLspPath,
+    bool enable,
+    const std::string& cssLspPath,
     const std::vector<std::string>& cssLspArgs)
 {
     editor.enableCssLspImpl(enable, cssLspPath, cssLspArgs);
@@ -190,7 +211,8 @@ bool EditorLspController::isCssLspEnabled() const
 }
 
 void EditorLspController::enableJsonLsp(
-    bool enable, const std::string& jsonLspPath,
+    bool enable,
+    const std::string& jsonLspPath,
     const std::vector<std::string>& jsonLspArgs)
 {
     editor.enableJsonLspImpl(enable, jsonLspPath, jsonLspArgs);
@@ -201,8 +223,10 @@ bool EditorLspController::isJsonLspEnabled() const
     return editor.isJsonLspEnabledImpl();
 }
 
-void EditorLspController::enableTsLsp(bool enable, const std::string& tsLspPath,
-                                      const std::vector<std::string>& tsLspArgs)
+void EditorLspController::enableTsLsp(
+    bool enable,
+    const std::string& tsLspPath,
+    const std::vector<std::string>& tsLspArgs)
 {
     editor.enableTsLspImpl(enable, tsLspPath, tsLspArgs);
 }
@@ -213,7 +237,8 @@ bool EditorLspController::isTsLspEnabled() const
 }
 
 void EditorLspController::enableCSharpLsp(
-    bool enable, const std::string& csharpLspPath,
+    bool enable,
+    const std::string& csharpLspPath,
     const std::vector<std::string>& csharpLspArgs)
 {
     editor.enableCSharpLspImpl(enable, csharpLspPath, csharpLspArgs);
@@ -223,4 +248,3 @@ bool EditorLspController::isCSharpLspEnabled() const
 {
     return editor.isCSharpLspEnabledImpl();
 }
-

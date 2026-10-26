@@ -5,8 +5,8 @@
 
 namespace command::execution
 {
-bool GlyphSelectCommand::execute(Editor& editor,
-                                 const CommandRequest& request) const
+bool GlyphSelectCommand::execute(Editor& editor, const CommandRequest& request)
+    const
 {
     if(request.text != "glyphselect")
         return false;

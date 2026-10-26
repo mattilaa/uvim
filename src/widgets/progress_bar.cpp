@@ -8,13 +8,12 @@ namespace widgets
 {
 namespace
 {
-constexpr std::array<std::string_view, 10> kUnicodeSpinner = {
-    "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"};
-constexpr std::array<std::string_view, 4> kAsciiSpinner = {"|", "/", "-",
-                                                           "\\"};
+constexpr std::array<std::string_view, 10> kUnicodeSpinner =
+    {"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"};
+constexpr std::array<std::string_view, 4> kAsciiSpinner = {"|", "/", "-", "\\"};
 // Left-aligned partial blocks, 1/8 .. 7/8 of a cell.
-constexpr std::array<std::string_view, 7> kEighths = {"▏", "▎", "▍", "▌",
-                                                      "▋", "▊", "▉"};
+constexpr std::array<std::string_view, 7> kEighths =
+    {"▏", "▎", "▍", "▌", "▋", "▊", "▉"};
 
 bool unicodeStyle(ProgressStyle style)
 {
@@ -29,8 +28,10 @@ std::string_view spinnerFrame(long long elapsedMs, ProgressStyle style)
     return kAsciiSpinner[frame % kAsciiSpinner.size()];
 }
 
-std::string colored(const ProgressBarView& view, std::string_view color,
-                    std::string_view text)
+std::string colored(
+    const ProgressBarView& view,
+    std::string_view color,
+    std::string_view text)
 {
     if(view.style != ProgressStyle::Color || color.empty())
         return std::string(text);
@@ -42,8 +43,11 @@ std::string colored(const ProgressBarView& view, std::string_view color,
 
 // Cells for a fraction in [0, 1]. Indeterminate jobs pass a bouncing
 // window instead: [windowStart, windowStart + windowCells).
-std::string meterCells(const ProgressBarView& view, long long eighthsFilled,
-                       int windowStart = -1, int windowCells = 0)
+std::string meterCells(
+    const ProgressBarView& view,
+    long long eighthsFilled,
+    int windowStart = -1,
+    int windowCells = 0)
 {
     const int cells = std::max(1, view.barCells);
     std::string out;
@@ -53,10 +57,9 @@ std::string meterCells(const ProgressBarView& view, long long eighthsFilled,
         out += '[';
         for(int i = 0; i < cells; ++i)
         {
-            const bool on = windowStart >= 0
-                                ? (i >= windowStart &&
-                                   i < windowStart + windowCells)
-                                : (i * 8LL + 8 <= eighthsFilled);
+            const bool on = windowStart >= 0 ? (i >= windowStart &&
+                                                i < windowStart + windowCells)
+                                             : (i * 8LL + 8 <= eighthsFilled);
             out += on ? '=' : '.';
         }
         out += ']';
@@ -148,7 +151,8 @@ std::string formatProgressMeter(const ProgressBarView& view)
     const int span = std::max(1, cells - window);
     const long long step = std::max(0LL, view.elapsedMs) / 120;
     const long long phase = step % (span * 2);
-    const int start = static_cast<int>(phase <= span ? phase : span * 2 - phase);
+    const int start =
+        static_cast<int>(phase <= span ? phase : span * 2 - phase);
     return meterCells(view, 0, start, window);
 }
 
@@ -159,8 +163,10 @@ std::string formatProgressBar(const ProgressBarView& view)
 
     const std::string spinner =
         view.waiting ? std::string(unicodeStyle(view.style) ? "⏸" : "=")
-                     : colored(view, view.accent,
-                               spinnerFrame(view.elapsedMs, view.style));
+                     : colored(
+                           view,
+                           view.accent,
+                           spinnerFrame(view.elapsedMs, view.style));
 
     // Segments from most to least important; the tail ones are dropped
     // until the text fits.
@@ -200,8 +206,7 @@ std::string formatProgressBar(const ProgressBarView& view)
     if(view.queuedKeys > 0)
         keys = " [" + std::to_string(view.queuedKeys) + " keys queued]";
 
-    auto joined = [&]
-    { return head + meter + percent + counts + keys + tail; };
+    auto joined = [&] { return head + meter + percent + counts + keys + tail; };
     // Counts go first: the phase/detail says more about where a job is.
     for(std::string* droppable : {&counts, &tail, &keys, &meter})
     {

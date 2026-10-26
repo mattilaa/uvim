@@ -21,13 +21,20 @@ bool EditorDefinitionController::goToRobotDefinition()
 #ifdef UVIM_ENABLE_CLANGD_LSP
     if(editor.isRobotLspEnabled() && editor.robotLspClient)
     {
-        editor.robotLspClient->didChange(editor.currentBuffer->filename,
-                                         bufferText(), "robotframework");
+        editor.robotLspClient->didChange(
+            editor.currentBuffer->filename,
+            bufferText(),
+            "robotframework");
         auto loc = editor.robotLspClient->definition(
-            editor.currentBuffer->filename, *editor.cursorY, *editor.cursorX);
+            editor.currentBuffer->filename,
+            *editor.cursorY,
+            *editor.cursorX);
         if(loc)
-            return jumpToLocation(loc->path, loc->line, loc->character,
-                                  "robot");
+            return jumpToLocation(
+                loc->path,
+                loc->line,
+                loc->character,
+                "robot");
     }
 #endif
 
@@ -44,25 +51,30 @@ bool EditorDefinitionController::goToRobotDefinition()
 
     int defY = -1;
     int defX = 0;
-    if(find_robot_keyword_in_file(editor.currentBuffer->filename, keyword, defY,
-                                  defX))
+    if(find_robot_keyword_in_file(
+           editor.currentBuffer->filename,
+           keyword,
+           defY,
+           defX))
     {
         *editor.cursorY = defY;
         *editor.cursorX = defX;
         applyViewport();
-        editor.setStatusMessage(std::string("gd (robot)") + gdArrow +
-                                *editor.filename + ":" +
-                                std::to_string(defY + 1));
+        editor.setStatusMessage(
+            std::string("gd (robot)") + gdArrow + *editor.filename + ":" +
+            std::to_string(defY + 1));
         return true;
     }
 
     std::filesystem::path root = std::filesystem::current_path();
     std::error_code ec;
     for(std::filesystem::recursive_directory_iterator
-            it(root, std::filesystem::directory_options::skip_permission_denied,
+            it(root,
+               std::filesystem::directory_options::skip_permission_denied,
                ec),
         end;
-        it != end; ++it)
+        it != end;
+        ++it)
     {
         if(it->is_directory(ec) && is_skip_dir(it->path()))
         {
@@ -82,9 +94,9 @@ bool EditorDefinitionController::goToRobotDefinition()
             *editor.cursorY = defY;
             *editor.cursorX = defX;
             applyViewport();
-            editor.setStatusMessage(std::string("gd (robot)") + gdArrow +
-                                    p.string() + ":" +
-                                    std::to_string(defY + 1));
+            editor.setStatusMessage(
+                std::string("gd (robot)") + gdArrow + p.string() + ":" +
+                std::to_string(defY + 1));
             return true;
         }
     }

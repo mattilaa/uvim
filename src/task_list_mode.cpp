@@ -10,8 +10,9 @@ namespace editor::statemachine
 namespace
 {
 // Re-anchors the cursor on the selected job after the list changed.
-void syncCursor(TaskListMode& mode,
-                const std::vector<TaskQueue::TaskInfo>& rows)
+void syncCursor(
+    TaskListMode& mode,
+    const std::vector<TaskQueue::TaskInfo>& rows)
 {
     if(rows.empty())
     {
@@ -19,9 +20,11 @@ void syncCursor(TaskListMode& mode,
         mode.selected = 0;
         return;
     }
-    auto it = std::find_if(rows.begin(), rows.end(),
-                           [&](const TaskQueue::TaskInfo& row)
-                           { return row.id == mode.selected; });
+    auto it = std::find_if(
+        rows.begin(),
+        rows.end(),
+        [&](const TaskQueue::TaskInfo& row)
+        { return row.id == mode.selected; });
     if(it != rows.end())
         mode.cursor = static_cast<int>(it - rows.begin());
     mode.cursor = std::clamp(mode.cursor, 0, (int)rows.size() - 1);
@@ -40,8 +43,9 @@ void TaskListMode::on_exit(ModeContext& ctx)
     Terminal::setCursorBlock();
 }
 
-std::optional<ModeState> TaskListMode::handle(ModeContext& ctx,
-                                              const ModeKeyEvent& event)
+std::optional<ModeState> TaskListMode::handle(
+    ModeContext& ctx,
+    const ModeKeyEvent& event)
 {
     Editor* ed = ctx.editor;
     const int c = keyCode(event.key);
@@ -73,8 +77,9 @@ std::optional<ModeState> TaskListMode::handle(ModeContext& ctx,
     if(c == keyCode(typed::TypedKey::KEY_J) ||
        c == keyCode(navigation::NavigationKey::ARROW_DOWN))
         select(cursor + 1);
-    else if(c == keyCode(typed::TypedKey::KEY_K) ||
-            c == keyCode(navigation::NavigationKey::ARROW_UP))
+    else if(
+        c == keyCode(typed::TypedKey::KEY_K) ||
+        c == keyCode(navigation::NavigationKey::ARROW_UP))
         select(cursor - 1);
     else if(c == keyCode(typed::TypedKey::KEY_G))
         select(0);
@@ -92,8 +97,9 @@ std::optional<ModeState> TaskListMode::handle(ModeContext& ctx,
             ed->setStatusMessage(
                 "Only waiting tasks can move, and not past running ones");
     }
-    else if(c == keyCode(typed::TypedKey::KEY_X) ||
-            (c == keyCode(typed::TypedKey::KEY_D) && wasPendingDelete))
+    else if(
+        c == keyCode(typed::TypedKey::KEY_X) ||
+        (c == keyCode(typed::TypedKey::KEY_D) && wasPendingDelete))
     {
         if(ed->tasks.cancel(row.id))
             ed->setStatusMessage(

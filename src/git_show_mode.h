@@ -51,14 +51,16 @@ struct GitShowCommitMode
     // pending drop or, after c, the rewrite.
     std::string repoRoot;
     std::vector<std::string> originalPlain; // plain diff (patch source)
-    std::vector<int> hunkMap;   // original hunk index of each hunk in lines
+    std::vector<int> hunkMap; // original hunk index of each hunk in lines
     std::vector<int> droppedOriginal; // pending dropped original hunks
+
     struct PendingEdit
     {
         std::vector<std::string> lines;
         std::vector<int> hunkMap;
         std::vector<int> dropped;
     };
+
     std::vector<PendingEdit> pendingUndo;
     bool showDropped = false;
     std::vector<std::string> newCommitLines; // `lines` while showDropped
@@ -71,8 +73,10 @@ struct GitShowCommitMode
 
     GitShowCommitMode() = default;
 
-    GitShowCommitMode(std::string hash, std::vector<std::string> content,
-                      std::optional<GitLogMode> returnLogState = std::nullopt)
+    GitShowCommitMode(
+        std::string hash,
+        std::vector<std::string> content,
+        std::optional<GitLogMode> returnLogState = std::nullopt)
         : commitHash(std::move(hash)), lines(std::move(content)),
           returnLog(std::move(returnLogState))
     {
@@ -81,8 +85,9 @@ struct GitShowCommitMode
     void on_enter(ModeContext& ctx);
     void on_exit(ModeContext& ctx);
 
-    std::optional<ModeState> handle(ModeContext& ctx,
-                                    const ModeKeyEvent& event);
+    std::optional<ModeState> handle(
+        ModeContext& ctx,
+        const ModeKeyEvent& event);
 
     void draw(Editor& editor) const;
 
@@ -104,9 +109,11 @@ private:
 
 public:
 #ifdef UVIM_TESTING
-    static std::string testRenderLine(const Theme& theme, std::string_view line,
-                                      std::string_view query,
-                                      bool useDefaultColors);
+    static std::string testRenderLine(
+        const Theme& theme,
+        std::string_view line,
+        std::string_view query,
+        bool useDefaultColors);
 #endif
 };
 } // namespace editor::statemachine

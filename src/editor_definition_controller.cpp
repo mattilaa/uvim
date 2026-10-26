@@ -63,9 +63,11 @@ std::string EditorDefinitionController::bufferText() const
     return text;
 }
 
-bool EditorDefinitionController::jumpToLocation(const std::string& path,
-                                                int line, int character,
-                                                std::string_view label)
+bool EditorDefinitionController::jumpToLocation(
+    const std::string& path,
+    int line,
+    int character,
+    std::string_view label)
 {
     if(!editor.cursorY || !editor.cursorX)
         return false;
@@ -77,8 +79,9 @@ bool EditorDefinitionController::jumpToLocation(const std::string& path,
     *editor.cursorX = character;
     clampCursor();
     applyViewport();
-    editor.setStatusMessage("gd (" + std::string(label) + ")" + gdArrow + path +
-                            ":" + std::to_string(line + 1));
+    editor.setStatusMessage(
+        "gd (" + std::string(label) + ")" + gdArrow + path + ":" +
+        std::to_string(line + 1));
     return true;
 }
 
@@ -101,18 +104,23 @@ bool EditorDefinitionController::goToInclude()
     if(editor.isClangdLspEnabled() && editor.getFileType() == FileType::Cpp &&
        editor.lspClient)
     {
-        editor.lspClient->didChange(editor.currentBuffer->filename,
-                                    bufferText(), "cpp");
+        editor.lspClient
+            ->didChange(editor.currentBuffer->filename, bufferText(), "cpp");
         int includeColumn = *editor.cursorX;
         const size_t includePos = currentLine.find(includePath);
         if(text_utils::is_found(includePos))
             includeColumn = static_cast<int>(includePos);
         auto loc = editor.lspClient->definition(
-            editor.currentBuffer->filename, *editor.cursorY, includeColumn,
+            editor.currentBuffer->filename,
+            *editor.cursorY,
+            includeColumn,
             currentLine);
         if(loc)
-            return jumpToLocation(loc->path, loc->line, loc->character,
-                                  "clangd");
+            return jumpToLocation(
+                loc->path,
+                loc->line,
+                loc->character,
+                "clangd");
     }
 #endif
 
@@ -213,8 +221,8 @@ bool EditorDefinitionController::goToStdSymbol(const std::string& symbol)
     const std::string gdArrow = ascii::utf8(ascii::RIGHT_ARROW_PADDED);
     editor.pushJumpLocation();
     editor.openFile(header);
-    editor.setStatusMessage(std::string("gd") + gdArrow + "<sys>/" +
-                            headerName);
+    editor.setStatusMessage(
+        std::string("gd") + gdArrow + "<sys>/" + headerName);
     return true;
 }
 
@@ -246,8 +254,8 @@ bool EditorDefinitionController::goToAsmDefinition()
     clampCursor();
     applyViewport();
     const std::string gdArrow = ascii::utf8(ascii::RIGHT_ARROW_PADDED);
-    editor.setStatusMessage("gd (asm " + loc->arch + ")" + gdArrow +
-                            loc->mnemonic);
+    editor.setStatusMessage(
+        "gd (asm " + loc->arch + ")" + gdArrow + loc->mnemonic);
     return true;
 #endif
 }
@@ -282,8 +290,8 @@ std::string wrapTextLine(std::string_view line, int width)
         std::string word(line.substr(start, pos - start));
         const int currentWidth = text_utils::displayWidth(current);
         const int wordWidth = text_utils::displayWidth(word);
-        const int nextWidth = currentWidth + (current == indent ? 0 : 1) +
-                              wordWidth;
+        const int nextWidth =
+            currentWidth + (current == indent ? 0 : 1) + wordWidth;
 
         if(nextWidth > width && current != indent)
         {
@@ -318,10 +326,9 @@ std::string wrapTextLine(std::string_view line, int width)
     while(start <= text.size())
     {
         size_t end = text.find('\n', start);
-        std::string_view line =
-            end == std::string_view::npos
-                ? text.substr(start)
-                : text.substr(start, end - start);
+        std::string_view line = end == std::string_view::npos
+                                    ? text.substr(start)
+                                    : text.substr(start, end - start);
         if(!first)
             out << '\n';
         out << wrapTextLine(line, width);
@@ -333,8 +340,8 @@ std::string wrapTextLine(std::string_view line, int width)
     return out.str();
 }
 
-[[maybe_unused]] std::string
-readAsmDocSection(const asm_documentation::Location& loc)
+[[maybe_unused]] std::string readAsmDocSection(
+    const asm_documentation::Location& loc)
 {
     std::ifstream in(loc.path);
     if(!in)
@@ -460,9 +467,10 @@ void EditorDefinitionController::goToDefinition()
         if(goToPythonDefinition(symbol))
             return;
     }
-    else if(fileType == FileType::Html || fileType == FileType::Css ||
-            fileType == FileType::Json || fileType == FileType::JavaScript ||
-            fileType == FileType::TypeScript)
+    else if(
+        fileType == FileType::Html || fileType == FileType::Css ||
+        fileType == FileType::Json || fileType == FileType::JavaScript ||
+        fileType == FileType::TypeScript)
     {
         if(goToWebDefinition(*fileType, symbol))
             return;
@@ -475,9 +483,10 @@ void EditorDefinitionController::goToDefinition()
 #ifdef UVIM_ENABLE_CLANGD_LSP
     else if(fileType == FileType::CSharp)
     {
-        if(editor.isCSharpLspEnabled() &&
-           goToGenericLspDefinition(editor.csharpLspClient.get(), "csharp",
-                                    "csharp"))
+        if(editor.isCSharpLspEnabled() && goToGenericLspDefinition(
+                                              editor.csharpLspClient.get(),
+                                              "csharp",
+                                              "csharp"))
             return;
     }
 #endif
@@ -485,9 +494,10 @@ void EditorDefinitionController::goToDefinition()
     if(goToCppDefinition(symbol))
         return;
 
-    editor.setStatusMessage("gd: '" + symbol + "' not found (curY=" +
-                            std::to_string(*editor.cursorY) +
-                            " curX=" + std::to_string(*editor.cursorX) + ")");
+    editor.setStatusMessage(
+        "gd: '" + symbol +
+        "' not found (curY=" + std::to_string(*editor.cursorY) +
+        " curX=" + std::to_string(*editor.cursorX) + ")");
 }
 
 void Editor::goToDefinition()

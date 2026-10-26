@@ -58,13 +58,16 @@ using Finder = std::function<bool(const std::string& program)>;
 
 // The dependencies of `features`, prerequisites first (npm before the npm
 // based servers, dotnet before csharp-ls).
-std::vector<Dependency> required(const Features& features, Platform platform,
-                                 PackageManager packageManager,
-                                 const Finder& find);
+std::vector<Dependency> required(
+    const Features& features,
+    Platform platform,
+    PackageManager packageManager,
+    const Finder& find);
 
 // The entries of `deps` none of whose programs is found.
-std::vector<Dependency> missing(const std::vector<Dependency>& deps,
-                                const Finder& find);
+std::vector<Dependency> missing(
+    const std::vector<Dependency>& deps,
+    const Finder& find);
 
 Platform currentPlatform();
 PackageManager detectPackageManager(Platform platform, const Finder& find);

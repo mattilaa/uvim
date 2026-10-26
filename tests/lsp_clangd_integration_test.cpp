@@ -47,10 +47,11 @@ std::string findClangd()
     }
 #ifdef _WIN32
     const char* programFiles = std::getenv("ProgramFiles");
-    const fs::path llvm = fs::path(programFiles && *programFiles
-                                       ? programFiles
-                                       : "C:\\Program Files") /
-                          "LLVM" / "bin" / "clangd.exe";
+    const fs::path llvm =
+        fs::path(
+            programFiles && *programFiles ? programFiles
+                                          : "C:\\Program Files") /
+        "LLVM" / "bin" / "clangd.exe";
     if(fs::is_regular_file(llvm, ec))
         return llvm.string();
 #endif

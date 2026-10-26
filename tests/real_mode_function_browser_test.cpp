@@ -14,12 +14,13 @@ protected:
     {
         editor.createNewBuffer();
         set_buffer_filename(editor, "/tmp/uvim_functions_unsaved.py");
-        *editor.lines = {"# Unsaved buffer",
-                         "def first(value: int):",
-                         "    return value",
-                         "",
-                         "def second(name: str = \"Ada\"):",
-                         "    return name"};
+        *editor.lines =
+            {"# Unsaved buffer",
+             "def first(value: int):",
+             "    return value",
+             "",
+             "def second(name: str = \"Ada\"):",
+             "    return name"};
         *editor.dirty = true;
         editor.screenRows = 24;
         editor.screenCols = 100;
@@ -35,8 +36,9 @@ TEST_F(FunctionBrowserTest, CommandAndLeaderOpenTheCurrentUnsavedOutline)
     auto* browser = sm.getState<FunctionBrowserMode>();
     ASSERT_NE(browser, nullptr);
     ASSERT_EQ(browser->symbols.size(), 2u);
-    EXPECT_EQ(browser->symbols[1].signature,
-              "def second(name: str = \"Ada\"):");
+    EXPECT_EQ(
+        browser->symbols[1].signature,
+        "def second(name: str = \"Ada\"):");
     EXPECT_EQ(modeForState(sm.state()), FUNCTION_BROWSER);
     sm.dispatch(keyCode(control::ControlKey::ESC));
     EXPECT_TRUE(*editor.dirty);
@@ -95,8 +97,9 @@ TEST_F(FunctionBrowserTest, FilteringClearingAndEmptyResults)
     EXPECT_TRUE(editor.jumpBackStack.empty());
 }
 
-TEST_F(FunctionBrowserTest,
-       OpeningFunctionCentersCodeByDefaultAndHonorsGdcenter)
+TEST_F(
+    FunctionBrowserTest,
+    OpeningFunctionCentersCodeByDefaultAndHonorsGdcenter)
 {
     *editor.lines = std::vector<std::string>(120, "# context");
     (*editor.lines)[60] = "def target():";
@@ -147,8 +150,9 @@ TEST_F(FunctionBrowserTest, StartsAtCurrentFunctionAndScrollsInSmallTerminal)
     EXPECT_NE(output.find("FUNCTIONS"), std::string::npos);
 }
 
-TEST_F(FunctionBrowserTest,
-       SignaturesUseThemeSyntaxColorsAndKeepSelectionBackground)
+TEST_F(
+    FunctionBrowserTest,
+    SignaturesUseThemeSyntaxColorsAndKeepSelectionBackground)
 {
     auto sm = makeMachine(editor, FunctionBrowserMode{});
     auto* browser = sm.getState<FunctionBrowserMode>();
@@ -156,21 +160,26 @@ TEST_F(FunctionBrowserTest,
     testing::internal::CaptureStdout();
     browser->draw(editor);
     const std::string output = testing::internal::GetCapturedStdout();
-    EXPECT_NE(output.find(editor.theme.syntax(TOKEN_KEYWORD) + "def"),
-              std::string::npos);
-    EXPECT_NE(output.find(editor.theme.syntax(TOKEN_FUNCTION) + "first"),
-              std::string::npos);
-    EXPECT_NE(output.find(editor.theme.syntax(TOKEN_STRING) + "\"Ada\""),
-              std::string::npos);
-    EXPECT_NE(output.find(editor.theme.uiGutter() + "> 2  "),
-              std::string::npos);
+    EXPECT_NE(
+        output.find(editor.theme.syntax(TOKEN_KEYWORD) + "def"),
+        std::string::npos);
+    EXPECT_NE(
+        output.find(editor.theme.syntax(TOKEN_FUNCTION) + "first"),
+        std::string::npos);
+    EXPECT_NE(
+        output.find(editor.theme.syntax(TOKEN_STRING) + "\"Ada\""),
+        std::string::npos);
+    EXPECT_NE(
+        output.find(editor.theme.uiGutter() + "> 2  "),
+        std::string::npos);
     const auto selection = output.find(editor.theme.selection());
     const auto signatureEnd = output.find("value", selection);
     ASSERT_NE(selection, std::string::npos);
     ASSERT_NE(signatureEnd, std::string::npos);
-    EXPECT_EQ(output.substr(selection, signatureEnd - selection)
-                  .find(editor.theme.reset()),
-              std::string::npos);
+    EXPECT_EQ(
+        output.substr(selection, signatureEnd - selection)
+            .find(editor.theme.reset()),
+        std::string::npos);
 }
 
 TEST_F(FunctionBrowserTest, UnsupportedAndBufferlessViewsAreSafeToCancel)
@@ -241,14 +250,16 @@ TEST_F(FunctionBrowserTest, JumpChangesOnlyTheActiveSplitPane)
 TEST_F(FunctionBrowserTest, RegexFiltersSignaturesWithoutChangingTheSource)
 {
     auto sm = makeMachine(editor, FunctionBrowserMode{});
-    for(char key : std::string("re:second.*str")) sm.dispatch(key);
+    for(char key : std::string("re:second.*str"))
+        sm.dispatch(key);
     auto* browser = sm.getState<FunctionBrowserMode>();
     ASSERT_NE(browser, nullptr);
     ASSERT_EQ(browser->matches.size(), 1u);
     EXPECT_EQ(browser->matches[0], 1);
     EXPECT_TRUE(*editor.dirty);
     sm.dispatch(keyCode(control::ControlKey::CTRL_U));
-    for(char key : std::string("re:[")) sm.dispatch(key);
+    for(char key : std::string("re:["))
+        sm.dispatch(key);
     EXPECT_TRUE(browser->matches.empty());
     sm.dispatch(keyCode(control::ControlKey::CTRL_U));
     EXPECT_EQ(browser->matches.size(), 2u);

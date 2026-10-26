@@ -136,8 +136,16 @@ std::string blame_hash_for_line(const std::string& filePath, int line)
         path.has_parent_path() ? path.parent_path().string() : std::string(".");
     const std::string lineRange =
         std::to_string(line + 1) + "," + std::to_string(line + 1);
-    ProcessPipe pipe({"git", "-C", dir, "blame", "--line-porcelain", "-L",
-                      lineRange, "--", filePath});
+    ProcessPipe pipe(
+        {"git",
+         "-C",
+         dir,
+         "blame",
+         "--line-porcelain",
+         "-L",
+         lineRange,
+         "--",
+         filePath});
     if(!pipe)
         return "";
     std::string firstLine = pipe.readLine();
@@ -156,8 +164,10 @@ bool is_zero_hash(std::string_view hash)
 {
     if(hash.empty())
         return false;
-    return std::all_of(hash.begin(), hash.end(),
-                       [](char c) { return c == '0'; });
+    return std::all_of(
+        hash.begin(),
+        hash.end(),
+        [](char c) { return c == '0'; });
 }
 
 std::string blame_hash_for_current_line(const Editor& editor)
@@ -180,15 +190,20 @@ std::string blame_hash_for_current_line(const Editor& editor)
     return blame_hash_for_line(editor.currentBuffer->filename, row);
 }
 
-std::vector<GitLogMode::Entry>
-load_repo_log_entries(const std::string& repoRoot,
-                      const std::string& filePath = {})
+std::vector<GitLogMode::Entry> load_repo_log_entries(
+    const std::string& repoRoot,
+    const std::string& filePath = {})
 {
-    std::vector<std::string> args = {
-        "git",         "-C",        repoRoot,
-        "--no-pager",  "log",       "--no-color",
-        "--graph",     "--date=format:%Y-%m-%d %H:%M %z",
-        GitLogMode::graphPrettyFormatArg()};
+    std::vector<std::string> args =
+        {"git",
+         "-C",
+         repoRoot,
+         "--no-pager",
+         "log",
+         "--no-color",
+         "--graph",
+         "--date=format:%Y-%m-%d %H:%M %z",
+         GitLogMode::graphPrettyFormatArg()};
     if(!filePath.empty())
     {
         args.push_back("--");
@@ -350,8 +365,8 @@ void EditorGitController::updateGitBlameForVisibleRange()
         }
     }
 
-    std::vector<std::string> args = {"git", "-C", dir, "blame",
-                                     "--line-porcelain"};
+    std::vector<std::string> args =
+        {"git", "-C", dir, "blame", "--line-porcelain"};
     if(!tempPath.empty())
     {
         args.push_back("--contents");
@@ -563,7 +578,11 @@ void EditorGitController::openGitDiffMode()
     }
 
     ProcessPipe pipe(
-        {"git", "-C", repoRoot, "--no-pager", "diff",
+        {"git",
+         "-C",
+         repoRoot,
+         "--no-pager",
+         "diff",
          editor.gitUseDefaultColors ? "--color=always" : "--no-color"});
     if(!pipe)
     {
@@ -602,9 +621,9 @@ void EditorGitController::openGitDiffMode()
     }
 }
 
-std::vector<std::string>
-EditorGitController::unsavedChangesDiff(std::string& title,
-                                        std::string& message)
+std::vector<std::string> EditorGitController::unsavedChangesDiff(
+    std::string& title,
+    std::string& message)
 {
     title.clear();
     message.clear();
@@ -649,9 +668,16 @@ EditorGitController::unsavedChangesDiff(std::string& title,
     std::string output;
     {
         ProcessPipe pipe(
-            {"git", "--no-pager", "diff", "--no-index",
+            {"git",
+             "--no-pager",
+             "diff",
+             "--no-index",
              editor.gitUseDefaultColors ? "--color=always" : "--no-color",
-             "--src-prefix=", "--dst-prefix=", "--", savedPath, unsavedPath});
+             "--src-prefix=",
+             "--dst-prefix=",
+             "--",
+             savedPath,
+             unsavedPath});
         if(pipe)
             output = pipe.readAll();
     }
@@ -801,15 +827,20 @@ void EditorGitController::openGitFixupMode()
 
     if(editor.modeStateMachine)
     {
-        editor.modeStateMachine->transitionTo(GitFixupMode{
-            {}, repoRoot, dir, std::move(fixupFiles), std::move(returnStage)});
+        editor.modeStateMachine->transitionTo(
+            GitFixupMode{
+                {},
+                repoRoot,
+                dir,
+                std::move(fixupFiles),
+                std::move(returnStage)});
         editor.modeController->syncModeFromStateMachine();
         editor.needsFullRedraw = true;
     }
 }
 
-std::vector<std::string>
-EditorGitController::loadGitShowLines(const std::string& hash)
+std::vector<std::string> EditorGitController::loadGitShowLines(
+    const std::string& hash)
 {
     std::string dir = base_dir_for_editor(editor);
     std::string repoRoot = git_root_for_dir(dir);
@@ -824,8 +855,13 @@ EditorGitController::loadGitShowLines(const std::string& hash)
     }
 
     ProcessPipe pipe(
-        {"git", "-C", repoRoot, "--no-pager", "show",
-         editor.gitUseDefaultColors ? "--color=always" : "--no-color", hash});
+        {"git",
+         "-C",
+         repoRoot,
+         "--no-pager",
+         "show",
+         editor.gitUseDefaultColors ? "--color=always" : "--no-color",
+         hash});
     if(!pipe)
         return {};
 
@@ -851,9 +887,9 @@ EditorGitController::loadGitShowLines(const std::string& hash)
     return linesOut;
 }
 
-std::vector<GitLogMode::Entry>
-EditorGitController::reloadGitLogEntries(const std::string& repoRoot,
-                                         const std::string& filePath)
+std::vector<GitLogMode::Entry> EditorGitController::reloadGitLogEntries(
+    const std::string& repoRoot,
+    const std::string& filePath)
 {
     return load_repo_log_entries(repoRoot, filePath);
 }
@@ -937,9 +973,11 @@ void EditorGitController::openGitLogModeForBlameLine()
                hash.rfind(candidate, 0) == 0;
     };
 
-    auto it = std::find_if(entries.begin(), entries.end(),
-                           [&](const GitLogMode::Entry& entry)
-                           { return matchesHash(entry.hash); });
+    auto it = std::find_if(
+        entries.begin(),
+        entries.end(),
+        [&](const GitLogMode::Entry& entry)
+        { return matchesHash(entry.hash); });
     if(it == entries.end())
     {
         editor.setStatusMessage("git log: blame commit not found");
@@ -983,8 +1021,14 @@ void EditorGitController::openGitPrettyLogMode()
 
     if(editor.modeStateMachine)
     {
-        editor.modeStateMachine->transitionTo(GitLogMode{
-            std::move(entries), false, repoRoot, repoRoot, {}, true});
+        editor.modeStateMachine->transitionTo(
+            GitLogMode{
+                std::move(entries),
+                false,
+                repoRoot,
+                repoRoot,
+                {},
+                true});
         editor.modeController->syncModeFromStateMachine();
         editor.needsFullRedraw = true;
     }
@@ -1017,10 +1061,18 @@ void EditorGitController::openGitLogModeForFile()
         editor.setStatusMessage("git log: not a repo");
         return;
     }
-    ProcessPipe pipe({"git", "-C", dir, "--no-pager", "log", "--no-color",
-                      "--graph", "--date=format:%Y-%m-%d %H:%M %z",
-                      GitLogMode::graphPrettyFormatArg(), "--",
-                      editor.currentBuffer->filename});
+    ProcessPipe pipe(
+        {"git",
+         "-C",
+         dir,
+         "--no-pager",
+         "log",
+         "--no-color",
+         "--graph",
+         "--date=format:%Y-%m-%d %H:%M %z",
+         GitLogMode::graphPrettyFormatArg(),
+         "--",
+         editor.currentBuffer->filename});
     if(!pipe)
     {
         editor.setStatusMessage("git log: failed to run");
@@ -1056,8 +1108,12 @@ void EditorGitController::openGitLogModeForFile()
     if(editor.modeStateMachine)
     {
         editor.modeStateMachine->transitionTo(
-            GitLogMode{std::move(entries), true, repoRoot, repoRoot,
-                       editor.currentBuffer->filename});
+            GitLogMode{
+                std::move(entries),
+                true,
+                repoRoot,
+                repoRoot,
+                editor.currentBuffer->filename});
         editor.modeController->syncModeFromStateMachine();
         editor.needsFullRedraw = true;
     }
@@ -1137,8 +1193,14 @@ std::optional<bool> EditorGitController::currentBufferHasChanges()
     if(repoRoot.empty())
         return std::nullopt;
 
-    ProcessPipe pipe({"git", "-C", repoRoot, "status", "--short", "--",
-                      editor.currentBuffer->filename});
+    ProcessPipe pipe(
+        {"git",
+         "-C",
+         repoRoot,
+         "status",
+         "--short",
+         "--",
+         editor.currentBuffer->filename});
     if(!pipe)
         return std::nullopt;
 

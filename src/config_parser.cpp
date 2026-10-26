@@ -100,8 +100,8 @@ std::string unquote(std::string value)
 }
 } // namespace
 
-std::unordered_map<std::string, std::string>
-parseTomlMap(const std::string& input)
+std::unordered_map<std::string, std::string> parseTomlMap(
+    const std::string& input)
 {
     std::unordered_map<std::string, std::string> out;
     std::string section;

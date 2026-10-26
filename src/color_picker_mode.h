@@ -28,14 +28,16 @@ struct ColorPickerMode : widgets::PopupBase
 
     explicit ColorPickerMode(bool useBackground) : background(useBackground) {}
 
-    static ColorPickerMode forVisualRange(VisualColorRange range,
-                                          bool useBackground = false);
+    static ColorPickerMode forVisualRange(
+        VisualColorRange range,
+        bool useBackground = false);
 
     void on_enter(ModeContext& ctx);
     void on_exit(ModeContext& ctx);
 
-    std::optional<ModeState> handle(ModeContext& ctx,
-                                    const ModeKeyEvent& event);
+    std::optional<ModeState> handle(
+        ModeContext& ctx,
+        const ModeKeyEvent& event);
 
     void draw(Editor& editor);
 

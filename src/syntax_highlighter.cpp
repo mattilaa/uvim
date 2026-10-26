@@ -1,8 +1,8 @@
+#include "syntax_highlighter.h"
 #include "constants.h"
 #include "cpp_constants.h"
 #include "editor.h"
 #include "json_utils.h"
-#include "syntax_highlighter.h"
 #include "syntax_state.h"
 #include "text_utils.h"
 #include <algorithm>
@@ -69,93 +69,101 @@ std::string ascii_lower(std::string_view value)
 
 bool is_asm_keyword(std::string_view word)
 {
-    static constexpr std::array keywords = {
-        "adc",     "adcs",   "add",    "addb",  "addl",   "addq",   "adds",
-        "addw",    "adr",    "adrp",   "and",   "andb",   "andl",   "andq",
-        "ands",    "andw",   "asr",    "b",     "b.eq",   "b.ge",   "b.gt",
-        "b.hi",    "b.hs",   "b.le",   "b.lo",  "b.ls",   "b.lt",   "b.mi",
-        "b.ne",    "b.pl",   "b.vc",   "b.vs",  "beq",    "bge",    "bgt",
-        "bhi",     "bhs",    "bic",    "bl",    "ble",    "blo",    "bls",
-        "blt",     "bmi",    "bne",    "bpl",   "br",     "break",  "bvc",
-        "bvs",     "call",   "callq",  "cbnz",  "cbz",    "cinc",   "cisel",
-        "cmp",     "cmpb",   "cmpl",   "cmpq",  "cmpw",   "cmpeq",  "csel",
-        "cset",    "dec",    "decl",   "decq",  "div",    "eor",    "fadd",
-        "fcmp",    "fcsel",  "fcvt",   "fdiv",  "fmadd",  "fmov",   "fmsub",
-        "fmul",    "fneg",   "fsqrt",  "fsub",  "idiv",   "imul",   "inc",
-        "incl",    "incq",   "ja",     "jae",   "jb",     "jbe",    "je",
-        "jg",      "jge",    "jl",     "jle",   "jmp",    "jne",    "jno",
-        "jnp",     "jns",    "jo",     "jp",    "js",     "ldr",    "ldp",
-        "ldrb",    "ldrh",   "ldrsb",  "ldrsh", "ldur",   "lea",    "leal",
-        "leaq",    "leave",  "leaveq", "lsl",   "lsr",    "madd",   "mov",
-        "movabsq", "movb",   "movk",   "movl",  "movn",   "movq",   "movsbl",
-        "movslq",  "movswl", "movw",   "movz",  "movzbl", "movzwl", "mrs",
-        "msr",     "msub",   "mul",    "neg",   "negl",   "negq",   "nop",
-        "not",     "orr",    "or",     "orb",   "orl",    "orq",    "orw",
-        "pop",     "popq",   "prfm",   "push",  "pushq",  "ret",    "retq",
-        "ror",     "sal",    "sall",   "salq",  "sar",    "sarl",   "sarq",
-        "sbc",     "sbcs",   "sdiv",   "sete",  "setg",   "setge",  "setl",
-        "setle",   "setne",  "shl",    "shll",  "shlq",   "shr",    "shrl",
-        "shrq",    "stp",    "str",    "strb",  "strh",   "stur",   "sub",
-        "subb",    "subl",   "subq",   "subs",  "subw",   "svc",    "tbnz",
-        "tbz",     "test",   "testb",  "testl", "testq",  "testw",  "udiv",
-        "umaddl",  "umsubl", "xor",    "xorb",  "xorl",   "xorq"};
+    static constexpr std::array keywords =
+        {"adc",     "adcs",   "add",    "addb",  "addl",   "addq",   "adds",
+         "addw",    "adr",    "adrp",   "and",   "andb",   "andl",   "andq",
+         "ands",    "andw",   "asr",    "b",     "b.eq",   "b.ge",   "b.gt",
+         "b.hi",    "b.hs",   "b.le",   "b.lo",  "b.ls",   "b.lt",   "b.mi",
+         "b.ne",    "b.pl",   "b.vc",   "b.vs",  "beq",    "bge",    "bgt",
+         "bhi",     "bhs",    "bic",    "bl",    "ble",    "blo",    "bls",
+         "blt",     "bmi",    "bne",    "bpl",   "br",     "break",  "bvc",
+         "bvs",     "call",   "callq",  "cbnz",  "cbz",    "cinc",   "cisel",
+         "cmp",     "cmpb",   "cmpl",   "cmpq",  "cmpw",   "cmpeq",  "csel",
+         "cset",    "dec",    "decl",   "decq",  "div",    "eor",    "fadd",
+         "fcmp",    "fcsel",  "fcvt",   "fdiv",  "fmadd",  "fmov",   "fmsub",
+         "fmul",    "fneg",   "fsqrt",  "fsub",  "idiv",   "imul",   "inc",
+         "incl",    "incq",   "ja",     "jae",   "jb",     "jbe",    "je",
+         "jg",      "jge",    "jl",     "jle",   "jmp",    "jne",    "jno",
+         "jnp",     "jns",    "jo",     "jp",    "js",     "ldr",    "ldp",
+         "ldrb",    "ldrh",   "ldrsb",  "ldrsh", "ldur",   "lea",    "leal",
+         "leaq",    "leave",  "leaveq", "lsl",   "lsr",    "madd",   "mov",
+         "movabsq", "movb",   "movk",   "movl",  "movn",   "movq",   "movsbl",
+         "movslq",  "movswl", "movw",   "movz",  "movzbl", "movzwl", "mrs",
+         "msr",     "msub",   "mul",    "neg",   "negl",   "negq",   "nop",
+         "not",     "orr",    "or",     "orb",   "orl",    "orq",    "orw",
+         "pop",     "popq",   "prfm",   "push",  "pushq",  "ret",    "retq",
+         "ror",     "sal",    "sall",   "salq",  "sar",    "sarl",   "sarq",
+         "sbc",     "sbcs",   "sdiv",   "sete",  "setg",   "setge",  "setl",
+         "setle",   "setne",  "shl",    "shll",  "shlq",   "shr",    "shrl",
+         "shrq",    "stp",    "str",    "strb",  "strh",   "stur",   "sub",
+         "subb",    "subl",   "subq",   "subs",  "subw",   "svc",    "tbnz",
+         "tbz",     "test",   "testb",  "testl", "testq",  "testw",  "udiv",
+         "umaddl",  "umsubl", "xor",    "xorb",  "xorl",   "xorq"};
 
-    static constexpr std::array directives = {"align",
-                                              "ascii",
-                                              "asciz",
-                                              "balign",
-                                              "byte",
-                                              "cfi_def_cfa",
-                                              "cfi_endproc",
-                                              "cfi_offset",
-                                              "cfi_startproc",
-                                              "comm",
-                                              "data",
-                                              "file",
-                                              "globl",
-                                              "hidden",
-                                              "ident",
-                                              "long",
-                                              "p2align",
-                                              "quad",
-                                              "section",
-                                              "set",
-                                              "short",
-                                              "size",
-                                              "text",
-                                              "type",
-                                              "value",
-                                              "weak",
-                                              "word",
-                                              "zerofill",
-                                              "loc",
-                                              "loc_mark_labels",
-                                              "subsections_via_symbols",
-                                              "private_extern",
-                                              "build_version"};
+    static constexpr std::array directives =
+        {"align",
+         "ascii",
+         "asciz",
+         "balign",
+         "byte",
+         "cfi_def_cfa",
+         "cfi_endproc",
+         "cfi_offset",
+         "cfi_startproc",
+         "comm",
+         "data",
+         "file",
+         "globl",
+         "hidden",
+         "ident",
+         "long",
+         "p2align",
+         "quad",
+         "section",
+         "set",
+         "short",
+         "size",
+         "text",
+         "type",
+         "value",
+         "weak",
+         "word",
+         "zerofill",
+         "loc",
+         "loc_mark_labels",
+         "subsections_via_symbols",
+         "private_extern",
+         "build_version"};
 
     const std::string lower = ascii_lower(word);
-    return std::find(keywords.begin(), keywords.end(),
-                     std::string_view(lower)) != keywords.end() ||
-           std::find(directives.begin(), directives.end(),
-                     std::string_view(lower)) != directives.end();
+    return std::find(
+               keywords.begin(),
+               keywords.end(),
+               std::string_view(lower)) != keywords.end() ||
+           std::find(
+               directives.begin(),
+               directives.end(),
+               std::string_view(lower)) != directives.end();
 }
 
 bool is_asm_register(std::string_view word)
 {
-    static constexpr std::array registers = {
-        "ah",   "al",   "ax",   "bh",   "bl",   "bp",   "bpl",  "bx",   "ch",
-        "cl",   "cx",   "dh",   "di",   "dil",  "dl",   "dx",   "eax",  "ebp",
-        "ebx",  "ecx",  "edi",  "edx",  "eip",  "esi",  "esp",  "ip",   "r10",
-        "r10b", "r10d", "r10w", "r11",  "r11b", "r11d", "r11w", "r12",  "r12b",
-        "r12d", "r12w", "r13",  "r13b", "r13d", "r13w", "r14",  "r14b", "r14d",
-        "r14w", "r15",  "r15b", "r15d", "r15w", "r8"};
+    static constexpr std::array registers =
+        {"ah",   "al",   "ax",   "bh",   "bl",   "bp",   "bpl",  "bx",   "ch",
+         "cl",   "cx",   "dh",   "di",   "dil",  "dl",   "dx",   "eax",  "ebp",
+         "ebx",  "ecx",  "edi",  "edx",  "eip",  "esi",  "esp",  "ip",   "r10",
+         "r10b", "r10d", "r10w", "r11",  "r11b", "r11d", "r11w", "r12",  "r12b",
+         "r12d", "r12w", "r13",  "r13b", "r13d", "r13w", "r14",  "r14b", "r14d",
+         "r14w", "r15",  "r15b", "r15d", "r15w", "r8"};
 
-    static constexpr std::array moreRegisters = {
-        "fp",  "lr",   "nzcv", "r8b",  "r8d", "r8w", "r9",  "r9b",
-        "r9d", "r9w",  "rax",  "rbp",  "rbx", "rcx", "rdi", "rdx",
-        "rip", "rsi",  "rsp",  "si",   "sil", "sp",  "spl", "wzr",
-        "xzr", "xmm0", "xmm1", "xmm2", "xmm3"};
+    static constexpr std::array moreRegisters = {"fp",  "lr",   "nzcv", "r8b",
+                                                 "r8d", "r8w",  "r9",   "r9b",
+                                                 "r9d", "r9w",  "rax",  "rbp",
+                                                 "rbx", "rcx",  "rdi",  "rdx",
+                                                 "rip", "rsi",  "rsp",  "si",
+                                                 "sil", "sp",   "spl",  "wzr",
+                                                 "xzr", "xmm0", "xmm1", "xmm2",
+                                                 "xmm3"};
 
     const std::string lower = ascii_lower(word);
     const std::string_view view(lower);
@@ -200,8 +208,9 @@ std::vector<std::filesystem::path> default_mlang_stdlib_paths()
     return paths;
 }
 
-void load_builtin_types_from_file(MlangTokenCache& cache,
-                                  const std::filesystem::path& path)
+void load_builtin_types_from_file(
+    MlangTokenCache& cache,
+    const std::filesystem::path& path)
 {
     std::ifstream in(path);
     if(!in)
@@ -226,8 +235,9 @@ void load_builtin_types_from_file(MlangTokenCache& cache,
     }
 }
 
-void load_builtin_macros_from_file(MlangTokenCache& cache,
-                                   const std::filesystem::path& path)
+void load_builtin_macros_from_file(
+    MlangTokenCache& cache,
+    const std::filesystem::path& path)
 {
     std::ifstream in(path);
     if(!in)
@@ -252,8 +262,9 @@ void load_builtin_macros_from_file(MlangTokenCache& cache,
     }
 }
 
-void load_builtin_attributes_from_file(MlangTokenCache& cache,
-                                       const std::filesystem::path& path)
+void load_builtin_attributes_from_file(
+    MlangTokenCache& cache,
+    const std::filesystem::path& path)
 {
     std::ifstream in(path);
     if(!in)
@@ -278,8 +289,9 @@ void load_builtin_attributes_from_file(MlangTokenCache& cache,
     }
 }
 
-void load_builtin_functions_from_file(MlangTokenCache& cache,
-                                      const std::filesystem::path& path)
+void load_builtin_functions_from_file(
+    MlangTokenCache& cache,
+    const std::filesystem::path& path)
 {
     std::ifstream in(path);
     if(!in)
@@ -434,41 +446,50 @@ std::optional<TokenType> parse_token_type(std::string_view value)
 
 bool is_mlang_keyword(std::string_view word)
 {
-    static constexpr std::array<std::string_view, 26> kKeywords = {
-        "alias",  "break", "continue", "else",      "enum", "extern",
-        "fn",     "for",   "if",       "impl",      "in",   "let",
-        "likely", "match", "mod",      "mut",       "namespace", "pub",
-        "return", "struct", "trait",   "type",      "unlikely",  "use",
-        "var",    "while"};
-    return std::ranges::any_of(kKeywords,
-                               [&](std::string_view kw) { return kw == word; });
+    static constexpr std::array<std::string_view, 26> kKeywords =
+        {"alias", "break",    "continue",  "else", "enum",   "extern", "fn",
+         "for",   "if",       "impl",      "in",   "let",    "likely", "match",
+         "mod",   "mut",      "namespace", "pub",  "return", "struct", "trait",
+         "type",  "unlikely", "use",       "var",  "while"};
+    return std::ranges::any_of(
+        kKeywords,
+        [&](std::string_view kw) { return kw == word; });
 }
 
 bool is_mlang_type(std::string_view word)
 {
-    static constexpr std::array<std::string_view, 22> kTypes = {
-        "bool", "f32", "f64", "i16",   "i32",    "i64",    "i8",    "int",
-        "list", "map", "ptr", "str16", "str8",   "string", "tuple", "u16",
-        "u32",  "u64", "u8",  "void",  "Result", "Option"};
-    return std::ranges::any_of(kTypes,
-                               [&](std::string_view ty) { return ty == word; });
+    static constexpr std::array<std::string_view, 22> kTypes =
+        {"bool", "f32", "f64", "i16",   "i32",    "i64",    "i8",    "int",
+         "list", "map", "ptr", "str16", "str8",   "string", "tuple", "u16",
+         "u32",  "u64", "u8",  "void",  "Result", "Option"};
+    return std::ranges::any_of(
+        kTypes,
+        [&](std::string_view ty) { return ty == word; });
 }
 
 bool is_mlang_builtin(std::string_view word)
 {
-    static constexpr std::array<std::string_view, 8> kBuiltins = {
-        "assert_eq", "debug", "eprint",  "eprintln",
-        "format",    "print", "println", "vec"};
-    return std::ranges::any_of(kBuiltins,
-                               [&](std::string_view fn) { return fn == word; });
+    static constexpr std::array<std::string_view, 8> kBuiltins =
+        {"assert_eq",
+         "debug",
+         "eprint",
+         "eprintln",
+         "format",
+         "print",
+         "println",
+         "vec"};
+    return std::ranges::any_of(
+        kBuiltins,
+        [&](std::string_view fn) { return fn == word; });
 }
 
 bool is_mlang_platform_keyword(std::string_view word)
 {
-    static constexpr std::array<std::string_view, 6> kPlatform = {
-        "aarch64", "linux", "macos", "posix", "windows", "x64"};
-    return std::ranges::any_of(kPlatform,
-                               [&](std::string_view kw) { return kw == word; });
+    static constexpr std::array<std::string_view, 6> kPlatform =
+        {"aarch64", "linux", "macos", "posix", "windows", "x64"};
+    return std::ranges::any_of(
+        kPlatform,
+        [&](std::string_view kw) { return kw == word; });
 }
 
 std::vector<std::string> split_command_line(std::string_view command)
@@ -532,8 +553,10 @@ std::vector<std::string> split_command_line(std::string_view command)
 }
 
 void scan_line_for_cpp_method_context(
-    const std::string& line, const std::unordered_set<std::string>& classNames,
-    CppMethodScanState& state, bool* lineHasMethodStart)
+    const std::string& line,
+    const std::unordered_set<std::string>& classNames,
+    CppMethodScanState& state,
+    bool* lineHasMethodStart)
 {
     size_t i = 0;
     const size_t len = line.size();
@@ -652,9 +675,10 @@ void scan_line_for_cpp_method_context(
     }
 }
 
-void scan_line_for_cpp_param_list_context(const std::string& line,
-                                          CppParamListScanState& state,
-                                          bool* lineHasParamListStart)
+void scan_line_for_cpp_param_list_context(
+    const std::string& line,
+    CppParamListScanState& state,
+    bool* lineHasParamListStart)
 {
     size_t i = 0;
     const size_t len = line.size();
@@ -760,9 +784,10 @@ void scan_line_for_cpp_param_list_context(const std::string& line,
     }
 }
 
-void scan_line_for_cpp_function_context(const std::string& line,
-                                        CppFunctionScanState& state,
-                                        bool* lineHasFunctionStart)
+void scan_line_for_cpp_function_context(
+    const std::string& line,
+    CppFunctionScanState& state,
+    bool* lineHasFunctionStart)
 {
     size_t i = 0;
     const size_t len = line.size();
@@ -861,7 +886,8 @@ void scan_line_for_cpp_function_context(const std::string& line,
             while(j < len && text_utils::is_space(line[j]))
                 ++j;
             // Calls and lambdas inside a function do not start a new outer
-            // function scope or replace the depth used to find its closing brace.
+            // function scope or replace the depth used to find its closing
+            // brace.
             if(!state.inFunction && j < len && line[j] == '(')
                 state.pendingFunction = true;
             continue;
@@ -914,8 +940,9 @@ MlangConfig parse_mlangd(const std::filesystem::path& path)
     if(!in)
         return cfg;
 
-    std::string contents((std::istreambuf_iterator<char>(in)),
-                         std::istreambuf_iterator<char>());
+    std::string contents(
+        (std::istreambuf_iterator<char>(in)),
+        std::istreambuf_iterator<char>());
     if(contents.empty())
         return cfg;
 
@@ -1010,12 +1037,16 @@ void SyntaxHighlighter::ensureCppMemberIndex() const
     auto result = std::make_shared<Index>();
     cppMemberIndexPending = true;
     editor->submitTask(
-        "C++ header symbols", "cpp-symbols",
+        "C++ header symbols",
+        "cpp-symbols",
         [root, result](TaskQueue::Context& ctx)
         {
             ctx.detail("scanning headers");
-            collectCppMemberIndex(root, result->members, result->classes,
-                                  [&ctx] { return ctx.cancelled(); });
+            collectCppMemberIndex(
+                root,
+                result->members,
+                result->classes,
+                [&ctx] { return ctx.cancelled(); });
         },
         [this, result]
         {
@@ -1059,10 +1090,12 @@ void SyntaxHighlighter::collectCppMemberIndex(
 
     bool inBlockComment = false;
     for(std::filesystem::recursive_directory_iterator
-            it(root, std::filesystem::directory_options::skip_permission_denied,
+            it(root,
+               std::filesystem::directory_options::skip_permission_denied,
                ec),
         end;
-        it != end; it.increment(ec))
+        it != end;
+        it.increment(ec))
     {
         if(cancelled())
             return;
@@ -1246,10 +1279,10 @@ void SyntaxHighlighter::collectCppMemberIndex(
                 while(start < stmt.size())
                 {
                     size_t comma = stmt.find(',', start);
-                    std::string_view part =
-                        stmt.substr(start, text_utils::is_not_found(comma)
-                                               ? text_utils::npos()
-                                               : comma - start);
+                    std::string_view part = stmt.substr(
+                        start,
+                        text_utils::is_not_found(comma) ? text_utils::npos()
+                                                        : comma - start);
                     // find last identifier
                     int i = (int)part.size() - 1;
                     while(i >= 0 && text_utils::is_space(part[i]))
@@ -1300,12 +1333,15 @@ void SyntaxHighlighter::ensureSystemIncludeDirsLoaded() const
     auto result = std::make_shared<std::vector<std::filesystem::path>>();
     systemIncludeDirsPending = true;
     editor->submitTask(
-        "C++ include paths", "cpp-includes",
+        "C++ include paths",
+        "cpp-includes",
         [baseDir, result](TaskQueue::Context& ctx)
         {
             ctx.detail("reading compile_commands.json");
-            collectSystemIncludeDirs(baseDir, *result,
-                                     [&ctx] { return ctx.cancelled(); });
+            collectSystemIncludeDirs(
+                baseDir,
+                *result,
+                [&ctx] { return ctx.cancelled(); });
         },
         [this, result]
         {
@@ -1373,8 +1409,10 @@ void SyntaxHighlighter::collectSystemIncludeDirs(
                 json_utils::find(item, "command");
             if(command && command->IsString())
             {
-                args = split_command_line(std::string(
-                    command->GetString(), command->GetStringLength()));
+                args = split_command_line(
+                    std::string(
+                        command->GetString(),
+                        command->GetStringLength()));
             }
         }
         if(args.empty())
@@ -1441,7 +1479,8 @@ bool SyntaxHighlighter::isSystemInclude(std::string_view header) const
         return false;
     auto found = std::make_shared<bool>(false);
     editor->submitTask(
-        "C++ include: " + name, "cpp-includes",
+        "C++ include: " + name,
+        "cpp-includes",
         [dirs = systemIncludeDirs, name, found](TaskQueue::Context& ctx)
         {
             for(const auto& dir : dirs)
@@ -1564,7 +1603,9 @@ void SyntaxHighlighter::ensureMlangTokensLoaded() const
         if(allowJsonCase)
         {
             cache.caseInsensitive = json_utils::get_bool(
-                root, "case_insensitive", cache.caseInsensitive);
+                root,
+                "case_insensitive",
+                cache.caseInsensitive);
         }
 
         auto add_tokens =
@@ -1604,8 +1645,9 @@ void SyntaxHighlighter::ensureMlangTokensLoaded() const
                 for(auto it = tokens->MemberBegin(); it != tokens->MemberEnd();
                     ++it)
                 {
-                    std::string_view typeName(it->name.GetString(),
-                                              it->name.GetStringLength());
+                    std::string_view typeName(
+                        it->name.GetString(),
+                        it->name.GetStringLength());
                     add_tokens(typeName, it->value);
                 }
             }
@@ -1656,8 +1698,8 @@ void SyntaxHighlighter::ensureMlangTokensLoaded() const
                     MlangTokenCache::BuiltinTypeDef def;
                     def.path = includePath;
                     def.line = line > 0 ? line - 1 : 0;
-                    cache.builtinMacros.emplace(std::move(name),
-                                                std::move(def));
+                    cache.builtinMacros
+                        .emplace(std::move(name), std::move(def));
                 }
             }
         }
@@ -1682,8 +1724,8 @@ void SyntaxHighlighter::ensureMlangTokensLoaded() const
                     MlangTokenCache::BuiltinTypeDef def;
                     def.path = includePath;
                     def.line = line > 0 ? line - 1 : 0;
-                    cache.builtinAttributes.emplace(std::move(name),
-                                                    std::move(def));
+                    cache.builtinAttributes
+                        .emplace(std::move(name), std::move(def));
                 }
             }
         }
@@ -1783,8 +1825,8 @@ void SyntaxHighlighter::ensureMlangTokensLoaded() const
             candidates.push_back(dir / "mlang_commands.json");
     }
 
-    candidates.push_back(std::filesystem::current_path() /
-                         "mlang_commands.json");
+    candidates.push_back(
+        std::filesystem::current_path() / "mlang_commands.json");
 
     for(const auto& candidate : candidates)
     {
@@ -1824,8 +1866,8 @@ void SyntaxHighlighter::ensureMlangTokensLoaded() const
     }
 }
 
-std::optional<TokenType>
-SyntaxHighlighter::lookupMlangTokenType(std::string_view word) const
+std::optional<TokenType> SyntaxHighlighter::lookupMlangTokenType(
+    std::string_view word) const
 {
     ensureMlangTokensLoaded();
     if(!editor || !editor->mlangTokenCache ||
@@ -1849,9 +1891,14 @@ std::string SyntaxHighlighter::getColorCode(TokenType type) const
 }
 
 std::vector<Token> SyntaxHighlighter::tokenizeLine(
-    const std::string& line, bool& inBlockComment, bool& inTomlMultiline,
-    char& tomlQuote, bool& inMarkupFence, char& markupFenceChar,
-    bool inCppMethodContext, bool inCppFunctionContext,
+    const std::string& line,
+    bool& inBlockComment,
+    bool& inTomlMultiline,
+    char& tomlQuote,
+    bool& inMarkupFence,
+    char& markupFenceChar,
+    bool inCppMethodContext,
+    bool inCppFunctionContext,
     bool inCppParamListContext) const
 {
     if(!editor)
@@ -1968,8 +2015,9 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
                     int start = end + 1;
                     if(start <= back)
                     {
-                        std::string_view name = std::string_view(line).substr(
-                            start, back - start + 1);
+                        std::string_view name =
+                            std::string_view(line)
+                                .substr(start, back - start + 1);
                         if(!name.empty() && !cpp_constants::is_keyword(name))
                         {
                             parenDepth = 1;
@@ -2063,7 +2111,8 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
                             if(isSystemInclude(header))
                             {
                                 preprocessorTokens.push_back(
-                                    {TOKEN_STRING, (int)start,
+                                    {TOKEN_STRING,
+                                     (int)start,
                                      (int)(end - start + 1)});
                             }
                         }
@@ -2233,7 +2282,8 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
             if(cellEnd > cellStart)
             {
                 std::string_view cell = sv.substr(
-                    cellStart, static_cast<size_t>(cellEnd - cellStart));
+                    cellStart,
+                    static_cast<size_t>(cellEnd - cellStart));
                 bool isSettingCell = cell.starts_with('[');
                 bool highlightedCell = false;
                 if(isRobotSetting(cell))
@@ -2274,9 +2324,9 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
                 const auto& range = cells[keywordCellIndex];
                 if(range.end > range.start)
                 {
-                    std::string_view cell =
-                        sv.substr(range.start,
-                                  static_cast<size_t>(range.end - range.start));
+                    std::string_view cell = sv.substr(
+                        range.start,
+                        static_cast<size_t>(range.end - range.start));
                     bool isSettingCell = cell.starts_with('[');
                     if(!isSettingCell)
                     {
@@ -2287,8 +2337,10 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
                             shouldHighlight = true;
                         if(shouldHighlight)
                         {
-                            tokens.push_back({TOKEN_FUNCTION, range.start,
-                                              range.end - range.start});
+                            tokens.push_back(
+                                {TOKEN_FUNCTION,
+                                 range.start,
+                                 range.end - range.start});
                         }
                     }
                 }
@@ -2657,22 +2709,23 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
         // here-string (the TOML multi-line string state, unused here).
         std::vector<Token> tokens;
         static constexpr std::string_view kPsKeywords[] = {
-            "begin",   "break",   "catch",    "class",   "clean",
-            "continue", "data",   "default",  "do",      "dynamicparam",
-            "else",    "elseif",  "end",      "enum",    "exit",
-            "filter",  "finally", "for",      "foreach", "from",
-            "function", "hidden", "if",       "in",      "param",
-            "process", "return",  "static",   "switch",  "throw",
-            "trap",    "try",     "until",    "using",   "while",
+            "begin",    "break",    "catch",    "class",        "clean",
+            "continue", "data",     "default",  "do",           "dynamicparam",
+            "else",     "elseif",   "end",      "enum",         "exit",
+            "filter",   "finally",  "for",      "foreach",      "from",
+            "function", "hidden",   "if",       "in",           "param",
+            "process",  "return",   "static",   "switch",       "throw",
+            "trap",     "try",      "until",    "using",        "while",
             "workflow", "parallel", "sequence", "inlinescript",
         };
         static constexpr std::string_view kPsOperators[] = {
-            "eq",   "ne",    "gt",      "ge",       "lt",      "le",
-            "like", "notlike", "match", "notmatch", "contains",
-            "notcontains", "in",  "notin", "replace", "split",  "join",
-            "is",   "isnot", "as",      "and",      "or",      "xor",
-            "not",  "band",  "bor",     "bxor",     "bnot",    "shl",
-            "shr",  "f",
+            "eq",       "ne",          "gt",      "ge",    "lt",
+            "le",       "like",        "notlike", "match", "notmatch",
+            "contains", "notcontains", "in",      "notin", "replace",
+            "split",    "join",        "is",      "isnot", "as",
+            "and",      "or",          "xor",     "not",   "band",
+            "bor",      "bxor",        "bnot",    "shl",   "shr",
+            "f",
         };
         auto lower = [](std::string_view word)
         {
@@ -2755,8 +2808,10 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
                 break;
             }
             // Here-string: @" or @' as the last thing on the line.
-            if(c == '@' && i + 1 < len && (sv[i + 1] == '"' || sv[i + 1] == '\'') &&
-               sv.find_first_not_of(" \t", (size_t)i + 2) == std::string_view::npos)
+            if(c == '@' && i + 1 < len &&
+               (sv[i + 1] == '"' || sv[i + 1] == '\'') &&
+               sv.find_first_not_of(" \t", (size_t)i + 2) ==
+                   std::string_view::npos)
             {
                 tokens.push_back({TOKEN_STRING, i, len - i});
                 inTomlMultiline = true;
@@ -2923,8 +2978,17 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
             "yield",
         };
         static constexpr std::string_view kPythonTypes[] = {
-            "int",  "bool", "str", "float", "bytes", "complex",
-            "list", "dict", "set", "tuple", "None",
+            "int",
+            "bool",
+            "str",
+            "float",
+            "bytes",
+            "complex",
+            "list",
+            "dict",
+            "set",
+            "tuple",
+            "None",
         };
         auto is_keyword = [&](std::string_view word) -> bool
         {
@@ -3124,9 +3188,8 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
                 continue;
             }
 
-            if(sv[i] == '#' ||
-               (isFormatterConfig && sv[i] == '/' && i + 1 < len &&
-                sv[i + 1] == '/'))
+            if(sv[i] == '#' || (isFormatterConfig && sv[i] == '/' &&
+                                i + 1 < len && sv[i + 1] == '/'))
             {
                 tokens.push_back({TOKEN_COMMENT, i, len - i});
                 break;
@@ -3321,9 +3384,8 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
         while(j < len && (text_utils::is_alpha(sv[j]) || sv[j] == '_'))
         {
             int segmentStart = j++;
-            while(j < len &&
-                  (text_utils::is_alpha(sv[j]) || text_utils::is_digit(sv[j]) ||
-                   sv[j] == '_'))
+            while(j < len && (text_utils::is_alpha(sv[j]) ||
+                              text_utils::is_digit(sv[j]) || sv[j] == '_'))
             {
                 ++j;
             }
@@ -3343,8 +3405,10 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
         for(int segment = 0; segment < total; ++segment)
         {
             const auto& part = segments[segment];
-            push_token(namespace_token_for_segment(segment, total), part.start,
-                       part.end - part.start);
+            push_token(
+                namespace_token_for_segment(segment, total),
+                part.start,
+                part.end - part.start);
             if(segment < static_cast<int>(separators.size()))
                 push_token(TOKEN_OPERATOR, separators[segment], 2);
         }
@@ -3380,8 +3444,10 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
                            line[fenceStart + 2] == markupFenceChar;
             if(isFence)
             {
-                push_token(TOKEN_KEYWORD, (int)fenceStart,
-                           (int)(line.size() - fenceStart));
+                push_token(
+                    TOKEN_KEYWORD,
+                    (int)fenceStart,
+                    (int)(line.size() - fenceStart));
                 inMarkupFence = false;
                 return tokens;
             }
@@ -3421,8 +3487,10 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
                 ++nameEnd;
             }
             if(nameEnd > nameStart)
-                push_token(nameType, (int)nameStart,
-                           (int)(nameEnd - nameStart));
+                push_token(
+                    nameType,
+                    (int)nameStart,
+                    (int)(nameEnd - nameStart));
             return true;
         };
 
@@ -3450,8 +3518,7 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
             continue;
         }
 
-        if((isFlex || isBison) && c == '%' && i + 1 < len &&
-           sv[i + 1] == '%')
+        if((isFlex || isBison) && c == '%' && i + 1 < len && sv[i + 1] == '%')
         {
             push_token(TOKEN_KEYWORD, i, 2);
             i += 2;
@@ -3633,9 +3700,18 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
                     "async",    "static",   "get",     "set",     "of",
                 };
                 static constexpr std::string_view kJsTypes[] = {
-                    "string",    "number", "boolean", "any",
-                    "unknown",   "never",  "void",    "null",
-                    "undefined", "bigint", "symbol",  "object",
+                    "string",
+                    "number",
+                    "boolean",
+                    "any",
+                    "unknown",
+                    "never",
+                    "void",
+                    "null",
+                    "undefined",
+                    "bigint",
+                    "symbol",
+                    "object",
                 };
                 auto is_js_keyword = [&](std::string_view w) -> bool
                 {
@@ -3670,38 +3746,101 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
             if(isCs)
             {
                 static constexpr std::string_view kCsKeywords[] = {
-                    "abstract", "as",        "base",      "break",
-                    "case",     "catch",     "checked",   "class",
-                    "const",    "continue",  "default",   "delegate",
-                    "do",       "else",      "enum",      "event",
-                    "explicit", "extern",    "false",     "finally",
-                    "fixed",    "for",       "foreach",   "goto",
-                    "if",       "implicit",  "in",        "interface",
-                    "internal", "is",        "lock",      "namespace",
-                    "new",      "null",      "operator",  "out",
-                    "override", "params",    "private",   "protected",
-                    "public",   "readonly",  "ref",       "return",
-                    "sealed",   "sizeof",    "stackalloc", "static",
-                    "struct",   "switch",    "this",      "throw",
-                    "true",     "try",       "typeof",    "unchecked",
-                    "unsafe",   "using",     "virtual",   "volatile",
+                    "abstract",
+                    "as",
+                    "base",
+                    "break",
+                    "case",
+                    "catch",
+                    "checked",
+                    "class",
+                    "const",
+                    "continue",
+                    "default",
+                    "delegate",
+                    "do",
+                    "else",
+                    "enum",
+                    "event",
+                    "explicit",
+                    "extern",
+                    "false",
+                    "finally",
+                    "fixed",
+                    "for",
+                    "foreach",
+                    "goto",
+                    "if",
+                    "implicit",
+                    "in",
+                    "interface",
+                    "internal",
+                    "is",
+                    "lock",
+                    "namespace",
+                    "new",
+                    "null",
+                    "operator",
+                    "out",
+                    "override",
+                    "params",
+                    "private",
+                    "protected",
+                    "public",
+                    "readonly",
+                    "ref",
+                    "return",
+                    "sealed",
+                    "sizeof",
+                    "stackalloc",
+                    "static",
+                    "struct",
+                    "switch",
+                    "this",
+                    "throw",
+                    "true",
+                    "try",
+                    "typeof",
+                    "unchecked",
+                    "unsafe",
+                    "using",
+                    "virtual",
+                    "volatile",
                     "while",
                     // Contextual keywords that are rarely identifiers.
-                    "async",    "await",     "var",       "get",
-                    "set",      "init",      "record",    "nameof",
-                    "when",     "where",     "with",      "yield",
-                    "partial",  "global",    "required",  "scoped",
-                    "and",      "or",        "not",       "managed",
-                    "unmanaged", "alias",
+                    "async",
+                    "await",
+                    "var",
+                    "get",
+                    "set",
+                    "init",
+                    "record",
+                    "nameof",
+                    "when",
+                    "where",
+                    "with",
+                    "yield",
+                    "partial",
+                    "global",
+                    "required",
+                    "scoped",
+                    "and",
+                    "or",
+                    "not",
+                    "managed",
+                    "unmanaged",
+                    "alias",
                 };
                 static constexpr std::string_view kCsTypes[] = {
-                    "bool",  "byte",    "sbyte",  "char",   "decimal",
-                    "double", "float",  "int",    "uint",   "nint",
-                    "nuint", "long",    "ulong",  "short",  "ushort",
-                    "object", "string", "void",   "dynamic",
+                    "bool",   "byte",   "sbyte", "char",    "decimal",
+                    "double", "float",  "int",   "uint",    "nint",
+                    "nuint",  "long",   "ulong", "short",   "ushort",
+                    "object", "string", "void",  "dynamic",
                 };
-                if(std::find(std::begin(kCsKeywords), std::end(kCsKeywords),
-                             word) != std::end(kCsKeywords))
+                if(std::find(
+                       std::begin(kCsKeywords),
+                       std::end(kCsKeywords),
+                       word) != std::end(kCsKeywords))
                 {
                     push_token(TOKEN_KEYWORD, start, i - start);
                     continue;
@@ -3793,7 +3932,8 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
                                        ident != "template")
                                     {
                                         extraTypeTokens.push_back(
-                                            {TOKEN_TYPE, (int)nameStart,
+                                            {TOKEN_TYPE,
+                                             (int)nameStart,
                                              (int)(j - nameStart)});
                                     }
                                     --j;
@@ -3903,8 +4043,9 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
                             if(inParamList || inCppFunctionContext ||
                                inCppMethodContext)
                             {
-                                localDeclNames.insert(std::string(
-                                    sv.substr(nameStart, j - nameStart)));
+                                localDeclNames.insert(
+                                    std::string(
+                                        sv.substr(nameStart, j - nameStart)));
                                 continue;
                             }
                             int k = j;
@@ -3921,11 +4062,14 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
                                 if(sv[t] == ';' || sv[t] == '=' || sv[t] == ',')
                                     break;
                             }
-                            if(!hasParen && !cpp_constants::is_keyword(
-                                                sv.substr(nameStart, j - nameStart)))
+                            if(!hasParen &&
+                               !cpp_constants::is_keyword(
+                                   sv.substr(nameStart, j - nameStart)))
                             {
-                                push_token(TOKEN_MEMBER, nameStart,
-                                           j - nameStart);
+                                push_token(
+                                    TOKEN_MEMBER,
+                                    nameStart,
+                                    j - nameStart);
                                 i = j;
                             }
                         }
@@ -4042,8 +4186,9 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
                         }
                         if(inCppFunctionContext || inCppMethodContext)
                         {
-                            localDeclNames.insert(std::string(
-                                sv.substr(nameStart, j - nameStart)));
+                            localDeclNames.insert(
+                                std::string(
+                                    sv.substr(nameStart, j - nameStart)));
                         }
                         push_token(TOKEN_TYPE, start, i - start);
                         continue;
@@ -4152,7 +4297,8 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
                                             ++k;
                                         }
                                         extraTypeTokens.push_back(
-                                            {TOKEN_TYPE, nameStart,
+                                            {TOKEN_TYPE,
+                                             nameStart,
                                              k - nameStart});
                                         --k;
                                     }
@@ -4427,8 +4573,10 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
 
     if(!extraTypeTokens.empty())
     {
-        tokens.insert(tokens.end(), extraTypeTokens.begin(),
-                      extraTypeTokens.end());
+        tokens.insert(
+            tokens.end(),
+            extraTypeTokens.begin(),
+            extraTypeTokens.end());
     }
 
     // A declaration can have a qualified/template type and several fields.
@@ -4475,7 +4623,8 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
                                 sv[typeStart - 1] == '_'))
             --typeStart;
         const bool declaration = std::any_of(
-            tokens.begin(), tokens.end(),
+            tokens.begin(),
+            tokens.end(),
             [&](const Token& token)
             {
                 return token.start == typeStart &&
@@ -4529,16 +4678,20 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
                     sv[position] != ':'))
                     break;
                 tokens.erase(
-                    std::remove_if(tokens.begin(), tokens.end(),
-                                   [&](const Token& token)
-                                   {
-                                       return token.start == nameStart &&
-                                              token.length ==
-                                                  static_cast<int>(name.size());
-                                   }),
+                    std::remove_if(
+                        tokens.begin(),
+                        tokens.end(),
+                        [&](const Token& token)
+                        {
+                            return token.start == nameStart &&
+                                   token.length ==
+                                       static_cast<int>(name.size());
+                        }),
                     tokens.end());
-                push_token(TOKEN_MEMBER, nameStart,
-                           static_cast<int>(name.size()));
+                push_token(
+                    TOKEN_MEMBER,
+                    nameStart,
+                    static_cast<int>(name.size()));
                 // Skip initializers, including strings, calls, and braced
                 // values.
                 int parens = 0, brackets = 0, braces = 0, angles = 0;
@@ -4595,9 +4748,12 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
     return tokens;
 }
 
-void SyntaxHighlighter::renderLineWithSyntax(std::string& output,
-                                             const std::string& line, int start,
-                                             int len, int fileRow) const
+void SyntaxHighlighter::renderLineWithSyntax(
+    std::string& output,
+    const std::string& line,
+    int start,
+    int len,
+    int fileRow) const
 {
     if(!editor || !editor->lines || !editor->cursorX || !editor->cursorY)
         return;
@@ -4837,13 +4993,19 @@ void SyntaxHighlighter::renderLineWithSyntax(std::string& output,
 
                 if(isCppLike)
                 {
-                    scan_line_for_cpp_method_context(curLine, cppClassNames,
-                                                     lineState.methodState,
-                                                     &methodStart);
+                    scan_line_for_cpp_method_context(
+                        curLine,
+                        cppClassNames,
+                        lineState.methodState,
+                        &methodStart);
                     scan_line_for_cpp_function_context(
-                        curLine, lineState.functionState, &functionStart);
+                        curLine,
+                        lineState.functionState,
+                        &functionStart);
                     scan_line_for_cpp_param_list_context(
-                        curLine, lineState.paramState, &paramStart);
+                        curLine,
+                        lineState.paramState,
+                        &paramStart);
                 }
 
                 lineState.inCppMethodContext = methodBefore || methodStart;
@@ -4855,20 +5017,27 @@ void SyntaxHighlighter::renderLineWithSyntax(std::string& output,
                     scanLineForBlockComments(curLine, lineState.inBlockComment);
 
                 if(isFileType<FileType::Toml>())
-                    scanLineForTomlMultiline(curLine, lineState.inTomlMultiline,
-                                             lineState.tomlQuote);
+                    scanLineForTomlMultiline(
+                        curLine,
+                        lineState.inTomlMultiline,
+                        lineState.tomlQuote);
 
                 if(isFileType<FileType::MarkupText>())
-                    scanLineForMarkupFence(curLine, lineState.inMarkupFence,
-                                           lineState.markupFenceChar);
+                    scanLineForMarkupFence(
+                        curLine,
+                        lineState.inMarkupFence,
+                        lineState.markupFenceChar);
 
                 // PowerShell comments and here-strings: the tokenizer
                 // itself advances the state.
                 if(isFileType<FileType::PowerShell>())
-                    tokenizeLine(curLine, lineState.inBlockComment,
-                                 lineState.inTomlMultiline, lineState.tomlQuote,
-                                 lineState.inMarkupFence,
-                                 lineState.markupFenceChar);
+                    tokenizeLine(
+                        curLine,
+                        lineState.inBlockComment,
+                        lineState.inTomlMultiline,
+                        lineState.tomlQuote,
+                        lineState.inMarkupFence,
+                        lineState.markupFenceChar);
 
                 lineState.valid = true;
                 buffer->syntaxCache[i] = lineState;
@@ -4910,22 +5079,28 @@ void SyntaxHighlighter::renderLineWithSyntax(std::string& output,
             CppParamListScanState paramState;
             for(int i = 0; i < absoluteLineNum && i < (int)lines->size(); i++)
             {
-                scan_line_for_cpp_function_context((*lines)[i], functionState,
-                                                   nullptr);
-                scan_line_for_cpp_param_list_context((*lines)[i], paramState,
-                                                     nullptr);
+                scan_line_for_cpp_function_context(
+                    (*lines)[i],
+                    functionState,
+                    nullptr);
+                scan_line_for_cpp_param_list_context(
+                    (*lines)[i],
+                    paramState,
+                    nullptr);
             }
             bool inParamListAtLineStart = paramState.inParamList;
             bool lineHasFunctionStart = false;
             bool lineHasParamListStart = false;
             if(absoluteLineNum < (int)lines->size())
             {
-                scan_line_for_cpp_function_context((*lines)[absoluteLineNum],
-                                                   functionState,
-                                                   &lineHasFunctionStart);
-                scan_line_for_cpp_param_list_context((*lines)[absoluteLineNum],
-                                                     paramState,
-                                                     &lineHasParamListStart);
+                scan_line_for_cpp_function_context(
+                    (*lines)[absoluteLineNum],
+                    functionState,
+                    &lineHasFunctionStart);
+                scan_line_for_cpp_param_list_context(
+                    (*lines)[absoluteLineNum],
+                    paramState,
+                    &lineHasParamListStart);
             }
             inCppFunctionContext =
                 functionState.inFunction || lineHasFunctionStart;
@@ -4938,15 +5113,20 @@ void SyntaxHighlighter::renderLineWithSyntax(std::string& output,
             CppMethodScanState methodState;
             for(int i = 0; i < absoluteLineNum && i < (int)lines->size(); i++)
             {
-                scan_line_for_cpp_method_context((*lines)[i], cppClassNames,
-                                                 methodState, nullptr);
+                scan_line_for_cpp_method_context(
+                    (*lines)[i],
+                    cppClassNames,
+                    methodState,
+                    nullptr);
             }
             bool lineHasMethodStart = false;
             if(absoluteLineNum < (int)lines->size())
             {
-                scan_line_for_cpp_method_context((*lines)[absoluteLineNum],
-                                                 cppClassNames, methodState,
-                                                 &lineHasMethodStart);
+                scan_line_for_cpp_method_context(
+                    (*lines)[absoluteLineNum],
+                    cppClassNames,
+                    methodState,
+                    &lineHasMethodStart);
             }
             inCppMethodContext = methodState.inMethod || lineHasMethodStart;
         }
@@ -4954,33 +5134,48 @@ void SyntaxHighlighter::renderLineWithSyntax(std::string& output,
         {
             for(int i = 0; i < absoluteLineNum && i < (int)lines->size(); i++)
             {
-                scanLineForTomlMultiline((*lines)[i], tomlMultilineState,
-                                         tomlQuote);
+                scanLineForTomlMultiline(
+                    (*lines)[i],
+                    tomlMultilineState,
+                    tomlQuote);
             }
         }
         if(isFileType<FileType::MarkupText>())
         {
             for(int i = 0; i < absoluteLineNum && i < (int)lines->size(); i++)
             {
-                scanLineForMarkupFence((*lines)[i], markupFenceState,
-                                       markupFenceChar);
+                scanLineForMarkupFence(
+                    (*lines)[i],
+                    markupFenceState,
+                    markupFenceChar);
             }
         }
         if(isFileType<FileType::PowerShell>())
         {
             for(int i = 0; i < absoluteLineNum && i < (int)lines->size(); i++)
             {
-                tokenizeLine((*lines)[i], blockCommentState, tomlMultilineState,
-                             tomlQuote, markupFenceState, markupFenceChar);
+                tokenizeLine(
+                    (*lines)[i],
+                    blockCommentState,
+                    tomlMultilineState,
+                    tomlQuote,
+                    markupFenceState,
+                    markupFenceChar);
             }
         }
     }
 
     // Now tokenize the current line
-    std::vector<Token> tokens =
-        tokenizeLine(line, blockCommentState, tomlMultilineState, tomlQuote,
-                     markupFenceState, markupFenceChar, inCppMethodContext,
-                     inCppFunctionContext, inCppParamListContext);
+    std::vector<Token> tokens = tokenizeLine(
+        line,
+        blockCommentState,
+        tomlMultilineState,
+        tomlQuote,
+        markupFenceState,
+        markupFenceChar,
+        inCppMethodContext,
+        inCppFunctionContext,
+        inCppParamListContext);
 
     std::vector<TokenType> charColors(len, TOKEN_NORMAL);
 
@@ -5089,8 +5284,9 @@ void SyntaxHighlighter::renderLineWithSyntax(std::string& output,
                         }
                     }
                 }
-                else if(type == "property" || type == "enumMember" ||
-                        type == "member" || type == "field")
+                else if(
+                    type == "property" || type == "enumMember" ||
+                    type == "member" || type == "field")
                 {
                     mapped = isCppSemantics ? editor->syntaxCppMemberToken
                                             : TOKEN_MEMBER;

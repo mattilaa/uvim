@@ -36,8 +36,9 @@ inline constexpr Glyph UP_DOWN_ARROWS = u8"↑↓";
 
 inline std::string utf8(Glyph glyph)
 {
-    return std::string(reinterpret_cast<const char*>(glyph.data()),
-                       glyph.size());
+    return std::string(
+        reinterpret_cast<const char*>(glyph.data()),
+        glyph.size());
 }
 
 inline void append(std::string& out, Glyph glyph)

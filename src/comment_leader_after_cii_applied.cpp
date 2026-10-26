@@ -7,10 +7,10 @@
 
 namespace editor::statemachine
 {
-std::optional<ModeState>
-CommentLeaderAfterCiiApplied::handle(CommentLeaderPendingMachine& machine,
-                                     ModeContext& ctx,
-                                     const ModeKeyEvent& event)
+std::optional<ModeState> CommentLeaderAfterCiiApplied::handle(
+    CommentLeaderPendingMachine& machine,
+    ModeContext& ctx,
+    const ModeKeyEvent& event)
 {
     const int key = event.key;
     if(commentleader::isEscape(key))
@@ -25,7 +25,9 @@ CommentLeaderAfterCiiApplied::handle(CommentLeaderPendingMachine& machine,
         {
             std::optional<ModeState> result =
                 commentleader::replaceNormalAppliedBlockWithTodoComment(
-                    ctx, machine.startY(), machine.startX());
+                    ctx,
+                    machine.startY(),
+                    machine.startX());
             machine.cancel(ctx);
             return result;
         }

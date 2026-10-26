@@ -114,8 +114,9 @@ struct DebuggerMode
 
     void on_enter(ModeContext& ctx);
     void on_exit(ModeContext& ctx);
-    std::optional<ModeState> handle(ModeContext& ctx,
-                                    const ModeKeyEvent& event);
+    std::optional<ModeState> handle(
+        ModeContext& ctx,
+        const ModeKeyEvent& event);
     void draw(Editor& editor);
     void processIdle(Editor& editor);
     void applyMessage(const std::string& message);

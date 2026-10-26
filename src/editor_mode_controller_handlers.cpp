@@ -43,9 +43,9 @@ void EditorModeController::handleOperatorPendingMode(int c)
     {
         editor.pendingAwaitingObject = true;
         editor.pendingObjectType = (char)c;
-        editor.setStatusMessage(std::string("Operator: ") +
-                                editor.pendingOperator + " " +
-                                editor.pendingObjectType);
+        editor.setStatusMessage(
+            std::string("Operator: ") + editor.pendingOperator + " " +
+            editor.pendingObjectType);
         return;
     }
 
@@ -357,8 +357,12 @@ void EditorModeController::handleOperatorPendingMode(int c)
 
 void EditorModeController::handleNormalMode(int c)
 {
-    LOG_DEBUG(LOG, "handleNormalMode c={} ('{}') commandBuffer='{}'", c,
-              (char)c, editor.commandBuffer);
+    LOG_DEBUG(
+        LOG,
+        "handleNormalMode c={} ('{}') commandBuffer='{}'",
+        c,
+        (char)c,
+        editor.commandBuffer);
 
     if(dispatchModeKey(c))
     {
@@ -409,8 +413,9 @@ void EditorModeController::handleNormalMode(int c)
         editor.repeatCount = c - keyCode(typed::TypedKey::KEY_0);
         return;
     }
-    else if(c >= keyCode(typed::TypedKey::KEY_0) &&
-            c <= keyCode(typed::TypedKey::KEY_9) && editor.repeatCount > 0)
+    else if(
+        c >= keyCode(typed::TypedKey::KEY_0) &&
+        c <= keyCode(typed::TypedKey::KEY_9) && editor.repeatCount > 0)
     {
         editor.repeatCount =
             editor.repeatCount * 10 + (c - keyCode(typed::TypedKey::KEY_0));
@@ -423,8 +428,9 @@ void EditorModeController::handleNormalMode(int c)
     {
         if(c == keyCode(typed::TypedKey::KEY_C) && editor.splitActive)
             editor.closeSplit();
-        else if(c != keyCode(control::ControlKey::ESC) &&
-                c != keyCode(control::ControlKey::CTRL_C))
+        else if(
+            c != keyCode(control::ControlKey::ESC) &&
+            c != keyCode(control::ControlKey::CTRL_C))
             editor.setStatusMessage("Unknown leader-w command");
         editor.commandBuffer.clear();
         editor.repeatCount = 0;
@@ -473,8 +479,8 @@ void EditorModeController::handleNormalMode(int c)
                 editor.formatBuffer();
                 return;
             }
-            editor.setStatusMessage("format: unsupported file type (" +
-                                    *editor.filename + ")");
+            editor.setStatusMessage(
+                "format: unsupported file type (" + *editor.filename + ")");
             return;
         }
         else if(c == keyCode(typed::TypedKey::KEY_X))
@@ -569,10 +575,12 @@ void EditorModeController::handleNormalMode(int c)
                 editor.yankBuffer += (*editor.lines)[i] + "\n";
             }
 
-            LOG_DEBUG(LOG,
-                      "yy: editor.yankBuffer.length()={}, "
-                      "editor.useSystemClipboard={}",
-                      editor.yankBuffer.length(), editor.useSystemClipboard);
+            LOG_DEBUG(
+                LOG,
+                "yy: editor.yankBuffer.length()={}, "
+                "editor.useSystemClipboard={}",
+                editor.yankBuffer.length(),
+                editor.useSystemClipboard);
 
             int linesYanked = endLine - startLine + 1;
             std::string msg = std::to_string(linesYanked) + " line" +
@@ -611,9 +619,9 @@ void EditorModeController::handleNormalMode(int c)
             editor.autoIndentRange(startLine, endLine);
 
             int linesIndented = endLine - startLine + 1;
-            editor.setStatusMessage(std::to_string(linesIndented) + " line" +
-                                    (linesIndented > 1 ? "s" : "") +
-                                    " indented");
+            editor.setStatusMessage(
+                std::to_string(linesIndented) + " line" +
+                (linesIndented > 1 ? "s" : "") + " indented");
             pendingIndent = false;
             editor.repeatCount = 0;
             editor.saveState();
@@ -644,8 +652,9 @@ void EditorModeController::handleNormalMode(int c)
             }
 
             int linesIndented = endLine - startLine + 1;
-            editor.setStatusMessage(std::to_string(linesIndented) + " line" +
-                                    (linesIndented > 1 ? "s" : "") + " >>");
+            editor.setStatusMessage(
+                std::to_string(linesIndented) + " line" +
+                (linesIndented > 1 ? "s" : "") + " >>");
             pendingShiftRight = false;
             editor.repeatCount = 0;
             editor.saveState();
@@ -675,13 +684,15 @@ void EditorModeController::handleNormalMode(int c)
             for(int i = startLine; i <= endLine; i++)
             {
                 int currentIndent = editor.getLineIndent(i);
-                editor.indentLine(
-                    i, std::max(0, currentIndent - 4)); // Remove 4 spaces
+                editor
+                    .indentLine(i, std::max(0, currentIndent - 4)); // Remove 4
+                                                                    // spaces
             }
 
             int linesIndented = endLine - startLine + 1;
-            editor.setStatusMessage(std::to_string(linesIndented) + " line" +
-                                    (linesIndented > 1 ? "s" : "") + " <<");
+            editor.setStatusMessage(
+                std::to_string(linesIndented) + " line" +
+                (linesIndented > 1 ? "s" : "") + " <<");
             pendingShiftLeft = false;
             editor.repeatCount = 0;
             editor.saveState();
@@ -735,8 +746,9 @@ void EditorModeController::handleNormalMode(int c)
         editor.repeatCount = 0;
         return;
     }
-    else if(!pendingDelete && !pendingYank && !pendingIndent &&
-            !pendingShiftRight && !pendingShiftLeft)
+    else if(
+        !pendingDelete && !pendingYank && !pendingIndent &&
+        !pendingShiftRight && !pendingShiftLeft)
     {
         // Only reset if we're not in the middle of processing pending
         // operations
@@ -817,8 +829,8 @@ void EditorModeController::handleNormalMode(int c)
 
         // Insert new line below with same indentation
         std::string newLine(indent, keyChar(control::ControlKey::SPACE));
-        editor.lines->insert(editor.lines->begin() + *editor.cursorY + 1,
-                             newLine);
+        editor.lines
+            ->insert(editor.lines->begin() + *editor.cursorY + 1, newLine);
         *editor.cursorY += 1;
         *editor.cursorX = static_cast<int>(indent);
 
@@ -1004,14 +1016,14 @@ void EditorModeController::handleNormalMode(int c)
                                                   ? nextLine.substr(startPos)
                                                   : "";
                     currentLine += " " + trimmedNext;
-                    editor.lines->erase(editor.lines->begin() +
-                                        *editor.cursorY + 1);
+                    editor.lines->erase(
+                        editor.lines->begin() + *editor.cursorY + 1);
                 }
             }
             *editor.dirty = true;
             editor.saveState();
-            editor.setStatusMessage(std::to_string(linesToJoin) +
-                                    " editor.lines joined");
+            editor.setStatusMessage(
+                std::to_string(linesToJoin) + " editor.lines joined");
             break;
         }
     case keyCode(typed::TypedKey::KEY_C):
@@ -1055,8 +1067,9 @@ void EditorModeController::handleNormalMode(int c)
             editor.moveToFirstLine();
             editor.commandBuffer.clear();
         }
-        else if(c != keyCode(typed::TypedKey::KEY_G) &&
-                c != keyCode(typed::TypedKey::KEY_D))
+        else if(
+            c != keyCode(typed::TypedKey::KEY_G) &&
+            c != keyCode(typed::TypedKey::KEY_D))
         {
             // Unknown g-command → cancel
             editor.commandBuffer.clear();

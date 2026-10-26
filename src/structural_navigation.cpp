@@ -39,47 +39,48 @@ bool ident(char c)
 
 bool keyword(std::string_view word)
 {
-    static const std::unordered_set<std::string_view> words = {
-        "if",           "else",
-        "elif",         "for",
-        "foreach",      "while",
-        "do",           "switch",
-        "case",         "catch",
-        "try",          "finally",
-        "return",       "throw",
-        "yield",        "co_return",
-        "sizeof",       "alignof",
-        "decltype",     "typeof",
-        "typeid",       "noexcept",
-        "requires",     "static_cast",
-        "dynamic_cast", "reinterpret_cast",
-        "const_cast",   "new",
-        "delete",       "assert",
-        "with",         "match",
-        "except",       "def",
-        "class",        "struct",
-        "namespace",    "function",
-        "fn",           "func",
-        "import",       "from",
-        "using",        "in",
-        "is",           "and",
-        "or",           "not",
-        "await",        "async",
-        "lambda",       "true",
-        "false",        "None",
-        "null",         "nullptr",
-        "break",        "continue",
-        "pass",         "raise",
-        "del",          "global",
-        "nonlocal",     "this",
-        "self",         "base",
-        "super",        "const",
-        "let",          "var"};
+    static const std::unordered_set<std::string_view> words =
+        {"if",           "else",
+         "elif",         "for",
+         "foreach",      "while",
+         "do",           "switch",
+         "case",         "catch",
+         "try",          "finally",
+         "return",       "throw",
+         "yield",        "co_return",
+         "sizeof",       "alignof",
+         "decltype",     "typeof",
+         "typeid",       "noexcept",
+         "requires",     "static_cast",
+         "dynamic_cast", "reinterpret_cast",
+         "const_cast",   "new",
+         "delete",       "assert",
+         "with",         "match",
+         "except",       "def",
+         "class",        "struct",
+         "namespace",    "function",
+         "fn",           "func",
+         "import",       "from",
+         "using",        "in",
+         "is",           "and",
+         "or",           "not",
+         "await",        "async",
+         "lambda",       "true",
+         "false",        "None",
+         "null",         "nullptr",
+         "break",        "continue",
+         "pass",         "raise",
+         "del",          "global",
+         "nonlocal",     "this",
+         "self",         "base",
+         "super",        "const",
+         "let",          "var"};
     return words.count(word) != 0;
 }
 
-std::vector<Token> tokenize(const std::vector<std::string>& lines,
-                            FileType type)
+std::vector<Token> tokenize(
+    const std::vector<std::string>& lines,
+    FileType type)
 {
     std::string source;
     for(const auto& line : lines)
@@ -258,10 +259,11 @@ std::vector<Token> tokenize(const std::vector<std::string>& lines,
         const auto& text = tokens[j].text;
         if(text == "(" || text == "[" || text == "{")
             stack.push_back(j);
-        else if(!stack.empty() &&
-                ((text == ")" && tokens[stack.back()].text == "(") ||
-                 (text == "]" && tokens[stack.back()].text == "[") ||
-                 (text == "}" && tokens[stack.back()].text == "{")))
+        else if(
+            !stack.empty() &&
+            ((text == ")" && tokens[stack.back()].text == "(") ||
+             (text == "]" && tokens[stack.back()].text == "[") ||
+             (text == "}" && tokens[stack.back()].text == "{")))
         {
             const int opening = stack.back();
             stack.pop_back();
@@ -307,9 +309,10 @@ int indent(const std::string& line)
     return width;
 }
 
-std::vector<Function> functions(const std::vector<Token>& tokens,
-                                const std::vector<std::string>& lines,
-                                FileType type)
+std::vector<Function> functions(
+    const std::vector<Token>& tokens,
+    const std::vector<std::string>& lines,
+    FileType type)
 {
     std::vector<Function> result;
     const int size = static_cast<int>(tokens.size());
@@ -442,9 +445,10 @@ std::vector<Function> functions(const std::vector<Token>& tokens,
             result.push_back({name, body + 1, end, exactStart});
         }
     }
-    std::sort(result.begin(), result.end(),
-              [](const Function& a, const Function& b)
-              { return a.name < b.name; });
+    std::sort(
+        result.begin(),
+        result.end(),
+        [](const Function& a, const Function& b) { return a.name < b.name; });
     return result;
 }
 
@@ -517,8 +521,9 @@ bool supports(FileType type)
            type == FileType::TypeScript || type == FileType::CSharp;
 }
 
-std::vector<FunctionSymbol>
-functionSymbols(const std::vector<std::string>& lines, FileType type)
+std::vector<FunctionSymbol> functionSymbols(
+    const std::vector<std::string>& lines,
+    FileType type)
 {
     if(!supports(type))
         return {};
@@ -596,8 +601,11 @@ functionSymbols(const std::vector<std::string>& lines, FileType type)
     return symbols;
 }
 
-std::vector<Position> targets(const std::vector<std::string>& lines,
-                              FileType type, Target target, Position cursor)
+std::vector<Position> targets(
+    const std::vector<std::string>& lines,
+    FileType type,
+    Target target,
+    Position cursor)
 {
     if(!supports(type))
         return {};

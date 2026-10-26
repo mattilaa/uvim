@@ -5,8 +5,8 @@
 
 namespace command::execution
 {
-bool AnsiToolsCommand::execute(Editor& editor,
-                               const CommandRequest& request) const
+bool AnsiToolsCommand::execute(Editor& editor, const CommandRequest& request)
+    const
 {
     if(request.text != "ansitools")
         return false;

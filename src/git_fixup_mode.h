@@ -47,8 +47,12 @@ struct GitFixupMode
 
     GitFixupMode() = default;
 
-    GitFixupMode(std::vector<Entry> items, std::string root, std::string dir,
-                 std::vector<std::string> files, GitStageMode stage)
+    GitFixupMode(
+        std::vector<Entry> items,
+        std::string root,
+        std::string dir,
+        std::vector<std::string> files,
+        GitStageMode stage)
         : entries(std::move(items)), repoRoot(std::move(root)),
           repoDir(std::move(dir)), fixupFiles(std::move(files)),
           returnStage(std::move(stage))
@@ -58,8 +62,9 @@ struct GitFixupMode
     void on_enter(ModeContext& ctx);
     void on_exit(ModeContext& ctx);
 
-    std::optional<ModeState> handle(ModeContext& ctx,
-                                    const ModeKeyEvent& event);
+    std::optional<ModeState> handle(
+        ModeContext& ctx,
+        const ModeKeyEvent& event);
 
     void draw(Editor& editor) const;
 };

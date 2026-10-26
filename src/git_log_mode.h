@@ -75,9 +75,13 @@ struct GitLogMode
 
     GitLogMode() = default;
 
-    GitLogMode(std::vector<Entry> items, bool fileOnlyLog,
-               std::string root = {}, std::string dir = {},
-               std::string file = {}, bool pretty = false)
+    GitLogMode(
+        std::vector<Entry> items,
+        bool fileOnlyLog,
+        std::string root = {},
+        std::string dir = {},
+        std::string file = {},
+        bool pretty = false)
         : entries(std::move(items)), fileOnly(fileOnlyLog),
           repoRoot(std::move(root)), repoDir(std::move(dir)),
           filePath(std::move(file)), prettyView(pretty)
@@ -87,8 +91,9 @@ struct GitLogMode
     void on_enter(ModeContext& ctx);
     void on_exit(ModeContext& ctx);
 
-    std::optional<ModeState> handle(ModeContext& ctx,
-                                    const ModeKeyEvent& event);
+    std::optional<ModeState> handle(
+        ModeContext& ctx,
+        const ModeKeyEvent& event);
 
     void draw(Editor& editor) const;
 
@@ -96,12 +101,16 @@ struct GitLogMode
     void ensurePrettyPreview(Editor& editor);
     static const char* graphPrettyFormatArg();
     static std::optional<Entry> parseGraphEntry(std::string_view line);
-    static void applyGraphConnector(Entry& entry,
-                                    std::string_view connectorLine);
+    static void applyGraphConnector(
+        Entry& entry,
+        std::string_view connectorLine);
 #ifdef UVIM_TESTING
-    static std::string testRenderLine(const Theme& theme, const Entry& entry,
-                                      std::string_view query, bool selected,
-                                      int screenCols);
+    static std::string testRenderLine(
+        const Theme& theme,
+        const Entry& entry,
+        std::string_view query,
+        bool selected,
+        int screenCols);
 #endif
 };
 } // namespace editor::statemachine

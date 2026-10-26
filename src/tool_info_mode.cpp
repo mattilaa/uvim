@@ -18,8 +18,9 @@ void ToolInfoMode::on_exit(ModeContext& ctx)
     Terminal::setCursorBlock();
 }
 
-std::optional<ModeState> ToolInfoMode::handle(ModeContext& ctx,
-                                              const ModeKeyEvent& event)
+std::optional<ModeState> ToolInfoMode::handle(
+    ModeContext& ctx,
+    const ModeKeyEvent& event)
 {
     const int key = event.key;
     Editor* ed = ctx.editor;

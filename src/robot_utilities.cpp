@@ -28,10 +28,22 @@ std::unordered_set<std::string> RobotUtilities::defaultCustomKeywords()
 std::unordered_set<std::string> RobotUtilities::defaultSettings()
 {
     static constexpr std::string_view kSettings[] = {
-        "resource",      "library",      "variables",      "documentation",
-        "metadata",      "suite setup",  "suite teardown", "test setup",
-        "test teardown", "task setup",   "task teardown",  "test template",
-        "task template", "test timeout", "task timeout",   "force tags",
+        "resource",
+        "library",
+        "variables",
+        "documentation",
+        "metadata",
+        "suite setup",
+        "suite teardown",
+        "test setup",
+        "test teardown",
+        "task setup",
+        "task teardown",
+        "test template",
+        "task template",
+        "test timeout",
+        "task timeout",
+        "force tags",
         "default tags",
     };
     std::unordered_set<std::string> out;

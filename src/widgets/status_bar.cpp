@@ -12,8 +12,12 @@ namespace
 // 1-based column of the progress slot: where the progress was drawn, or
 // where it would go inside the padding (`reserve` columns + a space).
 // -1: hosted here but no room.
-int progressSlotColumn(int screenCols, int rightLen, int padding,
-                       bool drawn, int reserve)
+int progressSlotColumn(
+    int screenCols,
+    int rightLen,
+    int padding,
+    bool drawn,
+    int reserve)
 {
     if(drawn)
         return padding >= 0 ? screenCols - rightLen + 1 : -1;
@@ -39,8 +43,13 @@ void appendStatusBar(std::string& output, const StatusBarView& view)
     int progress = std::clamp((lineNumber * 100) / lineCount, 0, 100);
 
     char rightStatusBuf[48];
-    snprintf(rightStatusBuf, sizeof(rightStatusBuf), " %d%%/%d/%d ", progress,
-             lineNumber, view.cursorX + 1);
+    snprintf(
+        rightStatusBuf,
+        sizeof(rightStatusBuf),
+        " %d%%/%d/%d ",
+        progress,
+        lineNumber,
+        view.cursorX + 1);
     std::string rightStatus = rightStatusBuf;
     const int rightFieldWidth = 12;
     int rightStatusWidth = text_utils::displayWidth(rightStatus);
@@ -89,8 +98,8 @@ void appendStatusBar(std::string& output, const StatusBarView& view)
 
     if((int)displayName.length() > availableForFile && availableForFile > 4)
     {
-        displayName = "..." + displayName.substr(displayName.length() -
-                                                 availableForFile + 3);
+        displayName = "..." + displayName.substr(
+                                  displayName.length() - availableForFile + 3);
     }
 
     status += displayName;
@@ -102,7 +111,10 @@ void appendStatusBar(std::string& output, const StatusBarView& view)
         output.append(padding, ' ');
     if(view.progressColumn)
         *view.progressColumn = progressSlotColumn(
-            view.screenCols, rightLen, padding, !view.progress.empty(),
+            view.screenCols,
+            rightLen,
+            padding,
+            !view.progress.empty(),
             view.progressReserve);
     output += rightBlock;
     output += view.theme.reset();
@@ -170,7 +182,10 @@ void appendViewStatusBar(std::string& output, const ViewStatusBarView& view)
         output.append(padding, ' ');
     if(view.progressColumn)
         *view.progressColumn = progressSlotColumn(
-            view.screenCols, rightLen, padding, !view.progress.empty(),
+            view.screenCols,
+            rightLen,
+            padding,
+            !view.progress.empty(),
             view.progressReserve);
     output += rightBlock;
     output += view.theme.reset();
@@ -206,10 +221,11 @@ void appendMessageBar(std::string& output, const MessageBarView& view)
     {
         if(view.commandLineMessagePrefix)
             output += ": ";
-        int msglen =
-            std::min((int)view.statusMessage.length(),
-                     std::max(0, view.screenCols -
-                                      (view.commandLineMessagePrefix ? 2 : 0)));
+        int msglen = std::min(
+            (int)view.statusMessage.length(),
+            std::max(
+                0,
+                view.screenCols - (view.commandLineMessagePrefix ? 2 : 0)));
         output.append(view.statusMessage, 0, msglen);
         return;
     }
@@ -218,10 +234,11 @@ void appendMessageBar(std::string& output, const MessageBarView& view)
     {
         if(view.commandLineMessagePrefix)
             output += ": ";
-        int msglen =
-            std::min((int)view.locMessage.length(),
-                     std::max(0, view.screenCols -
-                                      (view.commandLineMessagePrefix ? 2 : 0)));
+        int msglen = std::min(
+            (int)view.locMessage.length(),
+            std::max(
+                0,
+                view.screenCols - (view.commandLineMessagePrefix ? 2 : 0)));
         output.append(view.locMessage, 0, msglen);
         return;
     }

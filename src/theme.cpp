@@ -230,16 +230,19 @@ std::string Theme::dimmedFg(const Color& foreground, int level) const
     const Color background = base_bg_.set ? base_bg_ : Color{0, 0, 0, true};
     auto blend = [weight](int fg, int bg)
     { return bg + (fg - bg) * weight / 100; };
-    return fgSeq({blend(from.r, background.r), blend(from.g, background.g),
-                  blend(from.b, background.b), true});
+    return fgSeq(
+        {blend(from.r, background.r),
+         blend(from.g, background.g),
+         blend(from.b, background.b),
+         true});
 }
 
 std::string Theme::dimmedSyntax(TokenType type, int level) const
 {
     const int index = static_cast<int>(type);
-    return dimmedFg(index >= 0 && index < kTokenTypeCount ? syntax_[index]
-                                                          : base_fg_,
-                    level);
+    return dimmedFg(
+        index >= 0 && index < kTokenTypeCount ? syntax_[index] : base_fg_,
+        level);
 }
 
 std::string Theme::dimmedGutter(int level) const
@@ -288,26 +291,30 @@ void Theme::rebuildSequences()
     base_seq_ = fgSeq(base_fg_) + bgSeq(base_bg_);
     const Color green{80, 180, 90, true};
     const Color background = base_bg_.set ? base_bg_ : Color{31, 29, 46, true};
-    source_mapping_seq_ = bgSeq({(background.r * 3 + green.r) / 4,
-                                 (background.g * 3 + green.g) / 4,
-                                 (background.b * 3 + green.b) / 4, true});
+    source_mapping_seq_ = bgSeq(
+        {(background.r * 3 + green.r) / 4,
+         (background.g * 3 + green.g) / 4,
+         (background.b * 3 + green.b) / 4,
+         true});
     const Color blue{70, 125, 205, true};
 #ifdef UVIM_ENABLE_DEBUGGER
-    const std::array<Color, 4> debuggerTints{
-        blue, ui_success_, ui_accent_, ui_success_};
+    const std::array<Color, 4>
+        debuggerTints{blue, ui_success_, ui_accent_, ui_success_};
     auto blendBackground = [](const Color& base, const Color& tint, int weight)
     {
-        return Color{(base.r * (8 - weight) + tint.r * weight) / 8,
-                     (base.g * (8 - weight) + tint.g * weight) / 8,
-                     (base.b * (8 - weight) + tint.b * weight) / 8, true};
+        return Color{
+            (base.r * (8 - weight) + tint.r * weight) / 8,
+            (base.g * (8 - weight) + tint.g * weight) / 8,
+            (base.b * (8 - weight) + tint.b * weight) / 8,
+            true};
     };
     for(size_t row = 0; row < debugger_row_seq_.size(); ++row)
     {
-        const auto normal =
-            debugger_bg_[row].set
-                ? debugger_bg_[row]
-                : blendBackground(background, debuggerTints[row],
-                                  row == 3 ? 3 : 1);
+        const auto normal = debugger_bg_[row].set ? debugger_bg_[row]
+                                                  : blendBackground(
+                                                        background,
+                                                        debuggerTints[row],
+                                                        row == 3 ? 3 : 1);
         debugger_row_seq_[row][0] = bgSeq(normal);
         debugger_row_seq_[row][1] =
             bgSeq(blendBackground(normal, debuggerTints[row], 1));
@@ -315,15 +322,19 @@ void Theme::rebuildSequences()
 #endif
     assembly_selection_seq_ = bgSeq(
         asm_selection_bg_.set ? asm_selection_bg_
-                              : Color{(background.r * 3 + blue.r) / 4,
-                                      (background.g * 3 + blue.g) / 4,
-                                      (background.b * 3 + blue.b) / 4, true});
+                              : Color{
+                                    (background.r * 3 + blue.r) / 4,
+                                    (background.g * 3 + blue.g) / 4,
+                                    (background.b * 3 + blue.b) / 4,
+                                    true});
     const Color red{160, 45, 45, true};
     external_source_seq_ = bgSeq(
         asm_external_bg_.set ? asm_external_bg_
-                             : Color{(background.r * 3 + red.r) / 4,
-                                     (background.g * 3 + red.g) / 4,
-                                     (background.b * 3 + red.b) / 4, true});
+                             : Color{
+                                   (background.r * 3 + red.r) / 4,
+                                   (background.g * 3 + red.g) / 4,
+                                   (background.b * 3 + red.b) / 4,
+                                   true});
     reset_seq_ = std::string(Terminal::ESC_RESET_ALL) + base_seq_;
 
     selection_seq_ = fgSeq(selection_.fg) + bgSeq(selection_.bg);
@@ -358,8 +369,11 @@ void Theme::rebuildSequences()
         if(from.set && ui_dim_.set)
         {
             auto mix = [](int a, int b) { return a + ((b - a) * 2) / 5; };
-            track = {mix(from.r, ui_dim_.r), mix(from.g, ui_dim_.g),
-                     mix(from.b, ui_dim_.b), true};
+            track =
+                {mix(from.r, ui_dim_.r),
+                 mix(from.g, ui_dim_.g),
+                 mix(from.b, ui_dim_.b),
+                 true};
         }
     }
     progress_fill_seq_ = fgSeq(fill) + bgSeq(track);

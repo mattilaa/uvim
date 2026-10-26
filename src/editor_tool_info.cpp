@@ -14,8 +14,7 @@ executable_lookup::Result findClangFormat()
 #ifdef __APPLE__
     // Keep this order in sync with ClangFormatter: Apple Silicon Homebrew's
     // clang-format is preferred even when another version is on PATH.
-    auto homebrew =
-        executable_lookup::find("/opt/homebrew/bin/clang-format");
+    auto homebrew = executable_lookup::find("/opt/homebrew/bin/clang-format");
     if(homebrew.found)
         return homebrew;
 #endif
@@ -51,22 +50,24 @@ void Editor::showToolInfo()
                           executable_lookup::Result result,
                           const std::string& installName = "")
     {
-        toolInfoLines.push_back(label + ": " +
-                                (result.found ? "FOUND" : "MISSING"));
-        toolInfoLines.push_back("  binary: " +
-                                (result.found ? result.path : "not found"));
+        toolInfoLines.push_back(
+            label + ": " + (result.found ? "FOUND" : "MISSING"));
+        toolInfoLines.push_back(
+            "  binary: " + (result.found ? result.path : "not found"));
         if(!result.found)
-            toolInfoLines.push_back("  status: install " +
-                                    (installName.empty() ? label
-                                                         : installName) +
-                                    " and make sure it is on PATH");
+            toolInfoLines.push_back(
+                "  status: install " +
+                (installName.empty() ? label : installName) +
+                " and make sure it is on PATH");
     };
 
     toolInfoLines.push_back("Search tools");
 #ifdef UVIM_ENABLE_SEARCH_TOOLS
     appendTool("fzf", executable_lookup::find("fzf"));
-    appendTool("rg/ripgrep", executable_lookup::findAny({"rg", "ripgrep"}),
-               "ripgrep");
+    appendTool(
+        "rg/ripgrep",
+        executable_lookup::findAny({"rg", "ripgrep"}),
+        "ripgrep");
 #else
     toolInfoLines.push_back("fzf: not compiled");
     toolInfoLines.push_back("rg/ripgrep: not compiled");
@@ -80,16 +81,24 @@ void Editor::showToolInfo()
 
     const std::string pythonFormatterLabel =
         "Python formatter (" + pythonFormatter + ")";
-    appendTool(pythonFormatterLabel,
-               executable_lookup::find(pythonFormatter), pythonFormatter);
+    appendTool(
+        pythonFormatterLabel,
+        executable_lookup::find(pythonFormatter),
+        pythonFormatter);
     if(pythonFormatter != "ruff")
-        appendTool("ruff (Python lint)", executable_lookup::find("ruff"),
-                   "ruff");
+        appendTool(
+            "ruff (Python lint)",
+            executable_lookup::find("ruff"),
+            "ruff");
 
-    appendTool("robocop (Robot)", executable_lookup::find("robocop"),
-               "robocop");
-    appendTool("python (JSON/YAML)", executable_lookup::find("python"),
-               "python");
+    appendTool(
+        "robocop (Robot)",
+        executable_lookup::find("robocop"),
+        "robocop");
+    appendTool(
+        "python (JSON/YAML)",
+        executable_lookup::find("python"),
+        "python");
 #else
     toolInfoLines.push_back("formatters: not compiled");
 #endif
@@ -155,8 +164,10 @@ void Editor::drawToolInfo()
         else if(line.rfind("  binary:", 0) == 0)
         {
             output += "  ";
-            renderKeyValue("binary:", std::string_view(line).substr(9),
-                           theme.uiDim());
+            renderKeyValue(
+                "binary:",
+                std::string_view(line).substr(9),
+                theme.uiDim());
         }
         else if(line.rfind("  status:", 0) == 0)
         {
@@ -191,8 +202,7 @@ void Editor::drawToolInfo()
             const std::string* color = &theme.uiWarning();
             if(statusStr == "FOUND")
                 color = &theme.uiSuccess();
-            else if(statusStr == "MISSING" ||
-                    statusStr.rfind("not", 0) == 0)
+            else if(statusStr == "MISSING" || statusStr.rfind("not", 0) == 0)
                 color = &theme.uiError();
 
             output += " ";

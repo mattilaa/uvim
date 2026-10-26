@@ -12,8 +12,10 @@ namespace
 mla::log::FileLogger LSP_LOG("ROBOT");
 }
 
-void Editor::enableRobotLspImpl(bool enable, const std::string& serverPath,
-                                const std::vector<std::string>& serverArgs)
+void Editor::enableRobotLspImpl(
+    bool enable,
+    const std::string& serverPath,
+    const std::vector<std::string>& serverArgs)
 {
     robotLspEnabled = false;
     this->robotLspPath = serverPath;
@@ -46,7 +48,9 @@ void Editor::enableRobotLspImpl(bool enable, const std::string& serverPath,
     }
 
     lspController->start(
-        "Robot", robotLspClient, robotLspEnabled,
+        "Robot",
+        robotLspClient,
+        robotLspEnabled,
         [path = this->robotLspPath, rootDir, args](LspClient& client)
         { return client.startServer(path, rootDir, args); });
 #else

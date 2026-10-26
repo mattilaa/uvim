@@ -33,8 +33,8 @@ TEST(TextUtilsTest, Utf16OffsetMatchesCursorAfterEmojiInsertPosition)
 
 TEST(HeaderHelpTest, WrapsTokensToTerminalWidth)
 {
-    const std::vector<std::string> tokens = {
-        "[Enter: open]", "[Ctrl+Shift+X: close matches]", "[Esc: cancel]"};
+    const std::vector<std::string> tokens =
+        {"[Enter: open]", "[Ctrl+Shift+X: close matches]", "[Esc: cancel]"};
 
     const auto lines = HeaderHelp::wrap(tokens, 34);
 

@@ -85,8 +85,9 @@ int main(int argc, char** argv)
         }
         else if(method == "exit")
             return 0;
-        else if(method == "textDocument/didOpen" ||
-                method == "textDocument/didChange")
+        else if(
+            method == "textDocument/didOpen" ||
+            method == "textDocument/didChange")
         {
             // The tests read these files as bytes. Keep Windows text-mode
             // newline conversion out of both the log and document payload.

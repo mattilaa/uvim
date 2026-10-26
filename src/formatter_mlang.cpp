@@ -61,8 +61,9 @@ static std::string resolve_executable_path(const std::string& exe)
     return {};
 }
 
-static fs::path make_temp_file_path(const std::string& stem,
-                                    const std::string& extension)
+static fs::path make_temp_file_path(
+    const std::string& stem,
+    const std::string& extension)
 {
     std::error_code ec;
     fs::path dir = fs::temp_directory_path(ec);
@@ -244,7 +245,8 @@ bool MlangFormatter::operator()(Mode)
                     *editor.cursorY =
                         std::clamp(savedY, 0, (int)editor.lines->size() - 1);
                     *editor.cursorX = std::clamp(
-                        savedX, 0,
+                        savedX,
+                        0,
                         (int)(*editor.lines)[*editor.cursorY].size());
                 }
                 editor.saveState();
@@ -275,33 +277,36 @@ bool MlangFormatter::operator()(Mode)
         if(i + 1 < editor.lines->size())
             text.push_back('\n');
     }
-    editor.mlangLspClient->didChange(editor.currentBuffer->filename, text,
-                                     "mlang");
-    editor.mlangLspClient->didChange(editor.currentBuffer->filename, text,
-                                     "mlang");
+    editor.mlangLspClient
+        ->didChange(editor.currentBuffer->filename, text, "mlang");
+    editor.mlangLspClient
+        ->didChange(editor.currentBuffer->filename, text, "mlang");
 
-    std::vector<LspClient::TextEdit> edits = editor.mlangLspClient->formatting(
-        editor.currentBuffer->filename, 4, true);
+    std::vector<LspClient::TextEdit> edits =
+        editor.mlangLspClient
+            ->formatting(editor.currentBuffer->filename, 4, true);
     if(edits.empty())
     {
         if(externalFormatterFailed)
         {
-            editor.setStatusMessage("mlang-format failed (" +
-                                    externalFormatterError.substr(0, 80) +
-                                    "); mlang LSP: no changes");
+            editor.setStatusMessage(
+                "mlang-format failed (" + externalFormatterError.substr(0, 80) +
+                "); mlang LSP: no changes");
         }
         else
             editor.setStatusMessage("mlang LSP: no changes");
         return true;
     }
 
-    std::sort(edits.begin(), edits.end(),
-              [](const LspClient::TextEdit& a, const LspClient::TextEdit& b)
-              {
-                  if(a.startLine != b.startLine)
-                      return a.startLine > b.startLine;
-                  return a.startCharacter > b.startCharacter;
-              });
+    std::sort(
+        edits.begin(),
+        edits.end(),
+        [](const LspClient::TextEdit& a, const LspClient::TextEdit& b)
+        {
+            if(a.startLine != b.startLine)
+                return a.startLine > b.startLine;
+            return a.startCharacter > b.startCharacter;
+        });
 
     for(const auto& edit : edits)
     {
@@ -340,10 +345,13 @@ bool MlangFormatter::operator()(Mode)
             pos = next + 1;
         }
 
-        editor.lines->erase(editor.lines->begin() + edit.startLine,
-                            editor.lines->begin() + edit.endLine + 1);
-        editor.lines->insert(editor.lines->begin() + edit.startLine,
-                             newLines.begin(), newLines.end());
+        editor.lines->erase(
+            editor.lines->begin() + edit.startLine,
+            editor.lines->begin() + edit.endLine + 1);
+        editor.lines->insert(
+            editor.lines->begin() + edit.startLine,
+            newLines.begin(),
+            newLines.end());
     }
 
     *editor.dirty = true;
@@ -353,9 +361,9 @@ bool MlangFormatter::operator()(Mode)
     editor.needsFullRedraw = true;
     if(externalFormatterFailed)
     {
-        editor.setStatusMessage("mlang-format failed (" +
-                                externalFormatterError.substr(0, 80) +
-                                "); mlang LSP: formatted buffer");
+        editor.setStatusMessage(
+            "mlang-format failed (" + externalFormatterError.substr(0, 80) +
+            "); mlang LSP: formatted buffer");
     }
     else
         editor.setStatusMessage("mlang LSP: formatted buffer");

@@ -93,8 +93,9 @@ static bool cursorIsInsideDelimitedExpression(std::string_view left)
     return parenDepth > 0 || bracketDepth > 0;
 }
 
-static bool completionCallShouldEndStatement(const std::string& line,
-                                             int cursorPos)
+static bool completionCallShouldEndStatement(
+    const std::string& line,
+    int cursorPos)
 {
     cursorPos = std::clamp(cursorPos, 0, (int)line.size());
     if(cursorIsInsideDelimitedExpression(
@@ -173,8 +174,8 @@ static bool completionCallShouldEndStatement(const std::string& line,
     return {};
 }
 
-[[maybe_unused]] static std::string
-mlangBuiltinDocumentation(std::string_view label)
+[[maybe_unused]] static std::string mlangBuiltinDocumentation(
+    std::string_view label)
 {
     if(label == "int")
         return "Alias for a 32-bit signed integer. Maps to C int32_t in the "
@@ -337,8 +338,9 @@ struct IncludeContext
     std::string filePrefix;
 };
 
-static std::optional<IncludeContext> findIncludeContext(const std::string& line,
-                                                        int cursorX)
+static std::optional<IncludeContext> findIncludeContext(
+    const std::string& line,
+    int cursorX)
 {
     size_t includePos = line.find("#include");
     if(text_utils::is_not_found(includePos))
@@ -418,8 +420,10 @@ static int computeCompletionAnchor(const std::string& line, int cursorX)
 }
 
 [[maybe_unused]] static void appendIncludeEntries(
-    const std::filesystem::path& baseDir, const std::string& dirPrefix,
-    const std::string& filePrefix, std::vector<CompletionEntry>& out,
+    const std::filesystem::path& baseDir,
+    const std::string& dirPrefix,
+    const std::string& filePrefix,
+    std::vector<CompletionEntry>& out,
     std::unordered_set<std::string>& seen)
 {
     std::error_code ec;
@@ -683,8 +687,9 @@ void Editor::requestCompletion()
         label = "json";
         languageId = "json";
     }
-    else if(isFileType<FileType::JavaScript>() ||
-            isFileType<FileType::TypeScript>())
+    else if(
+        isFileType<FileType::JavaScript>() ||
+        isFileType<FileType::TypeScript>())
     {
         if(!isTsLspEnabled())
         {
@@ -784,9 +789,12 @@ void Editor::requestCompletion()
 
                 for(auto base : systemPaths)
                 {
-                    appendIncludeEntries(base, includeCtx->dirPrefix,
-                                         includeCtx->filePrefix, completionAll,
-                                         seen);
+                    appendIncludeEntries(
+                        base,
+                        includeCtx->dirPrefix,
+                        includeCtx->filePrefix,
+                        completionAll,
+                        seen);
                 }
             }
             else
@@ -800,9 +808,12 @@ void Editor::requestCompletion()
                             currentBuffer->filename.substr(0, lastSlash);
                 }
 
-                appendIncludeEntries(currentDir, includeCtx->dirPrefix,
-                                     includeCtx->filePrefix, completionAll,
-                                     seen);
+                appendIncludeEntries(
+                    currentDir,
+                    includeCtx->dirPrefix,
+                    includeCtx->filePrefix,
+                    completionAll,
+                    seen);
             }
 
             if(completionAll.empty())
@@ -838,14 +849,14 @@ void Editor::requestCompletion()
         triggerKind = 2;
         triggerChar = '.';
     }
-    else if(*cursorX > 1 && line[*cursorX - 1] == ':' &&
-            line[*cursorX - 2] == ':')
+    else if(
+        *cursorX > 1 && line[*cursorX - 1] == ':' && line[*cursorX - 2] == ':')
     {
         triggerKind = 2;
         triggerChar = ':';
     }
-    else if(*cursorX > 1 && line[*cursorX - 1] == '>' &&
-            line[*cursorX - 2] == '-')
+    else if(
+        *cursorX > 1 && line[*cursorX - 1] == '>' && line[*cursorX - 2] == '-')
     {
         triggerKind = 2;
         triggerChar = '>';
@@ -855,8 +866,13 @@ void Editor::requestCompletion()
         triggerKind = 3;
     }
 
-    auto items = client->completion(currentBuffer->filename, *cursorY, *cursorX,
-                                    line, triggerKind, triggerChar);
+    auto items = client->completion(
+        currentBuffer->filename,
+        *cursorY,
+        *cursorX,
+        line,
+        triggerKind,
+        triggerChar);
     completionFromLsp = true;
     completionAll.clear();
     completionAll.reserve(items.size());
@@ -1190,9 +1206,10 @@ void Editor::rebuildCompletionFilter()
             scored.push_back({i, s});
     }
 
-    std::stable_sort(scored.begin(), scored.end(),
-                     [](const Scored& x, const Scored& y)
-                     { return x.score > y.score; });
+    std::stable_sort(
+        scored.begin(),
+        scored.end(),
+        [](const Scored& x, const Scored& y) { return x.score > y.score; });
 
     completionFiltered.clear();
     completionFiltered.reserve(scored.size());
@@ -1363,9 +1380,10 @@ void Editor::rebuildEmojiFilter()
             scored.push_back({i, s});
     }
 
-    std::stable_sort(scored.begin(), scored.end(),
-                     [](const Scored& x, const Scored& y)
-                     { return x.score > y.score; });
+    std::stable_sort(
+        scored.begin(),
+        scored.end(),
+        [](const Scored& x, const Scored& y) { return x.score > y.score; });
 
     emojiFiltered.reserve(scored.size());
     for(const auto& s : scored)
@@ -1433,8 +1451,10 @@ void Editor::drawEmojiPopup(std::string& output) const
 
     moveTo(top, left);
     text_utils::appendU8(output, ascii::BOX_LIGHT_TOP_LEFT);
-    text_utils::appendUtf8Repeat(output, ascii::BOX_LIGHT_HORIZONTAL,
-                                 innerW + 2);
+    text_utils::appendUtf8Repeat(
+        output,
+        ascii::BOX_LIGHT_HORIZONTAL,
+        innerW + 2);
     text_utils::appendU8(output, ascii::BOX_LIGHT_TOP_RIGHT);
 
     moveTo(top + 1, left);
@@ -1496,8 +1516,10 @@ void Editor::drawEmojiPopup(std::string& output) const
 
     moveTo(top + 1 + innerRows, left);
     text_utils::appendU8(output, ascii::BOX_LIGHT_BOTTOM_LEFT);
-    text_utils::appendUtf8Repeat(output, ascii::BOX_LIGHT_HORIZONTAL,
-                                 innerW + 2);
+    text_utils::appendUtf8Repeat(
+        output,
+        ascii::BOX_LIGHT_HORIZONTAL,
+        innerW + 2);
     text_utils::appendU8(output, ascii::BOX_LIGHT_BOTTOM_RIGHT);
 
     emojiPopupLastTop = top;
@@ -1526,11 +1548,12 @@ Editor::getClangdDiagnosticsByLine() const
     const LspClient* client = nullptr;
     if(isFileType<FileType::Cpp>() && isClangdLspEnabled() && lspClient)
         client = lspClient.get();
-    else if(isFileType<FileType::Mla>() && isMlangLspEnabled() &&
-            mlangLspClient)
+    else if(
+        isFileType<FileType::Mla>() && isMlangLspEnabled() && mlangLspClient)
         client = mlangLspClient.get();
-    else if(isFileType<FileType::CSharp>() && isCSharpLspEnabled() &&
-            csharpLspClient)
+    else if(
+        isFileType<FileType::CSharp>() && isCSharpLspEnabled() &&
+        csharpLspClient)
         client = csharpLspClient.get();
     if(!client)
         return out;
@@ -1554,8 +1577,8 @@ Editor::getClangdDiagnosticsByLine() const
     return out;
 }
 
-std::optional<Editor::LspDiagnosticSummary>
-Editor::getClangdDiagnosticForLine(int line) const
+std::optional<Editor::LspDiagnosticSummary> Editor::getClangdDiagnosticForLine(
+    int line) const
 {
     std::unordered_map<int, LspDiagnosticSummary> byLine =
         getClangdDiagnosticsByLine();
@@ -1619,7 +1642,8 @@ void Editor::drawDiagnosticPopup(std::string& output) const
         rows.push_back("fixes:");
         int maxFixRows = std::min(6, (int)diagnosticPopupFixes.size());
         int start = std::clamp(
-            diagnosticPopupFixScroll, 0,
+            diagnosticPopupFixScroll,
+            0,
             std::max(0, (int)diagnosticPopupFixes.size() - maxFixRows));
         int end =
             std::min((int)diagnosticPopupFixes.size(), start + maxFixRows);
@@ -1698,8 +1722,10 @@ void Editor::drawDiagnosticPopup(std::string& output) const
 
     moveTo(top, left);
     text_utils::appendU8(output, ascii::BOX_LIGHT_TOP_LEFT);
-    text_utils::appendUtf8Repeat(output, ascii::BOX_LIGHT_HORIZONTAL,
-                                 innerW + 2);
+    text_utils::appendUtf8Repeat(
+        output,
+        ascii::BOX_LIGHT_HORIZONTAL,
+        innerW + 2);
     text_utils::appendU8(output, ascii::BOX_LIGHT_TOP_RIGHT);
 
     moveTo(top + 1, left);
@@ -1737,8 +1763,10 @@ void Editor::drawDiagnosticPopup(std::string& output) const
 
     moveTo(top + 1 + (int)rows.size(), left);
     text_utils::appendU8(output, ascii::BOX_LIGHT_BOTTOM_LEFT);
-    text_utils::appendUtf8Repeat(output, ascii::BOX_LIGHT_HORIZONTAL,
-                                 innerW + 2);
+    text_utils::appendUtf8Repeat(
+        output,
+        ascii::BOX_LIGHT_HORIZONTAL,
+        innerW + 2);
     text_utils::appendU8(output, ascii::BOX_LIGHT_BOTTOM_RIGHT);
 }
 
@@ -1855,8 +1883,10 @@ void Editor::drawSymbolPopup(std::string& output) const
 
     moveTo(top, left);
     text_utils::appendU8(output, ascii::BOX_LIGHT_TOP_LEFT);
-    text_utils::appendUtf8Repeat(output, ascii::BOX_LIGHT_HORIZONTAL,
-                                 innerW + 2);
+    text_utils::appendUtf8Repeat(
+        output,
+        ascii::BOX_LIGHT_HORIZONTAL,
+        innerW + 2);
     text_utils::appendU8(output, ascii::BOX_LIGHT_TOP_RIGHT);
 
     for(size_t i = 0; i < rows.size(); ++i)
@@ -1890,8 +1920,10 @@ void Editor::drawSymbolPopup(std::string& output) const
 
     moveTo(top + 1 + (int)rows.size(), left);
     text_utils::appendU8(output, ascii::BOX_LIGHT_BOTTOM_LEFT);
-    text_utils::appendUtf8Repeat(output, ascii::BOX_LIGHT_HORIZONTAL,
-                                 innerW + 2);
+    text_utils::appendUtf8Repeat(
+        output,
+        ascii::BOX_LIGHT_HORIZONTAL,
+        innerW + 2);
     text_utils::appendU8(output, ascii::BOX_LIGHT_BOTTOM_RIGHT);
 }
 
@@ -1942,14 +1974,15 @@ void Editor::openDiagnosticPopupForCursor()
         client = lspClient.get();
         languageId = "cpp";
     }
-    else if(isFileType<FileType::Mla>() && isMlangLspEnabled() &&
-            mlangLspClient)
+    else if(
+        isFileType<FileType::Mla>() && isMlangLspEnabled() && mlangLspClient)
     {
         client = mlangLspClient.get();
         languageId = "mlang";
     }
-    else if(isFileType<FileType::CSharp>() && isCSharpLspEnabled() &&
-            csharpLspClient)
+    else if(
+        isFileType<FileType::CSharp>() && isCSharpLspEnabled() &&
+        csharpLspClient)
     {
         client = csharpLspClient.get();
         languageId = "csharp";
@@ -1971,7 +2004,10 @@ void Editor::openDiagnosticPopupForCursor()
                 lineText = (*lines)[*cursorY];
             (void)languageId;
             std::vector<LspClient::CodeAction> actions = client->codeActions(
-                currentBuffer->filename, *cursorY, lineText, lineDiags);
+                currentBuffer->filename,
+                *cursorY,
+                lineText,
+                lineDiags);
             for(const auto& action : actions)
             {
                 DiagnosticFix fix;
@@ -2061,8 +2097,8 @@ static int utf16ToUtf8ByteOffset(const std::string& line, int utf16Offset)
     return i;
 }
 
-[[maybe_unused]] static std::string
-joinLinesForLsp(const std::vector<std::string>& source)
+[[maybe_unused]] static std::string joinLinesForLsp(
+    const std::vector<std::string>& source)
 {
     std::string text;
     for(size_t i = 0; i < source.size(); ++i)
@@ -2074,8 +2110,9 @@ joinLinesForLsp(const std::vector<std::string>& source)
     return text;
 }
 
-static bool applyRenameEditToLines(std::vector<std::string>& targetLines,
-                                   const Editor::RenameEdit& edit)
+static bool applyRenameEditToLines(
+    std::vector<std::string>& targetLines,
+    const Editor::RenameEdit& edit)
 {
     if(edit.startLine < 0 || edit.startLine >= (int)targetLines.size())
         return false;
@@ -2112,10 +2149,13 @@ static bool applyRenameEditToLines(std::vector<std::string>& targetLines,
         pos = next + 1;
     }
 
-    targetLines.erase(targetLines.begin() + edit.startLine,
-                      targetLines.begin() + edit.endLine + 1);
-    targetLines.insert(targetLines.begin() + edit.startLine, newLines.begin(),
-                       newLines.end());
+    targetLines.erase(
+        targetLines.begin() + edit.startLine,
+        targetLines.begin() + edit.endLine + 1);
+    targetLines.insert(
+        targetLines.begin() + edit.startLine,
+        newLines.begin(),
+        newLines.end());
     if(targetLines.empty())
         targetLines.push_back("");
     return true;
@@ -2137,8 +2177,9 @@ static std::vector<std::string> readFileLinesForRename(const std::string& path)
     return out;
 }
 
-static bool writeFileLinesForRename(const std::string& path,
-                                    const std::vector<std::string>& lines)
+static bool writeFileLinesForRename(
+    const std::string& path,
+    const std::vector<std::string>& lines)
 {
     std::ofstream file(path, std::ios::binary | std::ios::trunc);
     if(!file)
@@ -2170,8 +2211,9 @@ Buffer* findBufferForPath(Editor& editor, const std::string& path)
     return nullptr;
 }
 
-static std::string renameDisplayPath(const Editor& editor,
-                                     const std::string& path)
+static std::string renameDisplayPath(
+    const Editor& editor,
+    const std::string& path)
 {
     if(!editor.projectRoot.empty() && path.rfind(editor.projectRoot, 0) == 0)
     {
@@ -2271,13 +2313,14 @@ void Editor::openRenamePopupForCursor()
 
 static int renameRemainingEditCount(const Editor::RenameFileEdits& file)
 {
-    return (int)std::count_if(file.edits.begin(), file.edits.end(),
-                              [](const Editor::RenameEdit& edit)
-                              { return !edit.applied; });
+    return (int)std::count_if(
+        file.edits.begin(),
+        file.edits.end(),
+        [](const Editor::RenameEdit& edit) { return !edit.applied; });
 }
 
-static int
-renameTotalRemainingEditCount(const std::vector<Editor::RenameFileEdits>& files)
+static int renameTotalRemainingEditCount(
+    const std::vector<Editor::RenameFileEdits>& files)
 {
     int total = 0;
     for(const auto& file : files)
@@ -2359,8 +2402,8 @@ static void finishRenameIfDone(Editor& editor)
     }
     int files = (int)editor.renameFiles.size();
     editor.closeRenamePopup();
-    editor.setStatusMessage("rn: rename applied in " + std::to_string(files) +
-                            " file(s)");
+    editor.setStatusMessage(
+        "rn: rename applied in " + std::to_string(files) + " file(s)");
 }
 
 static bool prepareRenameEdits(Editor& editor)
@@ -2389,8 +2432,11 @@ static bool prepareRenameEdits(Editor& editor)
         lineText = (*editor.lines)[*editor.cursorY];
 
     auto edits = editor.lspClient->renameSymbol(
-        editor.currentBuffer->filename, *editor.cursorY, *editor.cursorX,
-        lineText, editor.renameInput);
+        editor.currentBuffer->filename,
+        *editor.cursorY,
+        *editor.cursorX,
+        lineText,
+        editor.renameInput);
 
     editor.renameFiles.clear();
     for(auto& file : edits)
@@ -2408,13 +2454,15 @@ static bool prepareRenameEdits(Editor& editor)
             local.newText = edit.newText;
             grouped.edits.push_back(std::move(local));
         }
-        std::sort(grouped.edits.begin(), grouped.edits.end(),
-                  [](const Editor::RenameEdit& a, const Editor::RenameEdit& b)
-                  {
-                      if(a.startLine != b.startLine)
-                          return a.startLine > b.startLine;
-                      return a.startCharacter > b.startCharacter;
-                  });
+        std::sort(
+            grouped.edits.begin(),
+            grouped.edits.end(),
+            [](const Editor::RenameEdit& a, const Editor::RenameEdit& b)
+            {
+                if(a.startLine != b.startLine)
+                    return a.startLine > b.startLine;
+                return a.startCharacter > b.startCharacter;
+            });
         if(!grouped.edits.empty())
             editor.renameFiles.push_back(std::move(grouped));
     }
@@ -2562,8 +2610,9 @@ void Editor::drawRenamePopup(std::string& output) const
         {
             const auto& file = renameFiles[renameCurrentFile];
             rows.push_back("file: " + renameDisplayPath(*this, file.path));
-            rows.push_back("file edits: " +
-                           std::to_string(renameRemainingEditCount(file)));
+            rows.push_back(
+                "file edits: " +
+                std::to_string(renameRemainingEditCount(file)));
         }
         rows.push_back("[p] patch  [y] file  [a] all  [n/esc] cancel");
     }
@@ -2606,8 +2655,10 @@ void Editor::drawRenamePopup(std::string& output) const
     auto moveTo = [&](int r, int c) { output += Terminal::cursorPos(r, c); };
     moveTo(top, left);
     text_utils::appendU8(output, ascii::BOX_LIGHT_TOP_LEFT);
-    text_utils::appendUtf8Repeat(output, ascii::BOX_LIGHT_HORIZONTAL,
-                                 innerW + 2);
+    text_utils::appendUtf8Repeat(
+        output,
+        ascii::BOX_LIGHT_HORIZONTAL,
+        innerW + 2);
     text_utils::appendU8(output, ascii::BOX_LIGHT_TOP_RIGHT);
 
     for(size_t i = 0; i < rows.size(); ++i)
@@ -2627,8 +2678,10 @@ void Editor::drawRenamePopup(std::string& output) const
 
     moveTo(top + 1 + (int)rows.size(), left);
     text_utils::appendU8(output, ascii::BOX_LIGHT_BOTTOM_LEFT);
-    text_utils::appendUtf8Repeat(output, ascii::BOX_LIGHT_HORIZONTAL,
-                                 innerW + 2);
+    text_utils::appendUtf8Repeat(
+        output,
+        ascii::BOX_LIGHT_HORIZONTAL,
+        innerW + 2);
     text_utils::appendU8(output, ascii::BOX_LIGHT_BOTTOM_RIGHT);
 }
 
@@ -2665,13 +2718,15 @@ void Editor::applyDiagnosticFix(int index)
     }
     if(edits.empty())
         return;
-    std::sort(edits.begin(), edits.end(),
-              [](const DiagnosticFixEdit& a, const DiagnosticFixEdit& b)
-              {
-                  if(a.startLine != b.startLine)
-                      return a.startLine > b.startLine;
-                  return a.startCharacter > b.startCharacter;
-              });
+    std::sort(
+        edits.begin(),
+        edits.end(),
+        [](const DiagnosticFixEdit& a, const DiagnosticFixEdit& b)
+        {
+            if(a.startLine != b.startLine)
+                return a.startLine > b.startLine;
+            return a.startCharacter > b.startCharacter;
+        });
 
     for(const auto& edit : edits)
     {
@@ -2710,10 +2765,13 @@ void Editor::applyDiagnosticFix(int index)
             pos = next + 1;
         }
 
-        lines->erase(lines->begin() + edit.startLine,
-                     lines->begin() + edit.endLine + 1);
-        lines->insert(lines->begin() + edit.startLine, newLines.begin(),
-                      newLines.end());
+        lines->erase(
+            lines->begin() + edit.startLine,
+            lines->begin() + edit.endLine + 1);
+        lines->insert(
+            lines->begin() + edit.startLine,
+            newLines.begin(),
+            newLines.end());
     }
 
     *dirty = true;

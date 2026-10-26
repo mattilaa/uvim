@@ -20,17 +20,20 @@ void WelcomeMode::on_enter(ModeContext& ctx)
 
 void WelcomeMode::on_exit(ModeContext& /* ctx */) {}
 
-std::optional<ModeState> WelcomeMode::handle(ModeContext& ctx,
-                                             const ModeKeyEvent& event)
+std::optional<ModeState> WelcomeMode::handle(
+    ModeContext& ctx,
+    const ModeKeyEvent& event)
 {
     const int key = event.key;
     int c = keyCode(key);
 
     std::optional<ModeState> nextState;
-    if(commandPrompt &&
-       commandPrompt->handle(
-           ctx, c, [&](std::string_view commandLine)
-           { return executeCommand(ctx, commandLine); }, nextState))
+    if(commandPrompt && commandPrompt->handle(
+                            ctx,
+                            c,
+                            [&](std::string_view commandLine)
+                            { return executeCommand(ctx, commandLine); },
+                            nextState))
     {
         return nextState;
     }
@@ -111,8 +114,9 @@ std::optional<ModeState> WelcomeMode::handle(ModeContext& ctx,
     return std::nullopt;
 }
 
-std::optional<ModeState>
-WelcomeMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
+std::optional<ModeState> WelcomeMode::executeCommand(
+    ModeContext& ctx,
+    std::string_view commandLine)
 {
     std::string previousFile;
     if(ctx.hasCurrentBuffer() && ctx.hasFilename())
@@ -121,8 +125,10 @@ WelcomeMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
     }
 
     return dispatchCommandLine(
-        ctx, commandLine,
-        [&](ModeContext& /* ctx */, const ParsedCommand& command,
+        ctx,
+        commandLine,
+        [&](ModeContext& /* ctx */,
+            const ParsedCommand& command,
             std::optional<ModeState>& nextState) -> bool
         {
             if(command.cmd == "help" || command.cmd == "h")
@@ -209,8 +215,9 @@ void WelcomeMode::draw(Editor& editor) const
         for(const auto& item : items)
         {
             std::string line = "  " + item.key;
-            line.append(keyWidth - item.key.size(),
-                        keyChar(control::ControlKey::SPACE));
+            line.append(
+                keyWidth - item.key.size(),
+                keyChar(control::ControlKey::SPACE));
             line += "  ";
             line += item.desc;
             lines.push_back(std::move(line));

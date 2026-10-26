@@ -186,8 +186,8 @@ std::vector<std::string> ModeContext::getSetCompletions(std::string_view prefix)
     return editor->getSetCompletions(prefix);
 }
 
-std::vector<std::string>
-ModeContext::getHelpCompletions(std::string_view prefix)
+std::vector<std::string> ModeContext::getHelpCompletions(
+    std::string_view prefix)
 {
     return editor->getHelpCompletions(prefix);
 }
@@ -257,8 +257,8 @@ std::string_view ModeContext::commandHistorySearchQuery() const
     return editor->commandHistorySearchQuery();
 }
 
-std::vector<std::string>
-ModeContext::getCommandCompletions(std::string_view prefix)
+std::vector<std::string> ModeContext::getCommandCompletions(
+    std::string_view prefix)
 {
     return editor->getCommandCompletions(prefix);
 }
@@ -285,14 +285,14 @@ std::vector<std::string> ModeContext::getPathCompletions(std::string_view path)
     return editor->getPathCompletions(path);
 }
 
-std::vector<std::string>
-ModeContext::getPathCompletionsRecursive(std::string_view path)
+std::vector<std::string> ModeContext::getPathCompletionsRecursive(
+    std::string_view path)
 {
     return editor->getPathCompletionsRecursive(path);
 }
 
-std::vector<std::string>
-ModeContext::getLocPathCompletions(std::string_view path)
+std::vector<std::string> ModeContext::getLocPathCompletions(
+    std::string_view path)
 {
     return editor->getLocPathCompletions(path);
 }
@@ -347,8 +347,9 @@ void ModeContext::performSearch()
     editor->performSearch();
 }
 
-void ModeContext::performIncrementalSearch(const std::string& query,
-                                           bool forward)
+void ModeContext::performIncrementalSearch(
+    const std::string& query,
+    bool forward)
 {
     editor->performIncrementalSearch(query, forward);
 }
@@ -828,15 +829,29 @@ void ModeContext::changeVisualBlock()
     editor->changeVisualBlock();
 }
 
-bool ModeContext::getTextObjectRange(char objChar, bool around, int& outStartY,
-                                     int& outStartX, int& outEndY, int& outEndX)
+bool ModeContext::getTextObjectRange(
+    char objChar,
+    bool around,
+    int& outStartY,
+    int& outStartX,
+    int& outEndY,
+    int& outEndX)
 {
-    return editor->getTextObjectRange(objChar, around, outStartY, outStartX,
-                                      outEndY, outEndX);
+    return editor->getTextObjectRange(
+        objChar,
+        around,
+        outStartY,
+        outStartX,
+        outEndY,
+        outEndX);
 }
 
-void ModeContext::applyOperatorToRange(char op, int startY, int startX,
-                                       int endY, int endX)
+void ModeContext::applyOperatorToRange(
+    char op,
+    int startY,
+    int startX,
+    int endY,
+    int endX)
 {
     editor->applyOperatorToRange(op, startY, startX, endY, endX);
 }

@@ -21,9 +21,12 @@ namespace
 {
 std::vector<std::string> regexSearchHelpTokens(bool allFiles)
 {
-    return {"[Enter: open]", "[Esc: cancel]",
-            std::string("[Ctrl+S: ") + (allFiles ? "buffer]" : "all files]"),
-            "[Ctrl+J/K: navigate]", "[Ctrl+W: delete word]"};
+    return {
+        "[Enter: open]",
+        "[Esc: cancel]",
+        std::string("[Ctrl+S: ") + (allFiles ? "buffer]" : "all files]"),
+        "[Ctrl+J/K: navigate]",
+        "[Ctrl+W: delete word]"};
 }
 
 int regexSearchHeaderRows(int screenCols, bool allFiles)
@@ -35,8 +38,9 @@ int regexSearchHeaderRows(int screenCols, bool allFiles)
 
 int regexSearchVisibleRows(const Editor& editor, bool allFiles)
 {
-    return std::max(1, editor.screenRows -
-                           regexSearchHeaderRows(editor.screenCols, allFiles));
+    return std::max(
+        1,
+        editor.screenRows - regexSearchHeaderRows(editor.screenCols, allFiles));
 }
 
 std::string runCmd(const std::vector<std::string>& args)
@@ -104,8 +108,9 @@ void RegexSearchMode::on_exit(ModeContext& /* ctx */)
     Terminal::setCursorBlock();
 }
 
-std::optional<ModeState> RegexSearchMode::handle(ModeContext& ctx,
-                                                 const ModeKeyEvent& event)
+std::optional<ModeState> RegexSearchMode::handle(
+    ModeContext& ctx,
+    const ModeKeyEvent& event)
 {
     const int key = event.key;
     Editor* ed = ctx.editor;
@@ -128,30 +133,35 @@ std::optional<ModeState> RegexSearchMode::handle(ModeContext& ctx,
     {
         toggleScope(*ed);
     }
-    else if(c == keyCode(control::ControlKey::CTRL_J) ||
-            c == keyCode(control::ControlKey::CTRL_N) ||
-            c == keyCode(navigation::NavigationKey::ARROW_DOWN))
+    else if(
+        c == keyCode(control::ControlKey::CTRL_J) ||
+        c == keyCode(control::ControlKey::CTRL_N) ||
+        c == keyCode(navigation::NavigationKey::ARROW_DOWN))
     {
         moveDown(*ed);
     }
-    else if(c == keyCode(control::ControlKey::CTRL_K) ||
-            c == keyCode(control::ControlKey::CTRL_P) ||
-            c == keyCode(navigation::NavigationKey::ARROW_UP))
+    else if(
+        c == keyCode(control::ControlKey::CTRL_K) ||
+        c == keyCode(control::ControlKey::CTRL_P) ||
+        c == keyCode(navigation::NavigationKey::ARROW_UP))
     {
         moveUp(*ed);
     }
-    else if(c == keyCode(control::ControlKey::CTRL_D) ||
-            c == keyCode(navigation::NavigationKey::PAGE_DOWN))
+    else if(
+        c == keyCode(control::ControlKey::CTRL_D) ||
+        c == keyCode(navigation::NavigationKey::PAGE_DOWN))
     {
         halfPageDown(*ed);
     }
-    else if(c == keyCode(control::ControlKey::CTRL_U) ||
-            c == keyCode(navigation::NavigationKey::PAGE_UP))
+    else if(
+        c == keyCode(control::ControlKey::CTRL_U) ||
+        c == keyCode(navigation::NavigationKey::PAGE_UP))
     {
         halfPageUp(*ed);
     }
-    else if(c == keyCode(control::ControlKey::BACKSPACE) || c == 127 ||
-            c == keyCode(control::ControlKey::CTRL_H))
+    else if(
+        c == keyCode(control::ControlKey::BACKSPACE) || c == 127 ||
+        c == keyCode(control::ControlKey::CTRL_H))
     {
         backspace(*ed);
     }
@@ -187,8 +197,11 @@ void RegexSearchMode::draw(Editor& editor) const
     output += Terminal::ESC_BLINK_OFF;
     output += editor.theme.baseFg();
 
-    HeaderHelp::append(output, editor.theme, editor.screenCols,
-                       regexSearchHelpTokens(allFiles));
+    HeaderHelp::append(
+        output,
+        editor.theme,
+        editor.screenCols,
+        regexSearchHelpTokens(allFiles));
 
     int availableRows = regexSearchVisibleRows(editor, allFiles);
     for(int i = 0; i < availableRows && i + offset < (int)matches.size(); ++i)
@@ -298,9 +311,15 @@ void RegexSearchMode::loadFileIndex(Editor& editor)
             runCmd({"git", "-C", cwdStr, "rev-parse", "--show-toplevel"});
         if(!repoRoot.empty())
         {
-            const std::string raw =
-                runCmd({"git", "-C", cwdStr, "ls-files", "-z", "--cached",
-                        "--others", "--exclude-standard"});
+            const std::string raw = runCmd(
+                {"git",
+                 "-C",
+                 cwdStr,
+                 "ls-files",
+                 "-z",
+                 "--cached",
+                 "--others",
+                 "--exclude-standard"});
             for(const auto& relPath : splitNul(raw))
             {
                 if(relPath.empty())
@@ -325,8 +344,11 @@ void RegexSearchMode::loadFileIndex(Editor& editor)
         GitIgnore gitignore;
         if(editor.respectGitignore)
             gitignore.loadRecursive(cwd);
-        editor::helper::collectProjectFileEntries(cwdStr, 0, gitignore,
-                                                  editor.grepProjectFiles);
+        editor::helper::collectProjectFileEntries(
+            cwdStr,
+            0,
+            gitignore,
+            editor.grepProjectFiles);
     }
 
     editor.grepFileIndexInitialized = true;
@@ -388,8 +410,9 @@ void RegexSearchMode::performSearch(Editor& editor)
     searching = false;
 }
 
-void RegexSearchMode::searchCurrentBuffer(Editor& editor,
-                                          const std::regex& pattern)
+void RegexSearchMode::searchCurrentBuffer(
+    Editor& editor,
+    const std::regex& pattern)
 {
     if(!editor.lines)
         return;
@@ -399,8 +422,9 @@ void RegexSearchMode::searchCurrentBuffer(Editor& editor,
         addLineMatches(path, i + 1, (*editor.lines)[i], pattern);
 }
 
-void RegexSearchMode::searchInFile(const std::string& filepath,
-                                   const std::regex& pattern)
+void RegexSearchMode::searchInFile(
+    const std::string& filepath,
+    const std::regex& pattern)
 {
     if(!isTextFile(filepath))
         return;
@@ -427,12 +451,12 @@ bool RegexSearchMode::isTextFile(const std::string& filepath) const
     if(text_utils::is_found(dotPos))
     {
         ext = filepath.substr(dotPos);
-        const bool isPython =
-            constants::is_filetype<constants::no_pattern,
-                                   constants::python_suffixes>(filepath);
-        const bool isMla =
-            constants::is_filetype<constants::no_pattern,
-                                   constants::mla_suffixes>(filepath);
+        const bool isPython = constants::is_filetype<
+            constants::no_pattern,
+            constants::python_suffixes>(filepath);
+        const bool isMla = constants::is_filetype<
+            constants::no_pattern,
+            constants::mla_suffixes>(filepath);
 
         if(ext == ".txt" || ext == ".cpp" || ext == ".c" || ext == ".h" ||
            ext == ".hpp" || isPython || ext == ".js" || ext == ".ts" ||
@@ -488,9 +512,11 @@ bool RegexSearchMode::isBinaryFile(const std::string& filepath) const
     return ratio > 0.3;
 }
 
-void RegexSearchMode::addLineMatches(const std::string& filepath,
-                                     int lineNumber, const std::string& line,
-                                     const std::regex& pattern)
+void RegexSearchMode::addLineMatches(
+    const std::string& filepath,
+    int lineNumber,
+    const std::string& line,
+    const std::regex& pattern)
 {
     auto start = line.cbegin();
     while(start != line.cend())

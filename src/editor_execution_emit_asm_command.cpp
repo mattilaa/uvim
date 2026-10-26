@@ -148,8 +148,9 @@ bool containsKeyword(std::string_view text, std::string_view keyword)
     return false;
 }
 
-std::vector<TopLevelType>
-collectTopLevelTypes(const std::vector<std::string>& lines, bool includeClass)
+std::vector<TopLevelType> collectTopLevelTypes(
+    const std::vector<std::string>& lines,
+    bool includeClass)
 {
     std::vector<TopLevelType> types;
     int braceDepth = 0;
@@ -159,7 +160,9 @@ collectTopLevelTypes(const std::vector<std::string>& lines, bool includeClass)
         if(name.empty())
             return;
         const auto found = std::find_if(
-            types.begin(), types.end(), [&](const TopLevelType& type)
+            types.begin(),
+            types.end(),
+            [&](const TopLevelType& type)
             { return type.kind == kind && type.name == name; });
         if(found == types.end())
             types.push_back({std::move(kind), std::move(name)});
@@ -209,9 +212,10 @@ collectTopLevelTypes(const std::vector<std::string>& lines, bool includeClass)
                 if(afterName < text.size() && text[afterName] == ';')
                     continue;
                 if(nameEnd > nameStart)
-                    pushUnique(std::string(keyword),
-                               std::string(text.substr(nameStart,
-                                                       nameEnd - nameStart)));
+                    pushUnique(
+                        std::string(keyword),
+                        std::string(
+                            text.substr(nameStart, nameEnd - nameStart)));
             }
         }
 
@@ -227,8 +231,8 @@ collectTopLevelTypes(const std::vector<std::string>& lines, bool includeClass)
     return types;
 }
 
-std::vector<TopLevelFunction>
-collectTopLevelFunctions(const std::vector<std::string>& lines)
+std::vector<TopLevelFunction> collectTopLevelFunctions(
+    const std::vector<std::string>& lines)
 {
     std::vector<TopLevelFunction> functions;
     int braceDepth = 0;
@@ -239,9 +243,11 @@ collectTopLevelFunctions(const std::vector<std::string>& lines)
         if(name.empty() || name == "uvim_emit_asm_anchor" ||
            name == "uvim_emit_asm_function_anchor")
             return;
-        auto it = std::find_if(functions.begin(), functions.end(),
-                               [&](const TopLevelFunction& function)
-                               { return function.name == name; });
+        auto it = std::find_if(
+            functions.begin(),
+            functions.end(),
+            [&](const TopLevelFunction& function)
+            { return function.name == name; });
         if(it == functions.end())
             functions.push_back({std::move(name), 1});
         else
@@ -308,8 +314,10 @@ collectTopLevelFunctions(const std::vector<std::string>& lines)
                            signature[nameStart - 1] == '_'))
                         --nameStart;
                     if(nameEnd > nameStart)
-                        noteFunction(std::string(
-                            signature.substr(nameStart, nameEnd - nameStart)));
+                        noteFunction(
+                            std::string(
+                                signature
+                                    .substr(nameStart, nameEnd - nameStart)));
                 }
                 pending.clear();
             }
@@ -330,10 +338,13 @@ collectTopLevelFunctions(const std::vector<std::string>& lines)
             pending.clear();
     }
 
-    functions.erase(std::remove_if(functions.begin(), functions.end(),
-                                   [](const TopLevelFunction& function)
-                                   { return function.count != 1; }),
-                    functions.end());
+    functions.erase(
+        std::remove_if(
+            functions.begin(),
+            functions.end(),
+            [](const TopLevelFunction& function)
+            { return function.count != 1; }),
+        functions.end());
     return functions;
 }
 
@@ -364,8 +375,8 @@ std::string cppAnchorForTypes(const std::vector<TopLevelType>& types)
     return anchor;
 }
 
-std::string
-cppAnchorForFunctions(const std::vector<TopLevelFunction>& functions)
+std::string cppAnchorForFunctions(
+    const std::vector<TopLevelFunction>& functions)
 {
     if(functions.empty())
         return {};
@@ -515,8 +526,9 @@ std::string stripFunctionPrefix(std::string symbol)
     return symbol;
 }
 
-std::string demangleSymbol(std::string symbol,
-                           std::unordered_map<std::string, std::string>& cache)
+std::string demangleSymbol(
+    std::string symbol,
+    std::unordered_map<std::string, std::string>& cache)
 {
     if(symbol.empty())
         return symbol;
@@ -583,8 +595,9 @@ std::string extractBeginFunctionSymbol(std::string_view line)
     return std::string(symbol.substr(0, end));
 }
 
-std::string compactAssemblyOutput(std::string_view output,
-                                  std::vector<int>* originalRows = nullptr)
+std::string compactAssemblyOutput(
+    std::string_view output,
+    std::vector<int>* originalRows = nullptr)
 {
     std::vector<AssemblyFunctionBlock> blocks;
     std::unordered_map<std::string, std::string> demangleCache;
@@ -653,8 +666,9 @@ std::string compactAssemblyOutput(std::string_view output,
                 current.originalRows.push_back(originalRow);
                 waitingForLabel = false;
             }
-            else if(symbol.rfind("Ltmp", 0) != 0 &&
-                    symbol.rfind("Lfunc_end", 0) != 0)
+            else if(
+                symbol.rfind("Ltmp", 0) != 0 &&
+                symbol.rfind("Lfunc_end", 0) != 0)
             {
                 current.lines.push_back(symbol + ":");
                 current.originalRows.push_back(originalRow);
@@ -676,7 +690,9 @@ std::string compactAssemblyOutput(std::string_view output,
         finishBlock();
 
     const bool hasRealFunction = std::any_of(
-        blocks.begin(), blocks.end(), [](const AssemblyFunctionBlock& block)
+        blocks.begin(),
+        blocks.end(),
+        [](const AssemblyFunctionBlock& block)
         { return !block.anchor && !block.lines.empty(); });
 
     std::string compact;
@@ -695,8 +711,10 @@ std::string compactAssemblyOutput(std::string_view output,
                 originalRows->push_back(-1);
         }
         if(originalRows)
-            originalRows->insert(originalRows->end(), block.originalRows.begin(),
-                                 block.originalRows.end());
+            originalRows->insert(
+                originalRows->end(),
+                block.originalRows.begin(),
+                block.originalRows.end());
         for(const std::string& line : block.lines)
         {
             compact += line;
@@ -722,8 +740,8 @@ std::string displayNameForAsmBuffer(const std::string& sourcePath)
 }
 } // namespace
 
-bool EmitAsmCommand::execute(Editor& editor,
-                             const CommandRequest& request) const
+bool EmitAsmCommand::execute(Editor& editor, const CommandRequest& request)
+    const
 {
     constexpr std::string_view command = "emitasm";
     if(request.trimmed != command &&
@@ -783,8 +801,11 @@ bool EmitAsmCommand::execute(Editor& editor,
     }
 
     std::vector<std::string> args = {
-        cSource ? "clang" : "clang++",       "-x", cSource ? "c" : "c++",
-        cSource ? "-std=c11" : "-std=c++20", "-w",
+        cSource ? "clang" : "clang++",
+        "-x",
+        cSource ? "c" : "c++",
+        cSource ? "-std=c11" : "-std=c++20",
+        "-w",
     };
 
     std::string flags;

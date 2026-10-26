@@ -6,5 +6,6 @@
 
 class Editor;
 
-std::vector<DiagnosticEntry> collectClangDiagnostics(Editor& editor,
-                                                     int severity);
+std::vector<DiagnosticEntry> collectClangDiagnostics(
+    Editor& editor,
+    int severity);

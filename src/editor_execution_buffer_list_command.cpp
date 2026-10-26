@@ -27,8 +27,8 @@ using editor::helper::parse_int;
 using editor::helper::trim_view;
 using namespace detail;
 
-bool BufferListCommand::execute(Editor& editor,
-                                const CommandRequest& request) const
+bool BufferListCommand::execute(Editor& editor, const CommandRequest& request)
+    const
 {
     if(request.text != "ls" && request.text != "buffers")
         return false;

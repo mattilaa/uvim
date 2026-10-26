@@ -21,8 +21,9 @@ void LspInfoMode::on_exit(ModeContext& ctx)
     Terminal::setCursorBlock();
 }
 
-std::optional<ModeState> LspInfoMode::handle(ModeContext& ctx,
-                                             const ModeKeyEvent& event)
+std::optional<ModeState> LspInfoMode::handle(
+    ModeContext& ctx,
+    const ModeKeyEvent& event)
 {
     const int key = event.key;
     Editor* ed = ctx.editor;

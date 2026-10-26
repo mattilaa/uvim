@@ -53,8 +53,12 @@ inline std::string os_make_temp_file(const std::string& stem)
         for(int i = 0; i < 6; ++i)
             path += kChars[pick(rng)];
         int fd = -1;
-        if(_sopen_s(&fd, path.c_str(), _O_CREAT | _O_EXCL | _O_RDWR,
-                    _SH_DENYNO, _S_IREAD | _S_IWRITE) == 0)
+        if(_sopen_s(
+               &fd,
+               path.c_str(),
+               _O_CREAT | _O_EXCL | _O_RDWR,
+               _SH_DENYNO,
+               _S_IREAD | _S_IWRITE) == 0)
         {
             _close(fd);
             return path;

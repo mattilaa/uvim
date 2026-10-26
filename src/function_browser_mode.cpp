@@ -16,15 +16,20 @@ namespace
 {
 std::vector<std::string> helpTokens()
 {
-    return {"[Enter: jump]", "[Esc: cancel]", "[Ctrl+J/K: navigate]",
-            "[PgUp/PgDn: page]", "[Ctrl+U: clear]"};
+    return {
+        "[Enter: jump]",
+        "[Esc: cancel]",
+        "[Ctrl+J/K: navigate]",
+        "[PgUp/PgDn: page]",
+        "[Ctrl+U: clear]"};
 }
 
 int visibleRows(const Editor& editor)
 {
-    return std::max(1,
-                    editor.screenRows - 1 -
-                        HeaderHelp::lineCount(helpTokens(), editor.screenCols));
+    return std::max(
+        1,
+        editor.screenRows - 1 -
+            HeaderHelp::lineCount(helpTokens(), editor.screenCols));
 }
 
 std::string clipped(std::string_view text, int columns)
@@ -44,8 +49,11 @@ std::string clipped(std::string_view text, int columns)
     return std::string(text.substr(0, end));
 }
 
-void appendSignature(std::string& output, const std::string& signature,
-                     int columns, const Editor& editor)
+void appendSignature(
+    std::string& output,
+    const std::string& signature,
+    int columns,
+    const Editor& editor)
 {
     // Clip plain text before adding ANSI sequences, so colors don't consume
     // display columns or cause a long signature to wrap over the next row.
@@ -55,15 +63,22 @@ void appendSignature(std::string& output, const std::string& signature,
     bool fence = false;
     char quote = 0;
     char fenceChar = 0;
-    const auto tokens = editor.tokenizeLine(signature, blockComment, multiline,
-                                            quote, fence, fenceChar);
+    const auto tokens = editor.tokenizeLine(
+        signature,
+        blockComment,
+        multiline,
+        quote,
+        fence,
+        fenceChar);
     std::vector<TokenType> colors(visible.size(), TOKEN_NORMAL);
     for(const auto& token : tokens)
     {
         const int begin =
             std::clamp(token.start, 0, static_cast<int>(visible.size()));
-        const int end = std::clamp(token.start + token.length, begin,
-                                   static_cast<int>(visible.size()));
+        const int end = std::clamp(
+            token.start + token.length,
+            begin,
+            static_cast<int>(visible.size()));
         std::fill(colors.begin() + begin, colors.begin() + end, token.type);
     }
     // Syntax colors only change foreground, keeping the selected row's
@@ -131,7 +146,9 @@ void FunctionBrowserMode::updateMatches()
         const int score = query.empty()
                               ? 0
                               : editor::helper::fuzzyScoreWithPositions(
-                                    query, symbols[i].signature, positions);
+                                    query,
+                                    symbols[i].signature,
+                                    positions);
         if(query.empty() || score > 0)
         {
             matches.push_back(i);
@@ -139,8 +156,10 @@ void FunctionBrowserMode::updateMatches()
         }
     }
     if(!query.empty())
-        std::stable_sort(matches.begin(), matches.end(),
-                         [&](int a, int b) { return scores[a] > scores[b]; });
+        std::stable_sort(
+            matches.begin(),
+            matches.end(),
+            [&](int a, int b) { return scores[a] > scores[b]; });
     cursor = offset = 0;
 }
 
@@ -153,16 +172,19 @@ void FunctionBrowserMode::ensureVisible(const Editor& editor)
     }
     cursor = std::clamp(cursor, 0, static_cast<int>(matches.size()) - 1);
     const int rows = visibleRows(editor);
-    offset = std::clamp(offset, 0,
-                        std::max(0, static_cast<int>(matches.size()) - rows));
+    offset = std::clamp(
+        offset,
+        0,
+        std::max(0, static_cast<int>(matches.size()) - rows));
     if(cursor < offset)
         offset = cursor;
     if(cursor >= offset + rows)
         offset = cursor - rows + 1;
 }
 
-std::optional<ModeState> FunctionBrowserMode::handle(ModeContext& ctx,
-                                                     const ModeKeyEvent& event)
+std::optional<ModeState> FunctionBrowserMode::handle(
+    ModeContext& ctx,
+    const ModeKeyEvent& event)
 {
     Editor& editor = *ctx.editor;
     const int key = keyCode(event.key);
@@ -184,10 +206,12 @@ std::optional<ModeState> FunctionBrowserMode::handle(ModeContext& ctx,
         if(editor.currentBufferIndex != sourceIndex)
             editor.switchToBuffer(sourceIndex);
         *editor.cursorY = std::clamp(
-            target.line, 0, static_cast<int>(editor.lines->size()) - 1);
-        *editor.cursorX =
-            std::min(target.column,
-                     static_cast<int>((*editor.lines)[*editor.cursorY].size()));
+            target.line,
+            0,
+            static_cast<int>(editor.lines->size()) - 1);
+        *editor.cursorX = std::min(
+            target.column,
+            static_cast<int>((*editor.lines)[*editor.cursorY].size()));
         *editor.wantedX = *editor.cursorX;
         editor.adjustViewport();
         if(editor.gdCenterScreen)
@@ -198,8 +222,9 @@ std::optional<ModeState> FunctionBrowserMode::handle(ModeContext& ctx,
        key == keyCode(control::ControlKey::CTRL_N) ||
        key == keyCode(navigation::NavigationKey::ARROW_DOWN))
         ++cursor;
-    else if(key == keyCode(control::ControlKey::CTRL_K) ||
-            key == keyCode(navigation::NavigationKey::ARROW_UP))
+    else if(
+        key == keyCode(control::ControlKey::CTRL_K) ||
+        key == keyCode(navigation::NavigationKey::ARROW_UP))
         --cursor;
     else if(key == keyCode(navigation::NavigationKey::PAGE_DOWN))
         cursor += visibleRows(editor);
@@ -210,9 +235,10 @@ std::optional<ModeState> FunctionBrowserMode::handle(ModeContext& ctx,
         query.clear();
         updateMatches();
     }
-    else if(key == keyCode(control::ControlKey::BACKSPACE) ||
-            key == keyCode(control::ControlKey::DEL) ||
-            key == keyCode(control::ControlKey::CTRL_H))
+    else if(
+        key == keyCode(control::ControlKey::BACKSPACE) ||
+        key == keyCode(control::ControlKey::DEL) ||
+        key == keyCode(control::ControlKey::CTRL_H))
     {
         if(!query.empty())
             query.pop_back();
@@ -254,20 +280,22 @@ void FunctionBrowserMode::draw(Editor& editor)
             output += editor.theme.uiGutter();
             output += clipped(prefix, editor.screenCols);
             appendSignature(
-                output, symbol.signature,
-                std::max(0, editor.screenCols -
-                                text_utils::utf8DisplayWidth(prefix)),
+                output,
+                symbol.signature,
+                std::max(
+                    0,
+                    editor.screenCols - text_utils::utf8DisplayWidth(prefix)),
                 editor);
         }
         else if(matches.empty() && row == 0)
         {
             output += editor.theme.uiDim();
             const auto error = editor::helper::regexQueryError(query);
-            output += clipped("  " + (!error.empty() ? error
-                                      : query.empty()
-                                          ? emptyMessage
-                                          : "No matching function signatures"),
-                              editor.screenCols);
+            output += clipped(
+                "  " + (!error.empty()  ? error
+                        : query.empty() ? emptyMessage
+                                        : "No matching function signatures"),
+                editor.screenCols);
         }
         else
         {

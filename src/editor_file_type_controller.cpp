@@ -71,7 +71,8 @@ bool EditorFileTypeController::isFileType(FileType type) const
 }
 
 uint64_t EditorFileTypeController::detectFileTypeMask(
-    std::string_view pathSv, const std::vector<std::string>* contentLines) const
+    std::string_view pathSv,
+    const std::vector<std::string>* contentLines) const
 {
     const std::vector<std::string>* sniffLines =
         contentLines ? contentLines : editor.lines;
@@ -85,8 +86,10 @@ uint64_t EditorFileTypeController::detectFileTypeMask(
 
     set_if(
         FileType::Cpp,
-        constants::is_filetype<constants::no_pattern, constants::cpp_suffixes,
-                               constants::cpp_stdlib_patterns>(pathSv));
+        constants::is_filetype<
+            constants::no_pattern,
+            constants::cpp_suffixes,
+            constants::cpp_stdlib_patterns>(pathSv));
     set_if(
         FileType::Mla,
         constants::is_filetype<constants::no_pattern, constants::mla_suffixes>(
@@ -95,18 +98,25 @@ uint64_t EditorFileTypeController::detectFileTypeMask(
         FileType::Asm,
         constants::is_filetype<constants::no_pattern, constants::asm_suffixes>(
             pathSv));
-    set_if(FileType::Flex,
-           constants::is_filetype<constants::no_pattern,
-                                  constants::flex_suffixes>(pathSv));
-    set_if(FileType::Bison,
-           constants::is_filetype<constants::no_pattern,
-                                  constants::bison_suffixes>(pathSv));
-    set_if(FileType::Robot,
-           constants::is_filetype<constants::no_pattern,
-                                  constants::robot_suffixes>(pathSv));
-    set_if(FileType::Python,
-           constants::is_filetype<constants::no_pattern,
-                                  constants::python_suffixes>(pathSv));
+    set_if(
+        FileType::Flex,
+        constants::is_filetype<constants::no_pattern, constants::flex_suffixes>(
+            pathSv));
+    set_if(
+        FileType::Bison,
+        constants::is_filetype<
+            constants::no_pattern,
+            constants::bison_suffixes>(pathSv));
+    set_if(
+        FileType::Robot,
+        constants::is_filetype<
+            constants::no_pattern,
+            constants::robot_suffixes>(pathSv));
+    set_if(
+        FileType::Python,
+        constants::is_filetype<
+            constants::no_pattern,
+            constants::python_suffixes>(pathSv));
     set_if(
         FileType::Json,
         constants::is_filetype<constants::no_pattern, constants::json_suffixes>(
@@ -127,18 +137,26 @@ uint64_t EditorFileTypeController::detectFileTypeMask(
         FileType::Css,
         constants::is_filetype<constants::no_pattern, constants::css_suffixes>(
             pathSv));
-    set_if(FileType::JavaScript,
-           constants::is_filetype<constants::no_pattern,
-                                  constants::javascript_suffixes>(pathSv));
-    set_if(FileType::TypeScript,
-           constants::is_filetype<constants::no_pattern,
-                                  constants::typescript_suffixes>(pathSv));
-    set_if(FileType::CSharp,
-           constants::is_filetype<constants::no_pattern,
-                                  constants::csharp_suffixes>(pathSv));
-    set_if(FileType::PowerShell,
-           constants::is_filetype<constants::no_pattern,
-                                  constants::powershell_suffixes>(pathSv));
+    set_if(
+        FileType::JavaScript,
+        constants::is_filetype<
+            constants::no_pattern,
+            constants::javascript_suffixes>(pathSv));
+    set_if(
+        FileType::TypeScript,
+        constants::is_filetype<
+            constants::no_pattern,
+            constants::typescript_suffixes>(pathSv));
+    set_if(
+        FileType::CSharp,
+        constants::is_filetype<
+            constants::no_pattern,
+            constants::csharp_suffixes>(pathSv));
+    set_if(
+        FileType::PowerShell,
+        constants::is_filetype<
+            constants::no_pattern,
+            constants::powershell_suffixes>(pathSv));
     set_if(
         FileType::Xml,
         constants::is_filetype<constants::no_pattern, constants::xml_suffixes>(
@@ -148,13 +166,15 @@ uint64_t EditorFileTypeController::detectFileTypeMask(
 
     bool isFormatterConfig = std::any_of(
         constants::formatter_config_basenames.begin(),
-        constants::formatter_config_basenames.end(), [&](std::string_view name)
+        constants::formatter_config_basenames.end(),
+        [&](std::string_view name)
         { return text_utils::iequals_ascii(base, name); });
     set_if(FileType::FormatterConfig, isFormatterConfig);
 
     bool isReadmeMarkup = std::any_of(
         constants::markup_readme_basenames.begin(),
-        constants::markup_readme_basenames.end(), [&](std::string_view name)
+        constants::markup_readme_basenames.end(),
+        [&](std::string_view name)
         { return text_utils::iequals_ascii(base, name); });
     auto dot = base.find_last_of('.');
     std::string_view ext =
@@ -164,7 +184,8 @@ uint64_t EditorFileTypeController::detectFileTypeMask(
     if(!isMarkup && !ext.empty())
     {
         bool knownMarkupSuffix = constants::matches_file_patterns(
-            ext, constants::markup_text_suffixes);
+            ext,
+            constants::markup_text_suffixes);
         if(knownMarkupSuffix)
         {
             if(text_utils::iequals_ascii(ext, ".rd") ||
@@ -190,17 +211,19 @@ uint64_t EditorFileTypeController::detectFileTypeMask(
                     {
                         isMarkup = true;
                     }
-                    else if(ln.size() > 2 && text_utils::is_digit(ln[0]) &&
-                            ln[1] == '.' && ln[2] == ' ')
+                    else if(
+                        ln.size() > 2 && text_utils::is_digit(ln[0]) &&
+                        ln[1] == '.' && ln[2] == ' ')
                     {
                         isMarkup = true;
                     }
-                    else if(text_utils::contains(ln, "**") ||
-                            text_utils::contains(ln, "`") ||
-                            (text_utils::contains(ln, "[") &&
-                             text_utils::contains(ln, "]") &&
-                             text_utils::contains(ln, "(") &&
-                             text_utils::contains(ln, ")")))
+                    else if(
+                        text_utils::contains(ln, "**") ||
+                        text_utils::contains(ln, "`") ||
+                        (text_utils::contains(ln, "[") &&
+                         text_utils::contains(ln, "]") &&
+                         text_utils::contains(ln, "(") &&
+                         text_utils::contains(ln, ")")))
                     {
                         isMarkup = true;
                     }
@@ -218,17 +241,21 @@ uint64_t EditorFileTypeController::detectFileTypeMask(
     }
     set_if(FileType::Rdoc, isRdoc);
 
-    set_if(FileType::CMake,
-           constants::is_filetype<constants::cmake_prefixes,
-                                  constants::cmake_suffixes>(base));
+    set_if(
+        FileType::CMake,
+        constants::is_filetype<
+            constants::cmake_prefixes,
+            constants::cmake_suffixes>(base));
 
-    bool isShell = constants::is_filetype<constants::no_pattern,
-                                          constants::shell_suffixes>(base);
+    bool isShell = constants::is_filetype<
+        constants::no_pattern,
+        constants::shell_suffixes>(base);
     if(!isShell)
     {
         isShell = std::any_of(
             constants::shell_basenames.begin(),
-            constants::shell_basenames.end(), [&](std::string_view name)
+            constants::shell_basenames.end(),
+            [&](std::string_view name)
             { return text_utils::iequals_ascii(base, name); });
     }
     if(!isShell && sniffLines && !sniffLines->empty())
@@ -238,7 +265,8 @@ uint64_t EditorFileTypeController::detectFileTypeMask(
         {
             isShell = std::any_of(
                 constants::shell_shebang_hints.begin(),
-                constants::shell_shebang_hints.end(), [&](std::string_view hint)
+                constants::shell_shebang_hints.end(),
+                [&](std::string_view hint)
                 { return text_utils::contains(first, hint); });
             if(!isShell)
             {

@@ -17,7 +17,7 @@ void setupEditorBuffer(Editor& editor)
     editor.offsetX = &editor.currentBuffer->offsetX;
     editor.offsetY = &editor.currentBuffer->offsetY;
 }
-}
+} // namespace
 
 TEST(EditorFileTypeTest, DispatchMatchesSpecificHelpers)
 {

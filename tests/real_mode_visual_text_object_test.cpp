@@ -1,5 +1,5 @@
-#include "real_mode_test_utils.h"
 #include "editor_mode_controller.h"
+#include "real_mode_test_utils.h"
 
 using namespace uvim_test;
 
@@ -199,7 +199,9 @@ TEST(RealModeTransitionsTest, ChangeInnerQuoteAcceptsUppercaseTInInsertMode)
     EXPECT_EQ(*editor.cursorX, 10);
 }
 
-TEST(RealModeTransitionsTest, EditorHandleKeypressChangeInnerQuoteAcceptsUppercaseT)
+TEST(
+    RealModeTransitionsTest,
+    EditorHandleKeypressChangeInnerQuoteAcceptsUppercaseT)
 {
     Editor editor = Editor::createForTests();
     editor.createNewBuffer();
@@ -221,8 +223,9 @@ TEST(RealModeTransitionsTest, EditorHandleKeypressChangeInnerQuoteAcceptsUpperca
     EXPECT_EQ(*editor.cursorX, 10);
 }
 
-TEST(RealModeTransitionsTest,
-     ChangeInnerQuoteCancelsCompletionBeforeUppercaseTAndBackspace)
+TEST(
+    RealModeTransitionsTest,
+    ChangeInnerQuoteCancelsCompletionBeforeUppercaseTAndBackspace)
 {
     Editor editor = Editor::createForTests();
     editor.createNewBuffer();

@@ -50,9 +50,16 @@ std::vector<std::string> run_git_lines(const std::vector<std::string>& args)
 
 std::vector<GitFixupMode::Entry> load_recent_commits(const std::string& repoDir)
 {
-    auto lines =
-        run_git_lines({"git", "-C", repoDir, "--no-pager", "log", "--no-color",
-                       "--pretty=format:%h\t%s", "-n", "100"});
+    auto lines = run_git_lines(
+        {"git",
+         "-C",
+         repoDir,
+         "--no-pager",
+         "log",
+         "--no-color",
+         "--pretty=format:%h\t%s",
+         "-n",
+         "100"});
     std::vector<GitFixupMode::Entry> entries;
     for(const auto& line : lines)
     {
@@ -86,8 +93,9 @@ void GitFixupMode::on_exit(ModeContext& ctx)
     ctx.requestFullRedraw();
 }
 
-std::optional<ModeState> GitFixupMode::handle(ModeContext& ctx,
-                                              const ModeKeyEvent& event)
+std::optional<ModeState> GitFixupMode::handle(
+    ModeContext& ctx,
+    const ModeKeyEvent& event)
 {
     const int key = event.key;
     Editor* ed = ctx.editor;
@@ -117,8 +125,13 @@ std::optional<ModeState> GitFixupMode::handle(ModeContext& ctx,
         {
             GitPatchMode::Hunk dummy;
             std::vector<GitPatchMode::Hunk> hunks;
-            return GitPatchMode{std::move(hunks), repoRoot,   repoDir,
-                                confirmHash,      fixupFiles, returnStage};
+            return GitPatchMode{
+                std::move(hunks),
+                repoRoot,
+                repoDir,
+                confirmHash,
+                fixupFiles,
+                returnStage};
         }
         if(c == keyCode(typed::TypedKey::KEY_N) ||
            c == keyCode(typed::TypedKey::KEY_CAP_N) ||
@@ -149,8 +162,9 @@ std::optional<ModeState> GitFixupMode::handle(ModeContext& ctx,
                 offset = cursor - visible + 1;
         }
     }
-    else if(c == keyCode(typed::TypedKey::KEY_K) ||
-            c == keyCode(navigation::NavigationKey::ARROW_UP))
+    else if(
+        c == keyCode(typed::TypedKey::KEY_K) ||
+        c == keyCode(navigation::NavigationKey::ARROW_UP))
     {
         if(cursor > 0)
         {
@@ -177,9 +191,10 @@ std::optional<ModeState> GitFixupMode::handle(ModeContext& ctx,
             offset = std::max(0, cursor - visible + 1);
         }
     }
-    else if(c == keyCode(control::ControlKey::SPACE) ||
-            c == keyCode(typed::TypedKey::KEY_F) ||
-            c == keyCode(control::ControlKey::ENTER))
+    else if(
+        c == keyCode(control::ControlKey::SPACE) ||
+        c == keyCode(typed::TypedKey::KEY_F) ||
+        c == keyCode(control::ControlKey::ENTER))
     {
         if(cursor >= 0 && cursor < (int)entries.size())
         {
@@ -208,8 +223,11 @@ void GitFixupMode::draw(Editor& editor) const
     if(!repoRoot.empty())
         output += " - " + repoRoot;
     output += editor.theme.reset();
-    HeaderHelp::append(output, editor.theme, editor.screenCols,
-                       gitFixupHelpTokens());
+    HeaderHelp::append(
+        output,
+        editor.theme,
+        editor.screenCols,
+        gitFixupHelpTokens());
 
     int availableRows = gitFixupContentRows(editor);
     for(int row = 0; row < availableRows; ++row)

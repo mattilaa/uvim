@@ -60,8 +60,9 @@ Formatter::FormatterVariant Formatter::formatterFor(FileType type)
 bool Formatter::format(FileType type, Mode mode)
 {
 #ifdef UVIM_ENABLE_FORMATTERS
-    return std::visit([mode](auto formatter) { return formatter.get()(mode); },
-                      formatterFor(type));
+    return std::visit(
+        [mode](auto formatter) { return formatter.get()(mode); },
+        formatterFor(type));
 #else
     (void)type;
     (void)mode;

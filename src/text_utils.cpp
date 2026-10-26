@@ -5,10 +5,12 @@
 
 namespace text_utils
 {
-bool find_prefixed_marker_in_file(std::string_view symbol,
-                                  const std::filesystem::path& file,
-                                  std::string_view marker, std::string& path,
-                                  int& line)
+bool find_prefixed_marker_in_file(
+    std::string_view symbol,
+    const std::filesystem::path& file,
+    std::string_view marker,
+    std::string& path,
+    int& line)
 {
     std::error_code ec;
     if(!std::filesystem::exists(file, ec))

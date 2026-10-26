@@ -47,8 +47,8 @@ bool EditorCommandController::isCommandPopupActive() const
     return editor.isCommandPopupActiveImpl();
 }
 
-std::optional<std::string>
-EditorCommandController::commandPopupSelection() const
+std::optional<std::string> EditorCommandController::commandPopupSelection()
+    const
 {
     return editor.commandPopupSelectionImpl();
 }
@@ -99,45 +99,45 @@ void EditorCommandController::drawCommandHistoryPopup(std::string& output) const
     editor.drawCommandHistoryPopupImpl(output);
 }
 
-std::vector<std::string>
-EditorCommandController::getCommandCompletions(std::string_view prefix)
+std::vector<std::string> EditorCommandController::getCommandCompletions(
+    std::string_view prefix)
 {
     return editor.getCommandCompletionsImpl(prefix);
 }
 
-std::vector<std::string>
-EditorCommandController::getCommandCompletions(std::string_view prefix,
-                                               Mode mode)
+std::vector<std::string> EditorCommandController::getCommandCompletions(
+    std::string_view prefix,
+    Mode mode)
 {
     return editor.getCommandCompletionsImpl(prefix, mode);
 }
 
-std::vector<std::string>
-EditorCommandController::getHelpCompletions(std::string_view prefix)
+std::vector<std::string> EditorCommandController::getHelpCompletions(
+    std::string_view prefix)
 {
     return editor.getHelpCompletionsImpl(prefix);
 }
 
-std::vector<std::string>
-EditorCommandController::getSetCompletions(std::string_view prefix)
+std::vector<std::string> EditorCommandController::getSetCompletions(
+    std::string_view prefix)
 {
     return editor.getSetCompletionsImpl(prefix);
 }
 
-std::vector<std::string>
-EditorCommandController::getPathCompletions(std::string_view path)
+std::vector<std::string> EditorCommandController::getPathCompletions(
+    std::string_view path)
 {
     return editor.getPathCompletionsImpl(path);
 }
 
-std::vector<std::string>
-EditorCommandController::getPathCompletionsRecursive(std::string_view path)
+std::vector<std::string> EditorCommandController::getPathCompletionsRecursive(
+    std::string_view path)
 {
     return editor.getPathCompletionsRecursiveImpl(path);
 }
 
-std::vector<std::string>
-EditorCommandController::getLocPathCompletions(std::string_view path)
+std::vector<std::string> EditorCommandController::getLocPathCompletions(
+    std::string_view path)
 {
     return editor.getLocPathCompletionsImpl(path);
 }
@@ -318,13 +318,16 @@ void Editor::updateCommandPopupImpl(std::string_view query)
     for(int i = 0; i < (int)commandPopupAll.size(); ++i)
     {
         int score = editor::helper::fuzzyScoreWithPositions(
-            commandPopupQuery, commandPopupAll[i], positions);
+            commandPopupQuery,
+            commandPopupAll[i],
+            positions);
         if(score >= 0)
             scored.emplace_back(i, score);
     }
 
     std::stable_sort(
-        scored.begin(), scored.end(),
+        scored.begin(),
+        scored.end(),
         [](const std::pair<int, int>& left, const std::pair<int, int>& right)
         {
             if(left.second != right.second)
@@ -449,21 +452,25 @@ void Editor::updateCommandHistorySearchQueryImpl(std::string_view query)
     for(int i = 0; i < (int)commandHistory.size(); ++i)
     {
         int score = editor::helper::fuzzyScoreWithPositions(
-            commandHistorySearchQueryValue, commandHistory[i], positions);
+            commandHistorySearchQueryValue,
+            commandHistory[i],
+            positions);
         if(score >= 0)
             scored.emplace_back(i, score);
     }
 
     if(!scored.empty())
     {
-        std::stable_sort(scored.begin(), scored.end(),
-                         [](const std::pair<int, int>& left,
-                            const std::pair<int, int>& right)
-                         {
-                             if(left.second != right.second)
-                                 return left.second > right.second;
-                             return left.first > right.first;
-                         });
+        std::stable_sort(
+            scored.begin(),
+            scored.end(),
+            [](const std::pair<int, int>& left,
+               const std::pair<int, int>& right)
+            {
+                if(left.second != right.second)
+                    return left.second > right.second;
+                return left.first > right.first;
+            });
         for(const auto& entry : scored)
             commandHistorySearchMatches.push_back(entry.first);
     }
@@ -539,9 +546,10 @@ void Editor::drawCommandPopupImpl(std::string& output) const
     }
 
     widgets::CommandPopupView view{
-        .frame = {.theme = theme,
-                  .screenRows = screenRows,
-                  .screenCols = screenCols},
+        .frame =
+            {.theme = theme,
+             .screenRows = screenRows,
+             .screenCols = screenCols},
         .entries = commandPopupAll,
         .filtered = commandPopupFiltered,
         .offset = commandPopupOffset,
@@ -562,9 +570,10 @@ void Editor::drawCommandHistoryPopupImpl(std::string& output) const
     if(!commandHistorySearchActive)
         return;
     widgets::CommandHistoryPopupView view{
-        .frame = {.theme = theme,
-                  .screenRows = screenRows,
-                  .screenCols = screenCols},
+        .frame =
+            {.theme = theme,
+             .screenRows = screenRows,
+             .screenCols = screenCols},
         .history = commandHistory,
         .matches = commandHistorySearchMatches,
         .offset = commandHistorySearchOffset,
@@ -574,50 +583,104 @@ void Editor::drawCommandHistoryPopupImpl(std::string& output) const
 #endif
 }
 
-std::vector<std::string>
-Editor::getCommandCompletionsImpl(std::string_view prefix)
+std::vector<std::string> Editor::getCommandCompletionsImpl(
+    std::string_view prefix)
 {
     return getCommandCompletions(prefix, currentMode);
 }
 
-std::vector<std::string>
-Editor::getCommandCompletionsImpl(std::string_view prefix, Mode mode)
+std::vector<std::string> Editor::getCommandCompletionsImpl(
+    std::string_view prefix,
+    Mode mode)
 {
     // Keep this list limited to commands handled by buildCommands(). Entries
     // that accept an argument include their trailing space so selecting a
     // completion leaves the command line ready for the argument.
     static const std::vector<std::string> baseCommands = {
-        "w",       "w ",      "q",        "q!",      "qa",
-        "qall",    "qa!",     "qall!",    "wq",      "x",
-        "qw",      "qw!",     "wa",       "wall",    "wa!",
-        "wqa",     "wqall",   "wqa!",     "wqall!",  "xa",
-        "e ",      "edit ",   "e%",       "edit%",   "e!%",
-        "edit!%",  "enew",    "bn",       "bnext",   "bp",
-        "bprev",   "bprevious", "bd",     "bd!",     "bdelete",
-        "b ",      "buffer ", "ls",       "buffers", "vs",
-        "hs",      "sc",
+        "w",
+        "w ",
+        "q",
+        "q!",
+        "qa",
+        "qall",
+        "qa!",
+        "qall!",
+        "wq",
+        "x",
+        "qw",
+        "qw!",
+        "wa",
+        "wall",
+        "wa!",
+        "wqa",
+        "wqall",
+        "wqa!",
+        "wqall!",
+        "xa",
+        "e ",
+        "edit ",
+        "e%",
+        "edit%",
+        "e!%",
+        "edit!%",
+        "enew",
+        "bn",
+        "bnext",
+        "bp",
+        "bprev",
+        "bprevious",
+        "bd",
+        "bd!",
+        "bdelete",
+        "b ",
+        "buffer ",
+        "ls",
+        "buffers",
+        "vs",
+        "hs",
+        "sc",
 #ifdef UVIM_ENABLE_BROWSER_TOOLS
-        "se", "ve", "functions",
+        "se",
+        "ve",
+        "functions",
 #endif
 #ifdef UVIM_ENABLE_DEBUGGER
-        "dbgrun", "dbgattach",
+        "dbgrun",
+        "dbgattach",
 #endif
-        "tabnew", "tabe ", "tabn", "tabnext", "tabp", "tabprev",
-        "set", "s/", "%s/", "%%s/", "substitute/",
+        "tabnew",
+        "tabe ",
+        "tabn",
+        "tabnext",
+        "tabp",
+        "tabprev",
+        "set",
+        "s/",
+        "%s/",
+        "%%s/",
+        "substitute/",
 #ifdef UVIM_ENABLE_FORMATTERS
-        "format", "fmt",
+        "format",
+        "fmt",
 #endif
 #ifdef UVIM_ENABLE_AUXILIARY_VIEWS
-        "lspinfo", "toolinfo", "tasks", "palette",
+        "lspinfo",
+        "toolinfo",
+        "tasks",
+        "palette",
 #endif
 #ifdef UVIM_ENABLE_ASM_VIEW
-        "asm", "asm .",
+        "asm",
+        "asm .",
 #endif
 #ifdef UVIM_ENABLE_ASM_DOCS
-        "emitasm", "emitasm --raw",
+        "emitasm",
+        "emitasm --raw",
 #endif
 #ifdef UVIM_ENABLE_AUXILIARY_VIEWS
-        "emoji", "em", "glyphselect",
+        "emoji",
+        "em",
+        "glyphselect",
 #endif
 #ifdef UVIM_ENABLE_COLOR_TOOLS
         "ansitools",
@@ -665,8 +728,18 @@ Editor::getCommandCompletionsImpl(std::string_view prefix, Mode mode)
     {
         fileBrowserCommands = baseCommands;
         const std::vector<std::string> extras = {
-            "delete", "d",  "rm",    "rename", "r", "mv",
-            "mkdir",  "md", "touch", "new",    "run ", "?",
+            "delete",
+            "d",
+            "rm",
+            "rename",
+            "r",
+            "mv",
+            "mkdir",
+            "md",
+            "touch",
+            "new",
+            "run ",
+            "?",
         };
         for(const auto& extra : extras)
         {
@@ -674,15 +747,18 @@ Editor::getCommandCompletionsImpl(std::string_view prefix, Mode mode)
                 fileBrowserCommands.push_back(extra);
         }
 
-        const std::vector<std::string> notApplicable = {
-            "wq", "x", "se", "ve", "sc"};
+        const std::vector<std::string> notApplicable =
+            {"wq", "x", "se", "ve", "sc"};
         fileBrowserCommands.erase(
             std::remove_if(
-                fileBrowserCommands.begin(), fileBrowserCommands.end(),
+                fileBrowserCommands.begin(),
+                fileBrowserCommands.end(),
                 [&](const std::string& cmd)
                 {
-                    return std::find(notApplicable.begin(), notApplicable.end(),
-                                     cmd) != notApplicable.end();
+                    return std::find(
+                               notApplicable.begin(),
+                               notApplicable.end(),
+                               cmd) != notApplicable.end();
                 }),
             fileBrowserCommands.end());
 
@@ -694,20 +770,44 @@ Editor::getCommandCompletionsImpl(std::string_view prefix, Mode mode)
 
 std::vector<std::string> Editor::getHelpCompletionsImpl(std::string_view prefix)
 {
-    static const std::vector<std::string> topics = {
-        "commands",    "modes",     "navigation",  "editing", "files",
-        "filebrowser", "run",       "buffers",     "windows", "search",
-        "regex",       "clipboard", "git",         "ga",      "gb",
-        "gbb",         "gbl",       "gj",          "gbv",     "gs",
+    static const std::vector<std::string> topics =
+        {"commands",
+         "modes",
+         "navigation",
+         "editing",
+         "files",
+         "filebrowser",
+         "run",
+         "buffers",
+         "windows",
+         "search",
+         "regex",
+         "clipboard",
+         "git",
+         "ga",
+         "gb",
+         "gbb",
+         "gbl",
+         "gj",
+         "gbv",
+         "gs",
 #ifdef UVIM_ENABLE_ASM_VIEW
-        "asm",
+         "asm",
 #endif
-        "emitasm",     "lsp",       "diagnostics", "logging", "help",
-        "keys",        "palette", "functions"
+         "emitasm",
+         "lsp",
+         "diagnostics",
+         "logging",
+         "help",
+         "keys",
+         "palette",
+         "functions"
 #ifdef UVIM_ENABLE_DEBUGGER
-        , "dbgrun", "dbgattach"
+         ,
+         "dbgrun",
+         "dbgattach"
 #endif
-    };
+        };
 
     return editor::helper::fuzzyCompletions(topics, prefix);
 }
@@ -926,15 +1026,16 @@ std::vector<std::string> Editor::getPathCompletionsImpl(std::string_view path)
     return ::editor::helper::getPathCompletions(path);
 }
 
-std::vector<std::string>
-Editor::getPathCompletionsRecursiveImpl(std::string_view path)
+std::vector<std::string> Editor::getPathCompletionsRecursiveImpl(
+    std::string_view path)
 {
-    return ::editor::helper::getRecursivePathCompletions(path,
-                                                         respectGitignore);
+    return ::editor::helper::getRecursivePathCompletions(
+        path,
+        respectGitignore);
 }
 
-std::vector<std::string>
-Editor::getLocPathCompletionsImpl(std::string_view path)
+std::vector<std::string> Editor::getLocPathCompletionsImpl(
+    std::string_view path)
 {
     return ::editor::helper::getLocPathCompletions(path, respectGitignore);
 }

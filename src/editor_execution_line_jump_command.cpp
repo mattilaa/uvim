@@ -27,8 +27,8 @@ using editor::helper::parse_int;
 using editor::helper::trim_view;
 using namespace detail;
 
-bool LineJumpCommand::execute(Editor& editor,
-                              const CommandRequest& request) const
+bool LineJumpCommand::execute(Editor& editor, const CommandRequest& request)
+    const
 {
     int line = 0;
     if(!parse_int(request.text, line))

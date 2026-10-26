@@ -9,8 +9,9 @@ bool CppNavigationUtilities::isIdent(char c)
     return std::isalnum((unsigned char)c) || c == '_';
 }
 
-int CppNavigationUtilities::findLocalDeclaration(const std::string& line,
-                                                 const std::string& symbol)
+int CppNavigationUtilities::findLocalDeclaration(
+    const std::string& line,
+    const std::string& symbol)
 {
     size_t firstNonSpace = line.find_first_not_of(" \t");
     if(text_utils::is_found(firstNonSpace) &&
@@ -26,8 +27,9 @@ int CppNavigationUtilities::findLocalDeclaration(const std::string& line,
     while(matches.next(pos))
     {
         bool validStart = (pos == 0 || !isIdent(effectiveLine[pos - 1]));
-        bool validEnd = (pos + symbol.length() >= effectiveLine.length() ||
-                         !isIdent(effectiveLine[pos + symbol.length()]));
+        bool validEnd =
+            (pos + symbol.length() >= effectiveLine.length() ||
+             !isIdent(effectiveLine[pos + symbol.length()]));
 
         if(!validStart || !validEnd)
         {
@@ -79,8 +81,12 @@ int CppNavigationUtilities::findLocalDeclaration(const std::string& line,
 }
 
 bool CppNavigationUtilities::searchLocalDefinition(
-    const std::vector<std::string>& lines, const std::string& symbol,
-    int startY, int startX, int& outY, int& outX)
+    const std::vector<std::string>& lines,
+    const std::string& symbol,
+    int startY,
+    int startX,
+    int& outY,
+    int& outX)
 {
     int braceDepth = 0;
     bool foundOpenBrace = false;
@@ -147,7 +153,9 @@ bool CppNavigationUtilities::searchLocalDefinition(
 }
 
 bool CppNavigationUtilities::searchMemberDefinition(
-    const std::vector<std::string>& lines, const std::string& symbol, int& outY,
+    const std::vector<std::string>& lines,
+    const std::string& symbol,
+    int& outY,
     int& outX)
 {
     bool inClassOrStruct = false;
@@ -201,8 +209,8 @@ bool CppNavigationUtilities::isSourceFile(const std::string& path)
     return path == ".c" || path == ".cpp" || path == ".cc";
 }
 
-std::pair<std::string, bool>
-CppNavigationUtilities::extractIncludePath(const std::string& line)
+std::pair<std::string, bool> CppNavigationUtilities::extractIncludePath(
+    const std::string& line)
 {
     size_t includePos = line.find("#include");
     if(text_utils::is_not_found(includePos))
@@ -243,8 +251,8 @@ CppNavigationUtilities::extractIncludePath(const std::string& line)
     return {line.substr(start, end - start), isSystem};
 }
 
-std::string
-CppNavigationUtilities::resolveSystemInclude(const std::string& includeName)
+std::string CppNavigationUtilities::resolveSystemInclude(
+    const std::string& includeName)
 {
     std::vector<std::string> systemPaths;
 
@@ -263,8 +271,11 @@ CppNavigationUtilities::resolveSystemInclude(const std::string& includeName)
     };
 #else
     systemPaths = {
-        "/usr/include/c++/11", "/usr/include/c++/10", "/usr/include/c++/9",
-        "/usr/include",        "/usr/local/include",
+        "/usr/include/c++/11",
+        "/usr/include/c++/10",
+        "/usr/include/c++/9",
+        "/usr/include",
+        "/usr/local/include",
     };
 #endif
 
@@ -280,8 +291,9 @@ CppNavigationUtilities::resolveSystemInclude(const std::string& includeName)
     return "";
 }
 
-bool CppNavigationUtilities::isLikelyDefinition(const std::string& line,
-                                                const std::string& symbol)
+bool CppNavigationUtilities::isLikelyDefinition(
+    const std::string& line,
+    const std::string& symbol)
 {
     size_t commentPos = line.find("//");
     std::string effectiveLine =

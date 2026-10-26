@@ -59,8 +59,8 @@ bool PythonFormatter::operator()(Mode)
         if(errMsg.empty())
             errMsg = editor.pythonFormatter + " failed";
         unlink(tempPath.c_str());
-        editor.setStatusMessage(editor.pythonFormatter + ": " +
-                                errMsg.substr(0, 80));
+        editor.setStatusMessage(
+            editor.pythonFormatter + ": " + errMsg.substr(0, 80));
         return false;
     }
 

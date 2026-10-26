@@ -38,14 +38,16 @@ TEST(TaskQueueTest, SameChannelRunsInSubmissionOrder)
 
     for(int i = 0; i < 5; ++i)
     {
-        queue.submit({"job" + std::to_string(i), "git",
-                      [&, i](TaskQueue::Context&)
-                      {
-                          std::this_thread::sleep_for(2ms);
-                          std::lock_guard<std::mutex> lk(ranMutex);
-                          ran.push_back(i);
-                      },
-                      [&, i] { completed.push_back(i); }});
+        queue.submit(
+            {"job" + std::to_string(i),
+             "git",
+             [&, i](TaskQueue::Context&)
+             {
+                 std::this_thread::sleep_for(2ms);
+                 std::lock_guard<std::mutex> lk(ranMutex);
+                 ran.push_back(i);
+             },
+             [&, i] { completed.push_back(i); }});
     }
     drain(queue);
 
@@ -60,15 +62,20 @@ TEST(TaskQueueTest, DifferentChannelsRunConcurrentlyButCompleteInOrder)
     std::atomic<bool> secondRan{false};
     std::vector<std::string> completed;
 
-    queue.submit({"slow", "a",
-                  [&](TaskQueue::Context&)
-                  {
-                      while(!release.load())
-                          std::this_thread::sleep_for(1ms);
-                  },
-                  [&] { completed.push_back("slow"); }});
-    queue.submit({"fast", "b", [&](TaskQueue::Context&) { secondRan = true; },
-                  [&] { completed.push_back("fast"); }});
+    queue.submit(
+        {"slow",
+         "a",
+         [&](TaskQueue::Context&)
+         {
+             while(!release.load())
+                 std::this_thread::sleep_for(1ms);
+         },
+         [&] { completed.push_back("slow"); }});
+    queue.submit(
+        {"fast",
+         "b",
+         [&](TaskQueue::Context&) { secondRan = true; },
+         [&] { completed.push_back("fast"); }});
 
     const auto deadline = std::chrono::steady_clock::now() + 5s;
     while(!secondRan.load() && std::chrono::steady_clock::now() < deadline)
@@ -128,13 +135,15 @@ TEST(TaskQueueTest, WaitingJobsCanBeReorderedAndCancelled)
     std::vector<std::string> completed;
     auto job = [&](const std::string& name)
     {
-        return TaskQueue::Job{name, "git",
-                              [&](TaskQueue::Context&)
-                              {
-                                  while(!release.load())
-                                      std::this_thread::sleep_for(1ms);
-                              },
-                              [&, name] { completed.push_back(name); }};
+        return TaskQueue::Job{
+            name,
+            "git",
+            [&](TaskQueue::Context&)
+            {
+                while(!release.load())
+                    std::this_thread::sleep_for(1ms);
+            },
+            [&, name] { completed.push_back(name); }};
     };
 
     auto a = queue.submit(job("a"));
@@ -164,19 +173,24 @@ TEST(TaskQueueTest, WaitPumpsAndReportsOutcome)
     // The job finishes only after the waiter pumped once, so the test does
     // not depend on how fast a (slow CI) machine runs a sleeping job.
     std::atomic<int> pumps{0};
-    auto ok = queue.submit({"ok", "",
-                            [&](TaskQueue::Context&)
-                            {
-                                while(pumps.load() == 0)
-                                    std::this_thread::sleep_for(1ms);
-                            },
-                            {}});
-    EXPECT_EQ(queue.wait(ok.id, [&] { ++pumps; }),
-              TaskQueue::WaitResult::Completed);
+    auto ok = queue.submit(
+        {"ok",
+         "",
+         [&](TaskQueue::Context&)
+         {
+             while(pumps.load() == 0)
+                 std::this_thread::sleep_for(1ms);
+         },
+         {}});
+    EXPECT_EQ(
+        queue.wait(ok.id, [&] { ++pumps; }),
+        TaskQueue::WaitResult::Completed);
     EXPECT_GT(pumps.load(), 0);
 
     auto bad = queue.submit(
-        {"bad", "", [](TaskQueue::Context&) { throw std::runtime_error("x"); },
+        {"bad",
+         "",
+         [](TaskQueue::Context&) { throw std::runtime_error("x"); },
          {}});
     std::string error;
     EXPECT_EQ(queue.wait(bad.id, {}, &error), TaskQueue::WaitResult::Failed);
@@ -190,14 +204,16 @@ TEST(TaskQueueTest, RunningJobSeesCancellation)
     TaskQueue queue(1);
     std::atomic<bool> sawCancel{false};
     bool doneRan = false;
-    auto job = queue.submit({"loop", "",
-                             [&](TaskQueue::Context& ctx)
-                             {
-                                 while(!ctx.cancelled())
-                                     std::this_thread::sleep_for(1ms);
-                                 sawCancel = true;
-                             },
-                             [&] { doneRan = true; }});
+    auto job = queue.submit(
+        {"loop",
+         "",
+         [&](TaskQueue::Context& ctx)
+         {
+             while(!ctx.cancelled())
+                 std::this_thread::sleep_for(1ms);
+             sawCancel = true;
+         },
+         [&] { doneRan = true; }});
     std::this_thread::sleep_for(5ms);
     EXPECT_TRUE(queue.cancel(job.id));
     drain(queue);
@@ -210,25 +226,34 @@ TEST(TaskQueueTest, AbortCallbackRunsForCancelledAndFailedJobs)
     TaskQueue queue(1);
     std::vector<std::string> events;
     std::atomic<bool> release{false};
-    queue.submit({"blocker", "c",
-                  [&](TaskQueue::Context&)
-                  {
-                      while(!release.load())
-                          std::this_thread::sleep_for(1ms);
-                  },
-                  {}, {}});
-    auto waiting = queue.submit({"waiting", "c", {},
-                                 [&] { events.push_back("waiting done"); },
-                                 [&] { events.push_back("waiting abort"); }});
-    queue.submit({"thrower", "",
-                  [](TaskQueue::Context&) { throw std::runtime_error("boom"); },
-                  [&] { events.push_back("thrower done"); },
-                  [&] { events.push_back("thrower abort"); }});
+    queue.submit(
+        {"blocker",
+         "c",
+         [&](TaskQueue::Context&)
+         {
+             while(!release.load())
+                 std::this_thread::sleep_for(1ms);
+         },
+         {},
+         {}});
+    auto waiting = queue.submit(
+        {"waiting",
+         "c",
+         {},
+         [&] { events.push_back("waiting done"); },
+         [&] { events.push_back("waiting abort"); }});
+    queue.submit(
+        {"thrower",
+         "",
+         [](TaskQueue::Context&) { throw std::runtime_error("boom"); },
+         [&] { events.push_back("thrower done"); },
+         [&] { events.push_back("thrower abort"); }});
     queue.cancel(waiting.id);
     release = true;
     drain(queue);
-    EXPECT_EQ(events,
-              (std::vector<std::string>{"waiting abort", "thrower abort"}));
+    EXPECT_EQ(
+        events,
+        (std::vector<std::string>{"waiting abort", "thrower abort"}));
     auto errors = queue.takeErrors();
     ASSERT_EQ(errors.size(), 1u);
     EXPECT_EQ(errors[0], "thrower: boom");
@@ -245,8 +270,9 @@ TEST(ProgressBarTest, AsciiStyleShowsQueueAndPercent)
     view.style = widgets::ProgressStyle::Ascii;
     view.elapsedMs = 3200;
     view.maxWidth = 80;
-    EXPECT_EQ(widgets::formatProgressBar(view),
-              "(2/5) | rg cache [=====.....] 50% 5/10 3s");
+    EXPECT_EQ(
+        widgets::formatProgressBar(view),
+        "(2/5) | rg cache [=====.....] 50% 5/10 3s");
 }
 
 TEST(ProgressBarTest, GlyphStyleUsesEighthBlocks)
@@ -298,6 +324,7 @@ TEST(ProgressBarTest, ParsesStyleNames)
     EXPECT_FALSE(widgets::parseProgressStyle("fancy", style));
     EXPECT_EQ(style, widgets::ProgressStyle::Color);
 }
+
 TEST(PickerLayoutTest, FloatingBoxIsCenteredWithPreview)
 {
     widgets::PickerLayoutOptions options;
@@ -346,6 +373,7 @@ TEST(PickerLayoutTest, FullscreenStyleUsesWholeArea)
     EXPECT_EQ(layout.left, 1);
     EXPECT_EQ(layout.cols, 160);
 }
+
 TEST(PickerQueryTest, ParsesLineSuffix)
 {
     auto q = parsePickerQuery("SomeFil:415");
@@ -395,10 +423,11 @@ bool isValidUtf8(std::string_view text)
     while(i < text.size())
     {
         const auto lead = static_cast<unsigned char>(text[i]);
-        size_t len = lead < 0x80 ? 1 : lead >= 0xC2 && lead < 0xE0 ? 2
-                     : lead >= 0xE0 && lead < 0xF0                ? 3
-                     : lead >= 0xF0 && lead < 0xF5                ? 4
-                                                                  : 0;
+        size_t len = lead < 0x80                   ? 1
+                     : lead >= 0xC2 && lead < 0xE0 ? 2
+                     : lead >= 0xE0 && lead < 0xF0 ? 3
+                     : lead >= 0xF0 && lead < 0xF5 ? 4
+                                                   : 0;
         if(len == 0 || i + len > text.size())
             return false;
         for(size_t k = 1; k < len; ++k)
@@ -448,16 +477,17 @@ TEST(TaskQueueTest, QuietJobsRemainListedWithoutStatusProgress)
 {
     TaskQueue queue(1);
     std::atomic<bool> release{false};
-    queue.submit({"documentation",
-                  "docs",
-                  [&](TaskQueue::Context& ctx)
-                  {
-                      while(!release && !ctx.cancelled())
-                          std::this_thread::sleep_for(1ms);
-                  },
-                  {},
-                  {},
-                  false});
+    queue.submit(
+        {"documentation",
+         "docs",
+         [&](TaskQueue::Context& ctx)
+         {
+             while(!release && !ctx.cancelled())
+                 std::this_thread::sleep_for(1ms);
+         },
+         {},
+         {},
+         false});
     EXPECT_FALSE(queue.status());
     EXPECT_EQ(queue.snapshot().size(), 1u);
     queue.submit({"compile", "compiler", [](TaskQueue::Context&) {}, {}});

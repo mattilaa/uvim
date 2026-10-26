@@ -36,6 +36,7 @@ struct HelpMode
     bool jumpHighlight = false;
     std::string previousFile;
     std::shared_ptr<CommandPrompt> commandPrompt;
+
     struct HelpSearchMatch
     {
         std::string topic;
@@ -63,8 +64,9 @@ struct HelpMode
     void on_enter(ModeContext& ctx);
     void on_exit(ModeContext& ctx);
 
-    std::optional<ModeState> handle(ModeContext& ctx,
-                                    const ModeKeyEvent& event);
+    std::optional<ModeState> handle(
+        ModeContext& ctx,
+        const ModeKeyEvent& event);
 
     void draw(Editor& editor) const;
 
@@ -82,7 +84,8 @@ private:
     void searchHalfPageDown(Editor& editor);
     void searchHalfPageUp(Editor& editor);
     void drawSearch(Editor& editor) const;
-    std::optional<ModeState> executeCommand(ModeContext& ctx,
-                                            std::string_view commandLine);
+    std::optional<ModeState> executeCommand(
+        ModeContext& ctx,
+        std::string_view commandLine);
 };
 } // namespace editor::statemachine

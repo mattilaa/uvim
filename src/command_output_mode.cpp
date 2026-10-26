@@ -20,8 +20,13 @@ namespace
 {
 std::vector<std::string> commandOutputHelpTokens()
 {
-    return {"[q: quit]",   "[j/k: scroll]", "[space: mark]",
-            "[V: visual]", "[y: yank]",     "[/: search]"};
+    return {
+        "[q: quit]",
+        "[j/k: scroll]",
+        "[space: mark]",
+        "[V: visual]",
+        "[y: yank]",
+        "[/: search]"};
 }
 
 // Grey background with black foreground, used for search highlight.
@@ -62,16 +67,22 @@ void appendRowStyle(std::string& out, const Theme& theme, RowStyle style)
     switch(style)
     {
     case RowStyle::Cursor:
-        text_utils::append_all(out, std::string_view(Terminal::ESC_DIM),
-                               theme.selection());
+        text_utils::append_all(
+            out,
+            std::string_view(Terminal::ESC_DIM),
+            theme.selection());
         break;
     case RowStyle::Selected:
-        text_utils::append_all(out, std::string_view(SELECTED_BG),
-                               theme.baseFg());
+        text_utils::append_all(
+            out,
+            std::string_view(SELECTED_BG),
+            theme.baseFg());
         break;
     case RowStyle::SelectedCursor:
-        text_utils::append_all(out, std::string_view(SELECTED_CURSOR_BG),
-                               theme.baseFg());
+        text_utils::append_all(
+            out,
+            std::string_view(SELECTED_CURSOR_BG),
+            theme.baseFg());
         break;
     case RowStyle::Normal:
         out += theme.baseFg();
@@ -79,9 +90,12 @@ void appendRowStyle(std::string& out, const Theme& theme, RowStyle style)
     }
 }
 
-void appendHighlighted(std::string& out, std::string_view text,
-                       std::string_view query, const Theme& theme,
-                       RowStyle style)
+void appendHighlighted(
+    std::string& out,
+    std::string_view text,
+    std::string_view query,
+    const Theme& theme,
+    RowStyle style)
 {
     if(query.empty() || text.empty())
     {
@@ -201,8 +215,8 @@ void CommandOutputMode::yankSelection(Editor& editor)
     editor.yankBuffer = buf;
     if(editor.useSystemClipboard)
         editor.setSystemClipboard(buf);
-    editor.setStatusMessage("Yanked " + std::to_string(ordered.size()) +
-                            " line(s)");
+    editor.setStatusMessage(
+        "Yanked " + std::to_string(ordered.size()) + " line(s)");
 }
 
 std::optional<ModeState> CommandOutputMode::returnToFileBrowser()
@@ -221,8 +235,9 @@ void CommandOutputMode::on_enter(ModeContext& ctx)
 
 void CommandOutputMode::on_exit(ModeContext& /*ctx*/) {}
 
-std::optional<ModeState> CommandOutputMode::handle(ModeContext& ctx,
-                                                   const ModeKeyEvent& event)
+std::optional<ModeState> CommandOutputMode::handle(
+    ModeContext& ctx,
+    const ModeKeyEvent& event)
 {
     const int key = event.key;
     int c = keyCode(key);
@@ -372,9 +387,10 @@ std::optional<ModeState> CommandOutputMode::handle(ModeContext& ctx,
             cursorMoved = true;
         }
     }
-    else if(c == keyCode(typed::TypedKey::KEY_K) ||
-            c == keyCode(navigation::NavigationKey::ARROW_UP) ||
-            c == keyCode(control::ControlKey::CTRL_K))
+    else if(
+        c == keyCode(typed::TypedKey::KEY_K) ||
+        c == keyCode(navigation::NavigationKey::ARROW_UP) ||
+        c == keyCode(control::ControlKey::CTRL_K))
     {
         if(cursor > 0)
         {
@@ -384,8 +400,9 @@ std::optional<ModeState> CommandOutputMode::handle(ModeContext& ctx,
             cursorMoved = true;
         }
     }
-    else if(c == keyCode(control::ControlKey::CTRL_D) ||
-            c == keyCode(navigation::NavigationKey::PAGE_DOWN))
+    else if(
+        c == keyCode(control::ControlKey::CTRL_D) ||
+        c == keyCode(navigation::NavigationKey::PAGE_DOWN))
     {
         int half = std::max(1, contentRows(*ed) / 2);
         int target = std::min((int)lines.size() - 1, cursor + half);
@@ -398,8 +415,9 @@ std::optional<ModeState> CommandOutputMode::handle(ModeContext& ctx,
             cursorMoved = true;
         }
     }
-    else if(c == keyCode(control::ControlKey::CTRL_U) ||
-            c == keyCode(navigation::NavigationKey::PAGE_UP))
+    else if(
+        c == keyCode(control::ControlKey::CTRL_U) ||
+        c == keyCode(navigation::NavigationKey::PAGE_UP))
     {
         int half = std::max(1, contentRows(*ed) / 2);
         int target = std::max(0, cursor - half);
@@ -484,8 +502,9 @@ std::optional<ModeState> CommandOutputMode::handle(ModeContext& ctx,
         }
         yankSelection(*ed);
     }
-    else if(c == keyCode(typed::TypedKey::KEY_N) ||
-            c == keyCode(typed::TypedKey::KEY_CAP_N))
+    else if(
+        c == keyCode(typed::TypedKey::KEY_N) ||
+        c == keyCode(typed::TypedKey::KEY_CAP_N))
     {
         if(!searchQuery.empty() && !lines.empty())
         {
@@ -546,15 +565,24 @@ void CommandOutputMode::draw(Editor& editor) const
     output.reserve((size_t)editor.screenRows * editor.screenCols * 2);
 
     text_utils::append_all(
-        output, std::string_view(Terminal::ESC_HIDE_CURSOR),
-        std::string_view(Terminal::ESC_CURSOR_HOME), editor.theme.reset(),
-        std::string_view(Terminal::ESC_CLEAR_LINE), editor.theme.uiAccent(),
-        std::string_view(Terminal::ESC_BOLD), std::string_view("  RUN: "),
-        editor.theme.reset(), editor.theme.uiPrompt(), command,
+        output,
+        std::string_view(Terminal::ESC_HIDE_CURSOR),
+        std::string_view(Terminal::ESC_CURSOR_HOME),
+        editor.theme.reset(),
+        std::string_view(Terminal::ESC_CLEAR_LINE),
+        editor.theme.uiAccent(),
+        std::string_view(Terminal::ESC_BOLD),
+        std::string_view("  RUN: "),
+        editor.theme.reset(),
+        editor.theme.uiPrompt(),
+        command,
         editor.theme.reset());
 
-    HeaderHelp::append(output, editor.theme, editor.screenCols,
-                       commandOutputHelpTokens());
+    HeaderHelp::append(
+        output,
+        editor.theme,
+        editor.screenCols,
+        commandOutputHelpTokens());
 
     int rows = contentRows(editor);
     int cols = std::max(1, editor.screenCols);
@@ -598,8 +626,12 @@ void CommandOutputMode::draw(Editor& editor) const
                 std::string_view(line).substr(startByte, linePos - startByte);
 
             if(!searchQuery.empty())
-                appendHighlighted(output, chunk, searchQuery, editor.theme,
-                                  style);
+                appendHighlighted(
+                    output,
+                    chunk,
+                    searchQuery,
+                    editor.theme,
+                    style);
             else
             {
                 appendRowStyle(output, editor.theme, style);
@@ -629,10 +661,12 @@ void CommandOutputMode::draw(Editor& editor) const
 
     while(rowsUsed < rows)
     {
-        text_utils::append_all(output,
-                               std::string_view(Terminal::NEWLINE_CLEAR),
-                               editor.theme.uiGutter(), std::string_view("~"),
-                               editor.theme.baseFg());
+        text_utils::append_all(
+            output,
+            std::string_view(Terminal::NEWLINE_CLEAR),
+            editor.theme.uiGutter(),
+            std::string_view("~"),
+            editor.theme.baseFg());
         ++rowsUsed;
     }
 
@@ -641,8 +675,10 @@ void CommandOutputMode::draw(Editor& editor) const
     left.reserve(command.size() + 32);
     left += visualMode ? " V-RUN" : " RUN";
     if(!selectedLines.empty())
-        fmt::format_to(std::back_inserter(left), " ({} sel)",
-                       selectedLines.size());
+        fmt::format_to(
+            std::back_inserter(left),
+            " ({} sel)",
+            selectedLines.size());
     fmt::format_to(std::back_inserter(left), " | {}", command);
     const int total = (int)lines.size();
     const int current = std::min(cursor + 1, total);
@@ -654,24 +690,34 @@ void CommandOutputMode::draw(Editor& editor) const
     if(searchActive)
     {
         text_utils::append_all(
-            output, editor.theme.baseFg(), std::string_view("/"), searchQuery,
-            std::string_view(Terminal::ESC_BLINK), std::string_view("_"),
-            std::string_view(Terminal::ESC_BLINK_OFF), editor.theme.reset());
+            output,
+            editor.theme.baseFg(),
+            std::string_view("/"),
+            searchQuery,
+            std::string_view(Terminal::ESC_BLINK),
+            std::string_view("_"),
+            std::string_view(Terminal::ESC_BLINK_OFF),
+            editor.theme.reset());
     }
     else if(!editor.statusMessage.empty())
     {
         const size_t maxLen =
             editor.screenCols > 2 ? (size_t)editor.screenCols - 2 : 0;
         text_utils::append_all(
-            output, editor.theme.baseFg(), std::string_view(": "),
+            output,
+            editor.theme.baseFg(),
+            std::string_view(": "),
             std::string_view(editor.statusMessage)
                 .substr(0, std::min(maxLen, editor.statusMessage.length())));
     }
     else if(!searchQuery.empty())
     {
-        text_utils::append_all(output, editor.theme.uiDim(),
-                               std::string_view(" match: "), searchQuery,
-                               editor.theme.baseFg());
+        text_utils::append_all(
+            output,
+            editor.theme.uiDim(),
+            std::string_view(" match: "),
+            searchQuery,
+            editor.theme.baseFg());
     }
 
     const bool syncOutput = Terminal::useSynchronizedOutput();

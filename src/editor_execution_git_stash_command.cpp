@@ -27,8 +27,8 @@ using editor::helper::parse_int;
 using editor::helper::trim_view;
 using namespace detail;
 
-bool GitStashCommand::execute(Editor& editor,
-                              const CommandRequest& request) const
+bool GitStashCommand::execute(Editor& editor, const CommandRequest& request)
+    const
 {
     if(request.trimmed != "git stash")
         return false;

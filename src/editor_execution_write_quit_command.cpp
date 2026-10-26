@@ -27,8 +27,8 @@ using editor::helper::parse_int;
 using editor::helper::trim_view;
 using namespace detail;
 
-bool WriteQuitCommand::execute(Editor& editor,
-                               const CommandRequest& request) const
+bool WriteQuitCommand::execute(Editor& editor, const CommandRequest& request)
+    const
 {
     if(request.text != "wq" && request.text != "x")
         return false;

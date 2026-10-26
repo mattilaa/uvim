@@ -1,9 +1,9 @@
 #pragma once
 
+#include "key_enums.h"
+#include "terminal_escapes.h"
 #include <deque>
 #include <string>
-#include "terminal_escapes.h"
-#include "key_enums.h"
 
 // Terminal backend selection
 // Prefer explicit build definitions from CMake:

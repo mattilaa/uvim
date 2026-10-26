@@ -12,12 +12,14 @@ WindowCommandPendingMachine::WindowCommandPendingMachine(int count)
 {
 }
 
-std::optional<ModeState>
-WindowCommandPendingMachine::handle(ModeContext& ctx,
-                                    const ModeKeyEvent& event)
+std::optional<ModeState> WindowCommandPendingMachine::handle(
+    ModeContext& ctx,
+    const ModeKeyEvent& event)
 {
-    return std::visit([&](auto& pending) -> std::optional<ModeState>
-                      { return pending.handle(*this, ctx, event); }, state);
+    return std::visit(
+        [&](auto& pending) -> std::optional<ModeState>
+        { return pending.handle(*this, ctx, event); },
+        state);
 }
 
 bool WindowCommandPendingMachine::done() const
@@ -43,9 +45,10 @@ void WindowCommandPendingMachine::cancel(ModeContext& ctx)
     finish();
 }
 
-std::optional<ModeState>
-WindowCommandAfterW::handle(WindowCommandPendingMachine& machine,
-                            ModeContext& ctx, const ModeKeyEvent& event)
+std::optional<ModeState> WindowCommandAfterW::handle(
+    WindowCommandPendingMachine& machine,
+    ModeContext& ctx,
+    const ModeKeyEvent& event)
 {
     const int c = keyCode(event.key);
 

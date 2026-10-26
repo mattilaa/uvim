@@ -1,7 +1,7 @@
 #pragma once
 #include <chrono>
-#include <ctime>
 #include <cstdlib>
+#include <ctime>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -64,10 +64,10 @@ inline std::string defaultLogFilePath()
 #ifdef _WIN32
     const char* userProfile = std::getenv("USERPROFILE");
     const char* userName = std::getenv("USERNAME");
-    std::filesystem::path base =
-        userProfile ? std::filesystem::path(userProfile)
-                    : std::filesystem::path("/Users") /
-                          (userName ? userName : "Default");
+    std::filesystem::path base = userProfile
+                                     ? std::filesystem::path(userProfile)
+                                     : std::filesystem::path("/Users") /
+                                           (userName ? userName : "Default");
     return (base / "Documents" / "uvim" / "uvim.log").string();
 #else
     return "/tmp/uvim.log";
@@ -127,9 +127,15 @@ public:
         localtime_r(&tt, &tm);
 #endif
 
-        return fmt::format("{:04d}-{:02d}-{:02d} {:02d}:{:02d}:{:02d}.{:06d}",
-                           tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
-                           tm.tm_hour, tm.tm_min, tm.tm_sec, ms);
+        return fmt::format(
+            "{:04d}-{:02d}-{:02d} {:02d}:{:02d}:{:02d}.{:06d}",
+            tm.tm_year + 1900,
+            tm.tm_mon + 1,
+            tm.tm_mday,
+            tm.tm_hour,
+            tm.tm_min,
+            tm.tm_sec,
+            ms);
     }
 
     void log(LogLevel level, std::string_view msg)
@@ -145,8 +151,13 @@ public:
             ctx.empty() ? "" : fmt::format("[{}] ", ctx);
 
         std::string formatted = fmt::format(
-            "{}{}{} {} {}{}\n", use_color ? toColor(level) : "", levelStr,
-            use_color ? resetColor() : "", timestamp(), signature, msg);
+            "{}{}{} {} {}{}\n",
+            use_color ? toColor(level) : "",
+            levelStr,
+            use_color ? resetColor() : "",
+            timestamp(),
+            signature,
+            msg);
 
         static std::mutex log_mutex;
         std::lock_guard<std::mutex> lock(log_mutex);

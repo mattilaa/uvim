@@ -28,8 +28,8 @@ using editor::helper::parse_int;
 using editor::helper::trim_view;
 using namespace detail;
 
-bool BufferSelectCommand::execute(Editor& editor,
-                                  const CommandRequest& request) const
+bool BufferSelectCommand::execute(Editor& editor, const CommandRequest& request)
+    const
 {
     if(request.text.rfind("b ", 0) != 0 &&
        request.text.rfind("buffer ", 0) != 0)
@@ -46,8 +46,8 @@ bool BufferSelectCommand::execute(Editor& editor,
         if(bufNum >= 0 && bufNum < (int)editor.buffers.size())
             editor.switchToBuffer(bufNum);
         else
-            editor.setStatusMessage("Buffer " + std::string(arg) +
-                                    " does not exist");
+            editor.setStatusMessage(
+                "Buffer " + std::string(arg) + " does not exist");
         return true;
     }
 

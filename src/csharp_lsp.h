@@ -14,8 +14,9 @@ std::string resolveServer(const std::string& configured);
 
 // Arguments for `server`: OmniSharp needs "-lsp" to speak LSP; extra
 // user arguments follow.
-std::vector<std::string> serverArgs(const std::string& server,
-                                    std::vector<std::string> extra);
+std::vector<std::string> serverArgs(
+    const std::string& server,
+    std::vector<std::string> extra);
 
 // Directory of the nearest *.sln, else *.csproj, at or above the
 // directory of `file`; empty when there is none.

@@ -20,8 +20,12 @@ namespace
 {
 std::vector<std::string> paletteHelpTokens()
 {
-    return {"[Enter: run]", "[Esc: cancel]", "[Ctrl+J/K: navigate]",
-            "[Ctrl+U: clear]", "[\xE2\x80\xA6: asks for an argument]"};
+    return {
+        "[Enter: run]",
+        "[Esc: cancel]",
+        "[Ctrl+J/K: navigate]",
+        "[Ctrl+U: clear]",
+        "[\xE2\x80\xA6: asks for an argument]"};
 }
 
 // Clips UTF-8 `text` to `width` columns (one per code point).
@@ -32,7 +36,10 @@ std::string clipToWidth(const std::string& text, int width)
     for(size_t i = 0; i < text.size() && used < width;)
     {
         const auto lead = static_cast<unsigned char>(text[i]);
-        const size_t len = lead < 0xC0 ? 1 : lead < 0xE0 ? 2 : lead < 0xF0 ? 3 : 4;
+        const size_t len = lead < 0xC0   ? 1
+                           : lead < 0xE0 ? 2
+                           : lead < 0xF0 ? 3
+                                         : 4;
         out.append(text, i, std::min(len, text.size() - i));
         ++used;
         i += len;
@@ -43,9 +50,11 @@ std::string clipToWidth(const std::string& text, int width)
 // Feeds `keys` to `mode` as if typed. They are queued in the terminal key
 // buffer first: some bindings read their next key themselves (Space g r).
 // Only the queued keys are used; keys the user typed ahead stay queued.
-template<typename Mode>
-std::optional<ModeState> pressKeys(Mode& mode, ModeContext& ctx,
-                                   const std::vector<int>& keys)
+template <typename Mode>
+std::optional<ModeState> pressKeys(
+    Mode& mode,
+    ModeContext& ctx,
+    const std::vector<int>& keys)
 {
     const int alreadyQueued = Terminal::bufferedKeyCount();
     for(auto key = keys.rbegin(); key != keys.rend(); ++key)
@@ -69,7 +78,8 @@ void CommandPaletteMode::on_enter(ModeContext& ctx)
     // Named actions first, then the ex commands no action covers.
     entries = command_palette::builtinActions();
     command_palette::addExCommands(
-        entries, ctx.getCommandCompletions(""),
+        entries,
+        ctx.getCommandCompletions(""),
         [](std::string_view command)
         { return std::string(widgets::commandDocumentation(command)); });
     query.clear();
@@ -90,8 +100,9 @@ void CommandPaletteMode::refilter()
     offset = 0;
 }
 
-std::optional<ModeState> CommandPaletteMode::handle(ModeContext& ctx,
-                                                    const ModeKeyEvent& event)
+std::optional<ModeState> CommandPaletteMode::handle(
+    ModeContext& ctx,
+    const ModeKeyEvent& event)
 {
     const int c = event.key;
     ctx.requestFullRedraw();
@@ -104,8 +115,7 @@ std::optional<ModeState> CommandPaletteMode::handle(ModeContext& ctx,
     {
         if(matches.empty())
             return std::nullopt;
-        const command_palette::Entry& entry =
-            entries[matches[cursor].entry];
+        const command_palette::Entry& entry = entries[matches[cursor].entry];
         if(entry.takesArgument)
         {
             // ":e " with the cursor after it, ready for the file name.
@@ -137,7 +147,8 @@ std::optional<ModeState> CommandPaletteMode::handle(ModeContext& ctx,
         ctx.commandBuffer = ":" + entry.names.front();
         CommandMode runner;
         std::optional<ModeState> next =
-            runner.handle(ctx, ModeKeyEvent{keyCode(control::ControlKey::ENTER)});
+            runner
+                .handle(ctx, ModeKeyEvent{keyCode(control::ControlKey::ENTER)});
         return next ? next : std::optional<ModeState>(leave(ctx));
     }
 
@@ -206,12 +217,11 @@ void CommandPaletteMode::draw(Editor& editor) const
     output.reserve(editor.screenRows * editor.screenCols * 2);
     output += Terminal::ESC_HIDE_CURSOR;
 
-    widgets::PickerCanvas canvas(output, layout, editor.theme,
-                                 editor.utf8Mode);
+    widgets::PickerCanvas canvas(output, layout, editor.theme, editor.utf8Mode);
     std::string footer;
     if(!matches.empty())
-        footer = std::to_string(cursor + 1) + " / " +
-                 std::to_string(matches.size());
+        footer =
+            std::to_string(cursor + 1) + " / " + std::to_string(matches.size());
     const auto helpLines =
         HeaderHelp::wrap(paletteHelpTokens(), layout.headerCols);
     canvas.frame("Command Palette", footer, 1 + (int)helpLines.size());

@@ -128,9 +128,10 @@ void append_all(std::string& out, const Parts&... parts)
  * Returns text_utils::npos() when no match is found. This is intended for
  * command/search UI paths where locale-independent ASCII matching is enough.
  */
-constexpr size_t ifind_ascii(std::string_view haystack,
-                             std::string_view needle,
-                             size_t from = 0) noexcept
+constexpr size_t ifind_ascii(
+    std::string_view haystack,
+    std::string_view needle,
+    size_t from = 0) noexcept
 {
     if(needle.empty())
         return from <= haystack.size() ? from : npos();
@@ -157,9 +158,11 @@ constexpr size_t ifind_ascii(std::string_view haystack,
  * The range stores a view of `text` and owns a copy of `needle`, so temporary
  * needles are safe. The caller must keep `text` alive while iterating.
  */
-template <typename Text, typename Needle,
-          detail::enable_string_view_compatible<Text> = 0,
-          detail::enable_string_view_compatible<Needle> = 0>
+template <
+    typename Text,
+    typename Needle,
+    detail::enable_string_view_compatible<Text> = 0,
+    detail::enable_string_view_compatible<Needle> = 0>
 detail::FindAllRange find_all(Text&& text, Needle&& needle)
 {
     return {std::string_view{text}, std::string{std::string_view{needle}}};
@@ -178,9 +181,11 @@ detail::FindAllRange find_all(Text&& text, char needle)
  * Returns a stateful finder for code that needs to control the next search
  * offset after inspecting a match.
  */
-template <typename Text, typename Needle,
-          detail::enable_string_view_compatible<Text> = 0,
-          detail::enable_string_view_compatible<Needle> = 0>
+template <
+    typename Text,
+    typename Needle,
+    detail::enable_string_view_compatible<Text> = 0,
+    detail::enable_string_view_compatible<Needle> = 0>
 detail::FindCursor find_cursor(Text&& text, Needle&& needle)
 {
     return {std::string_view{text}, std::string{std::string_view{needle}}};
@@ -231,8 +236,8 @@ constexpr std::string_view dirname(std::string_view path) noexcept
  * filename directly. If the path has no directory component, an empty view is
  * returned.
  */
-constexpr std::string_view
-dirname_with_separator(std::string_view path) noexcept
+constexpr std::string_view dirname_with_separator(
+    std::string_view path) noexcept
 {
     const size_t slash = path.find_last_of("/\\");
     return is_not_found(slash) ? std::string_view{} : path.substr(0, slash + 1);
@@ -251,13 +256,15 @@ inline std::string ascii_lower(std::string_view value)
  * Finds a line in `file` that starts with `marker`, then compares the rest of
  * the line with `symbol` using exact or ASCII case-insensitive matching.
  *
- * On success, `path` is set to the file path and `line` is set to the zero-based
- * line number of the marker.
+ * On success, `path` is set to the file path and `line` is set to the
+ * zero-based line number of the marker.
  */
-bool find_prefixed_marker_in_file(std::string_view symbol,
-                                  const std::filesystem::path& file,
-                                  std::string_view marker, std::string& path,
-                                  int& line);
+bool find_prefixed_marker_in_file(
+    std::string_view symbol,
+    const std::filesystem::path& file,
+    std::string_view marker,
+    std::string& path,
+    int& line);
 
 // --- UTF-8 appending (runtime; std::string mutation not constexpr in C++20)
 // ---
@@ -267,8 +274,10 @@ inline void appendU8(std::string& out, std::u8string_view s)
     out.append(reinterpret_cast<const char*>(s.data()), s.size());
 }
 
-inline void appendUtf8Repeat(std::string& out, std::u8string_view glyph,
-                             int count)
+inline void appendUtf8Repeat(
+    std::string& out,
+    std::u8string_view glyph,
+    int count)
 {
     for(int i = 0; i < count; ++i)
         appendU8(out, glyph);

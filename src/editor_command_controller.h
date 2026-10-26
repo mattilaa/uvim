@@ -33,8 +33,9 @@ public:
     void drawCommandHistoryPopup(std::string& output) const;
     void executeCommand(std::string_view cmd);
     std::vector<std::string> getCommandCompletions(std::string_view prefix);
-    std::vector<std::string> getCommandCompletions(std::string_view prefix,
-                                                   Mode mode);
+    std::vector<std::string> getCommandCompletions(
+        std::string_view prefix,
+        Mode mode);
     std::vector<std::string> getHelpCompletions(std::string_view prefix);
     std::vector<std::string> getSetCompletions(std::string_view prefix);
     std::vector<std::string> getPathCompletions(std::string_view path);

@@ -27,8 +27,8 @@ using editor::helper::parse_int;
 using editor::helper::trim_view;
 using namespace detail;
 
-bool BufferNextCommand::execute(Editor& editor,
-                                const CommandRequest& request) const
+bool BufferNextCommand::execute(Editor& editor, const CommandRequest& request)
+    const
 {
     if(request.text != "bn" && request.text != "bnext")
         return false;

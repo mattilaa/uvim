@@ -27,8 +27,9 @@ void FuzzyFindMode::on_enter(ModeContext& ctx)
 
 void FuzzyFindMode::on_exit(ModeContext&) {}
 
-std::optional<ModeState> FuzzyFindMode::handle(ModeContext& ctx,
-                                               const ModeKeyEvent&)
+std::optional<ModeState> FuzzyFindMode::handle(
+    ModeContext& ctx,
+    const ModeKeyEvent&)
 {
     return exitMode(ctx);
 }
@@ -48,8 +49,9 @@ void GrepSearchMode::on_enter(ModeContext& ctx)
 
 void GrepSearchMode::on_exit(ModeContext&) {}
 
-std::optional<ModeState> GrepSearchMode::handle(ModeContext& ctx,
-                                                const ModeKeyEvent&)
+std::optional<ModeState> GrepSearchMode::handle(
+    ModeContext& ctx,
+    const ModeKeyEvent&)
 {
     return exitMode(ctx);
 }
@@ -69,8 +71,9 @@ void RegexSearchMode::on_enter(ModeContext& ctx)
 
 void RegexSearchMode::on_exit(ModeContext&) {}
 
-std::optional<ModeState> RegexSearchMode::handle(ModeContext& ctx,
-                                                 const ModeKeyEvent&)
+std::optional<ModeState> RegexSearchMode::handle(
+    ModeContext& ctx,
+    const ModeKeyEvent&)
 {
     return exitMode(ctx);
 }

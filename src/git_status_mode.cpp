@@ -250,9 +250,10 @@ void GitStatusViewMode::refreshStatus(Editor& editor)
     cursor = std::clamp(cursor, 0, (int)entries.size() - 1);
     if(!previousPath.empty())
     {
-        auto it =
-            std::find_if(entries.begin(), entries.end(), [&](const Entry& e)
-                         { return e.path == previousPath; });
+        auto it = std::find_if(
+            entries.begin(),
+            entries.end(),
+            [&](const Entry& e) { return e.path == previousPath; });
         if(it != entries.end())
             cursor = (int)std::distance(entries.begin(), it);
     }
@@ -261,8 +262,9 @@ void GitStatusViewMode::refreshStatus(Editor& editor)
         std::clamp(offset, 0, std::max(0, (int)entries.size() - contentRows));
 }
 
-std::optional<ModeState> GitStatusViewMode::handle(ModeContext& ctx,
-                                                   const ModeKeyEvent& event)
+std::optional<ModeState> GitStatusViewMode::handle(
+    ModeContext& ctx,
+    const ModeKeyEvent& event)
 {
     const int key = event.key;
     Editor* ed = ctx.editor;
@@ -289,8 +291,9 @@ std::optional<ModeState> GitStatusViewMode::handle(ModeContext& ctx,
                 offset = cursor - contentRows + 1;
         }
     }
-    else if(c == keyCode(typed::TypedKey::KEY_K) ||
-            c == keyCode(navigation::NavigationKey::ARROW_UP))
+    else if(
+        c == keyCode(typed::TypedKey::KEY_K) ||
+        c == keyCode(navigation::NavigationKey::ARROW_UP))
     {
         if(cursor > 0)
         {
@@ -330,8 +333,14 @@ std::optional<ModeState> GitStatusViewMode::handle(ModeContext& ctx,
             }
             else if(entry.indexStatus != keyCode(control::ControlKey::SPACE))
             {
-                args = {"git",      "-C", repoDir,   "restore",
-                        "--staged", "--", entry.path};
+                args =
+                    {"git",
+                     "-C",
+                     repoDir,
+                     "restore",
+                     "--staged",
+                     "--",
+                     entry.path};
             }
             if(!args.empty())
             {

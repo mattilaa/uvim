@@ -37,8 +37,8 @@ std::vector<fs::path> collectMlaFiles(const fs::path& root)
     if(!fs::exists(root, ec))
         return files;
 
-    fs::recursive_directory_iterator it(
-        root, fs::directory_options::skip_permission_denied, ec);
+    fs::recursive_directory_iterator
+        it(root, fs::directory_options::skip_permission_denied, ec);
     fs::recursive_directory_iterator end;
     for(; !ec && it != end; it.increment(ec))
     {
@@ -58,8 +58,7 @@ std::vector<fs::path> collectMlaFiles(const fs::path& root)
     return files;
 }
 
-std::pair<int, int> parseLocation(std::string_view line,
-                                  std::string* rangeText)
+std::pair<int, int> parseLocation(std::string_view line, std::string* rangeText)
 {
     static const std::regex rangeRe(
         R"(\[([0-9]+)(?::([0-9]+))?\s*,\s*([0-9]+)(?::([0-9]+))?\))");
@@ -87,16 +86,18 @@ std::pair<int, int> parseLocation(std::string_view line,
     return {0, 0};
 }
 
-void copyFileOrBuffer(const fs::path& source, const fs::path& target,
-                      const Editor& editor)
+void copyFileOrBuffer(
+    const fs::path& source,
+    const fs::path& target,
+    const Editor& editor)
 {
     if(editor.currentBuffer && !editor.currentBuffer->filename.empty())
     {
         std::error_code ec;
-        fs::path current =
-            fs::canonical(EditorPathUtilities::resolveEditorPath(
-                              editor.currentBuffer->filename),
-                          ec);
+        fs::path current = fs::canonical(
+            EditorPathUtilities::resolveEditorPath(
+                editor.currentBuffer->filename),
+            ec);
         ec.clear();
         fs::path candidate = fs::canonical(source, ec);
         if(!ec && current == candidate && editor.lines)
@@ -112,16 +113,17 @@ void copyFileOrBuffer(const fs::path& source, const fs::path& target,
     fs::copy_file(source, target, fs::copy_options::overwrite_existing, ec);
 }
 
-[[maybe_unused]] std::string readFileOrCurrentBuffer(const fs::path& file,
-                                                     const Editor& editor)
+[[maybe_unused]] std::string readFileOrCurrentBuffer(
+    const fs::path& file,
+    const Editor& editor)
 {
     if(editor.currentBuffer && !editor.currentBuffer->filename.empty())
     {
         std::error_code ec;
-        fs::path current =
-            fs::canonical(EditorPathUtilities::resolveEditorPath(
-                              editor.currentBuffer->filename),
-                          ec);
+        fs::path current = fs::canonical(
+            EditorPathUtilities::resolveEditorPath(
+                editor.currentBuffer->filename),
+            ec);
         ec.clear();
         fs::path candidate = fs::canonical(file, ec);
         if(!ec && current == candidate && editor.lines)
@@ -152,8 +154,9 @@ void copyFileOrBuffer(const fs::path& source, const fs::path& target,
     return text;
 }
 
-[[maybe_unused]] void refreshProjectMlangDiagnostics(Editor& editor,
-                                                     const fs::path& root)
+[[maybe_unused]] void refreshProjectMlangDiagnostics(
+    Editor& editor,
+    const fs::path& root)
 {
 #ifdef UVIM_ENABLE_MLANG_LSP
     if(!editor.mlangLspClient)
@@ -168,8 +171,8 @@ void copyFileOrBuffer(const fs::path& source, const fs::path& target,
         const std::string path = dc::normalizedPathString(file);
         previousRevisions[path] =
             editor.mlangLspClient->diagnosticsRevision(path);
-        editor.mlangLspClient->didChange(path, readFileOrCurrentBuffer(file, editor),
-                                         "mlang");
+        editor.mlangLspClient
+            ->didChange(path, readFileOrCurrentBuffer(file, editor), "mlang");
     }
 
     const auto deadline =
@@ -196,8 +199,9 @@ void copyFileOrBuffer(const fs::path& source, const fs::path& target,
 }
 
 #ifdef UVIM_ENABLE_MLANG_LSP
-std::vector<MlangFormatErrorEntry> collectMlangLspDiagnostics(Editor& editor,
-                                                              int severity)
+std::vector<MlangFormatErrorEntry> collectMlangLspDiagnostics(
+    Editor& editor,
+    int severity)
 {
     std::vector<MlangFormatErrorEntry> results;
     fs::path root;
@@ -234,16 +238,17 @@ std::vector<MlangFormatErrorEntry> collectMlangLspDiagnostics(Editor& editor,
         }
     }
 
-    std::sort(results.begin(), results.end(),
-              [](const MlangFormatErrorEntry& a,
-                 const MlangFormatErrorEntry& b)
-              {
-                  if(a.displayPath != b.displayPath)
-                      return a.displayPath < b.displayPath;
-                  if(a.line != b.line)
-                      return a.line < b.line;
-                  return a.col < b.col;
-              });
+    std::sort(
+        results.begin(),
+        results.end(),
+        [](const MlangFormatErrorEntry& a, const MlangFormatErrorEntry& b)
+        {
+            if(a.displayPath != b.displayPath)
+                return a.displayPath < b.displayPath;
+            if(a.line != b.line)
+                return a.line < b.line;
+            return a.col < b.col;
+        });
     return results;
 }
 #endif
@@ -296,8 +301,9 @@ std::vector<MlangFormatErrorEntry> collectMlangFormatErrors(Editor& editor)
         {
             std::vector<std::string> errLines = dc::readLines(errPath);
             if(errLines.empty())
-                errLines.push_back("mlang-format failed with exit status " +
-                                   std::to_string(status));
+                errLines.push_back(
+                    "mlang-format failed with exit status " +
+                    std::to_string(status));
             for(const std::string& raw : errLines)
             {
                 std::string line = raw;
@@ -318,8 +324,8 @@ std::vector<MlangFormatErrorEntry> collectMlangFormatErrors(Editor& editor)
         fs::remove(errPath, removeEc);
     }
 
-    editor.setStatusMessage("mlang format errors: " +
-                            std::to_string(results.size()));
+    editor.setStatusMessage(
+        "mlang format errors: " + std::to_string(results.size()));
     return results;
 }
 
@@ -328,8 +334,9 @@ std::vector<MlangFormatErrorEntry> collectMlangWarnings(Editor& editor)
     return collectActiveLspDiagnostics(editor, 2);
 }
 
-std::vector<MlangFormatErrorEntry> collectActiveLspDiagnostics(Editor& editor,
-                                                               int severity)
+std::vector<MlangFormatErrorEntry> collectActiveLspDiagnostics(
+    Editor& editor,
+    int severity)
 {
     std::vector<MlangFormatErrorEntry> results;
 #if defined(UVIM_ENABLE_CLANGD_LSP) || defined(UVIM_ENABLE_MLANG_LSP)
@@ -365,8 +372,8 @@ std::vector<MlangFormatErrorEntry> collectActiveLspDiagnostics(Editor& editor,
         }
         editor.syncMlangSemanticTokensIfNeeded(true);
         results = collectMlangLspDiagnostics(editor, severity);
-        editor.setStatusMessage("mlangd " + severityName + ": " +
-                                std::to_string(results.size()));
+        editor.setStatusMessage(
+            "mlangd " + severityName + ": " + std::to_string(results.size()));
         return results;
 #else
         editor.setStatusMessage("mlangd " + severityName + ": LSP OFF");

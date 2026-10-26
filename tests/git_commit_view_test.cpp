@@ -48,8 +48,11 @@ struct Screen
                 if(output[i] == 'H')
                 {
                     int r = 1, c = 1;
-                    std::sscanf(output.substr(start, i - start).c_str(),
-                                "%d;%d", &r, &c);
+                    std::sscanf(
+                        output.substr(start, i - start).c_str(),
+                        "%d;%d",
+                        &r,
+                        &c);
                     row = std::clamp(r - 1, 0, (int)lines.size() - 1);
                     col = std::clamp(c - 1, 0, width - 1);
                 }
@@ -81,9 +84,10 @@ TEST(GitCommitViewTest, CursorStaysOnMessageWhenHelpAndPathsExceedWidth)
 {
     for(int width : {40, 80, 160})
     {
-        for(auto action : {GitCommitMode::Action::CommitStaged,
-                           GitCommitMode::Action::RevertCommit,
-                           GitCommitMode::Action::RebaseTodo})
+        for(auto action :
+            {GitCommitMode::Action::CommitStaged,
+             GitCommitMode::Action::RevertCommit,
+             GitCommitMode::Action::RebaseTodo})
         {
             for(int topRow : {0, 5})
             {

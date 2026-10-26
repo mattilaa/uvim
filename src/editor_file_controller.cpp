@@ -25,8 +25,9 @@ bool isIdent(char c)
 }
 
 template <size_t N>
-bool extensionIn(std::string_view extension,
-                 const std::array<std::string_view, N>& extensions)
+bool extensionIn(
+    std::string_view extension,
+    const std::array<std::string_view, N>& extensions)
 {
     return std::find(extensions.begin(), extensions.end(), extension) !=
            extensions.end();
@@ -78,8 +79,10 @@ std::string localIncludeFromLine(std::string_view line)
     return std::string(line.substr(pos + 1, end - pos - 1));
 }
 
-fs::path resolveLocalInclude(const fs::path& include, const fs::path& sourceDir,
-                             const fs::path& projectRoot)
+fs::path resolveLocalInclude(
+    const fs::path& include,
+    const fs::path& sourceDir,
+    const fs::path& projectRoot)
 {
     std::error_code ec;
     const std::array candidates = {
@@ -112,8 +115,10 @@ bool sameFile(const fs::path& left, const fs::path& right)
     return leftCanonical == rightCanonical;
 }
 
-bool sourceIncludesHeader(const fs::path& source, const fs::path& header,
-                          const fs::path& projectRoot)
+bool sourceIncludesHeader(
+    const fs::path& source,
+    const fs::path& header,
+    const fs::path& projectRoot)
 {
     std::ifstream in(source);
     if(!in.is_open())
@@ -298,8 +303,9 @@ void EditorFileController::reloadCurrentFile()
     *cursorY = std::min(savedCursorY, (int)lines->size() - 1);
     *cursorX = std::min(savedCursorX, (int)(*lines)[*cursorY].length());
     *offsetX = savedOffsetX;
-    *offsetY = std::min(savedOffsetY,
-                        std::max(0, (int)lines->size() - editor.screenRows));
+    *offsetY = std::min(
+        savedOffsetY,
+        std::max(0, (int)lines->size() - editor.screenRows));
 
     *dirty = false;
     editor.currentBuffer->savedContentHash = hash_lines(*lines);
@@ -391,17 +397,17 @@ std::string EditorFileController::getSymbolUnderCursor()
     return line.substr(l, r - l);
 }
 
-std::string
-EditorFileController::findAlternateFile(const std::string& currentFile)
+std::string EditorFileController::findAlternateFile(
+    const std::string& currentFile)
 {
     if(currentFile.empty())
         return "";
 
-    static constexpr std::array<std::string_view, 6> headerExts = {
-        ".h", ".hpp", ".hxx", ".H", ".HPP", ".HXX"};
+    static constexpr std::array<std::string_view, 6> headerExts =
+        {".h", ".hpp", ".hxx", ".H", ".HPP", ".HXX"};
 
-    static constexpr std::array<std::string_view, 8> sourceExts = {
-        ".cpp", ".cc", ".cxx", ".c", ".C", ".CPP", ".CC", ".CXX"};
+    static constexpr std::array<std::string_view, 8> sourceExts =
+        {".cpp", ".cc", ".cxx", ".c", ".C", ".CPP", ".CC", ".CXX"};
 
     struct DirPair
     {
@@ -561,7 +567,8 @@ EditorFileController::findAlternateFile(const std::string& currentFile)
     {
         std::error_code ec;
         for(fs::recursive_directory_iterator it(projectRoot, ec), end;
-            !ec && it != end; it.increment(ec))
+            !ec && it != end;
+            it.increment(ec))
         {
             if(it->is_directory(ec))
             {

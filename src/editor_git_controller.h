@@ -32,13 +32,14 @@ public:
     // the git diff view.
     void openUnsavedChangesMode();
     // Fresh git log entries (after a commit rewrite changed the hashes).
-    std::vector<editor::statemachine::GitLogMode::Entry>
-    reloadGitLogEntries(const std::string& repoRoot,
-                        const std::string& filePath);
+    std::vector<editor::statemachine::GitLogMode::Entry> reloadGitLogEntries(
+        const std::string& repoRoot,
+        const std::string& filePath);
     // The diff behind :showchanges; empty with `message` set when there is
     // nothing to show.
-    std::vector<std::string> unsavedChangesDiff(std::string& title,
-                                                std::string& message);
+    std::vector<std::string> unsavedChangesDiff(
+        std::string& title,
+        std::string& message);
     void openGitCommitMode();
     void openGitFixupMode();
     void addCurrentBuffer();

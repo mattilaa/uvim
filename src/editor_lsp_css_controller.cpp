@@ -12,8 +12,10 @@ namespace
 mla::log::FileLogger LSP_LOG("CSS");
 }
 
-void Editor::enableCssLspImpl(bool enable, const std::string& serverPath,
-                              const std::vector<std::string>& serverArgs)
+void Editor::enableCssLspImpl(
+    bool enable,
+    const std::string& serverPath,
+    const std::vector<std::string>& serverArgs)
 {
     cssLspEnabled = false;
     this->cssLspPath = serverPath;
@@ -44,7 +46,9 @@ void Editor::enableCssLspImpl(bool enable, const std::string& serverPath,
         args.push_back("--stdio");
 
     lspController->start(
-        "CSS", cssLspClient, cssLspEnabled,
+        "CSS",
+        cssLspClient,
+        cssLspEnabled,
         [path = this->cssLspPath, rootDir, args](LspClient& client)
         { return client.startServer(path, rootDir, args); });
 #else

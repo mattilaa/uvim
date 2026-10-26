@@ -4,8 +4,8 @@
 
 namespace command::execution
 {
-bool ShowChangesCommand::execute(Editor& editor,
-                                 const CommandRequest& request) const
+bool ShowChangesCommand::execute(Editor& editor, const CommandRequest& request)
+    const
 {
     if(request.trimmed != "showchanges")
         return false;

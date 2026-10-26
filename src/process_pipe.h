@@ -32,9 +32,10 @@ public:
         std::function<void(const std::function<bool()>& cancelled)>;
     // Runs `wait` while keeping the UI responsive (progress, queued input).
     // Returns false when the user cancelled.
-    using ForegroundRunner =
-        std::function<bool(const std::string& label, const std::string& channel,
-                           const BlockingWait& wait)>;
+    using ForegroundRunner = std::function<bool(
+        const std::string& label,
+        const std::string& channel,
+        const BlockingWait& wait)>;
 
     // Installs the runner for pipes used on the calling (UI) thread. Pipes
     // used from any other thread, or with no runner, block inline as before.
@@ -99,9 +100,11 @@ public:
         return open(args, "r");
     }
 
-    bool open(const std::vector<std::string>& args, const char* mode,
-              bool mergeStandardError = false,
-              const std::string& workingDirectory = {})
+    bool open(
+        const std::vector<std::string>& args,
+        const char* mode,
+        bool mergeStandardError = false,
+        const std::string& workingDirectory = {})
     {
         close();
         if(args.empty())
@@ -115,9 +118,9 @@ public:
         // launcher; _popen cannot set one without changing the whole editor.
         if(!workingDirectory.empty())
             return false;
-        return openShell(commandLineFromArgs(args) +
-                             (mergeStandardError ? " 2>&1" : ""),
-                         mode);
+        return openShell(
+            commandLineFromArgs(args) + (mergeStandardError ? " 2>&1" : ""),
+            mode);
 #else
         const bool writeMode = mode && mode[0] == 'w';
         std::lock_guard<std::mutex> launchLock(processLaunchMutex());
@@ -276,16 +279,19 @@ public:
             return output;
         if(runsInForeground())
         {
-            foregroundRunner()(foregroundLabel(), foregroundChannel(),
-                               [&](const std::function<bool()>& cancelled)
-                               { output = readAllBlocking(bufferSize, cancelled); });
+            foregroundRunner()(
+                foregroundLabel(),
+                foregroundChannel(),
+                [&](const std::function<bool()>& cancelled)
+                { output = readAllBlocking(bufferSize, cancelled); });
             return output;
         }
         return readAllBlocking(bufferSize, {});
     }
 
-    std::string readAllBlocking(std::size_t bufferSize,
-                                const std::function<bool()>& cancelled)
+    std::string readAllBlocking(
+        std::size_t bufferSize,
+        const std::function<bool()>& cancelled)
     {
         std::string output;
         if(!file)
@@ -356,9 +362,11 @@ public:
         if(pid > 0 && runsInForeground())
         {
             int result = -1;
-            foregroundRunner()(foregroundLabel(), foregroundChannel(),
-                               [&](const std::function<bool()>& cancelled)
-                               { result = closeBlocking(cancelled); });
+            foregroundRunner()(
+                foregroundLabel(),
+                foregroundChannel(),
+                [&](const std::function<bool()>& cancelled)
+                { result = closeBlocking(cancelled); });
             return result;
         }
 #endif
@@ -507,9 +515,15 @@ private:
         if(!shouldLogToolFailure())
             return;
         static mla::log::FileLogger logger("uvim");
-        LOG_ERROR(logger,
-                  "external tool '{}' failed to launch at {}: errno={} ({}) command='{}'",
-                  commandName, stage, err, std::strerror(err), commandLine);
+        LOG_ERROR(
+            logger,
+            "external tool '{}' failed to launch at {}: errno={} ({}) "
+            "command='{}'",
+            commandName,
+            stage,
+            err,
+            std::strerror(err),
+            commandLine);
 #else
         (void)stage;
         (void)err;
@@ -524,8 +538,12 @@ private:
         if(status != 126 && status != 127)
             return;
         static mla::log::FileLogger logger("uvim");
-        LOG_ERROR(logger, "external tool '{}' exited with status {} command='{}'",
-                  commandName, status, commandLine);
+        LOG_ERROR(
+            logger,
+            "external tool '{}' exited with status {} command='{}'",
+            commandName,
+            status,
+            commandLine);
 #else
         (void)status;
 #endif

@@ -21,7 +21,8 @@ void moveCursorLeftForNormalMode(Editor* ed, ModeContext& ctx)
        ctx.cursorY() < (int)ed->lines->size())
     {
         ctx.cursorX() = text_utils::prevUtf8CharStart(
-            (*ed->lines)[ctx.cursorY()], ctx.cursorX());
+            (*ed->lines)[ctx.cursorY()],
+            ctx.cursorX());
     }
     else
     {
@@ -52,7 +53,9 @@ bool isCursorInsideQuote(const std::string& line, int cursorX, char quote)
 bool isCursorInString(const std::string& line, int cursorX)
 {
     return isCursorInsideQuote(
-               line, cursorX, keyChar(command::CommandKey::KEY_DOUBLE_QUOTE)) ||
+               line,
+               cursorX,
+               keyChar(command::CommandKey::KEY_DOUBLE_QUOTE)) ||
            isCursorInsideQuote(line, cursorX, '\'');
 }
 
@@ -166,8 +169,9 @@ void InsertMode::on_exit(ModeContext& ctx)
     Terminal::setCursorBlock();
 }
 
-std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
-                                            const ModeKeyEvent& event)
+std::optional<ModeState> InsertMode::handle(
+    ModeContext& ctx,
+    const ModeKeyEvent& event)
 {
     const int key = event.key;
     Editor* ed = ctx.editor;
@@ -199,14 +203,15 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
         {
             if(!ed->diagnosticPopupFixes.empty())
             {
-                ed->diagnosticPopupFixIndex =
-                    std::min(ed->diagnosticPopupFixIndex + 1,
-                             (int)ed->diagnosticPopupFixes.size() - 1);
+                ed->diagnosticPopupFixIndex = std::min(
+                    ed->diagnosticPopupFixIndex + 1,
+                    (int)ed->diagnosticPopupFixes.size() - 1);
                 int window = std::min(6, (int)ed->diagnosticPopupFixes.size());
                 if(ed->diagnosticPopupFixIndex < ed->diagnosticPopupFixScroll)
                     ed->diagnosticPopupFixScroll = ed->diagnosticPopupFixIndex;
-                else if(ed->diagnosticPopupFixIndex >=
-                        ed->diagnosticPopupFixScroll + window)
+                else if(
+                    ed->diagnosticPopupFixIndex >=
+                    ed->diagnosticPopupFixScroll + window)
                     ed->diagnosticPopupFixScroll =
                         ed->diagnosticPopupFixIndex - window + 1;
                 ed->needsFullRedraw = true;
@@ -224,8 +229,9 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
                 int window = std::min(6, (int)ed->diagnosticPopupFixes.size());
                 if(ed->diagnosticPopupFixIndex < ed->diagnosticPopupFixScroll)
                     ed->diagnosticPopupFixScroll = ed->diagnosticPopupFixIndex;
-                else if(ed->diagnosticPopupFixIndex >=
-                        ed->diagnosticPopupFixScroll + window)
+                else if(
+                    ed->diagnosticPopupFixIndex >=
+                    ed->diagnosticPopupFixScroll + window)
                     ed->diagnosticPopupFixScroll =
                         ed->diagnosticPopupFixIndex - window + 1;
                 ed->needsFullRedraw = true;
@@ -757,8 +763,9 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
                 {
                     line = indentStr + "{";
                     lines.insert(lines.begin() + cursorY + 1, innerIndent);
-                    lines.insert(lines.begin() + cursorY + 2,
-                                 indentStr + "}" + right);
+                    lines.insert(
+                        lines.begin() + cursorY + 2,
+                        indentStr + "}" + right);
                     cursorY += 1;
                     cursorX = static_cast<int>(innerIndent.length());
                 }
@@ -767,8 +774,9 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
                     line = left;
                     lines.insert(lines.begin() + cursorY + 1, indentStr + "{");
                     lines.insert(lines.begin() + cursorY + 2, innerIndent);
-                    lines.insert(lines.begin() + cursorY + 3,
-                                 indentStr + "}" + right);
+                    lines.insert(
+                        lines.begin() + cursorY + 3,
+                        indentStr + "}" + right);
                     cursorY += 2;
                     cursorX = static_cast<int>(innerIndent.length());
                 }
@@ -777,8 +785,9 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
             {
                 line = left + "{";
                 lines.insert(lines.begin() + cursorY + 1, innerIndent);
-                lines.insert(lines.begin() + cursorY + 2,
-                             indentStr + "}" + right);
+                lines.insert(
+                    lines.begin() + cursorY + 2,
+                    indentStr + "}" + right);
                 cursorY += 1;
                 cursorX = static_cast<int>(innerIndent.length());
             }
@@ -835,8 +844,9 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
             if(gtPos < 0 || gtPos >= (int)line.size())
                 return std::nullopt;
 
-            int ltPos = (int)line.rfind(keyChar(command::CommandKey::KEY_LESS),
-                                        (size_t)gtPos);
+            int ltPos = (int)line.rfind(
+                keyChar(command::CommandKey::KEY_LESS),
+                (size_t)gtPos);
             if(text_utils::is_not_found(static_cast<size_t>(ltPos)))
                 return std::nullopt;
 
@@ -912,8 +922,9 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
             {
                 ed->cancelCompletion();
             }
-            else if(ed->completionFromLsp && ed->autoCompletion &&
-                    ed->shouldTriggerCompletion() && !isMarkup)
+            else if(
+                ed->completionFromLsp && ed->autoCompletion &&
+                ed->shouldTriggerCompletion() && !isMarkup)
             {
                 ed->requestCompletion();
             }
@@ -924,26 +935,30 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
         }
         // Auto-trigger completion after keyCode(command::CommandKey::KEY_DOT),
         // '::', or '->'
-        else if(c == keyCode(command::CommandKey::KEY_DOT) && !isMarkup &&
-                !inString)
+        else if(
+            c == keyCode(command::CommandKey::KEY_DOT) && !isMarkup &&
+            !inString)
         {
             ed->triggerCompletion();
         }
-        else if(c == keyCode(command::CommandKey::KEY_COLON) && !isMarkup &&
-                !inString && cursorX >= 2 &&
-                lines[cursorY][cursorX - 2] ==
-                    keyCode(command::CommandKey::KEY_COLON))
+        else if(
+            c == keyCode(command::CommandKey::KEY_COLON) && !isMarkup &&
+            !inString && cursorX >= 2 &&
+            lines[cursorY][cursorX - 2] ==
+                keyCode(command::CommandKey::KEY_COLON))
         {
             ed->triggerCompletion();
         }
-        else if(c == keyCode(command::CommandKey::KEY_GREATER) && !isMarkup &&
-                !inString && cursorX >= 2 &&
-                lines[cursorY][cursorX - 2] ==
-                    keyCode(command::CommandKey::KEY_MINUS))
+        else if(
+            c == keyCode(command::CommandKey::KEY_GREATER) && !isMarkup &&
+            !inString && cursorX >= 2 &&
+            lines[cursorY][cursorX - 2] ==
+                keyCode(command::CommandKey::KEY_MINUS))
         {
             ed->triggerCompletion();
         }
-        else if(ed->autoCompletion && !inString && ed->shouldTriggerCompletion())
+        else if(
+            ed->autoCompletion && !inString && ed->shouldTriggerCompletion())
         {
             bool canAuto = true;
             if(ed->isFileType<FileType::Cpp>())

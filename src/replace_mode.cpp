@@ -29,8 +29,9 @@ void ReplaceMode::on_exit(ModeContext& ctx)
     Terminal::setCursorBlock();
 }
 
-std::optional<ModeState> ReplaceMode::handle(ModeContext& ctx,
-                                             const ModeKeyEvent& event)
+std::optional<ModeState> ReplaceMode::handle(
+    ModeContext& ctx,
+    const ModeKeyEvent& event)
 {
     const int key = event.key;
     Editor* ed = ctx.editor;

@@ -1,7 +1,7 @@
 #include "editor.h"
 #include "editor_utils.h"
-#include "substitute_command.h"
 #include "mode_state_machine.h"
+#include "substitute_command.h"
 #include "terminal.h"
 #include "text_utils.h"
 
@@ -18,57 +18,61 @@ bool CommandMode::updateAssemblyFlagPopup(ModeContext& ctx)
     assembly_compiler::Request request;
     std::string error;
     if(command.rfind(":asm ", 0) == 0 && command.ends_with(" --") &&
-       assembly_compiler::parse(command.substr(5, command.size() - 7), request,
-                                error))
+       assembly_compiler::parse(
+           command.substr(5, command.size() - 7),
+           request,
+           error))
     {
         assemblyFlagPopup = true;
         auto& editor = *ctx.editor;
         editor.commandPopupActive = true;
-        editor.commandPopupAll = {"-O2",
-                                  "-O0",
-                                  "-O1",
-                                  "-O3",
-                                  "-Os",
-                                  "-Og",
-                                  "-g",
-                                  "-fno-inline",
-                                  "-fverbose-asm",
-                                  "-masm=intel",
-                                  "-masm=att",
-                                  "-march=native",
-                                  "-Wall",
-                                  "-Wextra",
-                                  "-std=c++20",
-                                  "-std=c++23",
-                                  "-std=c11",
-                                  "-I ",
-                                  "-D ",
-                                  "--compiler clang",
-                                  "--compiler gcc",
-                                  "--split",
-                                  "--raw"};
+        editor.commandPopupAll =
+            {"-O2",
+             "-O0",
+             "-O1",
+             "-O3",
+             "-Os",
+             "-Og",
+             "-g",
+             "-fno-inline",
+             "-fverbose-asm",
+             "-masm=intel",
+             "-masm=att",
+             "-march=native",
+             "-Wall",
+             "-Wextra",
+             "-std=c++20",
+             "-std=c++23",
+             "-std=c11",
+             "-I ",
+             "-D ",
+             "--compiler clang",
+             "--compiler gcc",
+             "--split",
+             "--raw"};
         const std::string sourcePath =
             request.path == "." && editor.currentBuffer
                 ? editor.currentBuffer->filename
                 : request.path;
         if(assembly_compiler::isMlangSource(sourcePath))
-            editor.commandPopupAll = {"-O2",
-                                      "-O0",
-                                      "-O1",
-                                      "-O3",
-                                      "-Os",
-                                      "-Oz",
-                                      "-Og",
-                                      "-g",
-                                      "--target-arch x64",
-                                      "--target-arch x86",
-                                      "--target-arch aarch64",
-                                      "-Wno-unwrap",
-                                      "-Wno-colon-if",
-                                      "-Wno-colon-while",
-                                      "--compiler mlang",
-                                      "--split",
-                                      "--raw"};
+            editor.commandPopupAll =
+                {"-O2",
+                 "-O0",
+                 "-O1",
+                 "-O3",
+                 "-Os",
+                 "-Oz",
+                 "-Og",
+                 "-g",
+                 "--target-arch x64",
+                 "--target-arch x86",
+                 "--target-arch aarch64",
+                 "-Wno-unwrap",
+                 "-Wno-colon-if",
+                 "-Wno-colon-while",
+                 "--compiler mlang",
+                 "--split",
+                 "--raw"};
         editor.commandPopupFiltered.clear();
         for(int i = 0; i < static_cast<int>(editor.commandPopupAll.size()); ++i)
             editor.commandPopupFiltered.push_back(i);
@@ -99,8 +103,9 @@ void CommandMode::on_enter(ModeContext& ctx)
     if(ctx.editor && ctx.editor->pendingVisualColorRange)
     {
         const auto& range = *ctx.editor->pendingVisualColorRange;
-        assemblySourceRange = std::pair{std::min(range.startY, range.endY) + 1,
-                                        std::max(range.startY, range.endY) + 1};
+        assemblySourceRange = std::pair{
+            std::min(range.startY, range.endY) + 1,
+            std::max(range.startY, range.endY) + 1};
     }
 #endif
     ctx.commandBuffer = ":" + initialInput;
@@ -140,8 +145,9 @@ void CommandMode::on_exit(ModeContext& ctx)
     }
 }
 
-std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
-                                             const ModeKeyEvent& event)
+std::optional<ModeState> CommandMode::handle(
+    ModeContext& ctx,
+    const ModeKeyEvent& event)
 {
     const int key = event.key;
     int c = keyCode(key);
@@ -344,7 +350,8 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
                 std::string_view query =
                     std::string_view(ctx.commandBuffer).substr(1);
                 bool hasSpace = text_utils::contains(
-                    query, keyChar(control::ControlKey::SPACE));
+                    query,
+                    keyChar(control::ControlKey::SPACE));
                 auto starts_with_ci = [&](std::string_view text,
                                           std::string_view prefix) -> bool
                 {
@@ -376,14 +383,15 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
                 bool shouldReplace = query.empty();
                 if(!hasSpace && !shouldReplace)
                 {
-                    shouldReplace =
-                        !text_utils::contains(
-                            *selection, keyChar(control::ControlKey::SPACE)) &&
-                        starts_with_ci(*selection, query);
+                    shouldReplace = !text_utils::contains(
+                                        *selection,
+                                        keyChar(control::ControlKey::SPACE)) &&
+                                    starts_with_ci(*selection, query);
                 }
-                else if(hasSpace &&
-                        text_utils::contains(
-                            *selection, keyChar(control::ControlKey::SPACE)))
+                else if(
+                    hasSpace && text_utils::contains(
+                                    *selection,
+                                    keyChar(control::ControlKey::SPACE)))
                 {
                     shouldReplace = true;
                 }
@@ -418,7 +426,8 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
 #endif
             if(ctx.editor && ctx.editor->getModeStateMachine())
             {
-#if defined(UVIM_ENABLE_GIT_TOOLS) || defined(UVIM_ENABLE_AUXILIARY_VIEWS) || defined(UVIM_ENABLE_COLOR_TOOLS)
+#if defined(UVIM_ENABLE_GIT_TOOLS) || defined(UVIM_ENABLE_AUXILIARY_VIEWS) ||  \
+    defined(UVIM_ENABLE_COLOR_TOOLS)
                 const ModeState& state =
                     ctx.editor->getModeStateMachine()->state();
 #endif
@@ -455,7 +464,9 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
             {
 #ifdef UVIM_ENABLE_DEBUGGER
                 if(mode == DEBUGGER)
-                    return DebuggerMode{path.substr(2), path.rfind("a ", 0) == 0};
+                    return DebuggerMode{
+                        path.substr(2),
+                        path.rfind("a ", 0) == 0};
 #endif
 #ifdef UVIM_ENABLE_ASM_VIEW
                 if(mode == ASSEMBLY)
@@ -737,10 +748,12 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
             ctx.moveCommandPopupCursor(-1);
             if(auto selection = ctx.commandPopupSelection())
             {
-                if(!text_utils::contains(ctx.commandBuffer,
-                                         keyChar(control::ControlKey::SPACE)) ||
-                   text_utils::contains(*selection,
-                                        keyChar(control::ControlKey::SPACE)))
+                if(!text_utils::contains(
+                       ctx.commandBuffer,
+                       keyChar(control::ControlKey::SPACE)) ||
+                   text_utils::contains(
+                       *selection,
+                       keyChar(control::ControlKey::SPACE)))
                 {
                     ctx.commandBuffer = ":" + *selection;
                 }
@@ -756,10 +769,12 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
             ctx.moveCommandPopupCursor(1);
             if(auto selection = ctx.commandPopupSelection())
             {
-                if(!text_utils::contains(ctx.commandBuffer,
-                                         keyChar(control::ControlKey::SPACE)) ||
-                   text_utils::contains(*selection,
-                                        keyChar(control::ControlKey::SPACE)))
+                if(!text_utils::contains(
+                       ctx.commandBuffer,
+                       keyChar(control::ControlKey::SPACE)) ||
+                   text_utils::contains(
+                       *selection,
+                       keyChar(control::ControlKey::SPACE)))
                 {
                     ctx.commandBuffer = ":" + *selection;
                 }
@@ -835,8 +850,8 @@ void CommandMode::handleTabCompletion(ModeContext& ctx)
 {
     std::string input = ctx.commandBuffer.substr(
         1); // Remove keyCode(command::CommandKey::KEY_COLON)
-    if(command::execution::isSubstituteCommand(input) &&
-       input != "s" && input != "substitute")
+    if(command::execution::isSubstituteCommand(input) && input != "s" &&
+       input != "substitute")
         return;
     bool wholeCompletion = false;
     bool helpCompletion = false;
@@ -901,10 +916,11 @@ void CommandMode::handleTabCompletion(ModeContext& ctx)
                     completions = ctx.getHelpCompletions(pathPart);
                     helpCompletion = true;
                 }
-                else if(cmd == "e" || cmd == "edit" || cmd == "tabe" ||
-                        cmd == "tabnew"
+                else if(
+                    cmd == "e" || cmd == "edit" || cmd == "tabe" ||
+                    cmd == "tabnew"
 #ifdef UVIM_ENABLE_DEBUGGER
-                        || cmd == "dbgrun"
+                    || cmd == "dbgrun"
 #endif
                 )
                 {
@@ -940,8 +956,8 @@ void CommandMode::handleTabCompletion(ModeContext& ctx)
                     completions.insert(completions.begin(), input);
                     helpCompletion = true;
                 }
-                else if(input == "loc" || input == "loc!" ||
-                        input == "loctotal")
+                else if(
+                    input == "loc" || input == "loc!" || input == "loctotal")
                 {
                     completions = ctx.getLocPathCompletions("");
                     if(completions.empty())
@@ -949,8 +965,9 @@ void CommandMode::handleTabCompletion(ModeContext& ctx)
                     locCompletionLocal = true;
                     locCommandLocal = input;
                 }
-                else if(input == "e" || input == "edit" || input == "tabe" ||
-                        input == "tabnew")
+                else if(
+                    input == "e" || input == "edit" || input == "tabe" ||
+                    input == "tabnew")
                 {
                     completions = ctx.getPathCompletionsRecursive("");
                 }
@@ -992,17 +1009,17 @@ void CommandMode::handleTabCompletion(ModeContext& ctx)
         return;
     }
 
-        if(helpCompletion || originalInput.rfind("help", 0) == 0 ||
-           originalInput.rfind("h", 0) == 0)
+    if(helpCompletion || originalInput.rfind("help", 0) == 0 ||
+       originalInput.rfind("h", 0) == 0)
+    {
+        if(completions[completionIndex] == "help" ||
+           completions[completionIndex] == "h")
         {
-            if(completions[completionIndex] == "help" ||
-               completions[completionIndex] == "h")
-            {
-                input = completions[completionIndex];
-                return;
-            }
-            std::string cmd = (originalInput.rfind("h", 0) == 0 &&
-                               originalInput.rfind("help", 0) != 0)
+            input = completions[completionIndex];
+            return;
+        }
+        std::string cmd = (originalInput.rfind("h", 0) == 0 &&
+                           originalInput.rfind("help", 0) != 0)
                               ? "h"
                               : "help";
         ctx.commandBuffer = ":" + cmd + " " + completions[completionIndex];

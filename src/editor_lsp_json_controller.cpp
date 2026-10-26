@@ -12,8 +12,10 @@ namespace
 mla::log::FileLogger LSP_LOG("JSON");
 }
 
-void Editor::enableJsonLspImpl(bool enable, const std::string& serverPath,
-                               const std::vector<std::string>& serverArgs)
+void Editor::enableJsonLspImpl(
+    bool enable,
+    const std::string& serverPath,
+    const std::vector<std::string>& serverArgs)
 {
     jsonLspEnabled = false;
     this->jsonLspPath = serverPath;
@@ -44,7 +46,9 @@ void Editor::enableJsonLspImpl(bool enable, const std::string& serverPath,
         args.push_back("--stdio");
 
     lspController->start(
-        "JSON", jsonLspClient, jsonLspEnabled,
+        "JSON",
+        jsonLspClient,
+        jsonLspEnabled,
         [path = this->jsonLspPath, rootDir, args](LspClient& client)
         { return client.startServer(path, rootDir, args); });
 #else

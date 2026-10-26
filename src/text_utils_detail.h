@@ -28,8 +28,10 @@ public:
 
         iterator() = default;
 
-        iterator(std::string_view text, std::string_view needle,
-                 std::size_t pos) noexcept
+        iterator(
+            std::string_view text,
+            std::string_view needle,
+            std::size_t pos) noexcept
             : text(text), needle(needle), pos(pos)
         {
             findNext(pos);
@@ -58,15 +60,13 @@ public:
             return old;
         }
 
-        friend bool operator==(const iterator& a,
-                               const iterator& b) noexcept
+        friend bool operator==(const iterator& a, const iterator& b) noexcept
         {
             return a.pos == b.pos && a.text.data() == b.text.data() &&
                    a.text.size() == b.text.size();
         }
 
-        friend bool operator!=(const iterator& a,
-                               const iterator& b) noexcept
+        friend bool operator!=(const iterator& a, const iterator& b) noexcept
         {
             return !(a == b);
         }

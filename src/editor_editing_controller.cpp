@@ -838,13 +838,17 @@ bool Editor::moveLineBlock(int startY, int endY, int delta)
     {
         if(delta < 0)
         {
-            std::rotate(values.begin() + startY - 1, values.begin() + startY,
-                        values.begin() + endY + 1);
+            std::rotate(
+                values.begin() + startY - 1,
+                values.begin() + startY,
+                values.begin() + endY + 1);
         }
         else
         {
-            std::rotate(values.begin() + startY, values.begin() + endY + 1,
-                        values.begin() + endY + 2);
+            std::rotate(
+                values.begin() + startY,
+                values.begin() + endY + 1,
+                values.begin() + endY + 2);
         }
     };
 
@@ -927,8 +931,10 @@ void Editor::repeatLastChangeImpl(int times)
             for(char ch : countStr)
                 sequence.push_back(static_cast<unsigned char>(ch));
         }
-        sequence.insert(sequence.end(), lastChangeKeys.begin(),
-                        lastChangeKeys.end());
+        sequence.insert(
+            sequence.end(),
+            lastChangeKeys.begin(),
+            lastChangeKeys.end());
         for(auto it = sequence.rbegin(); it != sequence.rend(); ++it)
             Terminal::unreadKey(*it);
     }
@@ -1010,9 +1016,11 @@ void Editor::handleLinewiseOperatorImpl(char op, int count)
         break;
     case keyCode(typed::TypedKey::KEY_Y):
     {
-        LOG_DEBUG(LOG,
-                  "handleLinewiseOperator: yy detected, count={}, cursorY={}",
-                  count, *cursorY);
+        LOG_DEBUG(
+            LOG,
+            "handleLinewiseOperator: yy detected, count={}, cursorY={}",
+            count,
+            *cursorY);
         yankBuffer.clear();
         int endLine = std::min(*cursorY + count, (int)lines->size());
         for(int y = *cursorY; y < endLine; y++)
@@ -1020,16 +1028,19 @@ void Editor::handleLinewiseOperatorImpl(char op, int count)
             yankBuffer += (*lines)[y] + "\n";
         }
 
-        LOG_DEBUG(LOG,
-                  "handleLinewiseOperator: yankBuffer.length()={}, "
-                  "useSystemClipboard={}",
-                  yankBuffer.length(), useSystemClipboard);
+        LOG_DEBUG(
+            LOG,
+            "handleLinewiseOperator: yankBuffer.length()={}, "
+            "useSystemClipboard={}",
+            yankBuffer.length(),
+            useSystemClipboard);
 
         std::string msg = std::to_string(count) + " lines yanked";
         if(useSystemClipboard && !yankBuffer.empty())
         {
-            LOG_DEBUG(LOG,
-                      "handleLinewiseOperator: calling setSystemClipboard");
+            LOG_DEBUG(
+                LOG,
+                "handleLinewiseOperator: calling setSystemClipboard");
             setSystemClipboard(yankBuffer);
             msg += " (copied to clipboard)";
         }

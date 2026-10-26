@@ -17,8 +17,8 @@ void EditorCommandController::executeCommand(std::string_view cmd)
         editor.commandHistoryIndex = -1;
     }
 
-    command::execution::CommandRequest request{std::string(cmd),
-                                               editor::helper::trim_view(cmd)};
+    command::execution::CommandRequest
+        request{std::string(cmd), editor::helper::trim_view(cmd)};
     static const std::vector<
         std::unique_ptr<command::execution::EditorExecutionCommand>>
         commands = command::execution::buildCommands();

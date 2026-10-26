@@ -128,8 +128,10 @@ ModeState exitState(ModeContext& ctx)
     return ctx.hasBuffer() ? ModeState{NormalMode{}} : ModeState{WelcomeMode{}};
 }
 
-void insertSelectedGlyph(ModeContext& ctx, const GlyphEntry& entry,
-                         bool& insertedDuringSession)
+void insertSelectedGlyph(
+    ModeContext& ctx,
+    const GlyphEntry& entry,
+    bool& insertedDuringSession)
 {
     if(!ctx.editor || !ctx.editor->hasBuffer())
         return;
@@ -158,8 +160,12 @@ void insertSelectedGlyph(ModeContext& ctx, const GlyphEntry& entry,
     ctx.setStatusMessage("inserted glyph " + std::string(entry.glyph));
 }
 
-void appendCell(std::string& out, const Theme& theme, const GlyphEntry& entry,
-                bool selected, int width)
+void appendCell(
+    std::string& out,
+    const Theme& theme,
+    const GlyphEntry& entry,
+    bool selected,
+    int width)
 {
     out += selected ? theme.selection() : theme.baseFg();
     out += selected ? "> " : "  ";
@@ -201,21 +207,28 @@ void GlyphSelectMode::clampToVisible(int columns, int visibleRows)
     rowOffset = std::clamp(rowOffset, 0, maxOffset);
 }
 
-std::optional<ModeState> GlyphSelectMode::handle(ModeContext& ctx,
-                                                 const ModeKeyEvent& event)
+std::optional<ModeState> GlyphSelectMode::handle(
+    ModeContext& ctx,
+    const ModeKeyEvent& event)
 {
     const int c = keyCode(event.key);
     const int width = popupWidth(ctx.screenCols());
     const int columns = popupColumns(std::max(1, width - 4));
-    const int visibleRows =
-        widgets::visibleRowsForCursorPopup(ctx, width,
-                                           popupHeight(ctx.screenRows()), 4);
+    const int visibleRows = widgets::visibleRowsForCursorPopup(
+        ctx,
+        width,
+        popupHeight(ctx.screenRows()),
+        4);
 
     if(widgets::moveEditorCursorForPopup(ctx, c))
     {
-        clampToVisible(columns,
-                       widgets::visibleRowsForCursorPopup(
-                           ctx, width, popupHeight(ctx.screenRows()), 4));
+        clampToVisible(
+            columns,
+            widgets::visibleRowsForCursorPopup(
+                ctx,
+                width,
+                popupHeight(ctx.screenRows()),
+                4));
         requestBackdropRedraw(ctx);
         return std::nullopt;
     }
@@ -266,8 +279,10 @@ std::optional<ModeState> GlyphSelectMode::handle(ModeContext& ctx,
 
     if(c == keyCode(typed::TypedKey::KEY_A))
     {
-        insertSelectedGlyph(ctx, kGlyphs[(std::size_t)cursor],
-                            insertedDuringSession);
+        insertSelectedGlyph(
+            ctx,
+            kGlyphs[(std::size_t)cursor],
+            insertedDuringSession);
         requestBackdropRedraw(ctx);
         return std::nullopt;
     }
@@ -275,8 +290,10 @@ std::optional<ModeState> GlyphSelectMode::handle(ModeContext& ctx,
     if(c == keyCode(control::ControlKey::ENTER) ||
        c == keyCode(control::ControlKey::CTRL_M))
     {
-        insertSelectedGlyph(ctx, kGlyphs[(std::size_t)cursor],
-                            insertedDuringSession);
+        insertSelectedGlyph(
+            ctx,
+            kGlyphs[(std::size_t)cursor],
+            insertedDuringSession);
         ctx.requestFullRedraw();
         return exitState(ctx);
     }
@@ -290,8 +307,10 @@ void GlyphSelectMode::draw(Editor& editor)
 
     const int width = popupWidth(editor.screenCols);
     const widgets::PopupPlacement placement =
-        widgets::placePopupNearEditorCursor(editor, width,
-                                            popupHeight(editor.screenRows));
+        widgets::placePopupNearEditorCursor(
+            editor,
+            width,
+            popupHeight(editor.screenRows));
     const int height = placement.height;
     const int top = placement.top;
     const int left = placement.left;
@@ -314,8 +333,10 @@ void GlyphSelectMode::draw(Editor& editor)
     moveTo(top, left);
     output += editor.theme.uiDim();
     text_utils::appendU8(output, ascii::BOX_ROUNDED_TOP_LEFT);
-    text_utils::appendUtf8Repeat(output, ascii::BOX_LIGHT_HORIZONTAL,
-                                 innerWidth);
+    text_utils::appendUtf8Repeat(
+        output,
+        ascii::BOX_LIGHT_HORIZONTAL,
+        innerWidth);
     text_utils::appendU8(output, ascii::BOX_ROUNDED_TOP_RIGHT);
 
     moveTo(top + 1, left);
@@ -340,8 +361,12 @@ void GlyphSelectMode::draw(Editor& editor)
             const int index = glyphRow * columns + col;
             if(index < glyphCount())
             {
-                appendCell(output, editor.theme, kGlyphs[(std::size_t)index],
-                           index == cursor, cellWidth);
+                appendCell(
+                    output,
+                    editor.theme,
+                    kGlyphs[(std::size_t)index],
+                    index == cursor,
+                    cellWidth);
             }
             else
             {
@@ -360,17 +385,23 @@ void GlyphSelectMode::draw(Editor& editor)
     output += editor.theme.uiDim();
     text_utils::appendU8(output, ascii::BOX_LIGHT_VERTICAL);
     char footer[112];
-    std::snprintf(footer, sizeof(footer),
-                  " h/j/k/l select  C-h/j/k/l cursor  a insert  Enter insert+close  q/Esc cancel  %d/%zu",
-                  cursor + 1, kGlyphs.size());
+    std::snprintf(
+        footer,
+        sizeof(footer),
+        " h/j/k/l select  C-h/j/k/l cursor  a insert  Enter insert+close  "
+        "q/Esc cancel  %d/%zu",
+        cursor + 1,
+        kGlyphs.size());
     appendPadded(output, footer, innerWidth);
     output += editor.theme.uiDim();
     text_utils::appendU8(output, ascii::BOX_LIGHT_VERTICAL);
 
     moveTo(top + height - 1, left);
     text_utils::appendU8(output, ascii::BOX_ROUNDED_BOTTOM_LEFT);
-    text_utils::appendUtf8Repeat(output, ascii::BOX_LIGHT_HORIZONTAL,
-                                 innerWidth);
+    text_utils::appendUtf8Repeat(
+        output,
+        ascii::BOX_LIGHT_HORIZONTAL,
+        innerWidth);
     text_utils::appendU8(output, ascii::BOX_ROUNDED_BOTTOM_RIGHT);
     output += editor.theme.reset();
     output += Terminal::cursorPos(cursorRow, cursorCol);

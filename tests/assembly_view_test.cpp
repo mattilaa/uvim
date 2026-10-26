@@ -28,19 +28,21 @@ bool waitFor(Editor& editor, const std::function<bool()>& ready)
     return true;
 }
 
-std::string fakeCommand(const std::filesystem::path& root,
-                        std::string flags = "")
+std::string fakeCommand(
+    const std::filesystem::path& root,
+    std::string flags = "")
 {
     return "asm . --compiler \"" UVIM_TEST_ASSEMBLY_COMPILER
            "\" --uvim-test-dir \"" +
            root.string() + "\" " + flags;
 }
 
-void writeDatabase(const std::filesystem::path& path,
-                   const std::filesystem::path& directory,
-                   const std::string& file,
-                   const std::vector<std::string>& arguments,
-                   const std::string& command = {})
+void writeDatabase(
+    const std::filesystem::path& path,
+    const std::filesystem::path& directory,
+    const std::string& file,
+    const std::vector<std::string>& arguments,
+    const std::string& command = {})
 {
     json_utils::Document database(json_utils::kArrayType);
     auto& alloc = database.GetAllocator();
@@ -93,18 +95,22 @@ TEST(AssemblyArgumentsTest, PreservesCompilerFlagsAndQuotedPaths)
 {
     assembly_compiler::Request request;
     std::string error;
-    ASSERT_TRUE(assembly_compiler::parse(
-        R"("my source.cpp" --compiler "C:\Program Files\LLVM\bin\clang++.exe" -O2 -I "include directory" -DVALUE=7)",
-        request, error));
+    ASSERT_TRUE(
+        assembly_compiler::parse(
+            R"("my source.cpp" --compiler "C:\Program Files\LLVM\bin\clang++.exe" -O2 -I "include directory" -DVALUE=7)",
+            request,
+            error));
     EXPECT_EQ(request.path, "my source.cpp");
     EXPECT_EQ(request.compiler, R"(C:\Program Files\LLVM\bin\clang++.exe)");
-    EXPECT_EQ(request.flags,
-              (std::vector<std::string>{"-O2", "-I", "include directory",
-                                        "-DVALUE=7"}));
+    EXPECT_EQ(
+        request.flags,
+        (std::vector<
+            std::string>{"-O2", "-I", "include directory", "-DVALUE=7"}));
     ASSERT_TRUE(assembly_compiler::parse("-O3 -I include", request, error));
     EXPECT_EQ(request.path, ".");
-    EXPECT_EQ(request.flags,
-              (std::vector<std::string>{"-O3", "-I", "include"}));
+    EXPECT_EQ(
+        request.flags,
+        (std::vector<std::string>{"-O3", "-I", "include"}));
     ASSERT_TRUE(assembly_compiler::parse(". --raw -- -O2 -g", request, error));
     EXPECT_TRUE(request.raw);
     EXPECT_EQ(request.flags, (std::vector<std::string>{"-O2", "-g"}));
@@ -115,8 +121,9 @@ TEST(AssemblyArgumentsTest, PreservesCompilerFlagsAndQuotedPaths)
     EXPECT_FALSE(assembly_compiler::parse("\"unclosed", request, error));
 }
 
-TEST_F(AssemblyViewTest,
-       CompilesSnapshotAndPassesArgumentsWithoutChangingBuffer)
+TEST_F(
+    AssemblyViewTest,
+    CompilesSnapshotAndPassesArgumentsWithoutChangingBuffer)
 {
     write_file(root / "source.cpp", "disk version must stay unchanged\n");
     const auto originalDiskContents = read_file(root / "source.cpp");
@@ -130,8 +137,9 @@ TEST_F(AssemblyViewTest,
     ASSERT_STREQ(sm.currentStateName(), "ASM");
     auto* view = sm.getState<AssemblyMode>();
     ASSERT_NE(view, nullptr);
-    ASSERT_TRUE(waitFor(editor, [&]
-                        { return std::filesystem::exists(root / "started"); }));
+    ASSERT_TRUE(waitFor(
+        editor,
+        [&] { return std::filesystem::exists(root / "started"); }));
     EXPECT_TRUE(view->content->compiling);
     write_file(root / "release", "");
     ASSERT_TRUE(waitFor(editor, [&] { return !view->content->compiling; }));
@@ -140,8 +148,9 @@ TEST_F(AssemblyViewTest,
     const auto args = read_file(root / "arguments");
     EXPECT_NE(args.find("-O2\n-I\ninclude directory\n"), std::string::npos);
     EXPECT_EQ(args.find("-O0"), std::string::npos);
-    EXPECT_NE(read_file(root / "source").find("return x + 7"),
-              std::string::npos);
+    EXPECT_NE(
+        read_file(root / "source").find("return x + 7"),
+        std::string::npos);
     EXPECT_EQ(editor.currentBuffer, source);
     EXPECT_EQ(editor.buffers.size(), 1u);
     EXPECT_TRUE(*editor.dirty);
@@ -152,8 +161,9 @@ TEST_F(AssemblyViewTest,
     sm.dispatch('k');
     EXPECT_EQ(view->cursor, 0);
     sm.dispatch('G');
-    EXPECT_EQ(view->cursor,
-              static_cast<int>(view->content->result.lines.size()) - 1);
+    EXPECT_EQ(
+        view->cursor,
+        static_cast<int>(view->content->result.lines.size()) - 1);
     sm.dispatch('g');
     sm.dispatch('l');
     EXPECT_GT(view->horizontal, 0);
@@ -203,15 +213,35 @@ TEST_F(AssemblyViewTest, InheritsMatchingBuildDatabaseAndPromptOverridesIt)
     const auto object = build / "original.o";
     const auto dependencies = build / "original.d";
     // An unrelated nearer database must not supply another file's flags.
-    writeDatabase(root / "compile_commands.json", root, "other.cpp",
-                  {UVIM_TEST_ASSEMBLY_COMPILER, "-DWRONG_FILE=1"});
-    writeDatabase(build / "compile_commands.json", build, "../source.cpp",
-                  {UVIM_TEST_ASSEMBLY_COMPILER, "-O0", "-std=c++17",
-                   "-DVALUE=1", "-D", "KEEP=7", "-I", "../project include",
-                   "-c", "../source.cpp", "-o", object.string(), "-MMD", "-MF",
-                   dependencies.string(), "-MToriginal.o", "-MJfragment.json",
-                   "--uvim-test-dir", root.string()},
-                  "this command must be ignored in favor of arguments");
+    writeDatabase(
+        root / "compile_commands.json",
+        root,
+        "other.cpp",
+        {UVIM_TEST_ASSEMBLY_COMPILER, "-DWRONG_FILE=1"});
+    writeDatabase(
+        build / "compile_commands.json",
+        build,
+        "../source.cpp",
+        {UVIM_TEST_ASSEMBLY_COMPILER,
+         "-O0",
+         "-std=c++17",
+         "-DVALUE=1",
+         "-D",
+         "KEEP=7",
+         "-I",
+         "../project include",
+         "-c",
+         "../source.cpp",
+         "-o",
+         object.string(),
+         "-MMD",
+         "-MF",
+         dependencies.string(),
+         "-MToriginal.o",
+         "-MJfragment.json",
+         "--uvim-test-dir",
+         root.string()},
+        "this command must be ignored in favor of arguments");
     write_file(object, "original object");
     write_file(dependencies, "original dependencies");
     auto sm = makeMachine(editor, NormalMode{});
@@ -221,8 +251,9 @@ TEST_F(AssemblyViewTest, InheritsMatchingBuildDatabaseAndPromptOverridesIt)
     ASSERT_TRUE(waitFor(editor, [&] { return !view->content->compiling; }));
     ASSERT_TRUE(view->content->result.success)
         << view->content->result.diagnostics;
-    EXPECT_EQ(view->content->result.compilationDatabase,
-              (build / "compile_commands.json").string());
+    EXPECT_EQ(
+        view->content->result.compilationDatabase,
+        (build / "compile_commands.json").string());
     const auto args = read_file(root / "arguments");
     EXPECT_EQ(args.find("-O0\n"), std::string::npos);
     EXPECT_EQ(args.find("-std=c++17\n"), std::string::npos);
@@ -238,8 +269,9 @@ TEST_F(AssemblyViewTest, InheritsMatchingBuildDatabaseAndPromptOverridesIt)
     EXPECT_EQ(read_file(dependencies), "original dependencies");
     EXPECT_TRUE(
         std::filesystem::equivalent(read_file(root / "directory"), build));
-    EXPECT_NE(read_file(root / "source").find("return x + 7"),
-              std::string::npos);
+    EXPECT_NE(
+        read_file(root / "source").find("return x + 7"),
+        std::string::npos);
     sm.dispatch('q');
 }
 
@@ -265,8 +297,10 @@ TEST_F(AssemblyViewTest, ReadsQuotedCommandResponseFilesAndExplicitCompiler)
     ASSERT_TRUE(view->content->result.success)
         << view->content->result.diagnostics;
     EXPECT_EQ(view->content->result.compilationDatabase, database.string());
-    EXPECT_TRUE(std::filesystem::equivalent(view->content->result.compiler,
-                                           UVIM_TEST_ASSEMBLY_COMPILER));
+    EXPECT_TRUE(
+        std::filesystem::equivalent(
+            view->content->result.compiler,
+            UVIM_TEST_ASSEMBLY_COMPILER));
     const auto args = read_file(root / "arguments");
     EXPECT_NE(args.find("-O1\n"), std::string::npos);
     EXPECT_EQ(args.find("-std="), std::string::npos);
@@ -277,11 +311,15 @@ TEST_F(AssemblyViewTest, ReadsQuotedCommandResponseFilesAndExplicitCompiler)
     sm.dispatch('q');
 }
 
-TEST_F(AssemblyViewTest,
-       UnmatchedDatabaseFallsBackAndMalformedDatabaseReportsError)
+TEST_F(
+    AssemblyViewTest,
+    UnmatchedDatabaseFallsBackAndMalformedDatabaseReportsError)
 {
-    writeDatabase(root / "compile_commands.json", root, "other.cpp",
-                  {"missing-compiler", "-DWRONG_FILE=1"});
+    writeDatabase(
+        root / "compile_commands.json",
+        root,
+        "other.cpp",
+        {"missing-compiler", "-DWRONG_FILE=1"});
     auto sm = makeMachine(editor, NormalMode{});
     dispatch_command(sm, fakeCommand(root));
     auto* view = sm.getState<AssemblyMode>();
@@ -289,8 +327,9 @@ TEST_F(AssemblyViewTest,
     ASSERT_TRUE(waitFor(editor, [&] { return !view->content->compiling; }));
     EXPECT_TRUE(view->content->result.success);
     EXPECT_TRUE(view->content->result.compilationDatabase.empty());
-    EXPECT_EQ(read_file(root / "arguments").find("WRONG_FILE"),
-              std::string::npos);
+    EXPECT_EQ(
+        read_file(root / "arguments").find("WRONG_FILE"),
+        std::string::npos);
     sm.dispatch('q');
     write_file(root / "compile_commands.json", "[");
     dispatch_command(sm, fakeCommand(root));
@@ -318,11 +357,28 @@ TEST_F(AssemblyViewTest, RealCompilerUsesDatabaseAndPromptIncludeDirectories)
     write_file(root / "local.h", "#define LOCAL 9\n");
     write_file(root / "db include" / "local.h", "#define LOCAL 0\n");
     write_file(build / "config.h", "#define CONFIGURED 1\n");
-    writeDatabase(build / "compile_commands.json", build, "../source.cpp",
-                  {compiler.path, "-std=c++11", "-O0", "-Werror", "-DVALUE=1",
-                   "-I", "../db include", "-iquote", "../db include",
-                   "-include", "config.h", "-c", "../source.cpp", "-o",
-                   "original.o", "-MMD", "-MF", "original.d"});
+    writeDatabase(
+        build / "compile_commands.json",
+        build,
+        "../source.cpp",
+        {compiler.path,
+         "-std=c++11",
+         "-O0",
+         "-Werror",
+         "-DVALUE=1",
+         "-I",
+         "../db include",
+         "-iquote",
+         "../db include",
+         "-include",
+         "config.h",
+         "-c",
+         "../source.cpp",
+         "-o",
+         "original.o",
+         "-MMD",
+         "-MF",
+         "original.d"});
     assembly_compiler::Request request;
     request.path = (root / "source.cpp").string();
     request.directory = root.string();
@@ -339,14 +395,17 @@ TEST_F(AssemblyViewTest, RealCompilerUsesDatabaseAndPromptIncludeDirectories)
     const auto result =
         assembly_compiler::compile(request, [] { return false; });
     ASSERT_TRUE(result.success) << result.diagnostics;
-    EXPECT_EQ(result.compilationDatabase,
-              (build / "compile_commands.json").string());
+    EXPECT_EQ(
+        result.compilationDatabase,
+        (build / "compile_commands.json").string());
     EXPECT_EQ(result.options.find("-O0"), std::string::npos);
     EXPECT_FALSE(std::filesystem::exists(build / "original.o"));
     EXPECT_FALSE(std::filesystem::exists(build / "original.d"));
-    EXPECT_TRUE(std::any_of(result.sourceLineForAssembly.begin(),
-                            result.sourceLineForAssembly.end(),
-                            [](int line) { return line > 0; }));
+    EXPECT_TRUE(
+        std::any_of(
+            result.sourceLineForAssembly.begin(),
+            result.sourceLineForAssembly.end(),
+            [](int line) { return line > 0; }));
 }
 
 TEST_F(AssemblyViewTest, EscapeCancelsFlagPickerAndCommandWithoutCompiling)
@@ -387,8 +446,9 @@ TEST_F(AssemblyViewTest, CanExitWhileCompilerIsBlocked)
     dispatch_command(sm, fakeCommand(root));
     ASSERT_NE(sm.getState<AssemblyMode>(), nullptr);
     auto state = sm.getState<AssemblyMode>()->content;
-    ASSERT_TRUE(waitFor(editor, [&]
-                        { return std::filesystem::exists(root / "started"); }));
+    ASSERT_TRUE(waitFor(
+        editor,
+        [&] { return std::filesystem::exists(root / "started"); }));
     const auto start = std::chrono::steady_clock::now();
     sm.dispatch(keyCode(control::ControlKey::ESC));
     EXPECT_LT(std::chrono::steady_clock::now() - start, 500ms);
@@ -411,21 +471,24 @@ TEST_F(AssemblyViewTest, DisplaysCompilerErrorsAndMissingExecutable)
     ASSERT_NE(view, nullptr);
     ASSERT_TRUE(waitFor(editor, [&] { return !view->content->compiling; }));
     EXPECT_FALSE(view->content->result.success);
-    EXPECT_NE(view->content->result.diagnostics.find(
-                  "compiler error: invalid source"),
-              std::string::npos);
+    EXPECT_NE(
+        view->content->result.diagnostics.find(
+            "compiler error: invalid source"),
+        std::string::npos);
     testing::internal::CaptureStdout();
     view->draw(editor);
     const auto output = testing::internal::GetCapturedStdout();
     EXPECT_NE(output.find("compiler error: invalid source"), std::string::npos);
     sm.dispatch('q');
-    dispatch_command(sm, "asm . --compiler \"" +
-                             (root / "missing compiler").string() + "\"");
+    dispatch_command(
+        sm,
+        "asm . --compiler \"" + (root / "missing compiler").string() + "\"");
     view = sm.getState<AssemblyMode>();
     ASSERT_NE(view, nullptr);
     ASSERT_TRUE(waitFor(editor, [&] { return !view->content->compiling; }));
-    EXPECT_NE(view->content->result.diagnostics.find("compiler not found"),
-              std::string::npos);
+    EXPECT_NE(
+        view->content->result.diagnostics.find("compiler not found"),
+        std::string::npos);
     sm.dispatch('q');
 }
 
@@ -438,22 +501,24 @@ TEST_F(AssemblyViewTest, RendersNumberedHighlightedRowsAndInspection)
     ASSERT_TRUE(waitFor(editor, [&] { return !view->content->compiling; }));
     ASSERT_TRUE(view->content->result.success);
     // Stable architecture-independent fixture for code colors and docs.
-    view->content->result.lines = {"example:", "    movq %rdi, %rax",
-                                   "    retq"};
+    view->content->result
+        .lines = {"example:", "    movq %rdi, %rax", "    retq"};
     view->content->result.sourceLineForAssembly = {0, 1, 1};
-    view->content->result.sourceOrigins = {
-        {view->content->result.sourcePath, 1, true},
-        {view->content->result.sourcePath, 1, true},
-        {view->content->result.sourcePath, 1, true}};
+    view->content->result.sourceOrigins =
+        {{view->content->result.sourcePath, 1, true},
+         {view->content->result.sourcePath, 1, true},
+         {view->content->result.sourcePath, 1, true}};
     testing::internal::CaptureStdout();
     view->draw(editor);
     const auto frame = testing::internal::GetCapturedStdout();
     EXPECT_NE(frame.find("Assembly: [x86_64]"), std::string::npos);
     EXPECT_NE(frame.find("ASM"), std::string::npos);
-    EXPECT_NE(frame.find(editor.theme.dimmedGutter(1) + ">1 "),
-              std::string::npos);
-    EXPECT_NE(frame.find(editor.theme.syntax(TOKEN_KEYWORD) + "movq"),
-              std::string::npos);
+    EXPECT_NE(
+        frame.find(editor.theme.dimmedGutter(1) + ">1 "),
+        std::string::npos);
+    EXPECT_NE(
+        frame.find(editor.theme.syntax(TOKEN_KEYWORD) + "movq"),
+        std::string::npos);
     sm.dispatch('j');
     asm_documentation::setFetchOriginalDocs(false);
     set_env_var("UVIM_ASM_DOCS_CACHE_DIR", root.string());
@@ -461,12 +526,14 @@ TEST_F(AssemblyViewTest, RendersNumberedHighlightedRowsAndInspection)
     ASSERT_TRUE(view->inspect);
     ASSERT_TRUE(waitFor(editor, [&] { return !view->content->docsLoading; }));
 #ifdef UVIM_ENABLE_ASM_DOCS
-    EXPECT_NE(view->content->docsText.find("Copies the source operand"),
-              std::string::npos);
+    EXPECT_NE(
+        view->content->docsText.find("Copies the source operand"),
+        std::string::npos);
     EXPECT_EQ(view->content->docsTitle, "mov (x86)");
     sm.dispatch('j');
-    view->processIdle(editor, std::chrono::steady_clock::now() +
-                                  std::chrono::seconds(1));
+    view->processIdle(
+        editor,
+        std::chrono::steady_clock::now() + std::chrono::seconds(1));
     EXPECT_EQ(view->content->docsTitle, "ret (x86)");
 #else
     EXPECT_NE(view->content->docsText.find("not compiled"), std::string::npos);
@@ -509,9 +576,11 @@ TEST(AssemblyViewCompilerTest, CompilesDiskPathWithClangAndGccFlags)
         EXPECT_FALSE(result.architecture.empty());
         EXPECT_NE(result.architecture, "unknown");
         EXPECT_EQ(result.sourceLineForAssembly.size(), result.lines.size());
-        EXPECT_TRUE(std::any_of(result.sourceLineForAssembly.begin(),
-                                result.sourceLineForAssembly.end(),
-                                [](int line) { return line > 0; }))
+        EXPECT_TRUE(
+            std::any_of(
+                result.sourceLineForAssembly.begin(),
+                result.sourceLineForAssembly.end(),
+                [](int line) { return line > 0; }))
             << compiler << " produced no source mapping";
         std::string assembly;
         for(const auto& line : result.lines)
@@ -526,8 +595,11 @@ TEST(AssemblyViewCompilerTest, CompilesDiskPathWithClangAndGccFlags)
 
 TEST_F(AssemblyViewTest, SplitLinksSourceAndAssemblyInBothDirections)
 {
-    *editor.lines = {"int example(int x) {", "    x += 1;", "    return x;",
-                     "} // no instructions"};
+    *editor.lines =
+        {"int example(int x) {",
+         "    x += 1;",
+         "    return x;",
+         "} // no instructions"};
     const auto snapshot = *editor.lines;
     *editor.cursorY = 0;
     auto sm = makeMachine(editor, NormalMode{});
@@ -538,8 +610,9 @@ TEST_F(AssemblyViewTest, SplitLinksSourceAndAssemblyInBothDirections)
     ASSERT_TRUE(view->content->result.success);
     EXPECT_EQ(view->content->result.sourceLines, snapshot);
     // Two instructions map to line 1; an inlined header instruction must not.
-    EXPECT_EQ(view->content->result.sourceLineForAssembly,
-              (std::vector<int>{0, 1, 2, 1, 0, 3}));
+    EXPECT_EQ(
+        view->content->result.sourceLineForAssembly,
+        (std::vector<int>{0, 1, 2, 1, 0, 3}));
     testing::internal::CaptureStdout();
     view->draw(editor);
     const auto frame = testing::internal::GetCapturedStdout();
@@ -565,8 +638,9 @@ TEST_F(AssemblyViewTest, SplitLinksSourceAndAssemblyInBothDirections)
     EXPECT_EQ(view->sourceCursor, 3);
     EXPECT_EQ(view->cursor, 5);
     sm.dispatch('i');
-    EXPECT_NE(view->content->docsText.find("No assembly instruction"),
-              std::string::npos);
+    EXPECT_NE(
+        view->content->docsText.find("No assembly instruction"),
+        std::string::npos);
     sm.dispatch('i');
     sm.dispatch('v');
     EXPECT_FALSE(view->split);
@@ -579,8 +653,9 @@ TEST_F(AssemblyViewTest, SplitLinksSourceAndAssemblyInBothDirections)
     EXPECT_EQ(editor.buffers.size(), 1u);
 }
 
-TEST_F(AssemblyViewTest,
-       RawAssemblyRetainsSourceMappingsAndSplitScrollsBothPanes)
+TEST_F(
+    AssemblyViewTest,
+    RawAssemblyRetainsSourceMappingsAndSplitScrollsBothPanes)
 {
     editor.lines->assign(40, "int value;");
     auto sm = makeMachine(editor, NormalMode{});
@@ -619,17 +694,19 @@ TEST_F(AssemblyViewTest,
     EXPECT_STREQ(sm.currentStateName(), "NORMAL");
 }
 
-TEST(AssemblyViewStandaloneTest,
-     ExplicitPathCanBeOpenedFromWelcomeWithoutCreatingBuffer)
+TEST(
+    AssemblyViewStandaloneTest,
+    ExplicitPathCanBeOpenedFromWelcomeWithoutCreatingBuffer)
 {
     const auto root = make_temp_dir("uvim_asm_path_");
     const auto path = root / "file with spaces.c";
     write_file(path, "int from_disk(void) { return 3; }\n");
     Editor editor = Editor::createForTests();
     auto sm = makeMachine(editor, WelcomeMode{});
-    dispatch_command(sm, "asm \"" + path.string() +
-                             "\" --compiler \"" UVIM_TEST_ASSEMBLY_COMPILER
-                             "\" -O3");
+    dispatch_command(
+        sm,
+        "asm \"" + path.string() +
+            "\" --compiler \"" UVIM_TEST_ASSEMBLY_COMPILER "\" -O3");
     auto* view = sm.getState<AssemblyMode>();
     ASSERT_NE(view, nullptr);
     ASSERT_TRUE(waitFor(editor, [&] { return !view->content->compiling; }));
@@ -668,14 +745,17 @@ TEST_F(AssemblyViewTest, MlangSnapshotUsesNativeFlagsAndPreservesProjectFiles)
     for(const char* flag :
         {"-x\n", "-std=", "-iquote", "-gdwarf-4", "-fverbose-asm", "-O0"})
         EXPECT_EQ(args.find(flag), std::string::npos) << flag;
-    EXPECT_EQ(read_file(root / "source"),
-              "fn changed(x: i32) -> i32 {\n    return x + 7;\n}\n");
+    EXPECT_EQ(
+        read_file(root / "source"),
+        "fn changed(x: i32) -> i32 {\n    return x + 7;\n}\n");
     EXPECT_EQ(read_file(root / "source.mla"), original);
     EXPECT_EQ(read_file(root / "mlang_commands.json"), "original index");
     EXPECT_NE(std::filesystem::path(read_file(root / "directory")), root);
-    EXPECT_TRUE(std::any_of(result.sourceLineForAssembly.begin(),
-                            result.sourceLineForAssembly.end(),
-                            [](int line) { return line > 0; }));
+    EXPECT_TRUE(
+        std::any_of(
+            result.sourceLineForAssembly.begin(),
+            result.sourceLineForAssembly.end(),
+            [](int line) { return line > 0; }));
     for(const auto& entry : std::filesystem::directory_iterator(root))
         EXPECT_FALSE(
             entry.path().filename().string().starts_with(".uvim_asm_"));
@@ -689,8 +769,9 @@ TEST_F(AssemblyViewTest, CanCancelMlangCompilationAndCleanSnapshot)
     dispatch_command(sm, fakeCommand(root));
     ASSERT_NE(sm.getState<AssemblyMode>(), nullptr);
     auto content = sm.getState<AssemblyMode>()->content;
-    ASSERT_TRUE(waitFor(editor, [&]
-                        { return std::filesystem::exists(root / "started"); }));
+    ASSERT_TRUE(waitFor(
+        editor,
+        [&] { return std::filesystem::exists(root / "started"); }));
     const auto start = std::chrono::steady_clock::now();
     sm.dispatch(keyCode(control::ControlKey::ESC));
     EXPECT_LT(std::chrono::steady_clock::now() - start, 500ms);
@@ -712,8 +793,9 @@ TEST_F(AssemblyViewTest, MlangCompilerFailureCleansSnapshot)
     ASSERT_NE(view, nullptr);
     ASSERT_TRUE(waitFor(editor, [&] { return !view->content->compiling; }));
     EXPECT_FALSE(view->content->result.success);
-    EXPECT_NE(view->content->result.diagnostics.find("invalid source"),
-              std::string::npos);
+    EXPECT_NE(
+        view->content->result.diagnostics.find("invalid source"),
+        std::string::npos);
     EXPECT_NE(read_file(root / "arguments").find("-O0\n"), std::string::npos);
     for(const auto& entry : std::filesystem::directory_iterator(root))
         EXPECT_FALSE(
@@ -729,13 +811,16 @@ TEST_F(AssemblyViewTest, MlangFlagPickerUsesSupportedCompilerOptions)
         sm.dispatch(c);
     ASSERT_TRUE(editor.commandPopupActive);
     const auto& flags = editor.commandPopupAll;
-    EXPECT_NE(std::find(flags.begin(), flags.end(), "--compiler mlang"),
-              flags.end());
-    EXPECT_NE(std::find(flags.begin(), flags.end(), "--target-arch aarch64"),
-              flags.end());
+    EXPECT_NE(
+        std::find(flags.begin(), flags.end(), "--compiler mlang"),
+        flags.end());
+    EXPECT_NE(
+        std::find(flags.begin(), flags.end(), "--target-arch aarch64"),
+        flags.end());
     EXPECT_EQ(std::find(flags.begin(), flags.end(), "-std=c++20"), flags.end());
-    EXPECT_EQ(std::find(flags.begin(), flags.end(), "-fverbose-asm"),
-              flags.end());
+    EXPECT_EQ(
+        std::find(flags.begin(), flags.end(), "-fverbose-asm"),
+        flags.end());
     sm.dispatch(keyCode(control::ControlKey::ESC));
     EXPECT_TRUE(editor.tasks.idle());
 }
@@ -744,26 +829,33 @@ TEST_F(AssemblyViewTest, RealMlangPreservesRelativeModulesAndSourceMapping)
 {
     if(!executable_lookup::find("mlang").found)
         GTEST_SKIP() << "Mlang not installed";
-    write_file(root / "helper.mla",
-               "pub fn plus(x: i32) -> i32 { return x + 1; }\n");
+    write_file(
+        root / "helper.mla",
+        "pub fn plus(x: i32) -> i32 { return x + 1; }\n");
     write_file(root / "mlang_commands.json", "original project index");
     assembly_compiler::Request request;
     request.path = (root / "source.mla").string();
     request.directory = root.string();
     request.sourceLines = std::vector<std::string>{
-        "mod helper;", "use helper::plus;", "fn changed(x: i32) -> i32 {",
-        "    return plus(x);", "}"};
+        "mod helper;",
+        "use helper::plus;",
+        "fn changed(x: i32) -> i32 {",
+        "    return plus(x);",
+        "}"};
     request.flags = {"-O0"};
     const auto result =
         assembly_compiler::compile(request, [] { return false; });
     ASSERT_TRUE(result.success) << result.diagnostics;
     EXPECT_FALSE(result.architecture.empty());
     EXPECT_NE(result.architecture, "unknown");
-    EXPECT_TRUE(std::any_of(result.sourceLineForAssembly.begin(),
-                            result.sourceLineForAssembly.end(),
-                            [](int line) { return line > 0; }));
-    EXPECT_EQ(read_file(root / "mlang_commands.json"),
-              "original project index");
+    EXPECT_TRUE(
+        std::any_of(
+            result.sourceLineForAssembly.begin(),
+            result.sourceLineForAssembly.end(),
+            [](int line) { return line > 0; }));
+    EXPECT_EQ(
+        read_file(root / "mlang_commands.json"),
+        "original project index");
     EXPECT_FALSE(std::filesystem::exists(root / "source.mla"));
     for(const auto& entry : std::filesystem::directory_iterator(root))
         EXPECT_FALSE(
@@ -797,8 +889,9 @@ TEST_F(AssemblyViewTest, DimsUnrelatedSymbolsAndShowsCompilerReportedOrigin)
         static_cast<size_t>(unknown - result.lines.begin());
     EXPECT_TRUE(result.sourceOrigins[localRow].mainSource);
     EXPECT_EQ(result.sourceOrigins[localRow].path, result.sourcePath);
-    EXPECT_EQ(result.sourceLineForAssembly[localRow],
-              0); // Label is not an instruction.
+    EXPECT_EQ(
+        result.sourceLineForAssembly[localRow],
+        0); // Label is not an instruction.
     EXPECT_FALSE(result.sourceOrigins[libraryRow].mainSource);
     EXPECT_EQ(
         std::filesystem::path(result.sourceOrigins[libraryRow].path).filename(),
@@ -810,17 +903,20 @@ TEST_F(AssemblyViewTest, DimsUnrelatedSymbolsAndShowsCompilerReportedOrigin)
     testing::internal::CaptureStdout();
     view->draw(editor);
     const auto frame = testing::internal::GetCapturedStdout();
-    EXPECT_NE(frame.find(editor.theme.dimmedSyntax(TOKEN_KEYWORD, 2) + "addq"),
-              std::string::npos);
-    EXPECT_NE(frame.find(editor.theme.syntax(TOKEN_KEYWORD) + "movq"),
-              std::string::npos);
+    EXPECT_NE(
+        frame.find(editor.theme.dimmedSyntax(TOKEN_KEYWORD, 2) + "addq"),
+        std::string::npos);
+    EXPECT_NE(
+        frame.find(editor.theme.syntax(TOKEN_KEYWORD) + "movq"),
+        std::string::npos);
     EXPECT_NE(frame.find("from helper-library.mla:12"), std::string::npos);
     ASSERT_TRUE(editor.handleSetCommand("set asmdimunmapped=false"));
     testing::internal::CaptureStdout();
     view->draw(editor);
     const auto undimmed = testing::internal::GetCapturedStdout();
-    EXPECT_NE(undimmed.find(editor.theme.syntax(TOKEN_KEYWORD) + "addq"),
-              std::string::npos);
+    EXPECT_NE(
+        undimmed.find(editor.theme.syntax(TOKEN_KEYWORD) + "addq"),
+        std::string::npos);
     EXPECT_EQ(
         undimmed.find(editor.theme.dimmedSyntax(TOKEN_KEYWORD, 2) + "addq"),
         std::string::npos);
@@ -833,8 +929,9 @@ TEST_F(AssemblyViewTest, DimsUnrelatedSymbolsAndShowsCompilerReportedOrigin)
     view->cursor = static_cast<int>(unknownRow);
     testing::internal::CaptureStdout();
     view->draw(editor);
-    EXPECT_NE(testing::internal::GetCapturedStdout().find("no source mapping"),
-              std::string::npos);
+    EXPECT_NE(
+        testing::internal::GetCapturedStdout().find("no source mapping"),
+        std::string::npos);
     // All unresolved rows use the deepest shade when source locations are
     // absent.
     view->content->result.sourceOrigins.assign(result.lines.size(), {});
@@ -845,15 +942,17 @@ TEST_F(AssemblyViewTest, DimsUnrelatedSymbolsAndShowsCompilerReportedOrigin)
     EXPECT_NE(
         unmapped.find(editor.theme.dimmedSyntax(TOKEN_KEYWORD, 3) + "addq"),
         std::string::npos);
-    EXPECT_EQ(unmapped.find(editor.theme.syntax(TOKEN_KEYWORD) + "addq"),
-              std::string::npos);
+    EXPECT_EQ(
+        unmapped.find(editor.theme.syntax(TOKEN_KEYWORD) + "addq"),
+        std::string::npos);
 }
 
 TEST_F(AssemblyViewTest, RawAssemblyPreservesLibraryOriginsAndDimming)
 {
     auto sm = makeMachine(editor, NormalMode{});
-    dispatch_command(sm,
-                     fakeCommand(root, "--raw --split --uvim-test-origins"));
+    dispatch_command(
+        sm,
+        fakeCommand(root, "--raw --split --uvim-test-origins"));
     auto* view = sm.getState<AssemblyMode>();
     ASSERT_NE(view, nullptr);
     ASSERT_TRUE(waitFor(editor, [&] { return !view->content->compiling; }));
@@ -879,27 +978,37 @@ TEST_F(AssemblyViewTest, UnresolvedAssemblyUsesProgressivelyDimmerSyntaxColors)
     ASSERT_TRUE(waitFor(editor, [&] { return !view->content->compiling; }));
     auto& result = view->content->result;
     ASSERT_TRUE(result.success);
-    result.lines = {"LBB32_2:", "    sub x19, x19, #24",
-                    "LBB32_3:", "    add x8, x20, x19", "    nop"};
+    result.lines =
+        {"LBB32_2:",
+         "    sub x19, x19, #24",
+         "LBB32_3:",
+         "    add x8, x20, x19",
+         "    nop"};
     result.sourceLineForAssembly = {0, 1, 0, 0, 0};
-    result.sourceOrigins = {{result.sourcePath, 1, true},
-                            {result.sourcePath, 1, true},
-                            {"library.mla", 12, false},
-                            {"library.mla", 12, false},
-                            {}};
+    result.sourceOrigins =
+        {{result.sourcePath, 1, true},
+         {result.sourcePath, 1, true},
+         {"library.mla", 12, false},
+         {"library.mla", 12, false},
+         {}};
     testing::internal::CaptureStdout();
     view->draw(editor);
     const auto frame = testing::internal::GetCapturedStdout();
-    EXPECT_NE(frame.find(editor.theme.dimmedGutter(1) + ">1 "),
-              std::string::npos);
-    EXPECT_NE(frame.find(editor.theme.dimmedSyntax(TOKEN_NORMAL, 1)),
-              std::string::npos);
-    EXPECT_NE(frame.find(editor.theme.syntax(TOKEN_KEYWORD) + "sub"),
-              std::string::npos);
-    EXPECT_NE(frame.find(editor.theme.dimmedSyntax(TOKEN_KEYWORD, 2) + "add"),
-              std::string::npos);
-    EXPECT_NE(frame.find(editor.theme.dimmedSyntax(TOKEN_KEYWORD, 3) + "nop"),
-              std::string::npos);
+    EXPECT_NE(
+        frame.find(editor.theme.dimmedGutter(1) + ">1 "),
+        std::string::npos);
+    EXPECT_NE(
+        frame.find(editor.theme.dimmedSyntax(TOKEN_NORMAL, 1)),
+        std::string::npos);
+    EXPECT_NE(
+        frame.find(editor.theme.syntax(TOKEN_KEYWORD) + "sub"),
+        std::string::npos);
+    EXPECT_NE(
+        frame.find(editor.theme.dimmedSyntax(TOKEN_KEYWORD, 2) + "add"),
+        std::string::npos);
+    EXPECT_NE(
+        frame.find(editor.theme.dimmedSyntax(TOKEN_KEYWORD, 3) + "nop"),
+        std::string::npos);
     EXPECT_NE(frame.find(editor.theme.dimmedGutter(2)), std::string::npos);
     EXPECT_NE(frame.find(editor.theme.dimmedGutter(3)), std::string::npos);
 }
@@ -931,16 +1040,18 @@ TEST(AssemblyViewColorTest, DimmingBlendsEachSyntaxColorTowardsThemeBackground)
             const auto color = rgb(theme.dimmedSyntax(type, level));
             for(size_t channel = 0; channel < color.size(); ++channel)
             {
-                EXPECT_LT(std::abs(color[channel] - background[channel]),
-                          std::abs(previous[channel] - background[channel]));
+                EXPECT_LT(
+                    std::abs(color[channel] - background[channel]),
+                    std::abs(previous[channel] - background[channel]));
             }
             previous = color;
         }
     }
 }
 
-TEST_F(AssemblyViewTest,
-       TitleShowsCompilerTargetAndCrossCompilationArchitecture)
+TEST_F(
+    AssemblyViewTest,
+    TitleShowsCompilerTargetAndCrossCompilationArchitecture)
 {
     struct Target
     {
@@ -950,7 +1061,8 @@ TEST_F(AssemblyViewTest,
     };
 
     for(const auto& target :
-        {Target{"cpp", "", "x86_64"}, Target{"cpp", "-m32", "x86"},
+        {Target{"cpp", "", "x86_64"},
+         Target{"cpp", "-m32", "x86"},
          Target{"cpp", "--target=aarch64-linux-gnu", "AArch64"},
          Target{"cpp", "--target riscv64-unknown-elf", "riscv64"},
          Target{"mla", "--target-arch aarch64", "AArch64"},
@@ -963,7 +1075,8 @@ TEST_F(AssemblyViewTest,
             (root / (std::string(120, 'a') + "." + target.extension)).string());
         auto sm = makeMachine(editor, NormalMode{});
         dispatch_command(
-            sm, fakeCommand(root, std::string("--split ") + target.flags));
+            sm,
+            fakeCommand(root, std::string("--split ") + target.flags));
         auto* view = sm.getState<AssemblyMode>();
         ASSERT_NE(view, nullptr);
         ASSERT_TRUE(waitFor(editor, [&] { return !view->content->compiling; }));
@@ -976,15 +1089,17 @@ TEST_F(AssemblyViewTest,
         EXPECT_NE(
             frame.find(std::string("Assembly: [") + target.expected + "]"),
             std::string::npos);
-        EXPECT_NE(frame.find(std::string("Assembly [") + target.expected + "]"),
-                  std::string::npos);
+        EXPECT_NE(
+            frame.find(std::string("Assembly [") + target.expected + "]"),
+            std::string::npos);
         sm.dispatch('q');
         ASSERT_TRUE(waitFor(editor, [&] { return editor.tasks.idle(); }));
     }
 }
 
-TEST_F(AssemblyViewTest,
-       ExternalSourceRowsHaveRedBackgroundWithoutColoringOtherRows)
+TEST_F(
+    AssemblyViewTest,
+    ExternalSourceRowsHaveRedBackgroundWithoutColoringOtherRows)
 {
     auto sm = makeMachine(editor, NormalMode{});
     dispatch_command(sm, fakeCommand(root, "--uvim-test-origins"));
@@ -1005,12 +1120,15 @@ TEST_F(AssemblyViewTest,
             ++count;
         EXPECT_EQ(count, 3u); // External label and its two instructions only.
     }
-    EXPECT_NE(frame.find(editor.theme.dimmedSyntax(TOKEN_KEYWORD, 2) + "addq"),
-              std::string::npos);
-    EXPECT_NE(frame.find(editor.theme.syntax(TOKEN_KEYWORD) + "movq"),
-              std::string::npos);
-    EXPECT_NE(frame.find(editor.theme.dimmedSyntax(TOKEN_KEYWORD, 3) + "nop"),
-              std::string::npos);
+    EXPECT_NE(
+        frame.find(editor.theme.dimmedSyntax(TOKEN_KEYWORD, 2) + "addq"),
+        std::string::npos);
+    EXPECT_NE(
+        frame.find(editor.theme.syntax(TOKEN_KEYWORD) + "movq"),
+        std::string::npos);
+    EXPECT_NE(
+        frame.find(editor.theme.dimmedSyntax(TOKEN_KEYWORD, 3) + "nop"),
+        std::string::npos);
 
     // The tint remains available when syntax dimming is disabled.
     ASSERT_TRUE(editor.handleSetCommand("set asmdimunmapped=false"));
@@ -1018,8 +1136,9 @@ TEST_F(AssemblyViewTest,
     view->draw(editor);
     const auto undimmed = testing::internal::GetCapturedStdout();
     EXPECT_NE(undimmed.find(background), std::string::npos);
-    EXPECT_NE(undimmed.find(editor.theme.syntax(TOKEN_KEYWORD) + "addq"),
-              std::string::npos);
+    EXPECT_NE(
+        undimmed.find(editor.theme.syntax(TOKEN_KEYWORD) + "addq"),
+        std::string::npos);
     write_file(root / "theme.toml", "[theme.asm]\nexternal_bg = \"#351c26\"\n");
     ASSERT_TRUE(editor.theme.loadFromFile((root / "theme.toml").string()));
 #ifdef UVIM_ENABLE_TERMINAL_COLORS
@@ -1031,8 +1150,8 @@ TEST_F(AssemblyViewTest,
 
 TEST_F(AssemblyViewTest, BrowsingRowsAndSwitchingPanesResetsHorizontalScroll)
 {
-    *editor.lines = {"int example(int x) {", "    x += 1;", "    return x;",
-                     "}"};
+    *editor
+         .lines = {"int example(int x) {", "    x += 1;", "    return x;", "}"};
     auto sm = makeMachine(editor, NormalMode{});
     dispatch_command(sm, fakeCommand(root, "--split"));
     auto* view = sm.getState<AssemblyMode>();
@@ -1065,7 +1184,11 @@ TEST_F(AssemblyViewTest, BrowsingRowsAndSwitchingPanesResetsHorizontalScroll)
     sm.dispatch('0');
     EXPECT_EQ(view->sourceHorizontal, 0);
     for(const int key : std::vector<int>{
-            'j', 'k', 'g', 'G', keyCode(navigation::NavigationKey::PAGE_DOWN),
+            'j',
+            'k',
+            'g',
+            'G',
+            keyCode(navigation::NavigationKey::PAGE_DOWN),
             keyCode(navigation::NavigationKey::PAGE_UP),
             keyCode(navigation::NavigationKey::HOME),
             keyCode(navigation::NavigationKey::END),
@@ -1080,8 +1203,9 @@ TEST_F(AssemblyViewTest, BrowsingRowsAndSwitchingPanesResetsHorizontalScroll)
     }
 }
 
-TEST_F(AssemblyViewTest,
-       AddInstructionHelpIsAvailableImmediatelyWithoutFetching)
+TEST_F(
+    AssemblyViewTest,
+    AddInstructionHelpIsAvailableImmediatelyWithoutFetching)
 {
 #ifndef UVIM_ENABLE_ASM_DOCS
     GTEST_SKIP() << "Instruction docs not enabled";
@@ -1097,12 +1221,14 @@ TEST_F(AssemblyViewTest,
     sm.dispatch('i');
     EXPECT_FALSE(view->content->docsLoading);
     EXPECT_EQ(view->content->docsTitle, "add (x86)");
-    EXPECT_NE(view->content->docsText.find("Adds the source operand"),
-              std::string::npos);
+    EXPECT_NE(
+        view->content->docsText.find("Adds the source operand"),
+        std::string::npos);
     sm.dispatch('j');
     EXPECT_EQ(view->content->docsTitle, "add (x86)");
-    view->processIdle(editor, std::chrono::steady_clock::now() +
-                                  std::chrono::seconds(1));
+    view->processIdle(
+        editor,
+        std::chrono::steady_clock::now() + std::chrono::seconds(1));
     EXPECT_FALSE(view->content->docsLoading);
     EXPECT_EQ(view->content->docsTitle, "add (aarch64)");
     EXPECT_NE(view->content->docsText.find("Adds operands"), std::string::npos);
@@ -1110,8 +1236,9 @@ TEST_F(AssemblyViewTest,
     view->draw(editor);
     const auto frame = testing::internal::GetCapturedStdout();
     EXPECT_NE(frame.find("Adds operands"), std::string::npos);
-    EXPECT_EQ(frame.find("Loading instruction documentation"),
-              std::string::npos);
+    EXPECT_EQ(
+        frame.find("Loading instruction documentation"),
+        std::string::npos);
 #endif
 }
 
@@ -1124,8 +1251,9 @@ TEST_F(AssemblyViewTest, InstructionHelpStaysVisibleWhileFetchingRicherDocs)
     ScopedEnv fetch("UVIM_ASM_DOCS_FETCH", "true");
     asm_documentation::setFetchOriginalDocs(false);
     editor.asmDocsApi = true;
-    write_file(root / "fetched" / "compiler-explorer" / "aarch64" / "add.md",
-               "## add\n\nFetched add instruction details.\n");
+    write_file(
+        root / "fetched" / "compiler-explorer" / "aarch64" / "add.md",
+        "## add\n\nFetched add instruction details.\n");
     auto sm = makeMachine(editor, NormalMode{});
     dispatch_command(sm, fakeCommand(root));
     auto* view = sm.getState<AssemblyMode>();
@@ -1139,15 +1267,18 @@ TEST_F(AssemblyViewTest, InstructionHelpStaysVisibleWhileFetchingRicherDocs)
     view->draw(editor);
     const auto pendingFrame = testing::internal::GetCapturedStdout();
     EXPECT_NE(pendingFrame.find("Adds operands"), std::string::npos);
-    EXPECT_EQ(pendingFrame.find("Loading instruction documentation"),
-              std::string::npos);
+    EXPECT_EQ(
+        pendingFrame.find("Loading instruction documentation"),
+        std::string::npos);
     ASSERT_TRUE(waitFor(editor, [&] { return !view->content->docsLoading; }));
-    view->processIdle(editor, std::chrono::steady_clock::now() +
-                                  std::chrono::seconds(1));
+    view->processIdle(
+        editor,
+        std::chrono::steady_clock::now() + std::chrono::seconds(1));
     EXPECT_FALSE(view->content->docsIndicator);
     EXPECT_TRUE(editor.taskStatusText().empty());
-    EXPECT_NE(view->content->docsText.find("Fetched add instruction details"),
-              std::string::npos);
+    EXPECT_NE(
+        view->content->docsText.find("Fetched add instruction details"),
+        std::string::npos);
 #endif
 }
 
@@ -1160,13 +1291,14 @@ TEST_F(AssemblyViewTest, InspectorShowsApiOperandFormsBeforePlainDescription)
     ScopedEnv fetch("UVIM_ASM_DOCS_FETCH", "0");
     asm_documentation::setFetchOriginalDocs(false);
     ASSERT_TRUE(editor.handleSetCommand("set asmdocsapi=true"));
-    write_file(root / "fetched" / "compiler-explorer" / "x86" / "mov.md",
-               "## mov\n\nCopies the source operand.\n\nFetched from Compiler "
-               "Explorer.\n\n"
-               "Compiler Explorer documentation:\n\n```text\nMOV r64, "
-               "r/m64\nMOV r/m64, r64\n"
-               "Move source to destination.\n```\n\nAPI: "
-               "https://godbolt.org/api/asm/amd64/mov\n");
+    write_file(
+        root / "fetched" / "compiler-explorer" / "x86" / "mov.md",
+        "## mov\n\nCopies the source operand.\n\nFetched from Compiler "
+        "Explorer.\n\n"
+        "Compiler Explorer documentation:\n\n```text\nMOV r64, "
+        "r/m64\nMOV r/m64, r64\n"
+        "Move source to destination.\n```\n\nAPI: "
+        "https://godbolt.org/api/asm/amd64/mov\n");
     auto sm = makeMachine(editor, NormalMode{});
     dispatch_command(sm, fakeCommand(root));
     auto* view = sm.getState<AssemblyMode>();
@@ -1178,35 +1310,42 @@ TEST_F(AssemblyViewTest, InspectorShowsApiOperandFormsBeforePlainDescription)
     ASSERT_TRUE(waitFor(editor, [&] { return !view->content->docsLoading; }));
     EXPECT_TRUE(
         view->content->docsText.starts_with("```asm\nmovq %rdi, %rax\n```"));
-    EXPECT_NE(view->content->docsText.find("```text\nMOV r64, r/m64"),
-              std::string::npos);
-    EXPECT_EQ(view->content->docsText.find("Copies the source operand"),
-              std::string::npos);
-    EXPECT_NE(view->content->docsText.find(
-                  "API: https://godbolt.org/api/asm/amd64/mov"),
-              std::string::npos);
+    EXPECT_NE(
+        view->content->docsText.find("```text\nMOV r64, r/m64"),
+        std::string::npos);
+    EXPECT_EQ(
+        view->content->docsText.find("Copies the source operand"),
+        std::string::npos);
+    EXPECT_NE(
+        view->content->docsText.find(
+            "API: https://godbolt.org/api/asm/amd64/mov"),
+        std::string::npos);
     testing::internal::CaptureStdout();
     view->draw(editor);
     const auto frame = testing::internal::GetCapturedStdout();
-    EXPECT_NE(frame.find(editor.theme.syntax(TOKEN_KEYWORD) + "movq"),
-              std::string::npos);
+    EXPECT_NE(
+        frame.find(editor.theme.syntax(TOKEN_KEYWORD) + "movq"),
+        std::string::npos);
     EXPECT_NE(frame.find("MOV r64, r/m64"), std::string::npos);
     EXPECT_NE(frame.find("MOV r/m64, r64"), std::string::npos);
-    EXPECT_EQ(frame.find("Loading instruction documentation"),
-              std::string::npos);
+    EXPECT_EQ(
+        frame.find("Loading instruction documentation"),
+        std::string::npos);
     // The live MOV API can provide prose without any operand-form examples.
     // The selected instruction must still remain at the top in that case.
-    write_file(root / "fetched" / "compiler-explorer" / "x86" / "mov.md",
-               "## mov\n\nCompiler Explorer documentation:\n\n```text\n"
-               "Copies the second operand (source operand) to the first "
-               "operand.\n```\n");
+    write_file(
+        root / "fetched" / "compiler-explorer" / "x86" / "mov.md",
+        "## mov\n\nCompiler Explorer documentation:\n\n```text\n"
+        "Copies the second operand (source operand) to the first "
+        "operand.\n```\n");
     sm.dispatch('i');
     sm.dispatch('i');
     ASSERT_TRUE(waitFor(editor, [&] { return !view->content->docsLoading; }));
     EXPECT_TRUE(
         view->content->docsText.starts_with("```asm\nmovq %rdi, %rax\n```"));
-    EXPECT_NE(view->content->docsText.find("Copies the second operand"),
-              std::string::npos);
+    EXPECT_NE(
+        view->content->docsText.find("Copies the second operand"),
+        std::string::npos);
     ASSERT_TRUE(editor.handleSetCommand("set noasmdocsapi"));
     EXPECT_FALSE(editor.asmDocsApi);
     ASSERT_TRUE(editor.handleSetCommand("set asmdocsapi"));
@@ -1233,18 +1372,21 @@ TEST_F(AssemblyViewTest, InspectionDebouncesRowsAndResetsOnNavigation)
     view->processIdle(editor, firstNavigation + std::chrono::milliseconds(299));
     const auto secondNavigation = std::chrono::steady_clock::now();
     sm.dispatch('j');
-    view->processIdle(editor,
-                      secondNavigation + std::chrono::milliseconds(299));
+    view->processIdle(
+        editor,
+        secondNavigation + std::chrono::milliseconds(299));
     EXPECT_EQ(view->content->docsText, original);
     EXPECT_FALSE(view->content->docsLoading);
-    view->processIdle(editor, std::chrono::steady_clock::now() +
-                                  std::chrono::seconds(1));
+    view->processIdle(
+        editor,
+        std::chrono::steady_clock::now() + std::chrono::seconds(1));
     EXPECT_EQ(view->content->docsTitle, "ret (x86)");
     // Closing inspection cancels the pending refresh.
     sm.dispatch('k');
     sm.dispatch('i');
-    view->processIdle(editor, std::chrono::steady_clock::now() +
-                                  std::chrono::seconds(1));
+    view->processIdle(
+        editor,
+        std::chrono::steady_clock::now() + std::chrono::seconds(1));
     EXPECT_EQ(view->content->docsTitle, "ret (x86)");
 #endif
 }
@@ -1256,8 +1398,9 @@ TEST_F(AssemblyViewTest, SlowInspectionUsesOnlyDelayedIndicatorAndClearsIt)
 #else
     ScopedEnv cache("UVIM_ASM_DOCS_CACHE_DIR", root.string());
     editor.asmDocsApi = true;
-    write_file(root / "fetched" / "compiler-explorer" / "x86" / "mov.md",
-               "## mov\n\nCached API details.\n");
+    write_file(
+        root / "fetched" / "compiler-explorer" / "x86" / "mov.md",
+        "## mov\n\nCached API details.\n");
     auto sm = makeMachine(editor, NormalMode{});
     dispatch_command(sm, fakeCommand(root));
     auto* view = sm.getState<AssemblyMode>();
@@ -1266,16 +1409,17 @@ TEST_F(AssemblyViewTest, SlowInspectionUsesOnlyDelayedIndicatorAndClearsIt)
     view->content->result.lines = {"movq %rdi, %rax"};
     std::atomic<bool> release{false};
     const auto blocker = editor.tasks
-                             .submit({"previous lookup",
-                                      "asm-docs",
-                                      [&](TaskQueue::Context& task)
-                                      {
-                                          while(!release && !task.cancelled())
-                                              std::this_thread::sleep_for(1ms);
-                                      },
-                                      {},
-                                      {},
-                                      false})
+                             .submit(
+                                 {"previous lookup",
+                                  "asm-docs",
+                                  [&](TaskQueue::Context& task)
+                                  {
+                                      while(!release && !task.cancelled())
+                                          std::this_thread::sleep_for(1ms);
+                                  },
+                                  {},
+                                  {},
+                                  false})
                              .id;
     editor.statusMessage.clear();
     sm.dispatch('i');
@@ -1289,8 +1433,9 @@ TEST_F(AssemblyViewTest, SlowInspectionUsesOnlyDelayedIndicatorAndClearsIt)
     editor.tasks.cancel(blocker);
     EXPECT_TRUE(waitFor(editor, [&] { return !view->content->docsLoading; }));
     EXPECT_FALSE(view->content->docsIndicator);
-    EXPECT_NE(view->content->docsText.find("Cached API details"),
-              std::string::npos);
+    EXPECT_NE(
+        view->content->docsText.find("Cached API details"),
+        std::string::npos);
     view->processIdle(editor, std::chrono::steady_clock::now() + 1s);
     EXPECT_FALSE(view->content->docsIndicator);
 #endif
@@ -1313,23 +1458,29 @@ TEST_F(AssemblyViewTest, InspectorSeparatesHeadingsProseExamplesAndReferences)
     testing::internal::CaptureStdout();
     view->draw(editor);
     const auto frame = testing::internal::GetCapturedStdout();
-    EXPECT_NE(frame.find(editor.theme.syntax(TOKEN_KEYWORD) + "addq"),
-              std::string::npos);
-    EXPECT_NE(frame.find(editor.theme.uiAccent() + Terminal::ESC_BOLD +
-                         "Description"),
-              std::string::npos);
+    EXPECT_NE(
+        frame.find(editor.theme.syntax(TOKEN_KEYWORD) + "addq"),
+        std::string::npos);
+    EXPECT_NE(
+        frame.find(
+            editor.theme.uiAccent() + Terminal::ESC_BOLD + "Description"),
+        std::string::npos);
     EXPECT_NE(
         frame.find(editor.theme.uiAccent() + Terminal::ESC_BOLD + "Operation:"),
         std::string::npos);
-    EXPECT_NE(frame.find(editor.theme.uiAccent() + Terminal::ESC_BOLD +
-                         "## Examples"),
-              std::string::npos);
-    EXPECT_NE(frame.find(editor.theme.baseFg() + "Adds the operands."),
-              std::string::npos);
-    EXPECT_NE(frame.find(editor.theme.baseFg() + "DEST = DEST + SRC"),
-              std::string::npos);
-    EXPECT_NE(frame.find(editor.theme.uiDim() + "Reference:"),
-              std::string::npos);
+    EXPECT_NE(
+        frame.find(
+            editor.theme.uiAccent() + Terminal::ESC_BOLD + "## Examples"),
+        std::string::npos);
+    EXPECT_NE(
+        frame.find(editor.theme.baseFg() + "Adds the operands."),
+        std::string::npos);
+    EXPECT_NE(
+        frame.find(editor.theme.baseFg() + "DEST = DEST + SRC"),
+        std::string::npos);
+    EXPECT_NE(
+        frame.find(editor.theme.uiDim() + "Reference:"),
+        std::string::npos);
     EXPECT_NE(frame.find(editor.theme.uiDim() + "```text"), std::string::npos);
     EXPECT_EQ(
         frame.find(editor.theme.syntax(TOKEN_STRING) + "Adds the operands."),
@@ -1338,8 +1489,8 @@ TEST_F(AssemblyViewTest, InspectorSeparatesHeadingsProseExamplesAndReferences)
 
 TEST_F(AssemblyViewTest, VisualSelectionFiltersAssemblyAndCompilesFullSnapshot)
 {
-    *editor.lines = {"int example(int x) {", "    x += 1;", "    return x;",
-                     "}"};
+    *editor
+         .lines = {"int example(int x) {", "    x += 1;", "    return x;", "}"};
     *editor.cursorY = 1;
     const auto snapshot = *editor.lines;
     auto sm = makeMachine(editor, NormalMode{});
@@ -1352,12 +1503,16 @@ TEST_F(AssemblyViewTest, VisualSelectionFiltersAssemblyAndCompilesFullSnapshot)
     ASSERT_TRUE(result.success) << result.diagnostics;
     ASSERT_FALSE(result.lines.empty());
     EXPECT_EQ(view->sourceRange, (std::pair{2, 2}));
-    EXPECT_TRUE(std::all_of(result.sourceLineForAssembly.begin(),
-                            result.sourceLineForAssembly.end(),
-                            [](int line) { return line == 2; }));
+    EXPECT_TRUE(
+        std::all_of(
+            result.sourceLineForAssembly.begin(),
+            result.sourceLineForAssembly.end(),
+            [](int line) { return line == 2; }));
     EXPECT_EQ(result.sourceOrigins.size(), result.lines.size());
-    EXPECT_TRUE(read_file(root / "source").starts_with(
-        "int example(int x) {\n    x += 1;\n    return x;\n}\n"));
+    EXPECT_TRUE(
+        read_file(root / "source")
+            .starts_with(
+                "int example(int x) {\n    x += 1;\n    return x;\n}\n"));
     EXPECT_EQ(result.sourceLines, snapshot);
     EXPECT_EQ(*editor.lines, snapshot);
     EXPECT_EQ(view->sourceCursor, 1);
@@ -1372,15 +1527,18 @@ TEST_F(AssemblyViewTest, VisualSelectionFiltersAssemblyAndCompilesFullSnapshot)
     ASSERT_NE(view, nullptr);
     ASSERT_TRUE(waitFor(editor, [&] { return !view->content->compiling; }));
     EXPECT_FALSE(view->sourceRange);
-    EXPECT_NE(std::find(view->content->result.sourceLineForAssembly.begin(),
-                        view->content->result.sourceLineForAssembly.end(), 1),
-              view->content->result.sourceLineForAssembly.end());
+    EXPECT_NE(
+        std::find(
+            view->content->result.sourceLineForAssembly.begin(),
+            view->content->result.sourceLineForAssembly.end(),
+            1),
+        view->content->result.sourceLineForAssembly.end());
 }
 
 TEST_F(AssemblyViewTest, ReversedVisualSelectionSurvivesCompilerFlagPicker)
 {
-    *editor.lines = {"int example(int x) {", "    x += 1;", "    return x;",
-                     "}"};
+    *editor
+         .lines = {"int example(int x) {", "    x += 1;", "    return x;", "}"};
     *editor.cursorY = 2;
     auto sm = makeMachine(editor, NormalMode{});
     sm.dispatch('v');
@@ -1400,8 +1558,11 @@ TEST_F(AssemblyViewTest, ReversedVisualSelectionSurvivesCompilerFlagPicker)
     EXPECT_EQ(view->sourceRange, (std::pair{2, 3}));
     const auto& mapping = view->content->result.sourceLineForAssembly;
     ASSERT_FALSE(mapping.empty());
-    EXPECT_TRUE(std::all_of(mapping.begin(), mapping.end(),
-                            [](int line) { return line >= 2 && line <= 3; }));
+    EXPECT_TRUE(
+        std::all_of(
+            mapping.begin(),
+            mapping.end(),
+            [](int line) { return line >= 2 && line <= 3; }));
     EXPECT_NE(read_file(root / "arguments").find("-O2"), std::string::npos);
 }
 
@@ -1423,8 +1584,8 @@ TEST_F(AssemblyViewTest, CancellingVisualCommandDoesNotFilterNextAssemblyView)
 
 TEST_F(AssemblyViewTest, VisualSelectionWithNoInstructionsExplainsEmptyOutput)
 {
-    *editor.lines = {"int example(int x) {", "    x += 1;", "    return x;",
-                     "}"};
+    *editor
+         .lines = {"int example(int x) {", "    x += 1;", "    return x;", "}"};
     *editor.cursorY = 3;
     auto sm = makeMachine(editor, NormalMode{});
     sm.dispatch('V');
@@ -1434,16 +1595,18 @@ TEST_F(AssemblyViewTest, VisualSelectionWithNoInstructionsExplainsEmptyOutput)
     ASSERT_TRUE(waitFor(editor, [&] { return !view->content->compiling; }));
     EXPECT_TRUE(view->content->result.success);
     EXPECT_TRUE(view->content->result.lines.empty());
-    EXPECT_NE(view->content->result.diagnostics.find("No assembly maps"),
-              std::string::npos);
+    EXPECT_NE(
+        view->content->result.diagnostics.find("No assembly maps"),
+        std::string::npos);
     testing::internal::CaptureStdout();
     view->draw(editor);
     const auto frame = testing::internal::GetCapturedStdout();
     EXPECT_NE(frame.find("No assembly maps"), std::string::npos);
     EXPECT_EQ(frame.find("compile failed"), std::string::npos);
     sm.dispatch('i');
-    EXPECT_NE(view->content->docsText.find("no assembly instructions"),
-              std::string::npos);
+    EXPECT_NE(
+        view->content->docsText.find("no assembly instructions"),
+        std::string::npos);
     sm.dispatch('q');
     EXPECT_STREQ(sm.currentStateName(), "NORMAL");
 }
@@ -1456,29 +1619,35 @@ TEST_F(AssemblyViewTest, VisualSelectionCannotApplyToAnotherFile)
     auto* view = sm.getState<AssemblyMode>();
     ASSERT_NE(view, nullptr);
     EXPECT_FALSE(view->content->compiling);
-    EXPECT_NE(view->content->result.diagnostics.find("current buffer"),
-              std::string::npos);
+    EXPECT_NE(
+        view->content->result.diagnostics.find("current buffer"),
+        std::string::npos);
     EXPECT_TRUE(editor.tasks.idle());
 }
 
-TEST(AssemblyViewCompilerTest, SelectedBodyKeepsDeclarationContextAndSourceNumbers)
+TEST(
+    AssemblyViewCompilerTest,
+    SelectedBodyKeepsDeclarationContextAndSourceNumbers)
 {
     if(!executable_lookup::find("clang++").found)
         GTEST_SKIP() << "Clang not installed";
     const auto root = make_temp_dir("uvim_asm_selection_");
     const auto source = root / "selected.cpp";
     write_file(root / "context.h", "using Value = int;\n#define INCREMENT 7\n");
-    const std::vector<std::string> lines = {
-        "#include \"context.h\"", "Value selected(Value x) {",
-        "    return x + INCREMENT;", "}",
-        "Value unselected(Value x) { return x * 9; }"};
+    const std::vector<std::string> lines =
+        {"#include \"context.h\"",
+         "Value selected(Value x) {",
+         "    return x + INCREMENT;",
+         "}",
+         "Value unselected(Value x) { return x * 9; }"};
     assembly_compiler::Request request;
     request.path = source.string();
     request.sourceLines = lines;
     request.compiler = "clang";
     request.flags = {"-O0"};
     request.sourceRange = std::pair{3, 3};
-    const auto result = assembly_compiler::compile(request, [] { return false; });
+    const auto result =
+        assembly_compiler::compile(request, [] { return false; });
     EXPECT_TRUE(result.success) << result.diagnostics;
     ASSERT_FALSE(result.lines.empty());
     EXPECT_EQ(result.sourceLines, lines);
@@ -1493,8 +1662,8 @@ TEST(AssemblyViewCompilerTest, SelectedBodyKeepsDeclarationContextAndSourceNumbe
 
 TEST_F(AssemblyViewTest, FilteredSourceRangeStaysTintedWhileBrowsingSplit)
 {
-    *editor.lines = {"int example(int x) {", "    x += 1;", "    return x;",
-                     "}"};
+    *editor
+         .lines = {"int example(int x) {", "    x += 1;", "    return x;", "}"};
     *editor.cursorY = 0;
     auto sm = makeMachine(editor, NormalMode{});
     sm.dispatch('V');
@@ -1532,8 +1701,9 @@ TEST_F(AssemblyViewTest, FilteredSourceRangeStaysTintedWhileBrowsingSplit)
         EXPECT_EQ(next.find(sourceRow(4)), std::string::npos);
     }
     EXPECT_NE(next.find(editor.theme.sourceMapping()), std::string::npos);
-    write_file(root / "range-theme.toml",
-               "[theme.asm]\nselection_bg = \"#28354e\"\n");
+    write_file(
+        root / "range-theme.toml",
+        "[theme.asm]\nselection_bg = \"#28354e\"\n");
     ASSERT_TRUE(
         editor.theme.loadFromFile((root / "range-theme.toml").string()));
 #ifdef UVIM_ENABLE_TERMINAL_COLORS

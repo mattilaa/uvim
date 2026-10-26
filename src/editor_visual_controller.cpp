@@ -13,96 +13,125 @@ void EditorVisualController::startVisualMode()
 {
     editor.startVisualModeImpl();
 }
+
 void EditorVisualController::startVisualLineMode()
 {
     editor.startVisualLineModeImpl();
 }
+
 void EditorVisualController::startVisualBlockMode()
 {
     editor.startVisualBlockModeImpl();
 }
+
 void EditorVisualController::updateVisualSelection()
 {
     editor.updateVisualSelectionImpl();
 }
+
 void EditorVisualController::updateVisualBlockSelection()
 {
     editor.updateVisualBlockSelectionImpl();
 }
+
 bool EditorVisualController::isInSelection(int row, int col)
 {
     return editor.isInSelectionImpl(row, col);
 }
+
 bool EditorVisualController::isInVisualBlock(int row, int col)
 {
     return editor.isInVisualBlockImpl(row, col);
 }
-void EditorVisualController::getVisualBlockBounds(int& startY, int& startX,
-                                                  int& endY, int& endX)
+
+void EditorVisualController::getVisualBlockBounds(
+    int& startY,
+    int& startX,
+    int& endY,
+    int& endX)
 {
     editor.getVisualBlockBoundsImpl(startY, startX, endY, endX);
 }
-void EditorVisualController::getSelectionBounds(int& startY, int& startX,
-                                                int& endY, int& endX)
+
+void EditorVisualController::getSelectionBounds(
+    int& startY,
+    int& startX,
+    int& endY,
+    int& endX)
 {
     editor.getSelectionBoundsImpl(startY, startX, endY, endX);
 }
+
 void EditorVisualController::setVisualRange()
 {
     editor.setVisualRangeImpl();
 }
+
 void EditorVisualController::swapVisualEnds()
 {
     editor.swapVisualEndsImpl();
 }
+
 void EditorVisualController::swapVisualBlockCorner()
 {
     editor.swapVisualBlockCornerImpl();
 }
+
 void EditorVisualController::prepareBlockInsert(bool atEnd)
 {
     editor.prepareBlockInsertImpl(atEnd);
 }
+
 void EditorVisualController::indentSelection()
 {
     editor.indentSelectionImpl();
 }
+
 void EditorVisualController::dedentSelection()
 {
     editor.dedentSelectionImpl();
 }
+
 void EditorVisualController::autoIndentSelection()
 {
     editor.autoIndentSelectionImpl();
 }
+
 void EditorVisualController::lowercaseSelection()
 {
     editor.lowercaseSelectionImpl();
 }
+
 void EditorVisualController::uppercaseSelection()
 {
     editor.uppercaseSelectionImpl();
 }
+
 void EditorVisualController::toggleCaseSelection()
 {
     editor.toggleCaseSelectionImpl();
 }
+
 void EditorVisualController::yankLineSelection()
 {
     editor.yankLineSelectionImpl();
 }
+
 void EditorVisualController::deleteLineSelection()
 {
     editor.deleteLineSelectionImpl();
 }
+
 void EditorVisualController::indentLineSelection()
 {
     editor.indentLineSelectionImpl();
 }
+
 void EditorVisualController::dedentLineSelection()
 {
     editor.dedentLineSelectionImpl();
 }
+
 void EditorVisualController::autoIndentLineSelection()
 {
     editor.autoIndentLineSelectionImpl();
@@ -179,21 +208,31 @@ bool Editor::isInVisualBlockImpl(int row, int col)
     return row >= startY && row <= endY && col >= startX && col <= endX;
 }
 
-void Editor::getVisualBlockBoundsImpl(int& startY, int& startX, int& endY,
-                                      int& endX)
+void Editor::getVisualBlockBoundsImpl(
+    int& startY,
+    int& startX,
+    int& endY,
+    int& endX)
 {
-    startY = std::min(currentBuffer->visualBlockStartY,
-                      currentBuffer->visualBlockEndY);
-    endY = std::max(currentBuffer->visualBlockStartY,
-                    currentBuffer->visualBlockEndY);
-    startX = std::min(currentBuffer->visualBlockStartX,
-                      currentBuffer->visualBlockEndX);
-    endX = std::max(currentBuffer->visualBlockStartX,
-                    currentBuffer->visualBlockEndX);
+    startY = std::min(
+        currentBuffer->visualBlockStartY,
+        currentBuffer->visualBlockEndY);
+    endY = std::max(
+        currentBuffer->visualBlockStartY,
+        currentBuffer->visualBlockEndY);
+    startX = std::min(
+        currentBuffer->visualBlockStartX,
+        currentBuffer->visualBlockEndX);
+    endX = std::max(
+        currentBuffer->visualBlockStartX,
+        currentBuffer->visualBlockEndX);
 }
 
-void Editor::getSelectionBoundsImpl(int& startY, int& startX, int& endY,
-                                    int& endX)
+void Editor::getSelectionBoundsImpl(
+    int& startY,
+    int& startX,
+    int& endY,
+    int& endX)
 {
     if(currentBuffer->visualStartY < currentBuffer->visualEndY ||
        (currentBuffer->visualStartY == currentBuffer->visualEndY &&
@@ -239,15 +278,15 @@ void Editor::rememberVisualColorRange()
         range.endY = std::clamp(range.endY, 0, (int)lines->size() - 1);
         range.startX =
             std::clamp(range.startX, 0, (int)(*lines)[range.startY].size());
-        range.endX = std::clamp(range.endX, 0,
-                                 (int)(*lines)[range.endY].size());
+        range.endX =
+            std::clamp(range.endX, 0, (int)(*lines)[range.endY].size());
 
         const std::string& startLine = (*lines)[range.startY];
         const std::string& endLine = (*lines)[range.endY];
         if(range.startX > 0)
         {
-            const unsigned char byte =
-                static_cast<unsigned char>(startLine[(std::size_t)range.startX]);
+            const unsigned char byte = static_cast<unsigned char>(
+                startLine[(std::size_t)range.startX]);
             if((byte & 0xC0) == 0x80)
                 range.startX =
                     text_utils::prevUtf8CharStart(startLine, range.startX);

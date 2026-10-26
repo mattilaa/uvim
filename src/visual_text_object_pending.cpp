@@ -15,9 +15,10 @@ bool isEscape(int key)
     return key == keyCode(control::ControlKey::ESC);
 }
 
-std::optional<ModeState>
-applyTextObject(VisualTextObjectPendingMachine& machine, ModeContext& ctx,
-                int objectKey)
+std::optional<ModeState> applyTextObject(
+    VisualTextObjectPendingMachine& machine,
+    ModeContext& ctx,
+    int objectKey)
 {
     Editor* ed = ctx.editor;
     int startY = 0;
@@ -25,9 +26,13 @@ applyTextObject(VisualTextObjectPendingMachine& machine, ModeContext& ctx,
     int endY = 0;
     int endX = 0;
 
-    if(!ed->getTextObjectRange(static_cast<char>(objectKey),
-                               machine.aroundObject(), startY, startX, endY,
-                               endX))
+    if(!ed->getTextObjectRange(
+           static_cast<char>(objectKey),
+           machine.aroundObject(),
+           startY,
+           startX,
+           endY,
+           endX))
     {
         ctx.setStatusMessage("No object found");
         ctx.repeatCount = 0;
@@ -53,7 +58,8 @@ applyTextObject(VisualTextObjectPendingMachine& machine, ModeContext& ctx,
 } // namespace
 
 std::optional<ModeState> VisualTextObjectDelimiterDispatcher::dispatch(
-    VisualTextObjectPendingMachine& machine, ModeContext& ctx,
+    VisualTextObjectPendingMachine& machine,
+    ModeContext& ctx,
     const ModeKeyEvent& event)
 {
     const int key = event.key;
@@ -103,18 +109,21 @@ std::optional<ModeState> VisualTextObjectDelimiterDispatcher::dispatch(
 
 VisualTextObjectPendingMachine::VisualTextObjectPendingMachine(
     bool aroundObject)
-    : state(aroundObject ? PendingState{VisualTextObjectAfterA{}}
-                         : PendingState{VisualTextObjectAfterI{}}),
+    : state(
+          aroundObject ? PendingState{VisualTextObjectAfterA{}}
+                       : PendingState{VisualTextObjectAfterI{}}),
       around(aroundObject)
 {
 }
 
-std::optional<ModeState>
-VisualTextObjectPendingMachine::handle(ModeContext& ctx,
-                                       const ModeKeyEvent& event)
+std::optional<ModeState> VisualTextObjectPendingMachine::handle(
+    ModeContext& ctx,
+    const ModeKeyEvent& event)
 {
-    return std::visit([&](auto& activeState) -> std::optional<ModeState>
-                      { return activeState.handle(*this, ctx, event); }, state);
+    return std::visit(
+        [&](auto& activeState) -> std::optional<ModeState>
+        { return activeState.handle(*this, ctx, event); },
+        state);
 }
 
 bool VisualTextObjectPendingMachine::done() const
@@ -140,9 +149,9 @@ void VisualTextObjectPendingMachine::cancel(ModeContext& ctx)
     finish();
 }
 
-std::optional<ModeState>
-VisualTextObjectPendingMachine::redispatch(ModeContext& ctx,
-                                           const ModeKeyEvent& event)
+std::optional<ModeState> VisualTextObjectPendingMachine::redispatch(
+    ModeContext& ctx,
+    const ModeKeyEvent& event)
 {
     return handle(ctx, event);
 }
@@ -187,81 +196,107 @@ void VisualTextObjectPendingMachine::setSingleQuote()
     state = VisualTextObjectSingleQuote{};
 }
 
-std::optional<ModeState>
-VisualTextObjectAfterI::handle(VisualTextObjectPendingMachine& machine,
-                               ModeContext& ctx, const ModeKeyEvent& event)
+std::optional<ModeState> VisualTextObjectAfterI::handle(
+    VisualTextObjectPendingMachine& machine,
+    ModeContext& ctx,
+    const ModeKeyEvent& event)
 {
     return VisualTextObjectDelimiterDispatcher{}.dispatch(machine, ctx, event);
 }
 
-std::optional<ModeState>
-VisualTextObjectAfterA::handle(VisualTextObjectPendingMachine& machine,
-                               ModeContext& ctx, const ModeKeyEvent& event)
+std::optional<ModeState> VisualTextObjectAfterA::handle(
+    VisualTextObjectPendingMachine& machine,
+    ModeContext& ctx,
+    const ModeKeyEvent& event)
 {
     return VisualTextObjectDelimiterDispatcher{}.dispatch(machine, ctx, event);
 }
 
-std::optional<ModeState>
-VisualTextObjectLeftParen::handle(VisualTextObjectPendingMachine& machine,
-                                  ModeContext& ctx, const ModeKeyEvent&)
+std::optional<ModeState> VisualTextObjectLeftParen::handle(
+    VisualTextObjectPendingMachine& machine,
+    ModeContext& ctx,
+    const ModeKeyEvent&)
 {
-    return applyTextObject(machine, ctx,
-                           keyCode(command::CommandKey::KEY_LEFT_PAREN));
+    return applyTextObject(
+        machine,
+        ctx,
+        keyCode(command::CommandKey::KEY_LEFT_PAREN));
 }
 
-std::optional<ModeState>
-VisualTextObjectRightParen::handle(VisualTextObjectPendingMachine& machine,
-                                   ModeContext& ctx, const ModeKeyEvent&)
+std::optional<ModeState> VisualTextObjectRightParen::handle(
+    VisualTextObjectPendingMachine& machine,
+    ModeContext& ctx,
+    const ModeKeyEvent&)
 {
-    return applyTextObject(machine, ctx,
-                           keyCode(command::CommandKey::KEY_RIGHT_PAREN));
+    return applyTextObject(
+        machine,
+        ctx,
+        keyCode(command::CommandKey::KEY_RIGHT_PAREN));
 }
 
-std::optional<ModeState>
-VisualTextObjectLeftBracket::handle(VisualTextObjectPendingMachine& machine,
-                                    ModeContext& ctx, const ModeKeyEvent&)
+std::optional<ModeState> VisualTextObjectLeftBracket::handle(
+    VisualTextObjectPendingMachine& machine,
+    ModeContext& ctx,
+    const ModeKeyEvent&)
 {
-    return applyTextObject(machine, ctx,
-                           keyCode(command::CommandKey::KEY_LEFT_BRACKET));
+    return applyTextObject(
+        machine,
+        ctx,
+        keyCode(command::CommandKey::KEY_LEFT_BRACKET));
 }
 
-std::optional<ModeState>
-VisualTextObjectRightBracket::handle(VisualTextObjectPendingMachine& machine,
-                                     ModeContext& ctx, const ModeKeyEvent&)
+std::optional<ModeState> VisualTextObjectRightBracket::handle(
+    VisualTextObjectPendingMachine& machine,
+    ModeContext& ctx,
+    const ModeKeyEvent&)
 {
-    return applyTextObject(machine, ctx,
-                           keyCode(command::CommandKey::KEY_RIGHT_BRACKET));
+    return applyTextObject(
+        machine,
+        ctx,
+        keyCode(command::CommandKey::KEY_RIGHT_BRACKET));
 }
 
-std::optional<ModeState>
-VisualTextObjectLeftBrace::handle(VisualTextObjectPendingMachine& machine,
-                                  ModeContext& ctx, const ModeKeyEvent&)
+std::optional<ModeState> VisualTextObjectLeftBrace::handle(
+    VisualTextObjectPendingMachine& machine,
+    ModeContext& ctx,
+    const ModeKeyEvent&)
 {
-    return applyTextObject(machine, ctx,
-                           keyCode(command::CommandKey::KEY_LEFT_BRACE));
+    return applyTextObject(
+        machine,
+        ctx,
+        keyCode(command::CommandKey::KEY_LEFT_BRACE));
 }
 
-std::optional<ModeState>
-VisualTextObjectRightBrace::handle(VisualTextObjectPendingMachine& machine,
-                                   ModeContext& ctx, const ModeKeyEvent&)
+std::optional<ModeState> VisualTextObjectRightBrace::handle(
+    VisualTextObjectPendingMachine& machine,
+    ModeContext& ctx,
+    const ModeKeyEvent&)
 {
-    return applyTextObject(machine, ctx,
-                           keyCode(command::CommandKey::KEY_RIGHT_BRACE));
+    return applyTextObject(
+        machine,
+        ctx,
+        keyCode(command::CommandKey::KEY_RIGHT_BRACE));
 }
 
-std::optional<ModeState>
-VisualTextObjectDoubleQuote::handle(VisualTextObjectPendingMachine& machine,
-                                    ModeContext& ctx, const ModeKeyEvent&)
+std::optional<ModeState> VisualTextObjectDoubleQuote::handle(
+    VisualTextObjectPendingMachine& machine,
+    ModeContext& ctx,
+    const ModeKeyEvent&)
 {
-    return applyTextObject(machine, ctx,
-                           keyCode(command::CommandKey::KEY_DOUBLE_QUOTE));
+    return applyTextObject(
+        machine,
+        ctx,
+        keyCode(command::CommandKey::KEY_DOUBLE_QUOTE));
 }
 
-std::optional<ModeState>
-VisualTextObjectSingleQuote::handle(VisualTextObjectPendingMachine& machine,
-                                    ModeContext& ctx, const ModeKeyEvent&)
+std::optional<ModeState> VisualTextObjectSingleQuote::handle(
+    VisualTextObjectPendingMachine& machine,
+    ModeContext& ctx,
+    const ModeKeyEvent&)
 {
-    return applyTextObject(machine, ctx,
-                           keyCode(command::CommandKey::KEY_APOSTROPHE));
+    return applyTextObject(
+        machine,
+        ctx,
+        keyCode(command::CommandKey::KEY_APOSTROPHE));
 }
 } // namespace editor::statemachine

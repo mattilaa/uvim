@@ -27,8 +27,9 @@ using editor::helper::parse_int;
 using editor::helper::trim_view;
 using namespace detail;
 
-bool SplitExplorerCommand::execute(Editor& editor,
-                                   const CommandRequest& request) const
+bool SplitExplorerCommand::execute(
+    Editor& editor,
+    const CommandRequest& request) const
 {
     std::string browsePath = ".";
     editor::statemachine::FileBrowserMode* browser = nullptr;

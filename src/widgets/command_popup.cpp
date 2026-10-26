@@ -261,9 +261,13 @@ static std::string format_command_line(std::string_view cmd, int cmdColWidth)
     return line;
 }
 
-static void build_command_line_parts(std::string_view cmdText, int cmdColWidth,
-                                     int innerW, std::string& cmdPart,
-                                     std::string& gapPart, std::string& docPart)
+static void build_command_line_parts(
+    std::string_view cmdText,
+    int cmdColWidth,
+    int innerW,
+    std::string& cmdPart,
+    std::string& gapPart,
+    std::string& docPart)
 {
     cmdPart.assign(cmdText.data(), cmdText.size());
     gapPart.clear();
@@ -343,7 +347,10 @@ void drawCommandPopup(std::string& output, const CommandPopupView& view)
 
     int totalH = rows + 2;
     const PopupPlacement placement = placeBottomLeftPopup(
-        frame.screenRows, frame.screenCols, totalW, totalH);
+        frame.screenRows,
+        frame.screenCols,
+        totalW,
+        totalH);
     int top = placement.top;
     int left = placement.left;
 
@@ -351,14 +358,15 @@ void drawCommandPopup(std::string& output, const CommandPopupView& view)
 
     moveTo(top, left);
     text_utils::appendU8(output, ascii::BOX_ROUNDED_TOP_LEFT);
-    const auto title =
-        view.title.empty()
-            ? std::string{}
-            : truncate_to_width(" " + std::string(view.title) + " ",
-                                innerW + 2);
+    const auto title = view.title.empty()
+                           ? std::string{}
+                           : truncate_to_width(
+                                 " " + std::string(view.title) + " ",
+                                 innerW + 2);
     output += title;
     text_utils::appendUtf8Repeat(
-        output, ascii::BOX_LIGHT_HORIZONTAL,
+        output,
+        ascii::BOX_LIGHT_HORIZONTAL,
         std::max(0, innerW + 2 - text_utils::displayWidth(title)));
     text_utils::appendU8(output, ascii::BOX_ROUNDED_TOP_RIGHT);
 
@@ -388,9 +396,13 @@ void drawCommandPopup(std::string& output, const CommandPopupView& view)
                         line = view.entries[idx];
                     else
                     {
-                        build_command_line_parts(view.entries[idx],
-                                                 commandColWidth, innerW,
-                                                 cmdPart, gapPart, docPart);
+                        build_command_line_parts(
+                            view.entries[idx],
+                            commandColWidth,
+                            innerW,
+                            cmdPart,
+                            gapPart,
+                            docPart);
                         line = cmdPart + gapPart + docPart;
                     }
                 }
@@ -487,8 +499,10 @@ void drawCommandPopup(std::string& output, const CommandPopupView& view)
 
     moveTo(top + totalH - 1, left);
     text_utils::appendU8(output, ascii::BOX_ROUNDED_BOTTOM_LEFT);
-    text_utils::appendUtf8Repeat(output, ascii::BOX_LIGHT_HORIZONTAL,
-                                 innerW + 2);
+    text_utils::appendUtf8Repeat(
+        output,
+        ascii::BOX_LIGHT_HORIZONTAL,
+        innerW + 2);
     text_utils::appendU8(output, ascii::BOX_ROUNDED_BOTTOM_RIGHT);
 }
 } // namespace widgets

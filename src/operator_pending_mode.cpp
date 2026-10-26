@@ -24,9 +24,13 @@ void OperatorPendingMode::on_exit(ModeContext& ctx)
 
 namespace
 {
-std::optional<ModeState>
-applyResolvedOperatorRange(ModeContext& ctx, char op, int startY, int startX,
-                           int endY, int endX)
+std::optional<ModeState> applyResolvedOperatorRange(
+    ModeContext& ctx,
+    char op,
+    int startY,
+    int startX,
+    int endY,
+    int endX)
 {
     Editor* ed = ctx.editor;
     ed->applyOperatorToRange(op, startY, startX, endY, endX);
@@ -45,8 +49,9 @@ applyResolvedOperatorRange(ModeContext& ctx, char op, int startY, int startX,
 }
 } // namespace
 
-std::optional<ModeState> OperatorPendingMode::handle(ModeContext& ctx,
-                                                     const ModeKeyEvent& event)
+std::optional<ModeState> OperatorPendingMode::handle(
+    ModeContext& ctx,
+    const ModeKeyEvent& event)
 {
     const int key = event.key;
     Editor* ed = ctx.editor;
@@ -242,8 +247,8 @@ std::optional<ModeState> OperatorPendingMode::handle(ModeContext& ctx,
         case keyCode(typed::TypedKey::KEY_CAP_T):
         {
             pendingCharMotion = static_cast<char>(c);
-            ctx.setStatusMessage(std::string("Operator: ") + op + " " +
-                                 static_cast<char>(c));
+            ctx.setStatusMessage(
+                std::string("Operator: ") + op + " " + static_cast<char>(c));
             return std::nullopt;
         }
         default:
