@@ -1228,11 +1228,13 @@ TEST_F(AssemblyViewTest, InspectionDebouncesRowsAndResetsOnNavigation)
     view->content->result.lines = {"movq %rdi, %rax", "addq $1, %rax", "retq"};
     sm.dispatch('i');
     const auto original = view->content->docsText;
+    const auto firstNavigation = std::chrono::steady_clock::now();
     sm.dispatch('j');
-    std::this_thread::sleep_for(std::chrono::milliseconds(180));
+    view->processIdle(editor, firstNavigation + std::chrono::milliseconds(299));
+    const auto secondNavigation = std::chrono::steady_clock::now();
     sm.dispatch('j');
-    std::this_thread::sleep_for(std::chrono::milliseconds(180));
-    view->processIdle(editor);
+    view->processIdle(editor,
+                      secondNavigation + std::chrono::milliseconds(299));
     EXPECT_EQ(view->content->docsText, original);
     EXPECT_FALSE(view->content->docsLoading);
     view->processIdle(editor, std::chrono::steady_clock::now() +
