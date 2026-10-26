@@ -904,7 +904,8 @@ TEST(RealModeTransitionsTest, FileBrowserCreatesNestedDirectoryFromPrompt)
     sm.dispatch(keyCode(control::ControlKey::ENTER));
 
     EXPECT_TRUE(std::filesystem::is_directory(root / "path1/path2/path3"));
-    EXPECT_EQ(browser->currentDirectory, (root / "path1/path2").string());
+    EXPECT_EQ(std::filesystem::path(browser->currentDirectory),
+              root / "path1" / "path2");
     ASSERT_LT(browser->browserCursor, static_cast<int>(browser->fileList.size()));
     EXPECT_EQ(browser->fileList[browser->browserCursor].name, "path3");
 }
@@ -940,7 +941,8 @@ TEST(RealModeTransitionsTest, FileBrowserConfirmsMissingParentsForNewFile)
     sm.dispatch('y');
     EXPECT_FALSE(browser->confirmingDirCreate);
     EXPECT_TRUE(std::filesystem::is_regular_file(root / "path1/path2/file.txt"));
-    EXPECT_EQ(browser->currentDirectory, (root / "path1/path2").string());
+    EXPECT_EQ(std::filesystem::path(browser->currentDirectory),
+              root / "path1" / "path2");
 
     enterNewFile("sibling.txt");
     EXPECT_FALSE(browser->confirmingDirCreate);
