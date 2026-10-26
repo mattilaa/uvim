@@ -1852,7 +1852,7 @@ TEST(SyntaxHighlighterTest, HighlightsMlangConceptConstraintKeywords)
         "concept Addable<T> = req(value: T) { typename T; "
         "{ value + value } noexcept; }; generic<T> where "
         "Addable<T> cexpr fn twice(value: T) -> T { return value + value; } "
-        "generic<U> requires Addable<U> fn legacy(value: U) -> U;";
+        "generic<U> where Addable<U> fn another(value: U) -> U;";
     bool inBlockComment = false;
     bool inTomlMultiline = false;
     char tomlQuote = 0;
@@ -1866,14 +1866,7 @@ TEST(SyntaxHighlighterTest, HighlightsMlangConceptConstraintKeywords)
         inMarkupFence,
         markupFenceChar);
     for(std::string_view word :
-        {"concept",
-         "req",
-         "typename",
-         "noexcept",
-         "generic",
-         "where",
-         "cexpr",
-         "requires"})
+        {"concept", "req", "typename", "noexcept", "generic", "where", "cexpr"})
     {
         const int pos = static_cast<int>(line.find(word));
         ASSERT_GE(pos, 0) << word;
@@ -1886,6 +1879,27 @@ TEST(SyntaxHighlighterTest, HighlightsMlangConceptConstraintKeywords)
     }
     const int name = static_cast<int>(line.find("Addable"));
     EXPECT_TRUE(hasTokenAt(tokens, name, 7, TOKEN_TYPE));
+}
+
+TEST(SyntaxHighlighterTest, RemovedRequiresIsNotAnMlangKeyword)
+{
+    Editor editor = Editor::createForTests();
+    setupEditorBuffer(editor);
+    *editor.filename = "/tmp/concepts.mla";
+    const std::string line = "requires";
+    bool inBlockComment = false;
+    bool inTomlMultiline = false;
+    char tomlQuote = 0;
+    bool inMarkupFence = false;
+    char markupFenceChar = 0;
+    const auto tokens = editor.tokenizeLine(
+        line,
+        inBlockComment,
+        inTomlMultiline,
+        tomlQuote,
+        inMarkupFence,
+        markupFenceChar);
+    EXPECT_FALSE(hasTokenAt(tokens, 0, 8, TOKEN_KEYWORD));
 }
 
 TEST(SyntaxHighlighterTest, IgnoresMlangConstraintWordsInStringsAndComments)

@@ -686,7 +686,7 @@ std::optional<TokenType> parse_token_type(std::string_view value)
 
 bool is_mlang_keyword(std::string_view word)
 {
-    static constexpr std::array<std::string_view, 34> kKeywords =
+    static constexpr std::array<std::string_view, 33> kKeywords =
         {"alias",
          "break",
          "continue",
@@ -718,7 +718,6 @@ bool is_mlang_keyword(std::string_view word)
          "generic",
          "noexcept",
          "req",
-         "requires",
          "typename",
          "where"};
     return std::ranges::any_of(
@@ -4703,8 +4702,7 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
                             --previous;
                         const auto preceding =
                             sv.substr(previous + 1, end - previous - 1);
-                        constraintPosition =
-                            preceding == "where" || preceding == "requires";
+                        constraintPosition = preceding == "where";
                     }
                     if((is_mlang_std_concept(word) &&
                         (constraintPosition ||
