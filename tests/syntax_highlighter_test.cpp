@@ -1843,6 +1843,84 @@ TEST(SyntaxHighlighterTest, HighlightsMlangPlatformKeywords)
     }
 }
 
+TEST(SyntaxHighlighterTest, HighlightsMlangConceptConstraintKeywords)
+{
+    Editor editor = Editor::createForTests();
+    setupEditorBuffer(editor);
+    *editor.filename = "/tmp/concepts.mla";
+    const std::string line =
+        "concept Addable<T> = req(value: T) { typename T; "
+        "{ value + value } noexcept; }; generic<T> where "
+        "Addable<T> cexpr fn twice(value: T) -> T { return value + value; } "
+        "generic<U> requires Addable<U> fn legacy(value: U) -> U;";
+    bool inBlockComment = false;
+    bool inTomlMultiline = false;
+    char tomlQuote = 0;
+    bool inMarkupFence = false;
+    char markupFenceChar = 0;
+    const auto tokens = editor.tokenizeLine(
+        line,
+        inBlockComment,
+        inTomlMultiline,
+        tomlQuote,
+        inMarkupFence,
+        markupFenceChar);
+    for(std::string_view word :
+        {"concept",
+         "req",
+         "typename",
+         "noexcept",
+         "generic",
+         "where",
+         "cexpr",
+         "requires"})
+    {
+        const int pos = static_cast<int>(line.find(word));
+        ASSERT_GE(pos, 0) << word;
+        EXPECT_TRUE(hasTokenAt(
+            tokens,
+            pos,
+            static_cast<int>(word.size()),
+            TOKEN_KEYWORD))
+            << word;
+    }
+    const int name = static_cast<int>(line.find("Addable"));
+    EXPECT_TRUE(hasTokenAt(tokens, name, 7, TOKEN_TYPE));
+}
+
+TEST(SyntaxHighlighterTest, IgnoresMlangConstraintWordsInStringsAndComments)
+{
+    Editor editor = Editor::createForTests();
+    setupEditorBuffer(editor);
+    *editor.filename = "/tmp/concepts.mla";
+    const std::string line = "\"req where concept\"; // req where concept";
+    bool inBlockComment = false;
+    bool inTomlMultiline = false;
+    char tomlQuote = 0;
+    bool inMarkupFence = false;
+    char markupFenceChar = 0;
+    const auto tokens = editor.tokenizeLine(
+        line,
+        inBlockComment,
+        inTomlMultiline,
+        tomlQuote,
+        inMarkupFence,
+        markupFenceChar);
+    for(std::string_view word : {"req", "where", "concept"})
+    {
+        size_t pos = line.find(word);
+        while(pos != std::string::npos)
+        {
+            EXPECT_FALSE(hasTokenAt(
+                tokens,
+                static_cast<int>(pos),
+                static_cast<int>(word.size()),
+                TOKEN_KEYWORD));
+            pos = line.find(word, pos + word.size());
+        }
+    }
+}
+
 TEST(SyntaxHighlighterTest, HighlightsMlangBranchPredictionKeywords)
 {
     Editor editor = Editor::createForTests();

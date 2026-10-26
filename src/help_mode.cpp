@@ -46,19 +46,44 @@ int helpModeContentRows(const ModeContext& ctx)
 
 std::vector<std::string> helpSearchTopics()
 {
-    return {"",        "commands",    "modes",     "navigation", "editing",
-            "files",   "filebrowser", "run",       "buffers",    "windows",
-            "search",  "regex",       "clipboard", "git",        "ga",
-            "gb",      "gbb",         "gbl",       "gj",         "gbv",
-            "gs",
+    return {
+        "",
+        "commands",
+        "modes",
+        "navigation",
+        "editing",
+        "files",
+        "filebrowser",
+        "run",
+        "buffers",
+        "windows",
+        "search",
+        "regex",
+        "clipboard",
+        "git",
+        "ga",
+        "gb",
+        "gbb",
+        "gbl",
+        "gj",
+        "gbv",
+        "gs",
 #ifdef UVIM_ENABLE_DEBUGGER
-            "dbgrun",  "dbgattach",
+        "dbgrun",
+        "dbgattach",
 #endif
 #ifdef UVIM_ENABLE_ASM_VIEW
-            "asm",
+        "asm",
 #endif
-            "emitasm", "lsp",         "toolinfo",  "tasks",      "diagnostics",
-            "logging", "keys",        "palette",   "functions"};
+        "emitasm",
+        "lsp",
+        "toolinfo",
+        "tasks",
+        "diagnostics",
+        "logging",
+        "keys",
+        "palette",
+        "functions"};
 }
 
 int helpSearchVisibleRows(const Editor& editor)

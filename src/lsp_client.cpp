@@ -63,11 +63,30 @@ static std::string readFileAll(const std::string& path)
 
 static std::vector<std::string> defaultSemanticTokenTypes()
 {
-    return {"namespace",  "type",          "class",     "enum",     "interface",
-            "struct",     "typeParameter", "parameter", "variable", "property",
-            "enumMember", "event",         "function",  "method",   "macro",
-            "keyword",    "modifier",      "comment",   "string",   "number",
-            "regexp",     "operator",      "decorator"};
+    return {
+        "namespace",
+        "type",
+        "class",
+        "enum",
+        "interface",
+        "struct",
+        "typeParameter",
+        "parameter",
+        "variable",
+        "property",
+        "enumMember",
+        "event",
+        "function",
+        "method",
+        "macro",
+        "keyword",
+        "modifier",
+        "comment",
+        "string",
+        "number",
+        "regexp",
+        "operator",
+        "decorator"};
 }
 
 static std::vector<std::string> defaultSemanticTokenModifiers()
