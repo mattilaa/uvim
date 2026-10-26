@@ -772,6 +772,20 @@ bool is_mlang_builtin(std::string_view word)
         [&](std::string_view fn) { return fn == word; });
 }
 
+bool is_mlang_std_concept(std::string_view word)
+{
+    static constexpr std::array<std::string_view, 6> kConcepts =
+        {"same_as",
+         "integral",
+         "signed_integral",
+         "unsigned_integral",
+         "floating_point",
+         "arithmetic"};
+    return std::ranges::any_of(
+        kConcepts,
+        [&](std::string_view name) { return name == word; });
+}
+
 bool is_mlang_platform_keyword(std::string_view word)
 {
     static constexpr std::array<std::string_view, 6> kPlatform =
@@ -4661,6 +4675,45 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
                 {
                     push_token(TOKEN_KEYWORD, start, i - start);
                     continue;
+                }
+                if(syntaxMlangHighlightTypes)
+                {
+                    int next = i;
+                    while(next < len && text_utils::is_space(sv[next]))
+                        ++next;
+                    if(word == "static_assert" && next < len && sv[next] == '!')
+                    {
+                        push_token(TOKEN_TYPE, start, i - start);
+                        continue;
+                    }
+
+                    int previous = start - 1;
+                    while(previous >= 0 && text_utils::is_space(sv[previous]))
+                        --previous;
+                    bool constraintPosition =
+                        previous >= 0 && sv[previous] == ':';
+                    if(previous >= 0 && (text_utils::is_alpha(sv[previous]) ||
+                                         sv[previous] == '_'))
+                    {
+                        const int end = previous + 1;
+                        while(previous >= 0 &&
+                              (text_utils::is_alpha(sv[previous]) ||
+                               text_utils::is_digit(sv[previous]) ||
+                               sv[previous] == '_'))
+                            --previous;
+                        const auto preceding =
+                            sv.substr(previous + 1, end - previous - 1);
+                        constraintPosition =
+                            preceding == "where" || preceding == "requires";
+                    }
+                    if((is_mlang_std_concept(word) &&
+                        (constraintPosition ||
+                         (next < len && sv[next] == '<'))) ||
+                       (constraintPosition && next < len && sv[next] == '<'))
+                    {
+                        push_token(TOKEN_TYPE, start, i - start);
+                        continue;
+                    }
                 }
                 if(syntaxMlangHighlightTypes && !is_mlang_keyword(word))
                 {

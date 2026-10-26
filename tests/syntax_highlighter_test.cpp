@@ -1921,6 +1921,71 @@ TEST(SyntaxHighlighterTest, IgnoresMlangConstraintWordsInStringsAndComments)
     }
 }
 
+TEST(SyntaxHighlighterTest, HighlightsMlangConceptUsesAndStaticAssertAsTypes)
+{
+    Editor editor = Editor::createForTests();
+    setupEditorBuffer(editor);
+    *editor.filename = "/tmp/concepts.mla";
+
+    auto tokenize = [&](const std::string& line)
+    {
+        bool inBlockComment = false;
+        bool inTomlMultiline = false;
+        char tomlQuote = 0;
+        bool inMarkupFence = false;
+        char markupFenceChar = 0;
+        return editor.tokenizeLine(
+            line,
+            inBlockComment,
+            inTomlMultiline,
+            tomlQuote,
+            inMarkupFence,
+            markupFenceChar);
+    };
+
+    const std::string arithmetic = "generic<T> where arithmetic<T>";
+    const auto arithmeticTokens = tokenize(arithmetic);
+    EXPECT_TRUE(hasTokenAt(
+        arithmeticTokens,
+        static_cast<int>(arithmetic.find("arithmetic")),
+        10,
+        TOKEN_TYPE));
+
+    const std::string constrained = "generic<T: integral>";
+    const auto constrainedTokens = tokenize(constrained);
+    EXPECT_TRUE(hasTokenAt(
+        constrainedTokens,
+        static_cast<int>(constrained.find("integral")),
+        8,
+        TOKEN_TYPE));
+
+    const std::string floating =
+        "generic<T> where floating_point<T> fn category(value: T)";
+    const auto floatingTokens = tokenize(floating);
+    EXPECT_TRUE(hasTokenAt(
+        floatingTokens,
+        static_cast<int>(floating.find("floating_point")),
+        14,
+        TOKEN_TYPE));
+
+    const std::string assertion = "static_assert!(same_as<i32, i32>);";
+    const auto assertionTokens = tokenize(assertion);
+    EXPECT_TRUE(hasTokenAt(assertionTokens, 0, 13, TOKEN_TYPE));
+    EXPECT_TRUE(hasTokenAt(
+        assertionTokens,
+        static_cast<int>(assertion.find("same_as")),
+        7,
+        TOKEN_TYPE));
+
+    const std::string ordinary = "let arithmetic = 1; arithmetic(value);";
+    const auto ordinaryTokens = tokenize(ordinary);
+    EXPECT_FALSE(hasTokenAt(
+        ordinaryTokens,
+        static_cast<int>(ordinary.find("arithmetic")),
+        10,
+        TOKEN_TYPE));
+}
+
 TEST(SyntaxHighlighterTest, HighlightsMlangBranchPredictionKeywords)
 {
     Editor editor = Editor::createForTests();
