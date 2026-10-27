@@ -438,6 +438,8 @@ std::optional<ModeState> CommandMode::handle(
                     return std::get<GitShowCommitMode>(state);
                 if(std::holds_alternative<GitStageMode>(state))
                     return std::get<GitStageMode>(state);
+                if(std::holds_alternative<GitStatusMode>(state))
+                    return std::get<GitStatusMode>(state);
                 if(std::holds_alternative<GitCommitMode>(state))
                     return std::get<GitCommitMode>(state);
                 if(std::holds_alternative<GitFixupMode>(state))

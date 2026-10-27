@@ -1646,6 +1646,8 @@ std::string Editor::getModeString() const
         return "GITLOG";
     case GIT_STAGE:
         return "GIT STAGE";
+    case GIT_STATUS:
+        return "GIT STATUS";
     case GIT_COMMIT:
         return "GIT COMMIT";
     case GIT_FIXUP:
@@ -2318,6 +2320,11 @@ void Editor::openGitLogModeForFile()
 void Editor::openGitStageMode()
 {
     gitController->openGitStageMode();
+}
+
+void Editor::openGitStatusMode()
+{
+    gitController->openGitStatusMode();
 }
 
 void Editor::openGitDiffMode()

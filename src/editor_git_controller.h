@@ -27,6 +27,7 @@ public:
     void openGitPrettyLogMode();
     void openGitLogModeForFile();
     void openGitStageMode();
+    void openGitStatusMode();
     void openGitDiffMode();
     // :showchanges - unsaved buffer edits vs the file on disk, shown in
     // the git diff view.

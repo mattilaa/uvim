@@ -53,6 +53,7 @@ struct HelpMode;
 struct GitShowCommitMode;
 struct GitLogMode;
 struct GitStageMode;
+struct GitStatusMode;
 struct GitCommitMode;
 struct GitFixupMode;
 struct GitPatchMode;
@@ -116,6 +117,7 @@ using ModeState = std::variant<
     GitShowCommitMode,
     GitLogMode,
     GitStageMode,
+    GitStatusMode,
     GitCommitMode,
     GitFixupMode,
     GitPatchMode

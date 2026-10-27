@@ -47,6 +47,7 @@ std::vector<std::unique_ptr<EditorExecutionCommand>> buildCommands()
 #endif
 #ifdef UVIM_ENABLE_GIT_TOOLS
     commands.push_back(std::make_unique<GitStageCommand>());
+    commands.push_back(std::make_unique<GitStatusCommand>());
 #endif
 #ifdef UVIM_ENABLE_SEARCH_TOOLS
     commands.push_back(std::make_unique<RefreshFileSearchCommand>());

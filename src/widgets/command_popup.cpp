@@ -22,6 +22,8 @@ std::string_view commandDocumentation(std::string_view cmd)
         return "Rebase commits or resolve an in-progress rebase";
     if(cmd == "git push")
         return "Push current branch; confirm before publishing a new branch";
+    if(cmd == "git status")
+        return "Show repository status with staged and unstaged colors";
     if(cmd == "git rebase --interactive")
         return "Choose the oldest commit, then edit the rebase todo";
     if(cmd == "git rebase --continue")

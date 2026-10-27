@@ -89,6 +89,11 @@ void EditorGitController::openGitStageMode()
     editor.setStatusMessage("git tools disabled in this build");
 }
 
+void EditorGitController::openGitStatusMode()
+{
+    editor.setStatusMessage("git tools disabled in this build");
+}
+
 void EditorGitController::openGitDiffMode()
 {
     editor.setStatusMessage("git tools disabled in this build");

@@ -745,6 +745,7 @@ std::vector<std::string> Editor::getCommandCompletionsImpl(
         "git add",
         "git blame",
         "git stage",
+        "git status",
         "git log",
         "git rebase",
         "git push",

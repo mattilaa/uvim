@@ -299,6 +299,93 @@ TEST(GitPushCommandTest, NewBranchRequiresConfirmationBeforePush)
               localHead);
 }
 
+TEST(GitStatusCommandTest, ShowsColoredOverallStatusWithoutChangingIndex)
+{
+    if(!hasGit())
+        GTEST_SKIP();
+    const auto repo = make_temp_dir("uvim_status_view_");
+    const std::string root = repo.string();
+    ASSERT_EQ(run_cmd("git -C \"" + root + "\" init -q"), 0);
+    ASSERT_EQ(run_cmd("git -C \"" + root +
+                      "\" config user.email test@example.com"), 0);
+    ASSERT_EQ(run_cmd("git -C \"" + root + "\" config user.name Test"), 0);
+    write_file(repo / "tracked.txt", "base\n");
+    ASSERT_EQ(run_cmd("git -C \"" + root + "\" add tracked.txt"), 0);
+    ASSERT_EQ(run_cmd("git -C \"" + root + "\" commit -qm base"), 0);
+    write_file(repo / "staged.txt", "staged\n");
+    ASSERT_EQ(run_cmd("git -C \"" + root + "\" add staged.txt"), 0);
+    write_file(repo / "tracked.txt", "changed\n");
+    write_file(repo / "new.txt", "untracked\n");
+
+    Editor editor = Editor::createForTests();
+    editor.setProjectRoot(root);
+    auto sm = std::make_unique<ModeStateMachine>(
+        createModeContext(&editor), FileBrowserMode{root});
+    editor.setModeStateMachineForTests(std::move(sm));
+    auto* machine = editor.getModeStateMachine();
+    ASSERT_NE(machine, nullptr);
+    uvim_test::dispatch_command(*machine, "git status");
+
+    auto* status = machine->getState<GitStatusMode>();
+    ASSERT_NE(status, nullptr);
+    const std::string all = [&]
+    {
+        std::string result;
+        for(const auto& line : status->lines)
+            result += line + "\n";
+        return result;
+    }();
+    EXPECT_NE(all.find("Changes to be committed:"), std::string::npos);
+    EXPECT_NE(all.find("Changes not staged for commit:"), std::string::npos);
+    EXPECT_NE(all.find("Untracked files:"), std::string::npos);
+
+    testing::internal::CaptureStdout();
+    status->draw(editor);
+    const std::string rendered = testing::internal::GetCapturedStdout();
+    EXPECT_NE(rendered.find(editor.theme.uiSuccess()), std::string::npos);
+    EXPECT_NE(rendered.find(editor.theme.uiError()), std::string::npos);
+    EXPECT_NE(rendered.find(editor.theme.uiWarning()), std::string::npos);
+
+    const std::string before = run_cmd_line(
+        {"git", "-C", root, "status", "--porcelain"});
+    machine->dispatch(' ');
+    EXPECT_EQ(run_cmd_line(
+                  {"git", "-C", root, "status", "--porcelain"}),
+              before);
+    write_file(repo / "later.txt", "later\n");
+    machine->dispatch('r');
+    status = machine->getState<GitStatusMode>();
+    ASSERT_NE(status, nullptr);
+    EXPECT_TRUE(std::any_of(
+        status->lines.begin(), status->lines.end(),
+        [](const std::string& line)
+        { return line.find("later.txt") != std::string::npos; }));
+    machine->dispatch('q');
+    EXPECT_NE(machine->getState<FileBrowserMode>(), nullptr);
+}
+
+TEST(GitStatusCommandTest, OpensFromNormalModeAndReturnsOnQuit)
+{
+    if(!hasGit())
+        GTEST_SKIP();
+    const auto repo = make_temp_dir("uvim_status_normal_");
+    const std::string root = repo.string();
+    ASSERT_EQ(run_cmd("git -C \"" + root + "\" init -q"), 0);
+    write_file(repo / "notes.txt", "notes\n");
+
+    Editor editor = Editor::createForTests();
+    editor.openFile((repo / "notes.txt").string());
+    auto sm = std::make_unique<ModeStateMachine>(
+        createModeContext(&editor), NormalMode{});
+    editor.setModeStateMachineForTests(std::move(sm));
+    auto* machine = editor.getModeStateMachine();
+    ASSERT_NE(machine, nullptr);
+    uvim_test::dispatch_command(*machine, "git status");
+    EXPECT_NE(machine->getState<GitStatusMode>(), nullptr);
+    machine->dispatch('q');
+    EXPECT_NE(machine->getState<NormalMode>(), nullptr);
+}
+
 TEST(GitShowCommandTest, GjOpensGitShowWhenBlameIsVisible)
 {
     auto repo = make_temp_dir("uvim_gitshow_");

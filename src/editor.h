@@ -597,6 +597,7 @@ public:
     void openGitPrettyLogMode();
     void openGitLogModeForFile();
     void openGitStageMode();
+    void openGitStatusMode();
     void openGitDiffMode();
     void openUnsavedChangesMode();
     // Reloads a git log's entries (commit hashes change after a rewrite).

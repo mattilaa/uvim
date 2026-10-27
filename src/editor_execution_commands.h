@@ -130,6 +130,12 @@ public:
     bool execute(Editor& editor, const CommandRequest& request) const override;
 };
 
+class GitStatusCommand final : public EditorExecutionCommand
+{
+public:
+    bool execute(Editor& editor, const CommandRequest& request) const override;
+};
+
 class RefreshFileSearchCommand final : public EditorExecutionCommand
 {
 public:

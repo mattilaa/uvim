@@ -32,6 +32,7 @@
 #include "git_patch_mode.h"
 #include "git_show_mode.h"
 #include "git_stage_mode.h"
+#include "git_status_mode.h"
 #endif
 #ifdef UVIM_ENABLE_AUXILIARY_VIEWS
 #include "glyph_select_mode.h"
