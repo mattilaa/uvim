@@ -320,6 +320,18 @@ void EditorDrawingController::refreshScreen()
         return;
     }
 
+    if(editor.currentMode == GIT_STATUS)
+    {
+#ifdef UVIM_ENABLE_GIT_TOOLS
+        if(editor.modeStateMachine)
+        {
+            if(auto* state = editor.modeStateMachine->getState<GitStatusMode>())
+                state->draw(editor);
+        }
+#endif
+        return;
+    }
+
     if(editor.currentMode == GIT_PATCH)
     {
 #ifdef UVIM_ENABLE_GIT_TOOLS

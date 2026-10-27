@@ -64,6 +64,7 @@ struct GitLogMode
     std::string repoDir;
     std::string filePath;
     bool prettyView = false;
+    bool rebasePickMode = false;
     std::vector<std::string> previewLines;
     std::string previewHash;
     int diffOffset = 0;

@@ -1,5 +1,6 @@
 #include "widgets/command_popup.h"
 #include "ascii.h"
+#include "color_constant.h"
 
 #include "terminal.h"
 #include "text_utils.h"
@@ -17,6 +18,22 @@ std::string_view commandDocumentation(std::string_view cmd)
 
     if(cmd == "--split")
         return "Browse source and assembly side by side with linked highlights";
+    if(cmd == "git rebase")
+        return "Rebase commits or resolve an in-progress rebase";
+    if(cmd == "git push")
+        return "Push current branch; confirm before publishing a new branch";
+    if(cmd == "git status")
+        return "Show repository status with staged and unstaged colors";
+    if(cmd == "git rebase --interactive")
+        return "Choose the oldest commit, then edit the rebase todo";
+    if(cmd == "git rebase --continue")
+        return "Continue after resolving conflicts";
+    if(cmd == "git rebase --abort")
+        return "Return to the state before the rebase";
+    if(cmd == "git rebase --skip")
+        return "Skip the current commit";
+    if(cmd == "git rebase --quit")
+        return "Stop the rebase and keep the working tree";
 
     if(cmd == "-O2")
         return "Optimize for speed (recommended starting point)";
@@ -421,11 +438,26 @@ void drawCommandPopup(std::string& output, const CommandPopupView& view)
                     visibleIndex < static_cast<int>(view.filtered.size())
                 ? view.filtered[visibleIndex]
                 : -1;
-        const auto rowColor =
+        std::string_view rowColor =
             entryIndex >= 0 &&
                     entryIndex < static_cast<int>(view.rowColors.size())
                 ? std::string_view(view.rowColors[entryIndex])
                 : std::string_view{};
+        if(rowColor.empty() && view.title == "Git rebase" &&
+           entryIndex >= 0 && entryIndex < (int)view.entries.size())
+        {
+            const std::string& option = view.entries[entryIndex];
+            if(option.ends_with("--continue"))
+                rowColor = frame.theme.uiSuccess();
+            else if(option.ends_with("--abort"))
+                rowColor = frame.theme.uiError();
+            else if(option.ends_with("--skip"))
+                rowColor = frame.theme.uiWarning();
+            else if(option.ends_with("--interactive"))
+                rowColor = frame.theme.uiAccent();
+            else
+                rowColor = frame.theme.uiDim();
+        }
         const bool current = !view.filtered.empty() &&
                              (i + view.offset) < (int)view.filtered.size() &&
                              (i + view.offset) == view.cursor;
@@ -452,7 +484,9 @@ void drawCommandPopup(std::string& output, const CommandPopupView& view)
         };
         if(current)
         {
-            output += frame.theme.selection();
+            output += view.title == "Git rebase"
+                          ? color::rgbBg(66, 42, 76)
+                          : frame.theme.selection();
             output += rowColor;
             appendStyled();
             output += frame.theme.reset();
@@ -489,7 +523,9 @@ void drawCommandPopup(std::string& output, const CommandPopupView& view)
 
         int pad = innerW - text_utils::displayWidth(line);
         if(current && !rowColor.empty())
-            output += frame.theme.selection();
+            output += view.title == "Git rebase"
+                          ? color::rgbBg(66, 42, 76)
+                          : frame.theme.selection();
         if(pad > 0)
             output.append(pad, ' ');
         if(current && !rowColor.empty())

@@ -2261,6 +2261,35 @@ TEST(RealModeTransitionsTest, TabTakesHighlightedCommandPopupItem)
     EXPECT_EQ(editor.commandBuffer, ":edit ");
 }
 
+#ifdef UVIM_ENABLE_GIT_TOOLS
+TEST(RealModeTransitionsTest, GitRebasePopupFiltersAndTabKeepsCommandOpen)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    auto sm = makeMachine(editor, NormalMode{});
+    sm.dispatch(':');
+    for(char c : std::string("git rebase --cont"))
+        sm.dispatch(c);
+
+    ASSERT_TRUE(editor.commandPopupActive);
+    EXPECT_EQ(editor.commandPopupTitle, "Git rebase");
+    ASSERT_TRUE(editor.commandPopupSelection().has_value());
+    EXPECT_EQ(*editor.commandPopupSelection(), "git rebase --continue");
+
+    sm.dispatch(keyCode(control::ControlKey::TAB));
+    EXPECT_STREQ(sm.currentStateName(), "COMMAND");
+    EXPECT_EQ(editor.commandBuffer, ":git rebase --continue");
+
+    for(int i = 0; i < 4; ++i)
+        sm.dispatch(keyCode(control::ControlKey::BACKSPACE));
+    ASSERT_TRUE(editor.commandPopupActive);
+    std::string popup;
+    editor.drawCommandPopup(popup);
+    EXPECT_NE(popup.find(color::rgbBg(66, 42, 76)), std::string::npos);
+    EXPECT_NE(popup.find(editor.theme.uiSuccess()), std::string::npos);
+}
+#endif
+
 TEST(RealModeTransitionsTest, TabTakesHighlightedItemInWelcomeCommandPrompt)
 {
     // The welcome screen, file browser and help use CommandPrompt, a

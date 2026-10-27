@@ -159,6 +159,11 @@ struct ModeStateToMode
         return GIT_STAGE;
     }
 
+    Mode operator()(const GitStatusMode&) const
+    {
+        return GIT_STATUS;
+    }
+
     Mode operator()(const GitCommitMode&) const
     {
         return GIT_COMMIT;
@@ -310,6 +315,8 @@ std::optional<ModeState> dispatchEditorCommand(
             return std::get<GitShowCommitMode>(state);
         if(std::holds_alternative<GitStageMode>(state))
             return std::get<GitStageMode>(state);
+        if(std::holds_alternative<GitStatusMode>(state))
+            return std::get<GitStatusMode>(state);
         if(std::holds_alternative<GitCommitMode>(state))
             return std::get<GitCommitMode>(state);
         if(std::holds_alternative<GitFixupMode>(state))
@@ -537,6 +544,8 @@ ModeState stateForMode(ModeContext& ctx, Mode mode)
         return GitLogMode{};
     case GIT_STAGE:
         return GitStageMode{};
+    case GIT_STATUS:
+        return GitStatusMode{};
     case GIT_COMMIT:
         return GitCommitMode{};
     case GIT_FIXUP:
@@ -547,6 +556,7 @@ ModeState stateForMode(ModeContext& ctx, Mode mode)
     case GIT_SHOW:
     case GIT_LOG:
     case GIT_STAGE:
+    case GIT_STATUS:
     case GIT_COMMIT:
     case GIT_FIXUP:
     case GIT_PATCH:

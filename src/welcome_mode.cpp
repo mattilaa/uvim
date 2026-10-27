@@ -298,6 +298,18 @@ void WelcomeMode::draw(Editor& editor) const
         output += " COMMAND | ";
         output += editor.theme.reset();
     }
+    else if(!editor.statusMessage.empty())
+    {
+        std::string message = editor.statusMessage;
+        while(!message.empty() &&
+              text_utils::displayWidth(message) > editor.screenCols)
+            message.resize(
+                text_utils::prevUtf8CharStart(message, (int)message.size()));
+        output += Terminal::cursorPos(promptRow, 1);
+        output += editor.theme.uiWarning();
+        output += message;
+        output += editor.theme.reset();
+    }
 
     editor.drawCommandHistoryPopup(output);
     editor.drawCommandPopup(output);

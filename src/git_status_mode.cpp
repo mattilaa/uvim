@@ -1,3 +1,5 @@
+#include "git_status_mode.h"
+
 #include "editor.h"
 #include "mode_state_machine.h"
 #include "process_pipe.h"
@@ -5,489 +7,243 @@
 #include "text_utils.h"
 
 #include <algorithm>
-#include <string>
-#include <vector>
+#include <string_view>
 
-using namespace editor::statemachine;
-
+namespace editor::statemachine
+{
 namespace
 {
-std::string run_git_raw(const std::vector<std::string>& args)
+int visibleRows(const Editor& editor)
 {
-    ProcessPipe pipe(args);
-    if(!pipe)
+    return std::max(1, editor.screenRows - 2);
+}
+
+std::string_view lineColor(
+    const Theme& theme,
+    std::string_view line,
+    int& section)
+{
+    if(line.starts_with("Changes to be committed:"))
+    {
+        section = 1;
+        return theme.uiSuccess();
+    }
+    if(line.starts_with("Changes not staged for commit:"))
+    {
+        section = 2;
+        return theme.uiError();
+    }
+    if(line.starts_with("Untracked files:"))
+    {
+        section = 3;
+        return theme.uiWarning();
+    }
+    if(line.starts_with("Ignored files:"))
+    {
+        section = 4;
+        return theme.uiDim();
+    }
+    if(line.starts_with("On branch ") || line.starts_with("HEAD detached"))
+    {
+        section = 0;
+        return theme.uiAccent();
+    }
+    if(line.starts_with("nothing to commit") ||
+       line.starts_with("nothing added to commit"))
+        return theme.uiSuccess();
+    if(line.find("(use ") != std::string_view::npos)
+        return theme.uiDim();
+    if(line.empty() || line.front() != ' ')
+        return theme.baseFg();
+    switch(section)
+    {
+    case 1:
+        return theme.uiSuccess();
+    case 2:
+        return theme.uiError();
+    case 3:
+        return theme.uiWarning();
+    case 4:
+        return theme.uiDim();
+    default:
+        return theme.baseFg();
+    }
+}
+
+std::string clipLine(std::string_view line, int width)
+{
+    if(width <= 0)
         return {};
-    return pipe.readAll();
-}
-
-std::vector<std::string> split_lines(const std::string& s)
-{
-    std::vector<std::string> out;
-    size_t pos = 0;
-    while(pos <= s.size())
+    size_t end = 0;
+    int used = 0;
+    while(end < line.size())
     {
-        size_t next = s.find('\n', pos);
-        if(text_utils::is_not_found(next))
-        {
-            if(pos < s.size())
-                out.push_back(s.substr(pos));
+        const int next = text_utils::nextUtf8CharStart(line, (int)end);
+        const int charWidth = text_utils::utf8DisplayWidth(
+            line.substr(end, (size_t)next - end));
+        if(used + charWidth > width)
             break;
-        }
-        out.push_back(s.substr(pos, next - pos));
-        pos = next + 1;
+        used += charWidth;
+        end = (size_t)next;
     }
-    return out;
-}
-
-std::string decode_git_status_path(std::string path)
-{
-    auto unescape = [](std::string_view raw) -> std::string
-    {
-        std::string result;
-        for(size_t i = 0; i < raw.size(); ++i)
-        {
-            char c = raw[i];
-            if(c == '\\' && i + 1 < raw.size())
-            {
-                ++i;
-                char next = raw[i];
-                if(next == 'n')
-                    c = '\n';
-                else if(next == 't')
-                    c = '\t';
-                else
-                    c = next;
-            }
-            result.push_back(c);
-        }
-        return result;
-    };
-
-    if(path.size() >= 2 && path.front() == '"' && path.back() == '"')
-        return unescape(path.substr(1, path.size() - 2));
-    return unescape(path);
-}
-
-int git_status_content_rows(int screenRows, int helpRows)
-{
-    const int headerRows = 1;
-    const int statusRows = 1;
-    return std::max(0, screenRows - headerRows - helpRows - statusRows);
-}
-
-std::string git_status_help_text()
-{
-    return "  [space: stage/unstage] [j/k: move] [g/G: top/bottom] [q/esc: "
-           "close]";
-}
-
-std::vector<std::string> wrap_help(std::string_view text, int screenCols)
-{
-    std::vector<std::string> tokens;
-    size_t i = 0;
-    while(i < text.size())
-    {
-        while(i < text.size() && text_utils::is_space(text[i]))
-            ++i;
-        if(i >= text.size())
-            break;
-
-        if(text[i] == keyCode(command::CommandKey::KEY_LEFT_BRACKET))
-        {
-            size_t start = i;
-            size_t end =
-                text.find(keyCode(command::CommandKey::KEY_RIGHT_BRACKET), i);
-            if(text_utils::is_not_found(end))
-            {
-                tokens.emplace_back(text.substr(start));
-                break;
-            }
-            tokens.emplace_back(text.substr(start, end - start + 1));
-            i = end + 1;
-            continue;
-        }
-
-        size_t start = i;
-        while(i < text.size() && !text_utils::is_space(text[i]) &&
-              text[i] != keyCode(command::CommandKey::KEY_LEFT_BRACKET))
-            ++i;
-        tokens.emplace_back(text.substr(start, i - start));
-    }
-
-    std::vector<std::string> lines;
-    std::string current;
-    int currentW = 0;
-    for(const auto& tok : tokens)
-    {
-        int tokW = text_utils::utf8DisplayWidth(tok);
-        int spaceW = current.empty() ? 0 : 1;
-        if(currentW + spaceW + tokW > screenCols)
-        {
-            if(!current.empty())
-            {
-                lines.push_back(current);
-                current.clear();
-                currentW = 0;
-                spaceW = 0;
-            }
-        }
-
-        if(spaceW)
-        {
-            current.push_back(keyCode(control::ControlKey::SPACE));
-            currentW += 1;
-        }
-        current.append(tok);
-        currentW += tokW;
-    }
-    if(!current.empty())
-        lines.push_back(current);
-    return lines;
-}
-
-std::string utf8PrefixByWidth(std::string_view text, int maxWidth)
-{
-    if(maxWidth <= 0)
-        return "";
-    int width = 0;
-    int pos = 0;
-    while(pos < (int)text.size())
-    {
-        int next = text_utils::nextUtf8CharStart(text, pos);
-        int charWidth =
-            text_utils::utf8DisplayWidth(text.substr(pos, next - pos));
-        if(width + charWidth > maxWidth)
-            break;
-        width += charWidth;
-        pos = next;
-    }
-    return std::string(text.substr(0, pos));
-}
-
-std::string utf8SuffixByWidth(std::string_view text, int maxWidth)
-{
-    if(maxWidth <= 0)
-        return "";
-    int width = 0;
-    int pos = (int)text.size();
-    while(pos > 0)
-    {
-        int prev = text_utils::prevUtf8CharStart(text, pos);
-        int charWidth =
-            text_utils::utf8DisplayWidth(text.substr(prev, pos - prev));
-        if(width + charWidth > maxWidth)
-            break;
-        width += charWidth;
-        pos = prev;
-    }
-    return std::string(text.substr(pos));
+    return std::string(line.substr(0, end));
 }
 } // namespace
 
-void GitStatusViewMode::on_enter(ModeContext& ctx)
+void GitStatusMode::on_enter(ModeContext& ctx)
 {
-    cursor = 0;
-    offset = 0;
-    refreshStatus(*ctx.editor);
+    refresh(*ctx.editor);
     ctx.requestFullRedraw();
 }
 
-void GitStatusViewMode::on_exit(ModeContext& ctx)
+void GitStatusMode::on_exit(ModeContext& ctx)
 {
     ctx.requestFullRedraw();
 }
 
-void GitStatusViewMode::refreshStatus(Editor& editor)
+void GitStatusMode::refresh(Editor& editor)
 {
-    if(repoDir.empty())
-        return;
-
-    std::string previousPath;
-    if(cursor >= 0 && cursor < (int)entries.size())
-        previousPath = entries[cursor].path;
-
-    entries.clear();
-    std::string raw =
-        run_git_raw({"git", "-C", repoDir, "status", "--porcelain"});
-    auto lines = split_lines(raw);
-    for(const auto& line : lines)
+    ProcessPipe pipe;
+    if(!pipe.open(
+           {"git", "-C", repoDir, "-c", "color.status=false", "status"},
+           "r", true))
     {
-        if(line.size() < 3)
-            continue;
-        char index = line[0];
-        char worktree = line[1];
-        if(index == keyCode(control::ControlKey::SPACE) &&
-           worktree == keyCode(control::ControlKey::SPACE))
-            continue;
-        size_t pos = 3;
-        while(pos < line.size() && line[pos] == ' ')
-            ++pos;
-        if(pos >= line.size())
-            continue;
-        std::string rawPath = line.substr(pos);
-        std::string path;
-        size_t arrow = rawPath.find(" -> ");
-        if(text_utils::is_found(arrow))
-            path = decode_git_status_path(rawPath.substr(arrow + 4));
-        else
-            path = decode_git_status_path(rawPath);
-        if(path.empty())
-            continue;
-
-        entries.push_back({path, index, worktree});
-    }
-
-    auto helpLines = wrap_help(git_status_help_text(), editor.screenCols);
-    int contentRows =
-        git_status_content_rows(editor.screenRows, (int)helpLines.size());
-    if(entries.empty())
-    {
-        cursor = 0;
+        lines = {"(could not start git status)"};
         offset = 0;
+        editor.needsFullRedraw = true;
+        return;
+    }
+    const std::string raw = pipe.readAll();
+    if(pipe.close() != 0)
+    {
+        lines = {"(git status failed)"};
+        offset = 0;
+        editor.needsFullRedraw = true;
         return;
     }
 
-    cursor = std::clamp(cursor, 0, (int)entries.size() - 1);
-    if(!previousPath.empty())
+    lines.clear();
+    size_t pos = 0;
+    while(pos < raw.size())
     {
-        auto it = std::find_if(
-            entries.begin(),
-            entries.end(),
-            [&](const Entry& e) { return e.path == previousPath; });
-        if(it != entries.end())
-            cursor = (int)std::distance(entries.begin(), it);
+        const size_t end = raw.find('\n', pos);
+        if(end == std::string::npos)
+        {
+            lines.push_back(raw.substr(pos));
+            break;
+        }
+        lines.push_back(raw.substr(pos, end - pos));
+        pos = end + 1;
     }
-
-    offset =
-        std::clamp(offset, 0, std::max(0, (int)entries.size() - contentRows));
+    if(lines.empty())
+        lines.push_back("(no status output)");
+    offset = std::clamp(offset, 0,
+                        std::max(0, (int)lines.size() - visibleRows(editor)));
+    editor.needsFullRedraw = true;
 }
 
-std::optional<ModeState> GitStatusViewMode::handle(
+std::optional<ModeState> GitStatusMode::handle(
     ModeContext& ctx,
     const ModeKeyEvent& event)
 {
-    const int key = event.key;
-    Editor* ed = ctx.editor;
-    int c = keyCode(key);
-
-    if(c == keyCode(control::ControlKey::ESC) ||
-       c == keyCode(typed::TypedKey::KEY_Q))
+    const int key = keyCode(event.key);
+    if(key == keyCode(control::ControlKey::ESC) ||
+       key == keyCode(typed::TypedKey::KEY_Q))
     {
-        if(c == keyCode(control::ControlKey::ESC))
-            ed->noteDoubleEscStatusClear();
-        return defaultExitMode(ed);
-    }
-
-    if(c == keyCode(typed::TypedKey::KEY_J) ||
-       c == keyCode(navigation::NavigationKey::ARROW_DOWN))
-    {
-        if(cursor < (int)entries.size() - 1)
+#ifdef UVIM_ENABLE_BROWSER_TOOLS
+        if(returnMode == FILE_BROWSER)
         {
-            cursor++;
-            int helpRows =
-                (int)wrap_help(git_status_help_text(), ed->screenCols).size();
-            int contentRows = git_status_content_rows(ed->screenRows, helpRows);
-            if(cursor >= offset + contentRows)
-                offset = cursor - contentRows + 1;
+            FileBrowserMode browser{returnBrowseDirectory};
+            browser.browserCursor = returnBrowseCursor;
+            browser.browserOffset = returnBrowseOffset;
+            return browser;
         }
+#endif
+        if(returnMode == WELCOME)
+            return WelcomeMode{};
+        if(returnMode == NORMAL)
+            return NormalMode{};
+        return defaultExitMode(ctx.editor);
     }
-    else if(
-        c == keyCode(typed::TypedKey::KEY_K) ||
-        c == keyCode(navigation::NavigationKey::ARROW_UP))
+    if(key == keyCode(typed::TypedKey::KEY_R))
     {
-        if(cursor > 0)
-        {
-            cursor--;
-            if(cursor < offset)
-                offset = cursor;
-        }
-    }
-    else if(c == keyCode(typed::TypedKey::KEY_G))
-    {
-        int nextChar = Terminal::readKey();
-        if(nextChar == keyCode(typed::TypedKey::KEY_G))
-        {
-            cursor = 0;
-            offset = 0;
-        }
-    }
-    else if(c == keyCode(typed::TypedKey::KEY_CAP_G))
-    {
-        cursor = std::max(0, (int)entries.size() - 1);
-        int helpRows =
-            (int)wrap_help(git_status_help_text(), ed->screenCols).size();
-        int contentRows = git_status_content_rows(ed->screenRows, helpRows);
-        offset = std::max(0, cursor - contentRows + 1);
-    }
-    else if(c == keyCode(control::ControlKey::SPACE))
-    {
-        if(cursor >= 0 && cursor < (int)entries.size() && !repoDir.empty())
-        {
-            Entry entry = entries[cursor];
-            std::vector<std::string> args;
-            if(entry.worktreeStatus != keyCode(control::ControlKey::SPACE) ||
-               entry.worktreeStatus ==
-                   keyCode(command::CommandKey::KEY_QUESTION))
-            {
-                args = {"git", "-C", repoDir, "add", "--", entry.path};
-            }
-            else if(entry.indexStatus != keyCode(control::ControlKey::SPACE))
-            {
-                args =
-                    {"git",
-                     "-C",
-                     repoDir,
-                     "restore",
-                     "--staged",
-                     "--",
-                     entry.path};
-            }
-            if(!args.empty())
-            {
-                ProcessPipe pipe(args);
-                pipe.close();
-                refreshStatus(*ed);
-                ed->needsFullRedraw = true;
-            }
-        }
+        refresh(*ctx.editor);
+        return std::nullopt;
     }
 
-    ed->needsFullRedraw = true;
+    const int maximum =
+        std::max(0, (int)lines.size() - visibleRows(*ctx.editor));
+    if(key == keyCode(typed::TypedKey::KEY_J) ||
+       key == keyCode(navigation::NavigationKey::ARROW_DOWN))
+        offset = std::min(maximum, offset + 1);
+    else if(key == keyCode(typed::TypedKey::KEY_K) ||
+            key == keyCode(navigation::NavigationKey::ARROW_UP))
+        offset = std::max(0, offset - 1);
+    else if(key == keyCode(control::ControlKey::CTRL_D) ||
+            key == keyCode(navigation::NavigationKey::PAGE_DOWN))
+        offset = std::min(maximum, offset + visibleRows(*ctx.editor) / 2);
+    else if(key == keyCode(control::ControlKey::CTRL_U) ||
+            key == keyCode(navigation::NavigationKey::PAGE_UP))
+        offset = std::max(0, offset - visibleRows(*ctx.editor) / 2);
+    else if(key == keyCode(typed::TypedKey::KEY_G))
+        offset = 0;
+    else if(key == keyCode(typed::TypedKey::KEY_CAP_G))
+        offset = maximum;
+    ctx.requestFullRedraw();
     return std::nullopt;
 }
 
-void GitStatusViewMode::draw(Editor& editor) const
+void GitStatusMode::draw(Editor& editor) const
 {
     std::string output;
-    output.reserve(editor.screenRows * editor.screenCols);
-
-    std::string help = git_status_help_text();
-    auto helpLines = wrap_help(help, editor.screenCols);
-
+    output.reserve((size_t)editor.screenRows * editor.screenCols * 2);
     output += Terminal::ESC_HIDE_CURSOR;
-    output += Terminal::cursorPos(1, 1);
-    if(!Terminal::isTmux())
-        output += Terminal::ESC_CLEAR_SCREEN;
+    output += Terminal::ESC_CURSOR_HOME;
     output += editor.theme.reset();
-
     output += Terminal::ESC_CLEAR_LINE;
+    output += editor.theme.uiAccent();
     output += Terminal::ESC_BOLD;
-    std::string header = "  GIT STATUS";
-    if(!repoRoot.empty())
-        header += " - " + repoRoot;
-    output += header;
+    output += "  GIT STATUS";
     output += editor.theme.reset();
     output += Terminal::NEWLINE_CLEAR;
     output += editor.theme.uiDim();
-    if(helpLines.empty())
-        helpLines.push_back("");
-    for(size_t i = 0; i < helpLines.size(); ++i)
-    {
-        output += helpLines[i];
-        if(i + 1 < helpLines.size())
-            output += Terminal::NEWLINE_CLEAR;
-    }
-    output += editor.theme.baseFg();
+    output += clipLine(
+        "  [j/k: scroll] [g/G: top/bottom] [r: refresh] [q/esc: close]",
+        editor.screenCols);
+    output += editor.theme.reset();
 
-    int contentRows =
-        git_status_content_rows(editor.screenRows, (int)helpLines.size());
-    for(int row = 0; row < contentRows; ++row)
+    int section = 0;
+    for(int i = 0; i < offset && i < (int)lines.size(); ++i)
+        (void)lineColor(editor.theme, lines[i], section);
+    for(int row = 0; row < visibleRows(editor); ++row)
     {
         output += Terminal::NEWLINE_CLEAR;
-        int idx = offset + row;
-        if(idx >= 0 && idx < (int)entries.size())
+        const int index = offset + row;
+        if(index < (int)lines.size())
         {
-            const Entry& entry = entries[idx];
-            bool isSelected = (idx == cursor);
-            bool isUntracked = entry.indexStatus ==
-                                   keyCode(command::CommandKey::KEY_QUESTION) &&
-                               entry.worktreeStatus ==
-                                   keyCode(command::CommandKey::KEY_QUESTION);
-            bool hasUnstaged =
-                entry.worktreeStatus != keyCode(control::ControlKey::SPACE) &&
-                entry.worktreeStatus !=
-                    keyCode(command::CommandKey::KEY_QUESTION);
-            bool hasStaged =
-                entry.indexStatus != keyCode(control::ControlKey::SPACE) &&
-                entry.indexStatus != keyCode(command::CommandKey::KEY_QUESTION);
-
-            std::string bgSeq;
-            if(isSelected)
-            {
-                bgSeq = editor.theme.selection();
-            }
-            else if(isUntracked)
-            {
-                bgSeq = editor.theme.uiDimBg();
-            }
-            else if(hasUnstaged)
-            {
-                bgSeq = editor.theme.uiErrorBg();
-            }
-            else if(hasStaged)
-            {
-                bgSeq = editor.theme.uiSuccessBg();
-            }
-
-            if(!bgSeq.empty())
-                output += bgSeq;
-            output += editor.theme.baseFg();
-
-            std::string status;
-            status.push_back(entry.indexStatus);
-            status.push_back(entry.worktreeStatus);
-            output += " ";
-            output += status;
-            output += " ";
-
-            int available = std::max(0, editor.screenCols - 3);
-            std::string path = entry.path;
-            int pathWidth = text_utils::utf8DisplayWidth(path);
-            if(available > 0 && pathWidth > available)
-            {
-                if(available > 3)
-                {
-                    std::string tail = utf8SuffixByWidth(path, available - 3);
-                    path = "..." + tail;
-                }
-                else
-                {
-                    path = utf8PrefixByWidth(path, available);
-                }
-                pathWidth = text_utils::utf8DisplayWidth(path);
-            }
-            output += path;
-            int used = 3 + pathWidth;
-            if(used < editor.screenCols)
-                output.append(editor.screenCols - used, ' ');
-            output += editor.theme.base();
+            const std::string_view color =
+                lineColor(editor.theme, lines[index], section);
+            output.append(color.data(), color.size());
+            output += clipLine(lines[index], editor.screenCols);
+            output += editor.theme.reset();
         }
         else
         {
             output += editor.theme.uiGutter();
             output += "~";
-            output += editor.theme.baseFg();
-            if(editor.screenCols > 1)
-                output.append(editor.screenCols - 1, ' ');
+            output += editor.theme.reset();
         }
     }
-
     output += Terminal::NEWLINE_CLEAR;
-    std::string status = " GIT STATUS";
-    if(!repoRoot.empty())
-        status += " | " + repoRoot;
-    std::string right = " " + std::to_string(entries.size()) + " files ";
-    editor.appendStatusLine(output, status, right);
-
+    editor.appendStatusLine(
+        output, " GIT STATUS | " + repoDir,
+        " " + std::to_string(std::min((int)lines.size(), offset + 1)) +
+            "/" + std::to_string(lines.size()) + " ");
     output += Terminal::NEWLINE_CLEAR;
+    output += editor.theme.baseFg();
     if(!editor.statusMessage.empty())
-        output += editor.statusMessage;
-
-    const bool syncOutput = Terminal::useSynchronizedOutput();
-    if(syncOutput)
-        Terminal::write(Terminal::ESC_SYNC_UPDATE_BEGIN);
+        output += clipLine(editor.statusMessage, editor.screenCols);
     Terminal::write(output);
-    if(syncOutput)
-        Terminal::write(Terminal::ESC_SYNC_UPDATE_END);
     Terminal::flush();
 }
+} // namespace editor::statemachine

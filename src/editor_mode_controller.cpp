@@ -199,6 +199,12 @@ public:
         return recognize(ctx, state);
     }
 
+    std::optional<Mode> operator()(ModeContext& ctx, const GitStatusMode& state)
+        const
+    {
+        return recognize(ctx, state);
+    }
+
     std::optional<Mode> operator()(ModeContext& ctx, const GitCommitMode& state)
         const
     {

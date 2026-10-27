@@ -47,6 +47,7 @@ std::vector<std::unique_ptr<EditorExecutionCommand>> buildCommands()
 #endif
 #ifdef UVIM_ENABLE_GIT_TOOLS
     commands.push_back(std::make_unique<GitStageCommand>());
+    commands.push_back(std::make_unique<GitStatusCommand>());
 #endif
 #ifdef UVIM_ENABLE_SEARCH_TOOLS
     commands.push_back(std::make_unique<RefreshFileSearchCommand>());
@@ -55,6 +56,8 @@ std::vector<std::unique_ptr<EditorExecutionCommand>> buildCommands()
     commands.push_back(std::make_unique<GitAddCommand>());
     commands.push_back(std::make_unique<GitBlameCommand>());
     commands.push_back(std::make_unique<GitLogCommand>());
+    commands.push_back(std::make_unique<GitRebaseCommand>());
+    commands.push_back(std::make_unique<GitPushCommand>());
     commands.push_back(std::make_unique<GitPrettyLogCommand>());
     commands.push_back(std::make_unique<GitDiffCommand>());
     commands.push_back(std::make_unique<ShowChangesCommand>());

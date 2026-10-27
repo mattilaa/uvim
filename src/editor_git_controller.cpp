@@ -1144,6 +1144,52 @@ void EditorGitController::openGitStageMode()
     }
 }
 
+void EditorGitController::openGitStatusMode()
+{
+    if(!ensureGitAvailable())
+    {
+        editor.setStatusMessage("git not installed");
+        return;
+    }
+
+    std::string dir = base_dir_for_editor(editor);
+#ifdef UVIM_ENABLE_BROWSER_TOOLS
+    const FileBrowserMode* browser = nullptr;
+    if(editor.modeStateMachine)
+    {
+        browser = editor.modeStateMachine->getState<FileBrowserMode>();
+        if(browser)
+            dir = browser->currentDirectory;
+    }
+#endif
+    const std::string root = git_root_for_dir(dir);
+    if(root.empty())
+    {
+        editor.setStatusMessage("git status: not a repo");
+        return;
+    }
+
+    GitStatusMode status{root};
+#ifdef UVIM_ENABLE_BROWSER_TOOLS
+    if(browser)
+    {
+        status.returnMode = FILE_BROWSER;
+        status.returnBrowseDirectory = browser->currentDirectory;
+        status.returnBrowseCursor = browser->browserCursor;
+        status.returnBrowseOffset = browser->browserOffset;
+    }
+    else
+#endif
+        status.returnMode = editor.currentBuffer ? NORMAL : WELCOME;
+
+    if(editor.modeStateMachine)
+    {
+        editor.modeStateMachine->transitionTo(std::move(status));
+        editor.modeController->syncModeFromStateMachine();
+        editor.needsFullRedraw = true;
+    }
+}
+
 void EditorGitController::addCurrentBuffer()
 {
     if(!ensureGitAvailable())

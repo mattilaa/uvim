@@ -162,6 +162,7 @@ void Editor::ensureBufferForModeImpl(Mode mode)
     case COMMAND_PALETTE:
     case LOC_LIST:
     case GIT_STAGE:
+    case GIT_STATUS:
     case GIT_COMMIT:
     case GIT_FIXUP:
     case GIT_PATCH:

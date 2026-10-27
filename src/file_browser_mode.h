@@ -163,6 +163,7 @@ struct FileBrowserMode
 
 private:
     void loadDirectory(ModeContext& ctx, std::string pathStr);
+    void updateGitChanges();
     void navigateTo(ModeContext& ctx, std::string pathStr);
     int firstNonDotDotIndex() const;
     void focusPreviousFileEntry(ModeContext& ctx);

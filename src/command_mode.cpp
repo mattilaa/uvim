@@ -438,6 +438,8 @@ std::optional<ModeState> CommandMode::handle(
                     return std::get<GitShowCommitMode>(state);
                 if(std::holds_alternative<GitStageMode>(state))
                     return std::get<GitStageMode>(state);
+                if(std::holds_alternative<GitStatusMode>(state))
+                    return std::get<GitStatusMode>(state);
                 if(std::holds_alternative<GitCommitMode>(state))
                     return std::get<GitCommitMode>(state);
                 if(std::holds_alternative<GitFixupMode>(state))
@@ -599,6 +601,18 @@ std::optional<ModeState> CommandMode::handle(
         // picking it with Ctrl-J/K, and the prompt continues from there.
         // Argument completion (paths, ...) starts after a space.
         const std::string input = ctx.commandBuffer.substr(1);
+        if(input.starts_with("git rebase --") &&
+           ctx.isCommandPopupActive())
+        {
+            if(auto selection = ctx.commandPopupSelection())
+            {
+                ctx.commandBuffer = ":" + *selection;
+                completions.clear();
+                completionIndex = -1;
+                updatePopup();
+                return std::nullopt;
+            }
+        }
         if(ctx.isCommandPopupActive() &&
            (!text_utils::contains(input, keyChar(control::ControlKey::SPACE)) ||
             editor::helper::isRegexQuery(input)))
