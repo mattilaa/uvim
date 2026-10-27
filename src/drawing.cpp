@@ -195,6 +195,16 @@ std::string renderFileBrowserPaneRow(
         row += color::rgbBg(24, 64, 36);
         row += theme.baseFg();
     }
+    else if(entry.gitChange == FileEntry::GitChange::Staged)
+    {
+        row += color::rgbBg(92, 28, 34);
+        row += theme.baseFg();
+    }
+    else if(entry.gitChange == FileEntry::GitChange::Unstaged)
+    {
+        row += color::rgbBg(62, 43, 20);
+        row += theme.baseFg();
+    }
     else if(entry.isDirectory)
     {
         row += theme.uiDirectory();

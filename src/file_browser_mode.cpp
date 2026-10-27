@@ -2549,6 +2549,16 @@ void FileBrowserMode::draw(Editor& editor) const
             output += color::rgbBg(24, 64, 36);
             output += editor.theme.baseFg();
         }
+        else if(entry.gitChange == FileEntry::GitChange::Staged)
+        {
+            output += color::rgbBg(92, 28, 34);
+            output += editor.theme.baseFg();
+        }
+        else if(entry.gitChange == FileEntry::GitChange::Unstaged)
+        {
+            output += color::rgbBg(62, 43, 20);
+            output += editor.theme.baseFg();
+        }
         else if(searchVisualActive)
         {
             int mappedIndex = index;
@@ -2920,6 +2930,7 @@ void FileBrowserMode::loadDirectory(ModeContext& ctx, std::string pathStr)
             fileList = std::move(ctx.editor->fileBrowserHotListing);
             ctx.editor->fileBrowserHotListingInitialized = false;
             removeMovedEntries();
+            updateGitChanges();
             updateFilter(ctx);
             return;
         }
@@ -2930,6 +2941,7 @@ void FileBrowserMode::loadDirectory(ModeContext& ctx, std::string pathStr)
     {
         fileList = std::move(*cached);
         removeMovedEntries();
+        updateGitChanges();
         updateFilter(ctx);
         return;
     }
@@ -3039,7 +3051,89 @@ void FileBrowserMode::loadDirectory(ModeContext& ctx, std::string pathStr)
 
     cacheDirectoryListing(cacheKey, resolvedDir, fileList);
     removeMovedEntries();
+    updateGitChanges();
     updateFilter(ctx);
+}
+
+void FileBrowserMode::updateGitChanges()
+{
+    for(auto& entry : fileList)
+        entry.gitChange = FileEntry::GitChange::None;
+
+#ifdef UVIM_ENABLE_GIT_TOOLS
+    bool inRepository = false;
+    for(std::filesystem::path dir(currentDirectory); !dir.empty();
+        dir = dir.parent_path())
+    {
+        std::error_code ec;
+        if(std::filesystem::exists(dir / ".git", ec))
+        {
+            inRepository = true;
+            break;
+        }
+        if(dir == dir.root_path())
+            break;
+    }
+    if(!inRepository)
+        return;
+
+    // Porcelain paths are relative to the repository root, even with -C.
+    ProcessPipe prefixPipe(
+        {"git", "-C", currentDirectory, "rev-parse", "--show-prefix"});
+    if(!prefixPipe)
+        return;
+    std::string prefix = prefixPipe.readAll();
+    if(!prefix.empty() && prefix.back() == '\n')
+        prefix.pop_back();
+
+    ProcessPipe pipe({"git", "-C", currentDirectory, "status",
+                      "--porcelain=v1", "-z",
+                      "--untracked-files=no", "--", "."});
+    if(!pipe)
+        return;
+
+    const std::string raw = pipe.readAll();
+    std::unordered_map<std::string, FileEntry::GitChange> changes;
+    for(size_t pos = 0; pos + 3 < raw.size();)
+    {
+        const char indexStatus = raw[pos];
+        const char worktreeStatus = raw[pos + 1];
+        const size_t end = raw.find('\0', pos + 3);
+        if(end == std::string::npos)
+            break;
+        std::string_view path(raw.data() + pos + 3, end - pos - 3);
+        pos = end + 1;
+        if(indexStatus == 'R' || indexStatus == 'C' ||
+           worktreeStatus == 'R' || worktreeStatus == 'C')
+        {
+            const size_t sourceEnd = raw.find('\0', pos);
+            if(sourceEnd == std::string::npos)
+                break;
+            pos = sourceEnd + 1;
+        }
+
+        if(!path.starts_with(prefix))
+            continue;
+        path.remove_prefix(prefix.size());
+        const size_t slash = path.find('/');
+        const std::string name(path.substr(0, slash));
+        if(name.empty() || name == "..")
+            continue;
+        auto& change = changes[name];
+        if(indexStatus != ' ' && indexStatus != '?')
+            change = FileEntry::GitChange::Staged;
+        else if(worktreeStatus != ' ' && worktreeStatus != '?' &&
+                change != FileEntry::GitChange::Staged)
+            change = FileEntry::GitChange::Unstaged;
+    }
+
+    for(auto& entry : fileList)
+    {
+        const auto it = changes.find(entry.name);
+        if(it != changes.end())
+            entry.gitChange = it->second;
+    }
+#endif
 }
 
 void FileBrowserMode::updateFilter(ModeContext& ctx)
