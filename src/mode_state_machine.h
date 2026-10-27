@@ -97,12 +97,21 @@ public:
 
     void dispatch(int key)
     {
+#ifdef UVIM_ENABLE_GIT_TOOLS
+        if(context().handlePendingGitPushKey(key))
+            return;
+#endif
         ModeStateMachineBase::dispatch(ModeKeyEvent{key});
     }
 
     template <typename Event>
     void dispatch(const Event& event)
     {
+#ifdef UVIM_ENABLE_GIT_TOOLS
+        if constexpr(std::is_same_v<Event, ModeKeyEvent>)
+            if(context().handlePendingGitPushKey(event.key))
+                return;
+#endif
         ModeStateMachineBase::dispatch(event);
     }
 

@@ -8,6 +8,16 @@ void ModeContext::setStatusMessage(const std::string& msg)
     editor->setStatusMessage(msg);
 }
 
+bool ModeContext::handlePendingGitPushKey(int key)
+{
+#ifdef UVIM_ENABLE_GIT_TOOLS
+    return editor && editor->handlePendingGitPushKey(key);
+#else
+    (void)key;
+    return false;
+#endif
+}
+
 int& ModeContext::cursorX()
 {
     return *editor->cursorX;

@@ -160,6 +160,12 @@ public:
     bool execute(Editor& editor, const CommandRequest& request) const override;
 };
 
+class GitPushCommand final : public EditorExecutionCommand
+{
+public:
+    bool execute(Editor& editor, const CommandRequest& request) const override;
+};
+
 class GitPrettyLogCommand final : public EditorExecutionCommand
 {
 public:

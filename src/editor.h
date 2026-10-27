@@ -346,6 +346,15 @@ public:
     std::string commandBuffer;
     std::shared_ptr<editor::statemachine::CommandPrompt> commandPrompt;
     std::string statusMessage;
+#ifdef UVIM_ENABLE_GIT_TOOLS
+    struct PendingGitPush
+    {
+        std::string repoDir;
+        std::string remote;
+        std::string branch;
+    };
+    std::optional<PendingGitPush> pendingGitPush;
+#endif
     bool commandRequestedModeSet = false;
     Mode commandRequestedMode = NORMAL;
     std::string commandRequestedPath;
@@ -597,6 +606,9 @@ public:
         std::string& message);
     void openGitCommitMode();
     void openGitFixupMode();
+#ifdef UVIM_ENABLE_GIT_TOOLS
+    bool handlePendingGitPushKey(int key);
+#endif
     void addCurrentBuffer();
     bool runGitStash(std::string& outMessage);
     bool runGitStashPop(std::string& outMessage);

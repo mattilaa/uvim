@@ -228,6 +228,77 @@ TEST(GitLogCommandTest, InteractiveRebaseStartsAtMainCommitWithFixup)
     EXPECT_TRUE(todo->messageLines[1].starts_with("fixup "));
 }
 
+TEST(GitPushCommandTest, NewBranchRequiresConfirmationBeforePush)
+{
+    if(!hasGit())
+        GTEST_SKIP();
+    const auto repo = make_temp_dir("uvim_push_confirm_");
+    const auto remote = make_temp_dir("uvim_push_remote_");
+    const std::string root = repo.string();
+    ASSERT_EQ(run_cmd("git -C \"" + root + "\" init -q"), 0);
+    ASSERT_EQ(run_cmd("git -C \"" + remote.string() +
+                      "\" init --bare -q"), 0);
+    ASSERT_EQ(run_cmd("git -C \"" + root +
+                      "\" config user.email test@example.com"), 0);
+    ASSERT_EQ(run_cmd("git -C \"" + root + "\" config user.name Test"), 0);
+    write_file(repo / "notes.txt", "branch\n");
+    ASSERT_EQ(run_cmd("git -C \"" + root + "\" add notes.txt"), 0);
+    ASSERT_EQ(run_cmd("git -C \"" + root + "\" commit -qm base"), 0);
+    ASSERT_EQ(run_cmd("git -C \"" + root +
+                      "\" checkout -qb publish-test"), 0);
+    ASSERT_EQ(run_cmd("git -C \"" + root + "\" remote add origin \"" +
+                      remote.string() + "\""), 0);
+
+    Editor editor = Editor::createForTests();
+    editor.setProjectRoot(root);
+    auto sm = std::make_unique<ModeStateMachine>(
+        createModeContext(&editor), FileBrowserMode{root});
+    editor.setModeStateMachineForTests(std::move(sm));
+    auto* machine = editor.getModeStateMachine();
+    ASSERT_NE(machine, nullptr);
+
+    uvim_test::dispatch_command(*machine, "git push");
+    ASSERT_TRUE(editor.pendingGitPush.has_value());
+    EXPECT_EQ(editor.pendingGitPush->remote, "origin");
+    EXPECT_EQ(editor.pendingGitPush->branch, "publish-test");
+    EXPECT_NE(editor.statusMessage.find("publish-test"), std::string::npos);
+    EXPECT_NE(editor.statusMessage.find("[y/N]"), std::string::npos);
+    EXPECT_TRUE(run_cmd_line(
+        {"git", "-C", root, "ls-remote", "--heads", "origin",
+         "publish-test"}).empty());
+
+    machine->dispatch('n');
+    EXPECT_FALSE(editor.pendingGitPush.has_value());
+    EXPECT_TRUE(run_cmd_line(
+        {"git", "-C", root, "ls-remote", "--heads", "origin",
+         "publish-test"}).empty());
+
+    uvim_test::dispatch_command(*machine, "git push");
+    ASSERT_TRUE(editor.pendingGitPush.has_value());
+    machine->dispatch('y');
+    EXPECT_FALSE(editor.pendingGitPush.has_value());
+    EXPECT_FALSE(run_cmd_line(
+        {"git", "-C", root, "ls-remote", "--heads", "origin",
+         "publish-test"}).empty());
+    EXPECT_EQ(run_cmd_line(
+                  {"git", "-C", root, "for-each-ref",
+                   "--format=%(upstream:short)",
+                   "refs/heads/publish-test"}),
+              "origin/publish-test");
+
+    write_file(repo / "notes.txt", "branch\nsecond\n");
+    ASSERT_EQ(run_cmd("git -C \"" + root +
+                      "\" commit -qam second"), 0);
+    const std::string localHead =
+        run_cmd_line({"git", "-C", root, "rev-parse", "HEAD"});
+    uvim_test::dispatch_command(*machine, "git push");
+    EXPECT_FALSE(editor.pendingGitPush.has_value());
+    EXPECT_EQ(run_cmd_line(
+                  {"git", "-C", root, "ls-remote", "--heads", "origin",
+                   "publish-test"}).substr(0, localHead.size()),
+              localHead);
+}
+
 TEST(GitShowCommandTest, GjOpensGitShowWhenBlameIsVisible)
 {
     auto repo = make_temp_dir("uvim_gitshow_");

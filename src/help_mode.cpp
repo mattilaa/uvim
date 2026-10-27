@@ -1501,6 +1501,7 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `:git stage` - Open git staging view",
             "  `:git log`   - Show git log",
             "  `:git rebase --` - Pick interactive/continue/abort/skip/quit",
+            "  `:git push` - Push branch; confirm before publishing a new one",
             "  `:git prettylog` - Show formatted git log",
             "  `:git diff`  - Show repository diff",
             "  `:showchanges` - Show unsaved edits of the buffer as a "
@@ -1567,6 +1568,7 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  Use `ctrl-j/k` to move, `enter` to open diff, `q` to quit",
             "  `ctrl-v` range selects commits, `space` marks one commit",
             "  `:git rebase --` opens fuzzy options; Tab inserts, Enter runs",
+            "  `:git push` asks [y/N] when this branch has no upstream",
             "  `--interactive` opens the commit tree with the oldest fixup",
             "  target selected; Enter opens a rebase todo through that commit",
             "",

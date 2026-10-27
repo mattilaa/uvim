@@ -40,6 +40,7 @@ struct ModeContext
 
     // Status message
     void setStatusMessage(const std::string& msg);
+    bool handlePendingGitPushKey(int key);
 
     // Cursor access (delegates to editor's current buffer)
     int& cursorX();

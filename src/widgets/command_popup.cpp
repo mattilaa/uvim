@@ -20,6 +20,8 @@ std::string_view commandDocumentation(std::string_view cmd)
         return "Browse source and assembly side by side with linked highlights";
     if(cmd == "git rebase")
         return "Rebase commits or resolve an in-progress rebase";
+    if(cmd == "git push")
+        return "Push current branch; confirm before publishing a new branch";
     if(cmd == "git rebase --interactive")
         return "Choose the oldest commit, then edit the rebase todo";
     if(cmd == "git rebase --continue")

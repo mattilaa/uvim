@@ -483,6 +483,7 @@ if(UVIM_ENABLE_GIT_TOOLS)
         src/editor_execution_git_fixup_command.cpp
         src/editor_execution_git_log_command.cpp
         src/editor_execution_git_pretty_log_command.cpp
+        src/editor_execution_git_push_command.cpp
         src/editor_execution_git_stage_command.cpp
         src/editor_execution_git_stash_command.cpp
         src/editor_execution_git_stash_pop_command.cpp

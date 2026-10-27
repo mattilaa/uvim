@@ -1988,7 +1988,11 @@ void Editor::drawSplitFullScreen()
         else
             output += ":" + commandBuffer;
     }
-    else if(showGitBlame && showGitBlameInfo && cursorY)
+    else if(showGitBlame && showGitBlameInfo && cursorY
+#ifdef UVIM_ENABLE_GIT_TOOLS
+            && !pendingGitPush
+#endif
+    )
     {
         std::string blame = blameFullForLine(*cursorY);
         if(!blame.empty())
