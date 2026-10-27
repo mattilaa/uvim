@@ -649,7 +649,19 @@ TEST(RealModeTransitionsTest, DebuggerDrawsSyntaxAndFocusedCompactPane)
     EXPECT_NE(full.find("n next (finish pending call)"), std::string::npos);
     EXPECT_NE(full.find("Variables"), std::string::npos);
     EXPECT_NE(full.find("Threads"), std::string::npos);
-    EXPECT_NE(full.find("count: int = 42"), std::string::npos);
+    EXPECT_NE(
+        full.find(editor.theme.syntax(TOKEN_FUNCTION) + "count"),
+        std::string::npos);
+    EXPECT_NE(
+        full.find(editor.theme.syntax(TOKEN_TYPE) + "int"),
+        std::string::npos);
+    EXPECT_NE(
+        full.find(editor.theme.syntax(TOKEN_NUMBER) + "42"),
+        std::string::npos);
+    EXPECT_EQ(
+        full.find(
+            editor.theme.debuggerRow(Theme::DebuggerRow::Variables, true)),
+        std::string::npos);
     EXPECT_NE(full.find("main-thread"), std::string::npos);
     EXPECT_NE(full.find("hello"), std::string::npos);
     ASSERT_FALSE(debug->highlight.tokens.empty());
@@ -661,6 +673,40 @@ TEST(RealModeTransitionsTest, DebuggerDrawsSyntaxAndFocusedCompactPane)
     const auto compact = testing::internal::GetCapturedStdout();
     EXPECT_NE(compact.find("main-thread"), std::string::npos);
     EXPECT_EQ(compact.find("count: int = 42"), std::string::npos);
+}
+
+TEST(RealModeTransitionsTest, DebuggerVariablesUseThemeColorsWithoutStriping)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.screenRows = 32;
+    editor.screenCols = 120;
+    auto sm = makeMachine(editor, DebuggerMode{"app", false});
+    auto* debug = sm.getState<DebuggerMode>();
+    ASSERT_NE(debug, nullptr);
+    debug->state = "stopped";
+    debug->pane = 2;
+    debug->variables =
+        {"name: string = \"Ada\"",
+         "ready: bool = true",
+         "callback: void * = 0x1000"};
+
+    testing::internal::CaptureStdout();
+    debug->draw(editor);
+    const auto rendered = testing::internal::GetCapturedStdout();
+    EXPECT_NE(
+        rendered.find(editor.theme.syntax(TOKEN_STRING) + "\"Ada\""),
+        std::string::npos);
+    EXPECT_NE(
+        rendered.find(editor.theme.syntax(TOKEN_KEYWORD) + "true"),
+        std::string::npos);
+    EXPECT_NE(
+        rendered.find(editor.theme.syntax(TOKEN_COMMENT) + "0x1000"),
+        std::string::npos);
+    EXPECT_EQ(
+        rendered.find(
+            editor.theme.debuggerRow(Theme::DebuggerRow::Variables, true)),
+        std::string::npos);
 }
 
 TEST(RealModeTransitionsTest, DebuggerScrollsEachPaneUsingItsOwnHeight)
@@ -766,7 +812,12 @@ TEST(RealModeTransitionsTest, DebuggerKeepsLastStopAndViewportWhileStepping)
     testing::internal::CaptureStdout();
     debug->draw(editor);
     const auto stopped = testing::internal::GetCapturedStdout();
-    EXPECT_NE(stopped.find("count = 43"), std::string::npos);
+    EXPECT_NE(
+        stopped.find(editor.theme.syntax(TOKEN_FUNCTION) + "count"),
+        std::string::npos);
+    EXPECT_NE(
+        stopped.find(editor.theme.syntax(TOKEN_NUMBER) + "43"),
+        std::string::npos);
     EXPECT_EQ(stopped.find("No readable source"), std::string::npos);
     std::filesystem::remove_all(dir);
 }
@@ -1049,7 +1100,7 @@ TEST(
     testing::internal::CaptureStdout();
     debug->draw(editor);
     auto rendered = testing::internal::GetCapturedStdout();
-    EXPECT_NE(rendered.find(color::rgbBg(170, 35, 50)), std::string::npos);
+    EXPECT_NE(rendered.find(color::rgbBg(105, 38, 50)), std::string::npos);
     dispatch_command(sm, "bps");
     EXPECT_TRUE(debug->breakpointListOpen);
     sm.dispatch(keyCode(control::ControlKey::CTRL_J));
@@ -1069,7 +1120,7 @@ TEST(
     debug->draw(editor);
     rendered = testing::internal::GetCapturedStdout();
     EXPECT_NE(rendered.find("No breakpoints"), std::string::npos);
-    EXPECT_EQ(rendered.find(color::rgbBg(170, 35, 50)), std::string::npos);
+    EXPECT_EQ(rendered.find(color::rgbBg(105, 38, 50)), std::string::npos);
     sm.dispatch(27);
     EXPECT_FALSE(debug->breakpointListOpen);
     EXPECT_NE(sm.getState<DebuggerMode>(), nullptr);

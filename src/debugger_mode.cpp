@@ -322,6 +322,104 @@ std::vector<Token> disassemblyTokens(const std::string& line)
     return tokens;
 }
 
+std::vector<Token> variableTokens(std::string_view line)
+{
+    std::vector<Token> tokens;
+    auto add = [&](TokenType type, size_t start, size_t end)
+    {
+        if(end > start)
+            tokens.push_back(
+                {type, static_cast<int>(start), static_cast<int>(end - start)});
+    };
+    const size_t equal = line.find('=');
+    const size_t end = equal == std::string_view::npos ? line.size() : equal;
+    size_t colon = line.find(':');
+    if(colon >= end || (colon + 1 < line.size() && line[colon + 1] == ':'))
+        colon = std::string_view::npos;
+    const size_t nameEnd = colon == std::string_view::npos ? end : colon;
+    size_t nameStart = line.find_first_not_of(' ');
+    if(nameStart == std::string_view::npos || nameStart >= nameEnd)
+        nameStart = 0;
+    size_t trimmedNameEnd = nameEnd;
+    while(trimmedNameEnd > nameStart && line[trimmedNameEnd - 1] == ' ')
+        --trimmedNameEnd;
+    add(TOKEN_FUNCTION, nameStart, trimmedNameEnd);
+    if(colon != std::string_view::npos)
+    {
+        add(TOKEN_OPERATOR, colon, colon + 1);
+        size_t typeStart = colon + 1;
+        while(typeStart < end && line[typeStart] == ' ')
+            ++typeStart;
+        size_t typeEnd = end;
+        while(typeEnd > typeStart && line[typeEnd - 1] == ' ')
+            --typeEnd;
+        add(TOKEN_TYPE, typeStart, typeEnd);
+    }
+    if(equal == std::string_view::npos)
+        return tokens;
+    add(TOKEN_OPERATOR, equal, equal + 1);
+    for(size_t pos = equal + 1; pos < line.size();)
+    {
+        const size_t start = pos;
+        const unsigned char ch = static_cast<unsigned char>(line[pos]);
+        if(ch == '"' || ch == '\'')
+        {
+            const char quote = line[pos++];
+            while(pos < line.size())
+            {
+                if(line[pos] == '\\' && pos + 1 < line.size())
+                    pos += 2;
+                else if(line[pos++] == quote)
+                    break;
+            }
+            add(TOKEN_STRING, start, pos);
+        }
+        else if(
+            std::isdigit(ch) ||
+            ((ch == '-' || ch == '+') && pos + 1 < line.size() &&
+             std::isdigit(static_cast<unsigned char>(line[pos + 1]))))
+        {
+            if(ch == '-' || ch == '+')
+                ++pos;
+            const bool address = pos + 1 < line.size() && line[pos] == '0' &&
+                                 (line[pos + 1] == 'x' || line[pos + 1] == 'X');
+            if(address)
+            {
+                pos += 2;
+                while(pos < line.size() &&
+                      std::isxdigit(static_cast<unsigned char>(line[pos])))
+                    ++pos;
+            }
+            else
+                while(pos < line.size() &&
+                      (std::isdigit(static_cast<unsigned char>(line[pos])) ||
+                       line[pos] == '.'))
+                    ++pos;
+            add(address ? TOKEN_COMMENT : TOKEN_NUMBER, start, pos);
+        }
+        else if(std::isalpha(ch) || ch == '_')
+        {
+            ++pos;
+            while(pos < line.size() &&
+                  (std::isalnum(static_cast<unsigned char>(line[pos])) ||
+                   line[pos] == '_'))
+                ++pos;
+            const auto word = line.substr(start, pos - start);
+            if(word == "true" || word == "false" || word == "null" ||
+               word == "nullptr")
+                add(TOKEN_KEYWORD, start, pos);
+        }
+        else
+        {
+            ++pos;
+            if(std::string_view("{}[]()<>,*&+-/").find(ch) !=
+               std::string_view::npos)
+                add(TOKEN_OPERATOR, start, pos);
+        }
+    }
+    return tokens;
+}
+
 std::string fit(const std::string& text, int width)
 {
     std::string result;
@@ -2233,11 +2331,10 @@ void DebuggerMode::drawContent(Editor& editor)
                 const bool alternate =
                     index < static_cast<int>(lines.size()) && index % 2 != 0;
                 if(which == 0)
-                    return editor.theme
-                        .debuggerRow(Theme::DebuggerRow::Source, alternate);
+                    return editor.theme.debuggerRow(Theme::DebuggerRow::Source);
                 if(which == 2)
-                    return editor.theme
-                        .debuggerRow(Theme::DebuggerRow::Variables, alternate);
+                    return editor.theme.debuggerRow(
+                        Theme::DebuggerRow::Variables);
                 if(which == 3)
                     return editor.theme
                         .debuggerRow(Theme::DebuggerRow::Threads, alternate);
@@ -2284,8 +2381,7 @@ void DebuggerMode::drawContent(Editor& editor)
                 const bool breakpoint =
                     which == 0 && shownBreakpoints.contains(index + 1);
                 if(breakpoint)
-                    out +=
-                        color::rgbBg(170, 35, 50) + color::rgbFg(255, 255, 255);
+                    out += color::rgbBg(105, 38, 50) + editor.theme.baseFg();
                 else
                     out += editor.theme.baseFg();
                 out += fit(prefix, prefixWidth);
@@ -2298,6 +2394,7 @@ void DebuggerMode::drawContent(Editor& editor)
                 const int available = inner - prefixWidth;
                 const auto text = fit(lines[index], available);
                 std::vector<Token> assemblyTokens;
+                std::vector<Token> variableColors;
                 const std::vector<Token>* tokens = nullptr;
                 if(which == 0 &&
                    index < static_cast<int>(shownHighlight.tokens.size()))
@@ -2309,6 +2406,11 @@ void DebuggerMode::drawContent(Editor& editor)
                 {
                     assemblyTokens = disassemblyTokens(lines[index]);
                     tokens = &assemblyTokens;
+                }
+                else if(which == 2)
+                {
+                    variableColors = variableTokens(text);
+                    tokens = &variableColors;
                 }
                 if(tokens)
                 {
