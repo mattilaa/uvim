@@ -1500,6 +1500,7 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `glf`     - Show git log (current file)",
             "  `:git stage` - Open git staging view",
             "  `:git log`   - Show git log",
+            "  `:git rebase --` - Pick interactive/continue/abort/skip/quit",
             "  `:git prettylog` - Show formatted git log",
             "  `:git diff`  - Show repository diff",
             "  `:showchanges` - Show unsaved edits of the buffer as a "
@@ -1565,6 +1566,9 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `glf`  - Browse git log (current file)",
             "  Use `ctrl-j/k` to move, `enter` to open diff, `q` to quit",
             "  `ctrl-v` range selects commits, `space` marks one commit",
+            "  `:git rebase --` opens fuzzy options; Tab inserts, Enter runs",
+            "  `--interactive` opens the commit tree with the oldest fixup",
+            "  target selected; Enter opens a rebase todo through that commit",
             "",
             "GIT STAGE:",
             "  `ga`          - Open git stage view from normal or file browser",

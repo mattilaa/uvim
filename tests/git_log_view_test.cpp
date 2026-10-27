@@ -184,6 +184,50 @@ TEST(GitLogCommandTest, FileBrowserGitLogUsesProjectRoot)
     EXPECT_STREQ(smPtr->currentStateName(), "GITLOG");
 }
 
+TEST(GitLogCommandTest, InteractiveRebaseStartsAtMainCommitWithFixup)
+{
+    if(!hasGit())
+        GTEST_SKIP();
+    const auto repo = make_temp_dir("uvim_rebase_picker_");
+    const std::string root = repo.string();
+    ASSERT_EQ(run_cmd("git -C \"" + root + "\" init -q"), 0);
+    ASSERT_EQ(run_cmd("git -C \"" + root +
+                      "\" config user.email test@example.com"), 0);
+    ASSERT_EQ(run_cmd("git -C \"" + root + "\" config user.name Test"), 0);
+
+    write_file(repo / "notes.txt", "root\n");
+    ASSERT_EQ(run_cmd("git -C \"" + root + "\" add notes.txt"), 0);
+    ASSERT_EQ(run_cmd("git -C \"" + root + "\" commit -qm root"), 0);
+    write_file(repo / "notes.txt", "root\nbase\n");
+    ASSERT_EQ(run_cmd("git -C \"" + root + "\" commit -qam base"), 0);
+    const std::string base =
+        run_cmd_line({"git", "-C", root, "rev-parse", "HEAD"});
+    write_file(repo / "notes.txt", "root\nbase\nfixup\n");
+    ASSERT_EQ(run_cmd("git -C \"" + root +
+                      "\" commit -qam 'fixup! base'"), 0);
+
+    Editor editor = Editor::createForTests();
+    editor.setProjectRoot(root);
+    auto sm = std::make_unique<ModeStateMachine>(
+        createModeContext(&editor), FileBrowserMode{root});
+    editor.setModeStateMachineForTests(std::move(sm));
+    auto* machine = editor.getModeStateMachine();
+    ASSERT_NE(machine, nullptr);
+    uvim_test::dispatch_command(*machine, "git rebase --");
+
+    auto* log = machine->getState<GitLogMode>();
+    ASSERT_NE(log, nullptr);
+    EXPECT_TRUE(log->rebasePickMode);
+    ASSERT_EQ(log->entries.size(), 2u);
+    EXPECT_EQ(log->entries[log->cursor].hash, base);
+    machine->dispatch(keyCode(control::ControlKey::ENTER));
+    auto* todo = machine->getState<GitCommitMode>();
+    ASSERT_NE(todo, nullptr);
+    ASSERT_EQ(todo->messageLines.size(), 2u);
+    EXPECT_TRUE(todo->messageLines[0].starts_with("pick " + base));
+    EXPECT_TRUE(todo->messageLines[1].starts_with("fixup "));
+}
+
 TEST(GitShowCommandTest, GjOpensGitShowWhenBlameIsVisible)
 {
     auto repo = make_temp_dir("uvim_gitshow_");

@@ -599,6 +599,18 @@ std::optional<ModeState> CommandMode::handle(
         // picking it with Ctrl-J/K, and the prompt continues from there.
         // Argument completion (paths, ...) starts after a space.
         const std::string input = ctx.commandBuffer.substr(1);
+        if(input.starts_with("git rebase --") &&
+           ctx.isCommandPopupActive())
+        {
+            if(auto selection = ctx.commandPopupSelection())
+            {
+                ctx.commandBuffer = ":" + *selection;
+                completions.clear();
+                completionIndex = -1;
+                updatePopup();
+                return std::nullopt;
+            }
+        }
         if(ctx.isCommandPopupActive() &&
            (!text_utils::contains(input, keyChar(control::ControlKey::SPACE)) ||
             editor::helper::isRegexQuery(input)))

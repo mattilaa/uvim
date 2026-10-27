@@ -21,8 +21,13 @@ namespace editor::statemachine
 {
 namespace
 {
-std::vector<std::string> gitLogHelpTokens(bool prettyView)
+std::vector<std::string> gitLogHelpTokens(
+    bool prettyView,
+    bool rebasePickMode = false)
 {
+    if(rebasePickMode)
+        return {"[enter: choose base]", "[ctrl-j/k: move]",
+                "[type: filter]", "[q: quit]"};
     if(prettyView)
         return {
             "[^V: range]",
@@ -44,10 +49,15 @@ std::vector<std::string> gitLogHelpTokens(bool prettyView)
         "[type: filter]"};
 }
 
-int gitLogContentRows(int screenRows, int screenCols, bool prettyView)
+int gitLogContentRows(
+    int screenRows,
+    int screenCols,
+    bool prettyView,
+    bool rebasePickMode = false)
 {
     const int headerRows =
-        1 + HeaderHelp::lineCount(gitLogHelpTokens(prettyView), screenCols);
+        1 + HeaderHelp::lineCount(
+                gitLogHelpTokens(prettyView, rebasePickMode), screenCols);
     // screenRows already excludes the status and message rows.
     return std::max(1, screenRows - headerRows);
 }
@@ -594,6 +604,35 @@ void append_pretty_diff_line(
 }
 } // namespace
 
+static GitCommitMode makeRebaseTodo(
+    const GitLogMode& log,
+    const std::vector<GitLogMode::Entry>& picked)
+{
+    GitCommitMode rebaseMode{log.repoRoot, log.repoDir};
+    rebaseMode.action = GitCommitMode::Action::RebaseTodo;
+    rebaseMode.returnLog = log;
+    rebaseMode.rebaseHeadHash = picked.front().hash;
+    rebaseMode.rebaseBaseHash = picked.back().hash;
+    rebaseMode.rebaseCommandCount = (int)picked.size();
+    rebaseMode.messageLines.clear();
+    for(auto it = picked.rbegin(); it != picked.rend(); ++it)
+    {
+        const auto& entry = *it;
+        std::string verb = "pick";
+        if(entry.subject.starts_with("fixup!"))
+            verb = "fixup";
+        else if(entry.subject.starts_with("squash!"))
+            verb = "squash";
+        rebaseMode.messageLines.push_back(
+            verb + " " + entry.hash + " " + entry.subject);
+    }
+    rebaseMode.messageCursorRow = 0;
+    rebaseMode.messageCursorCol = 0;
+    rebaseMode.insertMode = false;
+    rebaseMode.stagedDirty = false;
+    return rebaseMode;
+}
+
 const char* GitLogMode::graphPrettyFormatArg()
 {
     return "--pretty=format:%x1e%H%x1f%ad%x1f%an%x1f%D%x1f%P%x1f%s";
@@ -708,7 +747,8 @@ void GitLogMode::rebuildFilter(Editor& editor)
     cursor =
         std::clamp(cursor, 0, filtered.empty() ? 0 : (int)filtered.size() - 1);
     int window =
-        gitLogContentRows(editor.screenRows, editor.screenCols, prettyView);
+        gitLogContentRows(
+            editor.screenRows, editor.screenCols, prettyView, rebasePickMode);
     if(cursor < scrollOffset)
         scrollOffset = cursor;
     else if(cursor >= scrollOffset + window)
@@ -834,7 +874,8 @@ std::optional<ModeState> GitLogMode::handle(
     {
         cursor = std::clamp(cursor, 0, (int)filtered.size() - 1);
         int window =
-            gitLogContentRows(ed->screenRows, ed->screenCols, prettyView);
+            gitLogContentRows(
+                ed->screenRows, ed->screenCols, prettyView, rebasePickMode);
         int maxScroll = std::max(0, (int)filtered.size() - window);
         scrollOffset = std::clamp(scrollOffset, 0, maxScroll);
         if(rangeSelectActive)
@@ -931,7 +972,8 @@ std::optional<ModeState> GitLogMode::handle(
         {
             cursor = found;
             int window =
-                gitLogContentRows(ed->screenRows, ed->screenCols, prettyView);
+                gitLogContentRows(
+                    ed->screenRows, ed->screenCols, prettyView, rebasePickMode);
             if(cursor < scrollOffset)
                 scrollOffset = cursor;
             else if(cursor >= scrollOffset + window)
@@ -1017,7 +1059,8 @@ std::optional<ModeState> GitLogMode::handle(
                     int window = gitLogContentRows(
                         ed->screenRows,
                         ed->screenCols,
-                        prettyView);
+                        prettyView,
+                        rebasePickMode);
                     if(cursor < scrollOffset)
                         scrollOffset = cursor;
                     else if(cursor >= scrollOffset + window)
@@ -1092,6 +1135,12 @@ std::optional<ModeState> GitLogMode::handle(
         int idx = filtered[cursor];
         if(idx < 0 || idx >= (int)entries.size())
             return std::nullopt;
+        if(rebasePickMode)
+        {
+            std::vector<Entry> picked(
+                entries.begin(), entries.begin() + idx + 1);
+            return makeRebaseTodo(*this, picked);
+        }
         std::vector<std::string> showLines =
             ed->loadGitShowLines(entries[idx].hash);
         if(showLines.empty())
@@ -1104,7 +1153,8 @@ std::optional<ModeState> GitLogMode::handle(
         return view;
     }
 
-    int window = gitLogContentRows(ed->screenRows, ed->screenCols, prettyView);
+    int window = gitLogContentRows(
+        ed->screenRows, ed->screenCols, prettyView, rebasePickMode);
     int maxScroll = std::max(0, (int)filtered.size() - window);
 
     if(prettyView && c == keyCode(control::ControlKey::CTRL_J))
@@ -1112,7 +1162,8 @@ std::optional<ModeState> GitLogMode::handle(
         int maxDiffScroll = std::max(
             0,
             (int)previewLines.size() -
-                gitLogContentRows(ed->screenRows, ed->screenCols, prettyView));
+                gitLogContentRows(ed->screenRows, ed->screenCols, prettyView,
+                                  rebasePickMode));
         if(diffOffset < maxDiffScroll)
             diffOffset++;
     }
@@ -1222,31 +1273,7 @@ std::optional<ModeState> GitLogMode::handle(
                 return std::nullopt;
             }
 
-            GitCommitMode rebaseMode{repoRoot, repoDir};
-            rebaseMode.action = GitCommitMode::Action::RebaseTodo;
-            rebaseMode.returnLog = *this;
-            rebaseMode.rebaseHeadHash = picked.front().hash;
-            rebaseMode.rebaseBaseHash = picked.back().hash;
-            rebaseMode.rebaseCommandCount = (int)picked.size();
-            rebaseMode.messageLines.clear();
-            for(auto it = picked.rbegin(); it != picked.rend(); ++it)
-            {
-                const auto& entry = *it;
-                std::string verb = "pick";
-                if(entry.subject.rfind("fixup!", 0) == 0)
-                    verb = "fixup";
-                else if(entry.subject.rfind("squash!", 0) == 0)
-                    verb = "squash";
-                rebaseMode.messageLines.push_back(
-                    verb + " " + entry.hash + " " + entry.subject);
-            }
-            if(rebaseMode.messageLines.empty())
-                rebaseMode.messageLines.push_back("");
-            rebaseMode.messageCursorRow = 0;
-            rebaseMode.messageCursorCol = 0;
-            rebaseMode.insertMode = false;
-            rebaseMode.stagedDirty = false;
-            return rebaseMode;
+            return makeRebaseTodo(*this, picked);
         }
     }
     else if(c == keyCode(control::ControlKey::CTRL_V))
@@ -1371,7 +1398,8 @@ void GitLogMode::draw(Editor& editor) const
         int window = gitLogContentRows(
             editor.screenRows,
             editor.screenCols,
-            self->prettyView);
+            self->prettyView,
+            self->rebasePickMode);
         int maxScroll = std::max(0, (int)self->filtered.size() - window);
         self->scrollOffset = std::clamp(self->scrollOffset, 0, maxScroll);
         if(self->rangeSelectActive)
@@ -1391,7 +1419,9 @@ void GitLogMode::draw(Editor& editor) const
     output += Terminal::ESC_CLEAR_LINE;
     output += editor.theme.uiAccent();
     output += Terminal::ESC_BOLD;
-    output += prettyView ? "  GIT PRETTYLOG" : "  GITLOG";
+    output += rebasePickMode ? "  GIT REBASE: SELECT BASE"
+             : prettyView  ? "  GIT PRETTYLOG"
+                           : "  GITLOG";
     if(fileOnly)
         output += " (file)";
     output += editor.theme.reset();
@@ -1399,10 +1429,11 @@ void GitLogMode::draw(Editor& editor) const
         output,
         editor.theme,
         editor.screenCols,
-        gitLogHelpTokens(prettyView));
+        gitLogHelpTokens(prettyView, rebasePickMode));
 
     int availableRows =
-        gitLogContentRows(editor.screenRows, editor.screenCols, prettyView);
+        gitLogContentRows(
+            editor.screenRows, editor.screenCols, prettyView, rebasePickMode);
     if(prettyView)
     {
         int leftWidth = std::clamp(
@@ -1583,7 +1614,9 @@ void GitLogMode::draw(Editor& editor) const
 
     output += Terminal::NEWLINE_CLEAR;
 
-    std::string status = prettyView ? " GIT PRETTYLOG" : " GITLOG";
+    std::string status = rebasePickMode ? " GIT REBASE"
+                         : prettyView  ? " GIT PRETTYLOG"
+                                       : " GITLOG";
     if(rangeSelectActive)
         status += " [VISUAL]";
     std::string right = " " +

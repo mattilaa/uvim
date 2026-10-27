@@ -263,9 +263,25 @@ void Editor::updateCommandPopupImpl(std::string_view query)
                        commandPopupQuery == "h" ||
                        commandPopupQuery.rfind("help ", 0) == 0 ||
                        commandPopupQuery.rfind("h ", 0) == 0;
+    constexpr std::string_view rebasePrefix = "git rebase --";
+    const bool isRebaseQuery =
+        commandPopupQuery.starts_with(rebasePrefix) &&
+        commandPopupQuery.substr(rebasePrefix.size()).find(' ') ==
+            std::string::npos;
+    commandPopupTitle.clear();
     if(isSetQuery)
     {
         commandPopupAll = getSetCompletions("");
+    }
+    else if(isRebaseQuery)
+    {
+        commandPopupTitle = "Git rebase";
+        commandPopupAll = {
+            "git rebase --interactive",
+            "git rebase --continue",
+            "git rebase --abort",
+            "git rebase --skip",
+            "git rebase --quit"};
     }
     else if(isHelpQuery)
     {
@@ -307,6 +323,28 @@ void Editor::updateCommandPopupImpl(std::string_view query)
         // Topics have already been ranked against the argument query.
         for(int i = 0; i < (int)commandPopupAll.size(); ++i)
             commandPopupFiltered.push_back(i);
+        needsFullRedraw = true;
+        return;
+    }
+
+    if(isRebaseQuery)
+    {
+        const std::string option = commandPopupQuery.substr(rebasePrefix.size());
+        std::vector<std::pair<int, int>> scored;
+        std::vector<int> positions;
+        for(int i = 0; i < (int)commandPopupAll.size(); ++i)
+        {
+            const std::string& candidate = commandPopupAll[i];
+            const int score = editor::helper::fuzzyScoreWithPositions(
+                option, candidate.substr(rebasePrefix.size()), positions);
+            if(score >= 0)
+                scored.emplace_back(i, score);
+        }
+        std::stable_sort(scored.begin(), scored.end(),
+                         [](const auto& a, const auto& b)
+                         { return a.second > b.second; });
+        for(const auto& item : scored)
+            commandPopupFiltered.push_back(item.first);
         needsFullRedraw = true;
         return;
     }
@@ -708,6 +746,7 @@ std::vector<std::string> Editor::getCommandCompletionsImpl(
         "git blame",
         "git stage",
         "git log",
+        "git rebase",
         "git prettylog",
         "git diff",
         "showchanges",

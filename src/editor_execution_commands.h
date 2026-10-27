@@ -154,6 +154,12 @@ public:
     bool execute(Editor& editor, const CommandRequest& request) const override;
 };
 
+class GitRebaseCommand final : public EditorExecutionCommand
+{
+public:
+    bool execute(Editor& editor, const CommandRequest& request) const override;
+};
+
 class GitPrettyLogCommand final : public EditorExecutionCommand
 {
 public:
