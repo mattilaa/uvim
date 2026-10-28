@@ -55,7 +55,32 @@ menus—they leave the corresponding implementation out of the binary.
 
 ### v0.3.5 (unreleased)
 
-- TODO: describe what is new, improved and fixed.
+#### Fixed
+
+- Corrected C++ and Mlang syntax highlighting, collection indentation, and
+  debugger navigation after attach or stepping from a caller frame.
+- Fixed Windows line-ending and assembly-build issues, cross-platform test
+  failures, and substitution picker selection marks.
+
+#### New and improved
+
+- `:asm` adds an asynchronous assembly browser for C, C++, and Mlang, with a
+  linked source split, compilation-database flags, source selection filtering,
+  and instruction help.
+- `:dbgrun` and `:dbgattach` add a debugger view with LLDB, GDB, or mladbg,
+  frame and process pickers, breakpoints, disassembly, and variable inspection.
+- Sed-style `:s` and project-wide `:%%s` add ranges, confirmation, a batch
+  match picker, and count-only mode.
+- Fuzzy pickers gain shared matching, `re:` regex filtering, and clearer
+  highlights. Ctrl+T reindents multiline collections without a formatter.
+- Git views gain colored staged-file markers, a colored `:git status` overview,
+  a searchable `:git rebase --` option popup, and `:git push` with confirmation
+  before publishing a branch without an upstream.
+
+#### Development
+
+- Added debugger and assembly examples, documentation, and tests; improved
+  Windows test portability and CI run cancellation; updated C++ formatting.
 
 ### v0.3.3 (2026-10-21)
 
