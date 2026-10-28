@@ -53,6 +53,10 @@ menus—they leave the corresponding implementation out of the binary.
 
 ## Release notes
 
+### v0.3.5 (unreleased)
+
+- TODO: describe what is new, improved and fixed.
+
 ### v0.3.3 (2026-10-21)
 
 #### Fixed
