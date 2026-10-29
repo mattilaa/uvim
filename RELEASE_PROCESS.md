@@ -69,7 +69,7 @@ the GitHub CLI (`gh`), and the project's build dependencies installed.
      creates the GitHub Release automatically.
    - Accept waiting for the release workflow and displaying its assets.
    - After the release succeeds, accept starting the next patch version
-     (`0.3.4` after `0.3.3`). The script commits and pushes the version bump
+     (`0.3.5` after `0.3.3`). The script commits and pushes the version bump
      and an empty release-notes section for future changes.
 
 5. **Verify the published release.** Open

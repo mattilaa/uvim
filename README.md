@@ -53,6 +53,55 @@ menus—they leave the corresponding implementation out of the binary.
 
 ## Release notes
 
+### v0.3.5 (unreleased)
+
+#### Fixed
+
+- Fixed syntax highlighting errors, improved C++ concept highlighting, and
+  removed the obsolete `requires` keyword from Mlang highlighting.
+- Fixed indentation around paired delimiters and square brackets: multiline
+  collections continue at the expected indent and closing delimiters align
+  with their opening lines.
+- Fixed debugger navigation after attaching to a process or stepping from a
+  caller frame. The debugger view no longer flickers during those transitions,
+  and quick steps keep stable titles and command hints.
+- Fixed Windows unit tests affected by line endings and paths, plus the
+  Windows assembly build; cleaned up cross-platform compiler warnings.
+- Fixed the substitution match picker so only chosen matches show a selection
+  mark, and stabilized its related tests.
+
+#### New and improved
+
+- `:asm` compiles C, C++, and Mlang source, including unsaved edits, into an
+  asynchronous, read-only assembly browser. It can link source and assembly
+  side by side, filter assembly to selected source lines, inherit flags from
+  `compile_commands.json`, and show instruction help.
+- `:dbgrun` and `:dbgattach` add a debugger view using LLDB, GDB, or mladbg
+  where available. Browse threads and stack frames, preview source or
+  disassembly, manage breakpoints, and inspect variable values, memory, sizes,
+  and padding. Process and frame pickers support fuzzy and regex filtering.
+- Sed-style `:s` commands support ranges, visual selections, and capture
+  groups; `:%%s` applies substitutions across project files. Use `c` to
+  confirm one match at a time, `p` to choose matches from a list, or `n` to
+  count matches without changing text.
+- File, buffer, command, help, Git log, and debugger pickers use improved
+  fuzzy matching, including compact out-of-order matches. `re:` filters by
+  regular expression, and `fz:` forces fuzzy text.
+- `:git status` shows a colored overview of staged, unstaged, and untracked
+  changes. The file browser marks staged files with stronger color.
+  `:git rebase --` opens a searchable options popup and interactive rebase
+  starts at a relevant fixup target when one exists. `:git push` asks before
+  publishing a branch without an upstream.
+- Ctrl+T reindents an enclosing multiline collection in Normal or Insert
+  mode without a formatter. Split-pane commands and visual selection colors
+  were refined.
+
+#### Development
+
+- Added debugger and assembly examples, documentation, and regression tests.
+  CI cancels superseded runs on the same branch; C++ formatting rules were
+  updated and applied to the code.
+
 ### v0.3.3 (2026-10-21)
 
 #### Fixed
