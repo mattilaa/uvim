@@ -262,7 +262,7 @@ namespace
 
 static std::string truncate_to_width(std::string text, int width)
 {
-    while(text_utils::displayWidth(text) > width && !text.empty())
+    while(text_utils::utf8DisplayWidth(text) > width && !text.empty())
         text.resize(
             text_utils::prevUtf8CharStart(text, static_cast<int>(text.size())));
     return text;
@@ -329,6 +329,8 @@ static void build_command_line_parts(
 void drawCommandPopup(std::string& output, const CommandPopupView& view)
 {
     const PopupFrameView& frame = view.frame;
+    if(frame.screenCols < 5 || frame.screenRows < 3)
+        return;
     output += frame.theme.baseFg();
 
     int rows =
@@ -359,11 +361,13 @@ void drawCommandPopup(std::string& output, const CommandPopupView& view)
 
     maxContent = std::max(maxContent, text_utils::displayWidth(view.title));
     int innerW = std::max(48, maxContent);
+    if(view.fixedWidth > 0)
+        innerW = std::max(1, std::min(view.fixedWidth, frame.screenCols) - 4);
     int totalW = innerW + 4;
     if(totalW > frame.screenCols)
     {
         totalW = frame.screenCols;
-        innerW = std::max(4, totalW - 4);
+        innerW = std::max(1, totalW - 4);
     }
 
     int totalH = rows + 2;
@@ -376,6 +380,11 @@ void drawCommandPopup(std::string& output, const CommandPopupView& view)
     int left = placement.left;
 
     auto moveTo = [&](int r, int c) { output += Terminal::cursorPos(r, c); };
+    auto rowWidth = [&](std::string_view text)
+    {
+        return view.rawRows ? text_utils::utf8DisplayWidth(text)
+                            : text_utils::displayWidth(text);
+    };
 
     moveTo(top, left);
     text_utils::appendU8(output, ascii::BOX_ROUNDED_TOP_LEFT);
@@ -388,7 +397,7 @@ void drawCommandPopup(std::string& output, const CommandPopupView& view)
     text_utils::appendUtf8Repeat(
         output,
         ascii::BOX_LIGHT_HORIZONTAL,
-        std::max(0, innerW + 2 - text_utils::displayWidth(title)));
+        std::max(0, innerW + 2 - text_utils::utf8DisplayWidth(title)));
     text_utils::appendU8(output, ascii::BOX_ROUNDED_TOP_RIGHT);
 
     for(int i = 0; i < rows; ++i)
@@ -412,8 +421,9 @@ void drawCommandPopup(std::string& output, const CommandPopupView& view)
                 int idx = view.filtered[visibleIndex];
                 if(idx >= 0 && idx < (int)view.entries.size())
                 {
-                    if(idx < static_cast<int>(view.rowSpans.size()) &&
-                       !view.rowSpans[idx].empty())
+                    if(view.rawRows ||
+                       (idx < static_cast<int>(view.rowSpans.size()) &&
+                        !view.rowSpans[idx].empty()))
                         line = view.entries[idx];
                     else
                     {
@@ -430,7 +440,7 @@ void drawCommandPopup(std::string& output, const CommandPopupView& view)
             }
         }
 
-        if(text_utils::displayWidth(line) > innerW)
+        if(rowWidth(line) > innerW)
         {
             line = truncate_to_width(line, std::max(1, innerW - 3));
             line += "...";
@@ -447,8 +457,8 @@ void drawCommandPopup(std::string& output, const CommandPopupView& view)
                     entryIndex < static_cast<int>(view.rowColors.size())
                 ? std::string_view(view.rowColors[entryIndex])
                 : std::string_view{};
-        if(rowColor.empty() && view.title == "Git rebase" &&
-           entryIndex >= 0 && entryIndex < (int)view.entries.size())
+        if(rowColor.empty() && view.title == "Git rebase" && entryIndex >= 0 &&
+           entryIndex < (int)view.entries.size())
         {
             const std::string& option = view.entries[entryIndex];
             if(option.ends_with("--continue"))
@@ -488,9 +498,8 @@ void drawCommandPopup(std::string& output, const CommandPopupView& view)
         };
         if(current)
         {
-            output += view.title == "Git rebase"
-                          ? color::rgbBg(66, 42, 76)
-                          : frame.theme.selection();
+            output += view.title == "Git rebase" ? color::rgbBg(66, 42, 76)
+                                                 : frame.theme.selection();
             output += rowColor;
             appendStyled();
             output += frame.theme.reset();
@@ -525,11 +534,10 @@ void drawCommandPopup(std::string& output, const CommandPopupView& view)
             output += frame.theme.reset();
         }
 
-        int pad = innerW - text_utils::displayWidth(line);
+        int pad = innerW - rowWidth(line);
         if(current && !rowColor.empty())
-            output += view.title == "Git rebase"
-                          ? color::rgbBg(66, 42, 76)
-                          : frame.theme.selection();
+            output += view.title == "Git rebase" ? color::rgbBg(66, 42, 76)
+                                                 : frame.theme.selection();
         if(pad > 0)
             output.append(pad, ' ');
         if(current && !rowColor.empty())

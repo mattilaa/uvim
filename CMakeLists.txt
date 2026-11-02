@@ -94,7 +94,7 @@ option(UVIM_ENABLE_SEARCH_TOOLS "Build fuzzy, grep, and regex search views" ON)
 option(UVIM_ENABLE_RG_CACHE "Build persistent project-local grep cache support under .rg" ON)
 option(UVIM_ENABLE_FORMATTERS "Build external formatter integrations" ON)
 option(UVIM_ENABLE_SYSTEM_CLIPBOARD "Build system clipboard integration hooks" ON)
-option(UVIM_ENABLE_STRUCT_SIZE_POPUP "Build clang-based struct/variable size popup support" ON)
+option(UVIM_ENABLE_STRUCT_SIZE_POPUP "Build compiler-based struct/variable size popup support" ON)
 option(UVIM_ENABLE_COLOR_TOOLS "Build ANSI color picker and RGB selector tools" ON)
 option(UVIM_ENABLE_TERMINAL_COLORS "Build ANSI terminal coloring for UI and syntax highlighting" ON)
 option(UVIM_ENABLE_MODERN_KEYBINDINGS "Build non-vi convenience keybindings such as leader buffer/split shortcuts and Ctrl-Shift-h/j/k/l pane focus" ON)
@@ -283,6 +283,11 @@ set(UVIM_CORE_SOURCES
     src/csharp_lsp.cpp
     src/editor_mode_controller.cpp
     src/editor_size_probe_controller.cpp
+    src/symbol_popup_layout.cpp
+    src/cpp_size_probe_options.cpp
+    src/cpp_type_layout_probe.cpp
+    src/debug_type_layout.cpp
+    src/mlang_size_probe.cpp
     src/editor_operator_controller.cpp
     src/editor_path_utilities.cpp
     src/editor_settings_controller.cpp

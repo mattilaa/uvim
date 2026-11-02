@@ -9,6 +9,7 @@
 #include "mode_state_machine.h"
 #include "picker_query.h"
 #include "process_launch.h"
+#include "symbol_popup_layout.h"
 #include "terminal.h"
 #include "text_utils.h"
 #include "widgets/command_popup.h"
@@ -537,33 +538,9 @@ std::vector<std::string> wrapLayoutLines(
     const std::vector<std::string>& lines,
     int screenCols)
 {
-    const int width = std::max(1, screenCols - 6);
-    std::vector<std::string> result;
-    for(const auto& line : lines)
-    {
-        size_t start = 0;
-        std::string prefix;
-        do
-        {
-            size_t end = start;
-            int cells = static_cast<int>(prefix.size());
-            while(end < line.size())
-            {
-                const auto next = static_cast<size_t>(
-                    text_utils::nextUtf8CharStart(line, static_cast<int>(end)));
-                const int glyphWidth = text_utils::utf8DisplayWidth(
-                    std::string_view(line).substr(end, next - end));
-                if(end > start && cells + glyphWidth > width)
-                    break;
-                cells += glyphWidth;
-                end = next;
-            }
-            result.push_back(prefix + line.substr(start, end - start));
-            start = end;
-            prefix.assign(std::min(2, width / 3), ' ');
-        } while(start < line.size());
-    }
-    return result;
+    return wrapSymbolPopupLines(
+        lines,
+        std::max(1, std::min(screenCols, 100) - 4));
 }
 
 // The shared popup uses absolute row positions. Fold its rows into the frame
@@ -1802,7 +1779,7 @@ std::optional<ModeState> DebuggerMode::handle(
             const int count = static_cast<int>(
                 wrapLayoutLines(sizePopupLines, ctx.editor->screenCols).size());
             const int page =
-                std::max(1, std::min(18, ctx.editor->screenRows - 2));
+                std::max(1, std::min(24, ctx.editor->screenRows - 2));
             int delta = 0;
             if(key == 'j' || key == keyCode(control::ControlKey::CTRL_J) ||
                key == keyCode(navigation::NavigationKey::ARROW_DOWN))
@@ -1858,7 +1835,7 @@ std::optional<ModeState> DebuggerMode::handle(
                 count,
                 delta,
                 ctx.editor->screenRows,
-                18);
+                24);
         }
         return {};
     }
@@ -2515,24 +2492,50 @@ void DebuggerMode::drawContent(Editor& editor)
             menuEntries.size(),
             0,
             editor.screenRows,
-            18);
+            24);
         menuCursor = sizePopupCursor;
         menuOffset = sizePopupOffset;
         menuTitle = sizePopupTitle + "  " +
                     std::to_string(sizePopupCursor + 1) + "/" +
                     std::to_string(menuEntries.size()) +
                     "  Ctrl-J/K members | j/k scroll | q close";
+        int layoutWidth = 0;
         for(const auto& row : menuEntries)
+            layoutWidth = std::max(layoutWidth, text_utils::displayWidth(row));
+        for(auto& row : menuEntries)
         {
-            const bool padding = row.find("Padding") != std::string::npos ||
-                                 row.find("hole") != std::string::npos;
+            const auto first = row.find_first_not_of(' ');
+            const bool lldbGap = first != std::string::npos &&
+                                 row.compare(first, 11, "Padding at ") == 0;
+            const auto nativeGap = row.find("-byte hole") != std::string::npos
+                                       ? row.find("-byte hole")
+                                       : row.find("-byte padding");
+            const bool gap = lldbGap || nativeGap != std::string::npos;
+            const bool padding =
+                gap || row.find("Padding:") != std::string::npos;
+            if(lldbGap)
+                row.erase(first, 11);
+            else if(nativeGap != std::string::npos)
+            {
+                size_t start = nativeGap;
+                while(start > 0 &&
+                      std::isdigit(static_cast<unsigned char>(row[start - 1])))
+                    --start;
+                row = "  " + row.substr(start, nativeGap - start) + " bytes";
+            }
+            if(gap)
+                row.append(
+                    std::max(0, layoutWidth - text_utils::displayWidth(row)),
+                    ' ');
             menuColors.push_back(
-                padding ? editor.theme.uiError() : editor.theme.uiInfo());
+                gap       ? editor.theme.storagePadding()
+                : padding ? editor.theme.uiError()
+                          : editor.theme.uiInfo());
             auto& spans = menuSpans.emplace_back();
             if(row.starts_with("+0x"))
                 for(size_t pos = row.find("--"); pos != std::string::npos;
                     pos = row.find("--", pos + 2))
-                    spans.push_back({pos, 2, editor.theme.uiError()});
+                    spans.push_back({pos, 2, editor.theme.storagePadding()});
         }
     }
     else if(framePickerOpen)
@@ -2644,13 +2647,13 @@ void DebuggerMode::drawContent(Editor& editor)
                                                    : framePickerError)
                  : sizePopupOpen ? "No layout information"
                                  : "No breakpoints",
-             .maxRows =
-                 sizePopupOpen
-                     ? std::clamp(static_cast<int>(menuEntries.size()), 1, 18)
-                 : framePickerOpen ? framePickerRows(editor.screenRows)
-                                   : 8,
+             .maxRows = sizePopupOpen     ? 24
+                        : framePickerOpen ? framePickerRows(editor.screenRows)
+                                          : 8,
              .rowColors = menuColors,
-             .rowSpans = menuSpans});
+             .rowSpans = menuSpans,
+             .fixedWidth = sizePopupOpen ? 100 : 0,
+             .rawRows = sizePopupOpen});
         overlayPopupRows(rows, popup, editor.theme);
     }
     if(assemblyHelpOpen)

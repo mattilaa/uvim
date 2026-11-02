@@ -98,7 +98,7 @@ includes common Normal/Insert/Visual/Command mode bindings.
 - `gb` : toggle git blame
 - `gj` : show commit diff for current line when git blame is visible
 - `gbv` : show commit diff for line under cursor
-- `gs` : show C/C++ symbol size and member layout popup
+- `gs` : show C/C++ or Mlang symbol size and member layout popup
 - `gl` / `glf` : git log (repo / current file); `Ctrl-v` range selects
 
 \subsection keys_normal_leader Leader (Space)
@@ -162,11 +162,36 @@ includes common Normal/Insert/Visual/Command mode bindings.
 
 \section keys_command Command mode
 - `:` : enter command mode
-- `:gs` : inspect the C/C++ symbol under the cursor without a debugger. Shows
-  total bytes, nested members, and known internal and trailing padding using
-  clang. `Ctrl-j/k` selects a member or padding range and shows its offset and
+- `:gs` : inspect the C/C++ or Mlang symbol under the cursor without a debugger.
+  Shows total bytes, nested members, and known internal and trailing padding using
+  clang for C/C++ and compiler debug type metadata for Mlang. `Ctrl-j/k` selects
+  a member or padding range and shows its offset and
   byte layout map (`##` storage, `--` padding). Padding uses the theme's error
   color; members use its info color. The map shows at most 128 bytes.
+  Structures open as a table with offset, byte count and member columns.
+  Inspector windows keep a fixed viewport while selecting members, bounded by
+  the terminal (up to 100 columns and 26 rows). Long names and descriptions wrap;
+  `j/k` scrolls wrapped rows. Terminal resizing recalculates the viewport.
+  Library types such as `std::string` use compiler debug metadata when their
+  members are unavailable in the source parser.
+  Internal and trailing padding appear as blank, dim red rows between members;
+  select a gap with `Ctrl-j/k` to see its byte range.
+  C/C++ probes inherit include paths, defines, language-standard and target
+  flags from a nearby `compile_commands.json` (including common build folders).
+  Headers use a nearby translation unit when no exact command exists. If a
+  probe fails, the status message includes the compiler diagnostic.
+  On a C++ member-function call such as `out.append(...)`, inspecting the
+  method name shows the receiver's object storage (`out`). Arrow calls inspect
+  the pointee. Callable data members retain their own storage size.
+  Mlang supports unsaved buffers, imported and instantiated generic types,
+  scalar and member expressions, and packed bit-field sizes/offsets. A temporary
+  `.mla` snapshot is created beside the source to preserve module resolution;
+  the source directory must be writable. Compilation uses `mlang -g -O0 -emit-llvm`
+  without running the program; `UVIM_MLANG_COMPILER` can select another compiler
+  executable. Nested Mlang layouts are limited to eight levels and 256 members.
+  Partial-byte ownership is shown in bit-field labels rather than as byte padding.
+  Mlang's `storage(...)` total describes the compiler's in-memory object layout,
+  including collection headers. Separately allocated element data is not included.
 - `:ss [expression]` (debugger mode): inspect live storage while paused. With
   no expression, uses the selected variable. Shows members, offsets, padding,
   raw target-memory hex and a byte map (`??` means unknown ownership).
@@ -174,6 +199,9 @@ includes common Normal/Insert/Visual/Command mode bindings.
   `q` or `Esc` closes. Raw memory is capped at 4096 bytes, member previews at
   32 bytes, and the map at 256 bytes. Unreadable or optimized-out values are
   reported as unavailable; padding bytes have unspecified values.
+  Mlang programs compiled with `-g -O0` use the same inspector through LLDB
+  or the `mladbg` backend.
+  Padding gaps are displayed inline between members in a subdued red tint.
 - `:bd` / `:bdelete` : close current buffer (bare `b` is word-backward movement)
 - `Ctrl-k` / `Ctrl-j` : previous / next command in history
 - `Ctrl-f` : fuzzy history search
@@ -293,7 +321,7 @@ includes common Normal/Insert/Visual/Command mode bindings.
 \section keys_misc Misc
 - `Ctrl-e` then `Enter` : emoji picker
 - `Space-e` then `m` : emoji picker
-- Size popup (`gs` or `:gs` in C/C++): `Ctrl-j/k` selects members and shows
+- Size popup (`gs` or `:gs` in C/C++ or Mlang): `Ctrl-j/k` selects members and shows
   their byte map, `j/k` scrolls, `q` or `gs` closes
 - Diagnostics popup: `Ctrl-j/k` to navigate fixes, `Enter` to apply, `q` to close
 

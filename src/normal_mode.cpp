@@ -1,5 +1,6 @@
 #include "editor.h"
 #include "mode_state_machine.h"
+#include "symbol_popup_layout.h"
 #include "terminal.h"
 #include "text_utils.h"
 #include <algorithm>
@@ -75,21 +76,14 @@ std::optional<ModeState> NormalMode::handle(
             ctx.repeatCount = 0;
             return std::nullopt;
         }
-        const auto popupLineCount = [&]()
-        {
-            return 1 + (int)std::count(
-                           ed->symbolPopupText.begin(),
-                           ed->symbolPopupText.end(),
-                           '\n');
-        };
-
         if(c == keyCode(typed::TypedKey::KEY_J))
         {
-            const int maxRows = std::max(1, ed->screenRows - 2);
-            const int maxScroll = std::max(0, popupLineCount() - maxRows);
-            if(ed->symbolPopupScroll < maxScroll)
+            const auto layout = layoutSymbolPopup(*ed);
+            const int next =
+                std::clamp(ed->symbolPopupScroll + 1, 0, layout.maxScroll());
+            if(next != ed->symbolPopupScroll)
             {
-                ++ed->symbolPopupScroll;
+                ed->symbolPopupScroll = next;
                 ed->needsFullRedraw = true;
             }
             ctx.repeatCount = 0;
@@ -98,9 +92,12 @@ std::optional<ModeState> NormalMode::handle(
 
         if(c == keyCode(typed::TypedKey::KEY_K))
         {
-            if(ed->symbolPopupScroll > 0)
+            const auto layout = layoutSymbolPopup(*ed);
+            const int next =
+                std::clamp(ed->symbolPopupScroll - 1, 0, layout.maxScroll());
+            if(next != ed->symbolPopupScroll)
             {
-                --ed->symbolPopupScroll;
+                ed->symbolPopupScroll = next;
                 ed->needsFullRedraw = true;
             }
             ctx.repeatCount = 0;

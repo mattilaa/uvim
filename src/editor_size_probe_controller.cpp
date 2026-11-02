@@ -1,7 +1,11 @@
 #include "editor.h"
 
 #include "cpp_navigation_utilities.h"
+#include "cpp_size_probe_options.h"
+#include "cpp_type_layout_probe.h"
+#include "mlang_size_probe.h"
 #include "process_pipe.h"
+#include "symbol_popup_layout.h"
 #include "symbol_popup_utilities.h"
 #include "text_utils.h"
 
@@ -17,6 +21,7 @@
 #include <string>
 #include <string_view>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 namespace
@@ -29,6 +34,7 @@ struct SizeProbeResult
     std::string expression;
     std::string memberTypeExpression;
     int insertAfterLine = 0;
+    std::string error;
 };
 
 struct MemberInfo
@@ -80,20 +86,6 @@ std::optional<TypeDefinition> findTypeDefinition(
     const std::vector<SourceDocument>& documents,
     const std::string& typeName);
 std::string trimCopy(std::string_view text);
-
-std::string shellQuote(std::string_view value)
-{
-    std::string out = "'";
-    for(char ch : value)
-    {
-        if(ch == '\'')
-            out += "'\\''";
-        else
-            out.push_back(ch);
-    }
-    out += "'";
-    return out;
-}
 
 bool isCSource(std::string_view path)
 {
@@ -211,25 +203,43 @@ std::unordered_map<long long, long long> parseProbeResultsFromClangOutput(
     const std::string& output)
 {
     std::unordered_map<long long, long long> results;
+    std::unordered_set<long long> invalidRows;
+    std::unordered_map<long long, std::pair<long long, long long>> candidates;
+    static const std::regex diagnosticPattern(
+        R"(^.*:([0-9]+):[0-9]+: (error|fatal error|note): (.*)$)");
     static const std::regex evalPattern(
         R"(expression evaluates to '([0-9]+) == (-?[0-9]+)')");
-
-    for(std::sregex_iterator it(output.begin(), output.end(), evalPattern), end;
-        it != end;
-        ++it)
+    std::istringstream lines(output);
+    std::string line;
+    std::smatch diagnostic, evaluation;
+    while(std::getline(lines, line))
     {
-        if(it->size() < 3)
+        if(!std::regex_match(line, diagnostic, diagnosticPattern))
             continue;
         try
         {
-            const long long value = std::stoll((*it)[1].str());
-            const long long expected = std::stoll((*it)[2].str());
-            results[expected] = value;
+            const long long row = std::stoll(diagnostic[1].str());
+            const std::string kind = diagnostic[2].str();
+            const std::string message = diagnostic[3].str();
+            // Clang can recover an invalid member-function expression as a call
+            // and still emit a bogus sizeof result. Only trust assertions whose
+            // own source line has no other compilation errors.
+            if(kind != "note" &&
+               !message.starts_with("static assertion failed"))
+                invalidRows.insert(row);
+            else if(
+                kind == "note" &&
+                std::regex_search(message, evaluation, evalPattern))
+                candidates[std::stoll(evaluation[2].str())] =
+                    {row, std::stoll(evaluation[1].str())};
         }
         catch(...)
         {
         }
     }
+    for(const auto& [expected, candidate] : candidates)
+        if(!invalidRows.contains(candidate.first))
+            results[expected] = candidate.second;
 
     return results;
 }
@@ -238,7 +248,8 @@ std::vector<std::optional<long long>> runAssertionProbes(
     const std::vector<std::string>& lines,
     const std::string& filePath,
     const std::vector<ProbeRequest>& requests,
-    int insertAfterLine)
+    int insertAfterLine,
+    std::string* error = nullptr)
 {
     std::vector<std::optional<long long>> values(requests.size());
     if(requests.empty())
@@ -279,16 +290,34 @@ std::vector<std::optional<long long>> runAssertionProbes(
             sourceDir = original.parent_path();
     }
 
-    std::string command = std::string(cSource ? "clang" : "clang++") +
-                          (cSource ? " -std=c11" : " -std=c++20") +
-                          " -fsyntax-only -ferror-limit=0 -Wno-everything -I" +
-                          shellQuote(sourceDir.string()) + " " +
-                          shellQuote(tempPath.string()) + " 2>&1";
-
-    ProcessPipe pipe(command, "r");
-    const std::string output = pipe ? pipe.readAll() : "";
+    const auto options = cppSizeProbeOptions(filePath);
+    std::vector<std::string> args{
+        cSource ? "clang" : "clang++",
+        cSource ? "-std=c11" : "-std=c++20"};
+    args.insert(args.end(), options.flags.begin(), options.flags.end());
+    args.insert(
+        args.end(),
+        {"-fsyntax-only",
+         "-ferror-limit=0",
+         "-Wno-everything",
+         "-fno-color-diagnostics",
+         "-iquote",
+         fs::absolute(sourceDir).string(),
+         tempPath.string()});
+    ProcessPipe pipe;
+    const bool started = pipe.open(args, "r", true, options.directory);
+    const std::string output = started ? pipe.readAll() : "";
     pipe.close();
-
+    if(error)
+    {
+        static const std::regex diagnostic(
+            R"((?:fatal error|error): ([^\n\r]+))");
+        std::smatch match;
+        if(!started)
+            *error = "could not start clang";
+        else if(std::regex_search(output, match, diagnostic))
+            *error = match[1].str();
+    }
     fs::remove(tempPath, ec);
     const auto parsed = parseProbeResultsFromClangOutput(output);
     for(size_t i = 0; i < requests.size(); ++i)
@@ -304,7 +333,8 @@ std::vector<std::optional<long long>> runSizeProbes(
     const std::vector<std::string>& lines,
     const std::string& filePath,
     const std::vector<std::string>& expressions,
-    int insertAfterLine)
+    int insertAfterLine,
+    std::string* error = nullptr)
 {
     std::vector<ProbeRequest> requests;
     requests.reserve(expressions.size());
@@ -313,7 +343,12 @@ std::vector<std::optional<long long>> runSizeProbes(
         requests.push_back(
             {"sizeof(" + expressions[i] + ")", -static_cast<long long>(i + 1)});
     }
-    return runAssertionProbes(lines, filePath, requests, insertAfterLine);
+    return runAssertionProbes(
+        lines,
+        filePath,
+        requests,
+        insertAfterLine,
+        error);
 }
 
 std::vector<std::string> sizeExpressionsForSymbol(std::string_view symbol)
@@ -419,6 +454,42 @@ std::string stripTypeKeyword(std::string expression)
             return expression.substr(keyword.size());
     }
     return expression;
+}
+
+std::string methodReceiverAt(
+    const std::vector<std::string>& lines,
+    int cursorY,
+    int cursorX,
+    const std::string& expression)
+{
+    if(cursorY < 0 || cursorY >= static_cast<int>(lines.size()))
+        return {};
+    const auto& line = lines[cursorY];
+    size_t end = static_cast<size_t>(std::max(0, cursorX));
+    while(end < line.size() && CppNavigationUtilities::isIdent(line[end]))
+        ++end;
+    if(end < line.size() && line[end] == '<')
+    {
+        int depth = 0;
+        do
+        {
+            if(line[end] == '<')
+                ++depth;
+            else if(line[end] == '>')
+                --depth;
+            ++end;
+        } while(end < line.size() && depth > 0);
+    }
+    while(end < line.size() &&
+          std::isspace(static_cast<unsigned char>(line[end])))
+        ++end;
+    if(end >= line.size() || line[end] != '(')
+        return {};
+    const auto dot = expression.rfind('.');
+    const auto arrow = expression.rfind("->");
+    if(arrow != std::string::npos && (dot == std::string::npos || arrow > dot))
+        return "(*" + expression.substr(0, arrow) + ")";
+    return dot == std::string::npos ? std::string{} : expression.substr(0, dot);
 }
 
 std::string typeNameFromExpression(std::string expression)
@@ -566,11 +637,22 @@ SizeProbeResult resolveSizeExpression(
 {
     const int currentLine = std::clamp(cursorY, 0, (int)lines.size() - 1);
     SizeProbeResult result;
+    const std::string receiver =
+        methodReceiverAt(lines, cursorY, cursorX, cursorExpression);
+    const bool dereferencedReceiver =
+        receiver.starts_with("(*") && receiver.ends_with(')');
+    const std::string lookupSymbol =
+        dereferencedReceiver ? receiver.substr(2, receiver.size() - 3)
+        : !receiver.empty()  ? receiver
+                             : symbol;
     std::optional<std::string> localType =
-        resolveLocalVariableType(lines, symbol, cursorY, cursorX);
+        resolveLocalVariableType(lines, lookupSymbol, cursorY, cursorX);
 
     std::vector<std::string> expressions;
     pushUniqueExpression(expressions, cursorExpression);
+    // A method has no object size. Keep data/function-pointer members first,
+    // then inspect the receiver when sizeof(member) is invalid.
+    pushUniqueExpression(expressions, receiver);
     for(const std::string& expression : sizeExpressionsForSymbol(symbol))
         pushUniqueExpression(expressions, expression);
 
@@ -579,7 +661,12 @@ SizeProbeResult resolveSizeExpression(
         pushUniqueExpression(currentLineExpressions, *localType);
 
     const std::vector<std::optional<long long>> currentLineSizes =
-        runSizeProbes(lines, filePath, currentLineExpressions, currentLine);
+        runSizeProbes(
+            lines,
+            filePath,
+            currentLineExpressions,
+            currentLine,
+            &result.error);
     for(size_t i = 0;
         i < currentLineExpressions.size() && i < currentLineSizes.size();
         ++i)
@@ -588,15 +675,33 @@ SizeProbeResult resolveSizeExpression(
         {
             result.size = currentLineSizes[i];
             result.expression = currentLineExpressions[i];
-            if(localType && result.expression == symbol)
+            if(localType && result.expression == lookupSymbol)
                 result.memberTypeExpression = *localType;
+            else if(
+                localType && dereferencedReceiver &&
+                result.expression == receiver)
+            {
+                result.memberTypeExpression = *localType;
+                if(auto star = result.memberTypeExpression.rfind('*');
+                   star != std::string::npos)
+                    result.memberTypeExpression.replace(star, 1, " ");
+                result.memberTypeExpression =
+                    trimCopy(result.memberTypeExpression);
+            }
             result.insertAfterLine = currentLine;
             return result;
         }
     }
 
-    const std::vector<std::optional<long long>> eofSizes =
-        runSizeProbes(lines, filePath, expressions, (int)lines.size());
+    std::string eofError;
+    const std::vector<std::optional<long long>> eofSizes = runSizeProbes(
+        lines,
+        filePath,
+        expressions,
+        (int)lines.size(),
+        &eofError);
+    if(result.error.empty())
+        result.error = std::move(eofError);
     for(size_t i = 0; i < expressions.size() && i < eofSizes.size(); ++i)
     {
         if(eofSizes[i])
@@ -1070,10 +1175,12 @@ std::string buildSizePopupText(
     long long total,
     const std::vector<MemberInfo>& members,
     bool complete,
-    std::vector<Editor::SizePopupEntry>& entries)
+    std::vector<Editor::SizePopupEntry>& entries,
+    bool mlang)
 {
     std::ostringstream out;
-    out << "sizeof(" << expression << ") = " << total << " bytes";
+    out << (mlang ? "storage(" : "sizeof(") << expression << ") = " << total
+        << " bytes";
     entries.push_back({0, expression, 0, total, false});
     int row = 0;
     std::function<void(
@@ -1150,9 +1257,9 @@ void Editor::openSizePopupForCursor()
     if(!currentBuffer || !lines || !cursorX || !cursorY)
         return;
 
-    if(!isFileType<FileType::Cpp>())
+    if(!isFileType<FileType::Cpp>() && !isFileType<FileType::Mla>())
     {
-        setStatusMessage("gs: C/C++ only");
+        setStatusMessage("gs: C/C++ and Mlang only");
         needsFullRedraw = true;
         return;
     }
@@ -1174,39 +1281,154 @@ void Editor::openSizePopupForCursor()
 
     const std::string cursorExpression =
         cursorExpressionAt(*lines, *cursorY, *cursorX);
-    SizeProbeResult result = resolveSizeExpression(
-        *lines,
-        currentBuffer->filename,
-        symbol,
-        cursorExpression,
-        *cursorY,
-        *cursorX);
-
-    if(!result.size)
-    {
-        setStatusMessage("gs: clang could not resolve size for " + symbol);
-        needsFullRedraw = true;
-        return;
-    }
-
-    const std::string memberTypeExpression = result.memberTypeExpression.empty()
-                                                 ? result.expression
-                                                 : result.memberTypeExpression;
+    std::string expression;
+    long long total = 0;
     bool complete = false;
-    const std::vector<MemberInfo> members = resolveMembers(
-        *lines,
-        currentBuffer->filename,
-        memberTypeExpression,
-        symbol,
-        result.insertAfterLine,
-        complete);
-
+    std::vector<MemberInfo> members;
+    std::function<
+        std::vector<MemberInfo>(const std::vector<DebugTypeMember>&, int)>
+        convert = [&](const std::vector<DebugTypeMember>& fields, int indent)
+    {
+        std::vector<MemberInfo> result;
+        for(const auto& field : fields)
+        {
+            MemberInfo member;
+            member.name = field.name;
+            member.size = (field.offsetBits % 8 + field.sizeBits + 7) / 8;
+            member.offset = field.offsetBits / 8;
+            member.indent = indent;
+            if(field.sizeBits % 8 || field.offsetBits % 8)
+                member.name += " (" + std::to_string(field.sizeBits) +
+                               " bits at bit +" +
+                               std::to_string(field.offsetBits) + ")";
+            member.children = convert(field.children, indent + 1);
+            member.layoutComplete =
+                field.complete && std::all_of(
+                                      field.children.begin(),
+                                      field.children.end(),
+                                      [](const auto& child)
+                                      {
+                                          return child.sizeBits % 8 == 0 &&
+                                                 child.offsetBits % 8 == 0;
+                                      });
+            result.push_back(std::move(member));
+        }
+        return result;
+    };
+    if(isFileType<FileType::Mla>())
+    {
+        expression = cursorExpression.empty() ? symbol : cursorExpression;
+        std::string error;
+        auto layout = probeMlangSize(
+            *lines,
+            currentBuffer->filename,
+            expression,
+            *cursorY + 1,
+            error);
+        if(!layout)
+        {
+            setStatusMessage("gs: " + error);
+            needsFullRedraw = true;
+            return;
+        }
+        members = convert(layout->members, 0);
+        total = (layout->sizeBits + 7) / 8;
+        complete =
+            layout->complete && std::all_of(
+                                    layout->members.begin(),
+                                    layout->members.end(),
+                                    [](const auto& member)
+                                    {
+                                        return member.sizeBits % 8 == 0 &&
+                                               member.offsetBits % 8 == 0;
+                                    });
+    }
+    else
+    {
+        SizeProbeResult result = resolveSizeExpression(
+            *lines,
+            currentBuffer->filename,
+            symbol,
+            cursorExpression,
+            *cursorY,
+            *cursorX);
+        if(!result.size)
+        {
+            setStatusMessage(
+                "gs: clang could not resolve size for " + symbol +
+                (result.error.empty() ? "" : ": " + result.error));
+            needsFullRedraw = true;
+            return;
+        }
+        expression = result.expression;
+        total = *result.size;
+        const std::string memberTypeExpression =
+            result.memberTypeExpression.empty() ? result.expression
+                                                : result.memberTypeExpression;
+        members = resolveMembers(
+            *lines,
+            currentBuffer->filename,
+            memberTypeExpression,
+            symbol,
+            result.insertAfterLine,
+            complete);
+        static const std::unordered_set<std::string> primitives =
+            {"bool",
+             "char",
+             "signed char",
+             "unsigned char",
+             "short",
+             "unsigned short",
+             "int",
+             "unsigned",
+             "unsigned int",
+             "long",
+             "unsigned long",
+             "long long",
+             "unsigned long long",
+             "float",
+             "double",
+             "long double",
+             "wchar_t",
+             "char8_t",
+             "char16_t",
+             "char32_t",
+             "size_t",
+             "std::size_t",
+             "void"};
+        if(members.empty() && !isCSource(currentBuffer->filename) &&
+           !primitives.contains(memberTypeExpression) &&
+           memberTypeExpression.find('*') == std::string::npos)
+        {
+            if(auto layout = probeCppTypeLayout(
+                   *lines,
+                   currentBuffer->filename,
+                   expression,
+                   *cursorY + 1,
+                   memberTypeExpression);
+               layout && layout->sizeBits == total * 8 &&
+               !layout->members.empty())
+            {
+                members = convert(layout->members, 0);
+                complete = layout->complete &&
+                           std::all_of(
+                               layout->members.begin(),
+                               layout->members.end(),
+                               [](const auto& member)
+                               {
+                                   return member.sizeBits % 8 == 0 &&
+                                          member.offsetBits % 8 == 0;
+                               });
+            }
+        }
+    }
     symbolPopupText = buildSizePopupText(
-        result.expression,
-        *result.size,
+        expression,
+        total,
         members,
         complete,
-        sizePopupEntries);
+        sizePopupEntries,
+        isFileType<FileType::Mla>());
     sizePopupBaseText = symbolPopupText;
     sizePopupSelection = 0;
     symbolPopupActive = true;
@@ -1215,7 +1437,7 @@ void Editor::openSizePopupForCursor()
     symbolPopupCursorY = *cursorY;
     symbolPopupScroll = 0;
     setStatusMessage(
-        "Size: Ctrl-j/k members and byte map | j/k scroll | q close");
+        "Size: dim red = padding | Ctrl-j/k select | j/k scroll | q close");
     needsFullRedraw = true;
 }
 
@@ -1259,13 +1481,14 @@ void Editor::browseSizePopup(int delta)
     }
     detail << "\nRaw hex: available with :ss in a paused debugger";
     symbolPopupText = detail.str();
-    const int detailRow = 2 + static_cast<int>(std::count(
-                                  sizePopupBaseText.begin(),
-                                  sizePopupBaseText.end(),
-                                  '\n'));
-    // Keep the selected member and the beginning of its details visible where
-    // possible.
-    const int page = std::max(1, screenRows - 2);
-    symbolPopupScroll = std::max(0, detailRow + 2 - page);
+    const auto layout = layoutSymbolPopup(*this);
+    symbolPopupScroll =
+        layout.detailRow < 0
+            ? 0
+            : std::clamp(
+                  layout.detailRow + std::min(4, layout.visibleRows) -
+                      layout.visibleRows,
+                  0,
+                  layout.maxScroll());
     needsFullRedraw = true;
 }

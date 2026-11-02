@@ -109,12 +109,14 @@ def type_layout(type_, label, depth=0, budget=None, data=None):
                     rows += ['  ' + row for row in type_layout(element, label + '[0]', depth + 1, budget)]
         return rows
     covered = []
+    field_rows = []
     for field in fields:
         start = field.GetOffsetInBits()
         bits = field.GetBitfieldSizeInBits() if field.IsBitfield() else field.GetType().GetByteSize() * 8
         if start < 0 or start > size * 8 or bits < 0 or start + bits > size * 8:
             rows.append('Padding: field offsets unavailable in debug information')
             return rows
+        field_rows.append((start, len(rows)))
         rows.append(f'  +{start // 8}' + (f'.{start % 8} bits' if start % 8 else '') +
                     f': {field.GetName() or "<anonymous>"} ({field.GetType().GetName()}), ' +
                     (f'{bits} bits' if field.IsBitfield() else f'{bits // 8} bytes'))
@@ -142,14 +144,18 @@ def type_layout(type_, label, depth=0, budget=None, data=None):
         rows.append('Padding: not calculated; leading storage may contain hidden ABI data')
         return rows
     cursor, padding = 0, 0
+    gaps = []
     for start, end in sorted(covered) + [(size * 8, size * 8)]:
         if start > cursor:
             bits = start - cursor
             amount = f'{bits // 8} bytes' if bits % 8 == 0 else f'{bits} bits'
-            rows.append(f'  Padding at +{cursor // 8}' +
-                        (f'.{cursor % 8} bits' if cursor % 8 else '') + f': {amount}')
+            row = f'  Padding at +{cursor // 8}' + (f'.{cursor % 8} bits' if cursor % 8 else '') + f': {amount}'
+            index = next((index for offset, index in field_rows if offset >= start), len(rows))
+            gaps.append((index, row))
             padding += bits
         cursor = max(cursor, end)
+    for index, row in reversed(gaps):
+        rows.insert(index, row)
     rows.append('Top-level padding: ' +
                 (f'{padding // 8} bytes' if padding % 8 == 0 else f'{padding} bits') +
                 ' (nested member padding is included in member storage)')
