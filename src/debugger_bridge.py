@@ -17,7 +17,10 @@ def emit(**value):
     print(json.dumps(value, ensure_ascii=True), flush=True)
 
 
-def emit_layout(expression, rows, append=False):
+def emit_layout(expression, rows, append=False, replace=False):
+    if replace:
+        emit(layoutTitle='Size and padding: ' + expression, layoutLines=rows, layoutAppend=True, layoutReplace=True)
+        return
     emit(layoutTitle='Size and padding: ' + expression, layoutLines=rows, layoutAppend=append)
 
 
@@ -43,6 +46,8 @@ def application_source(path, function):
 
 def inspection_request(text):
     verb, _, rest = text.strip().partition(' ')
+    if verb == 'ss':
+        verb = 'layout'
     if verb in ('p', 'print'):
         flag, _, expression = rest.strip().partition(' ')
         if flag not in ('--asm', '--memory', '--layout'):
@@ -78,7 +83,7 @@ def memory_rows(address, data):
     return rows
 
 
-def type_layout(type_, label, depth=0, budget=None):
+def type_layout(type_, label, depth=0, budget=None, data=None):
     if budget is None:
         budget = [128]
     size = type_.GetByteSize()
@@ -113,12 +118,18 @@ def type_layout(type_, label, depth=0, budget=None):
         rows.append(f'  +{start // 8}' + (f'.{start % 8} bits' if start % 8 else '') +
                     f': {field.GetName() or "<anonymous>"} ({field.GetType().GetName()}), ' +
                     (f'{bits} bits' if field.IsBitfield() else f'{bits // 8} bytes'))
+        if data is not None:
+            chunk = data[start // 8:(start + bits + 7) // 8]
+            rows[-1] += ' | HEX: ' + (chunk[:32].hex(' ') or '<unavailable>')
+            if len(chunk) > 32:
+                rows[-1] += ' ...'
         covered.append((start, start + bits))
         member_type = field.GetType()
         if member_type.GetNumberOfFields() or member_type.IsArrayType():
             if depth < 4 and budget[0]:
                 rows += ['    ' + row for row in type_layout(
-                    member_type, label + '.' + (field.GetName() or '<anonymous>'), depth + 1, budget)]
+                    member_type, label + '.' + (field.GetName() or '<anonymous>'), depth + 1, budget,
+                    None if data is None else data[start // 8:(start + bits + 7) // 8])]
             else:
                 rows.append('    Nested layout truncated (maximum depth 4 / 128 members)')
     if base_count or visible_fields < total_fields:
@@ -143,6 +154,70 @@ def type_layout(type_, label, depth=0, budget=None):
                 (f'{padding // 8} bytes' if padding % 8 == 0 else f'{padding} bits') +
                 ' (nested member padding is included in member storage)')
     return rows
+
+
+def storage_dump(address, data, total, fields=None):
+    """Show actual target bytes separately from the byte ownership map."""
+    rows = ['Raw HEX (target memory; padding bytes have unspecified values):']
+    rows += memory_rows(address, data)
+    rows += ['Byte layout map: ## member storage, -- padding, ?? unknown']
+    for offset in range(0, min(len(data), 256), 8):
+        cells = []
+        for byte in range(offset, min(offset + 8, len(data), 256)):
+            cells.append('??' if fields is None else
+                         '##' if any(start <= byte < end for start, end in fields) else '--')
+        rows.append(f'+0x{offset:04x}: ' + ' '.join(cells))
+    if len(data) > 256:
+        rows.append('Byte map truncated to 256 bytes')
+    if len(data) < total:
+        rows.append(f'Only {len(data)} of {total} bytes shown (maximum 4096 bytes)')
+    return rows
+
+
+def lldb_layout_fields(type_):
+    size = type_.GetByteSize()
+    if type_.GetNumberOfDirectBaseClasses() or type_.GetNumberOfVirtualBaseClasses():
+        return None
+    fields = []
+    for index in range(min(type_.GetNumberOfFields(), 128)):
+        field = type_.GetFieldAtIndex(index)
+        if field.IsBitfield():
+            return None  # Bit-level ownership cannot be represented by whole-byte cells.
+        start = field.GetOffsetInBits() // 8
+        end = start + field.GetType().GetByteSize()
+        if start < 0 or end > size:
+            return None
+        fields.append((start, end))
+    if type_.GetNumberOfFields() > 128 or (fields and min(a for a, _ in fields) > 0):
+        return None
+    return fields or [(0, size)]
+
+
+def gdb_layout_data(rows, data):
+    """Use GDB ptype /o offsets; keep unsupported layouts explicitly unknown."""
+    fields = []
+    enriched = []
+    depth = 0
+    complete = True
+    for row in rows:
+        match = re.search(r'/\*\s*(\d+)\s*\|\s*(\d+)\s*\*/', row)
+        if match:
+            start, size = map(int, match.groups())
+            chunk = data[start:start + size]
+            enriched.append(row + ' | HEX: ' + (chunk[:32].hex(' ') or '<unavailable>') +
+                            (' ...' if len(chunk) > 32 else ''))
+            if depth <= 1:
+                fields.append((start, start + size))
+        else:
+            enriched.append(row)
+        depth += row.count('{') - row.count('}')
+        if ('bits' in row or 'base' in row or 'vptr' in row or
+                re.search(r':\s*\d+\s*;', row) or
+                ('/*' in row and '|' in row and match is None)):
+            complete = False
+    if not fields or min(a for a, _ in fields) != 0 or not complete:
+        fields = None
+    return enriched, fields
 
 
 class LLDB:
@@ -376,7 +451,18 @@ class LLDB:
         if not value.IsValid():
             value = frame.EvaluateExpression(expression)
         if kind == 'layout' and value.IsValid() and value.GetType().IsValid():
-            emit_layout(expression, type_layout(value.GetType(), expression))
+            type_ = value.GetType()
+            size = type_.GetByteSize()
+            address = value.GetLoadAddress()
+            error = self.lldb.SBError()
+            data = (process.ReadMemory(address, min(size, 4096), error)
+                    if address != self.lldb.LLDB_INVALID_ADDRESS and size else None)
+            rows = type_layout(type_, expression, data=data)
+            if data:
+                rows += storage_dump(address, data, size, lldb_layout_fields(type_))
+            else:
+                rows.append('Raw HEX unavailable: ' + str(error))
+            emit_layout(expression, rows)
             return
         if not value.IsValid() or value.GetError().Fail():
             raise ValueError(f'Cannot evaluate {expression}: {value.GetError()}')
@@ -863,6 +949,9 @@ class GDB:
                         self.send(f'-data-disassemble -s 0x{address:x} -e 0x{address + count * 16:x} -- 2',
                                   ('inspection-assembly', expression, address, count))
                         continue
+                    if isinstance(kind, tuple) and kind[0].startswith('layout-memory-'):
+                        emit_layout(kind[1], ['Raw HEX unavailable: ' + data.get('msg', 'memory read failed')], append=True)
+                        continue
                     if isinstance(kind, tuple) and kind[0] in ('inspection-size', 'inspection-layout-type'):
                         rows = ['Layout unavailable: ' + data.get('msg', 'missing type information')]
                         if kind[2]:
@@ -918,8 +1007,40 @@ class GDB:
                     elif kind[0] == 'inspection-layout-type':
                         if kind[2]:
                             emit_layout(kind[1], kind[3], append=True)
+                            self.send('-data-evaluate-expression ' + json.dumps(f'sizeof({kind[1]})'),
+                                      ('layout-memory-size', kind[1], kind[3]))
                         elif kind[3]:
                             emit(output=kind[3])
+                    elif kind[0] == 'layout-memory-size':
+                        try:
+                            size = int(data.get('value', '').split()[0], 0)
+                            if size <= 0:
+                                raise ValueError()
+                        except (ValueError, IndexError):
+                            emit_layout(kind[1], ['Raw HEX unavailable: unknown object size'], append=True)
+                            continue
+                        self.send('-data-evaluate-expression ' + json.dumps(f'(unsigned long long)&({kind[1]})'),
+                                  ('layout-memory-address', kind[1], size, kind[2]))
+                    elif kind[0] == 'layout-memory-address':
+                        try:
+                            address = int(data.get('value', '').split()[0], 0)
+                            if not 0 < address < 2**64:
+                                raise ValueError()
+                        except (ValueError, IndexError):
+                            emit_layout(kind[1], ['Raw HEX unavailable: object has no readable address'], append=True)
+                            continue
+                        self.send(f'-data-read-memory-bytes 0x{address:x} {min(kind[2], 4096)}',
+                                  ('layout-memory-data', kind[1], kind[2], kind[3], address))
+                    elif kind[0] == 'layout-memory-data':
+                        blocks = data.get('memory', [])
+                        raw = b''
+                        for block in blocks:
+                            if int(block.get('begin', '0'), 0) != kind[4] + len(raw):
+                                break
+                            raw += bytes.fromhex(block.get('contents', ''))
+                        enriched, fields = gdb_layout_data(kind[3], raw)
+                        emit_layout(kind[1], [f'Storage: {kind[1]}, {kind[2]} bytes (includes padding)'] +
+                                    enriched + storage_dump(kind[4], raw, kind[2], fields), replace=True)
                     elif kind[0] == 'inspection-address':
                         _, operation, expression, count = kind
                         try:

@@ -1900,6 +1900,18 @@ void Editor::drawSymbolPopup(std::string& output) const
     if(rows.empty())
         return;
 
+    if(sizePopupSelection >= 0 &&
+       sizePopupSelection < static_cast<int>(sizePopupEntries.size()))
+    {
+        const int selectedRow = sizePopupEntries[sizePopupSelection].row;
+        if(selectedRow >= 0 && selectedRow < static_cast<int>(rows.size()))
+        {
+            rows[selectedRow].text.insert(0, "> ");
+            if(rows[selectedRow].colon != std::string::npos)
+                rows[selectedRow].colon += 2;
+        }
+    }
+
     int innerW = 0;
     for(const PopupRow& row : rows)
         innerW = std::max(innerW, text_utils::displayWidth(row.text));
@@ -1980,10 +1992,31 @@ void Editor::drawSymbolPopup(std::string& output) const
         output += " ";
         output += theme.panel();
         const PopupRow& row = rows[i];
-        if(row.colon != std::string::npos)
+        if(row.padding)
         {
-            output +=
-                row.padding ? theme.uiWarning() : theme.syntax(TOKEN_MEMBER);
+            output += theme.uiError();
+            output += row.text;
+        }
+        else if(!sizePopupEntries.empty() && row.text.starts_with("+0x"))
+        {
+            for(size_t pos = 0; pos < row.text.size();)
+            {
+                if(row.text.compare(pos, 2, "--") == 0)
+                {
+                    output += theme.uiError();
+                    output += "--";
+                    pos += 2;
+                }
+                else
+                {
+                    output += theme.uiInfo();
+                    output += row.text[pos++];
+                }
+            }
+        }
+        else if(row.colon != std::string::npos)
+        {
+            output += theme.uiInfo();
             output += row.text.substr(0, row.colon);
             output += theme.panel();
             output += row.text.substr(row.colon, 2);

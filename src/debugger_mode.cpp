@@ -504,6 +504,8 @@ const std::vector<DebuggerCommandEntry>& debuggerCommands()
         {"disasm ", "Disassemble a function pointer or address", ""},
         {"mem ", "Read bytes at an address; &var reads variable storage", ""},
         {"layout ", "Show variable size, field offsets and padding", ""},
+        {"ss", "Inspect selected variable: members, padding and raw hex", ""},
+        {"ss ", "Inspect expression: members, padding and raw hex", ""},
         {"bt", "Print stack frames", ""},
         {"threads", "List threads", ""},
         {"thread ", "Select a thread by ID", ""},
@@ -1007,7 +1009,11 @@ void DebuggerMode::applyMessage(const std::string& message)
             framePickerOpen = false;
         }
         if(sizePopupOpen && sizePopupTitle == title)
+        {
+            if(json_utils::get_bool(*doc, "layoutReplace"))
+                sizePopupLines.clear();
             strings("layoutLines", sizePopupLines, true);
+        }
     }
     if(auto frames = json_utils::find(*doc, "frames");
        framePickerOpen && frames && frames->IsArray())
@@ -1592,6 +1598,19 @@ void DebuggerMode::execute(const std::string& command)
 {
     if(command.empty())
         return;
+    if(command == "ss")
+    {
+        inspectSelectedVariable('s');
+        return;
+    }
+    if(command.starts_with("ss "))
+    {
+        if(state != "stopped")
+            output.push_back("Pause execution before inspecting live storage");
+        else
+            execute("layout " + command.substr(3));
+        return;
+    }
     if(command == "bps")
     {
         breakpointListOpen = true;
@@ -1802,6 +1821,37 @@ std::optional<ModeState> DebuggerMode::handle(
             else if(
                 key == 'G' || key == keyCode(navigation::NavigationKey::END))
                 delta = count;
+            if(key == keyCode(control::ControlKey::CTRL_J) ||
+               key == keyCode(control::ControlKey::CTRL_K))
+            {
+                std::vector<int> members{0};
+                int row = 0;
+                for(const auto& line : sizePopupLines)
+                {
+                    if(line.find(" | HEX:") != std::string::npos)
+                        members.push_back(row);
+                    row += static_cast<int>(
+                        wrapLayoutLines({line}, ctx.editor->screenCols).size());
+                }
+                if(members.size() > 1)
+                {
+                    int target = sizePopupCursor;
+                    if(delta > 0)
+                    {
+                        for(int member : members)
+                            if(member > sizePopupCursor)
+                            {
+                                target = member;
+                                break;
+                            }
+                    }
+                    else
+                        for(int member : members)
+                            if(member < sizePopupCursor)
+                                target = member;
+                    delta = target - sizePopupCursor;
+                }
+            }
             moveMenuCursor(
                 sizePopupCursor,
                 sizePopupOffset,
@@ -2470,7 +2520,20 @@ void DebuggerMode::drawContent(Editor& editor)
         menuOffset = sizePopupOffset;
         menuTitle = sizePopupTitle + "  " +
                     std::to_string(sizePopupCursor + 1) + "/" +
-                    std::to_string(menuEntries.size());
+                    std::to_string(menuEntries.size()) +
+                    "  Ctrl-J/K members | j/k scroll | q close";
+        for(const auto& row : menuEntries)
+        {
+            const bool padding = row.find("Padding") != std::string::npos ||
+                                 row.find("hole") != std::string::npos;
+            menuColors.push_back(
+                padding ? editor.theme.uiError() : editor.theme.uiInfo());
+            auto& spans = menuSpans.emplace_back();
+            if(row.starts_with("+0x"))
+                for(size_t pos = row.find("--"); pos != std::string::npos;
+                    pos = row.find("--", pos + 2))
+                    spans.push_back({pos, 2, editor.theme.uiError()});
+        }
     }
     else if(framePickerOpen)
     {

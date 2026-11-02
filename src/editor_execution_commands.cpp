@@ -8,6 +8,7 @@ namespace command::execution
 std::vector<std::unique_ptr<EditorExecutionCommand>> buildCommands()
 {
     std::vector<std::unique_ptr<EditorExecutionCommand>> commands;
+    commands.push_back(std::make_unique<ShowSizeCommand>());
     commands.push_back(std::make_unique<SearchCommand>());
     commands.push_back(std::make_unique<SubstituteCommand>());
     commands.push_back(std::make_unique<SetCommand>());

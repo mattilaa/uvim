@@ -242,6 +242,7 @@ set(UVIM_CORE_SOURCES
     src/editor_execution_reload_current_file_command.cpp
     src/editor_execution_requires_buffer_command.cpp
     src/editor_execution_search_command.cpp
+    src/editor_execution_show_size_command.cpp
     src/editor_execution_set_command.cpp
     src/editor_execution_split_command.cpp
     src/editor_execution_split_explorer_command.cpp

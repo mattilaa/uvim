@@ -523,6 +523,53 @@ TEST(
     EXPECT_TRUE(debug->variableExpressions.empty());
 }
 
+TEST(
+    RealModeTransitionsTest,
+    DebuggerSizePopupBrowsesMemberHexAndIgnoresLateMemory)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.screenRows = 30;
+    editor.screenCols = 120;
+    auto sm = makeMachine(editor, DebuggerMode{"app", false});
+    auto* debug = sm.getState<DebuggerMode>();
+    ASSERT_NE(debug, nullptr);
+    debug->applyMessage(
+        R"({"state":"stopped","layoutTitle":"Size and padding: item","layoutLines":["Storage: item, 8 bytes","  +0: a (char), 1 bytes | HEX: 01","Padding at +1: 3 bytes","  +4: b (int), 4 bytes | HEX: 2a 00 00 00","Raw HEX:","0x1000 01 ff ff ff 2a 00 00 00"]})");
+    sm.dispatch(keyCode(control::ControlKey::CTRL_J));
+    EXPECT_EQ(debug->sizePopupCursor, 1);
+    sm.dispatch(keyCode(control::ControlKey::CTRL_J));
+    EXPECT_EQ(debug->sizePopupCursor, 3);
+    sm.dispatch(keyCode(control::ControlKey::CTRL_K));
+    EXPECT_EQ(debug->sizePopupCursor, 1);
+    debug->applyMessage(
+        R"({"layoutTitle":"Size and padding: item","layoutAppend":true,"layoutReplace":true,"layoutLines":["Updated hex"]})");
+    EXPECT_EQ(debug->sizePopupLines, (std::vector<std::string>{"Updated hex"}));
+    sm.dispatch('q');
+    debug->applyMessage(
+        R"({"layoutTitle":"Size and padding: item","layoutAppend":true,"layoutReplace":true,"layoutLines":["Late hex"]})");
+    EXPECT_FALSE(debug->sizePopupOpen);
+    EXPECT_EQ(debug->sizePopupLines, (std::vector<std::string>{"Updated hex"}));
+}
+
+TEST(RealModeTransitionsTest, DebuggerSsRequiresPausedAvailableVariable)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    auto sm = makeMachine(editor, DebuggerMode{"app", false});
+    auto* debug = sm.getState<DebuggerMode>();
+    ASSERT_NE(debug, nullptr);
+    dispatch_command(sm, "ss");
+    ASSERT_FALSE(debug->output.empty());
+    EXPECT_EQ(
+        debug->output.back(),
+        "Select an available variable while stopped first");
+    dispatch_command(sm, "ss item");
+    EXPECT_EQ(
+        debug->output.back(),
+        "Pause execution before inspecting live storage");
+}
+
 TEST(RealModeTransitionsTest, DebuggerSizePopupScrollsAndRestoresVariableFocus)
 {
     Editor editor = Editor::createForTests();

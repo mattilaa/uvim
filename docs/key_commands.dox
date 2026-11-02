@@ -162,6 +162,18 @@ includes common Normal/Insert/Visual/Command mode bindings.
 
 \section keys_command Command mode
 - `:` : enter command mode
+- `:gs` : inspect the C/C++ symbol under the cursor without a debugger. Shows
+  total bytes, nested members, and known internal and trailing padding using
+  clang. `Ctrl-j/k` selects a member or padding range and shows its offset and
+  byte layout map (`##` storage, `--` padding). Padding uses the theme's error
+  color; members use its info color. The map shows at most 128 bytes.
+- `:ss [expression]` (debugger mode): inspect live storage while paused. With
+  no expression, uses the selected variable. Shows members, offsets, padding,
+  raw target-memory hex and a byte map (`??` means unknown ownership).
+  `Ctrl-j/k` browses members and their hex data; `j/k` scrolls all rows;
+  `q` or `Esc` closes. Raw memory is capped at 4096 bytes, member previews at
+  32 bytes, and the map at 256 bytes. Unreadable or optimized-out values are
+  reported as unavailable; padding bytes have unspecified values.
 - `:bd` / `:bdelete` : close current buffer (bare `b` is word-backward movement)
 - `Ctrl-k` / `Ctrl-j` : previous / next command in history
 - `Ctrl-f` : fuzzy history search
@@ -281,7 +293,8 @@ includes common Normal/Insert/Visual/Command mode bindings.
 \section keys_misc Misc
 - `Ctrl-e` then `Enter` : emoji picker
 - `Space-e` then `m` : emoji picker
-- Size popup (`gs` in C/C++): `j/k` scroll, `q` or `gs` close
+- Size popup (`gs` or `:gs` in C/C++): `Ctrl-j/k` selects members and shows
+  their byte map, `j/k` scrolls, `q` or `gs` closes
 - Diagnostics popup: `Ctrl-j/k` to navigate fixes, `Enter` to apply, `q` to close
 
 */

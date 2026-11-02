@@ -27,7 +27,7 @@ TEST(RealModeTransitionsTest, GsShowsStructSizePopup)
     EXPECT_TRUE(editor.symbolPopupModal);
     EXPECT_EQ(
         editor.symbolPopupText,
-        "sizeof(Foo) = 8 bytes\na: 4 bytes\nb: 1 bytes");
+        "sizeof(Foo) = 8 bytes\na: 4 bytes\nb: 1 bytes\npad: 3 bytes");
 }
 
 TEST(RealModeTransitionsTest, GsShowsLocalVariableSizePopup)
@@ -55,7 +55,7 @@ TEST(RealModeTransitionsTest, GsShowsLocalVariableSizePopup)
     EXPECT_TRUE(editor.symbolPopupModal);
     EXPECT_EQ(
         editor.symbolPopupText,
-        "sizeof(value) = 8 bytes\na: 4 bytes\nb: 1 bytes");
+        "sizeof(value) = 8 bytes\na: 4 bytes\nb: 1 bytes\npad: 3 bytes");
 }
 
 TEST(RealModeTransitionsTest, GsResolvesQualifiedTemplateTypeAtCursor)
@@ -142,7 +142,7 @@ TEST(RealModeTransitionsTest, GsShowsPaddingBetweenMembers)
     EXPECT_EQ(
         editor.symbolPopupText,
         "sizeof(Padded) = 12 bytes\na: 1 bytes\npad: 3 bytes\nb: 4 "
-        "bytes\nc: 1 bytes");
+        "bytes\nc: 1 bytes\npad: 3 bytes");
 }
 
 TEST(RealModeTransitionsTest, GsShowsMembersForStructWithMethods)
@@ -462,4 +462,132 @@ TEST(RealModeTransitionsTest, GsSizePopupClosesWithGs)
     EXPECT_FALSE(editor.symbolPopupActive);
     EXPECT_FALSE(editor.symbolPopupModal);
     EXPECT_TRUE(editor.needsFullRedraw);
+}
+
+TEST(RealModeTransitionsTest, GsCommandBrowsesMemberOffsetsAndByteMap)
+{
+    if(std::system("clang++ --version >/dev/null 2>&1") != 0)
+        GTEST_SKIP() << "clang++ is not available";
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"struct Padded { char a; int b; char c; };"};
+    set_buffer_filename(editor, "/tmp/uvim_size_browse_test.cpp");
+    *editor.cursorY = 0;
+    *editor.cursorX = 7;
+    auto sm = makeMachine(editor, NormalMode{});
+    dispatch_command(sm, "gs");
+    ASSERT_TRUE(editor.symbolPopupActive);
+    ASSERT_TRUE(editor.symbolPopupModal);
+    EXPECT_STREQ(sm.currentStateName(), "NORMAL");
+    EXPECT_EQ(editor.sizePopupSelection, 0);
+    sm.dispatch(keyCode(control::ControlKey::CTRL_J));
+    EXPECT_NE(
+        editor.symbolPopupText.find("Selected: a | 1 bytes | offset +0x0"),
+        std::string::npos);
+    sm.dispatch(keyCode(control::ControlKey::CTRL_J));
+    EXPECT_NE(
+        editor.symbolPopupText.find(
+            "Selected: <padding> | 3 bytes | offset +0x1"),
+        std::string::npos);
+    EXPECT_NE(editor.symbolPopupText.find("+0x1: -- -- --"), std::string::npos);
+    sm.dispatch(keyCode(control::ControlKey::CTRL_J));
+    EXPECT_NE(
+        editor.symbolPopupText.find("Selected: b | 4 bytes | offset +0x4"),
+        std::string::npos);
+    sm.dispatch(keyCode(control::ControlKey::CTRL_K));
+    EXPECT_EQ(editor.sizePopupSelection, 2);
+    sm.dispatch('q');
+    EXPECT_TRUE(editor.sizePopupEntries.empty());
+}
+
+TEST(RealModeTransitionsTest, GsPrimitiveShowsBytesWithoutStructMembers)
+{
+    if(std::system("clang++ --version >/dev/null 2>&1") != 0)
+        GTEST_SKIP() << "clang++ is not available";
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"int value = 42;"};
+    set_buffer_filename(editor, "/tmp/uvim_size_primitive.cpp");
+    *editor.cursorY = 0;
+    *editor.cursorX = 4;
+    editor.executeCommand("gs");
+    ASSERT_TRUE(editor.symbolPopupActive);
+    EXPECT_EQ(editor.symbolPopupText, "sizeof(value) = 4 bytes");
+    editor.browseSizePopup(0);
+    EXPECT_NE(
+        editor.symbolPopupText.find("+0x0: ## ## ## ##"),
+        std::string::npos);
+    EXPECT_NE(
+        editor.symbolPopupText.find("Raw hex: available with :ss"),
+        std::string::npos);
+}
+
+TEST(RealModeTransitionsTest, SizePopupUsesThemeColorsForMembersAndPadding)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.screenCols = 100;
+    editor.screenRows = 24;
+    editor.symbolPopupActive = editor.symbolPopupModal = true;
+    editor.symbolPopupText = "sizeof(Foo) = 8 bytes\na: 1 bytes\npad: 3 bytes";
+    std::string output;
+    editor.drawSymbolPopup(output);
+    EXPECT_NE(
+        output.find(editor.theme.uiError() + "pad: 3 bytes"),
+        std::string::npos);
+    EXPECT_NE(output.find(editor.theme.uiInfo() + "a"), std::string::npos);
+}
+
+TEST(RealModeTransitionsTest, SsInNormalModeExplainsDebuggerRequirement)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.executeCommand("ss");
+    EXPECT_FALSE(editor.symbolPopupActive);
+    EXPECT_NE(
+        editor.statusMessage.find("pause the debugger"),
+        std::string::npos);
+}
+
+TEST(RealModeTransitionsTest, GsShowsMemberExpressionSize)
+{
+    if(std::system("clang++ --version >/dev/null 2>&1") != 0)
+        GTEST_SKIP() << "clang++ is not available";
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines =
+        {"struct Foo { int a; char b; };",
+         "int main() {",
+         "Foo value{};",
+         "value.b = 1;",
+         "}"};
+    set_buffer_filename(editor, "/tmp/uvim_size_member.cpp");
+    *editor.cursorY = 3;
+    *editor.cursorX = 6;
+    editor.executeCommand("gs");
+    ASSERT_TRUE(editor.symbolPopupActive);
+    EXPECT_EQ(editor.symbolPopupText, "sizeof(value.b) = 1 bytes");
+}
+
+TEST(RealModeTransitionsTest, GsKeepsMembersBeyondClangDiagnosticLimit)
+{
+    if(std::system("clang++ --version >/dev/null 2>&1") != 0)
+        GTEST_SKIP() << "clang++ is not available";
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"struct Many {"};
+    for(int i = 0; i < 32; ++i)
+        editor.currentBuffer->lines.push_back(
+            "int member" + std::to_string(i) + ";");
+    editor.currentBuffer->lines.push_back("};");
+    set_buffer_filename(editor, "/tmp/uvim_size_many.cpp");
+    *editor.cursorY = 0;
+    *editor.cursorX = 7;
+    editor.executeCommand("gs");
+    ASSERT_TRUE(editor.symbolPopupActive);
+    EXPECT_NE(
+        editor.symbolPopupText.find("member31: 4 bytes"),
+        std::string::npos);
+    ASSERT_EQ(editor.sizePopupEntries.size(), 33u);
+    EXPECT_EQ(editor.sizePopupEntries.back().offset, 124);
 }

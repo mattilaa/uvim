@@ -148,6 +148,7 @@ std::vector<Entry> builtinActions()
     a.push_back(ex("Attach debugger to process", {"dbgattach"}));
 #endif
     // Code navigation.
+    a.push_back(ex("Show symbol size and member layout", {"gs"}));
 #ifdef UVIM_ENABLE_ASM_VIEW
     a.push_back(ex("Compile and browse assembly", {"asm"}));
 #endif

@@ -170,6 +170,10 @@ std::string_view commandDocumentation(std::string_view cmd)
         return "Close current tab";
     if(cmd == "set")
         return "Configure editor options";
+    if(cmd == "gs")
+        return "Show symbol size, members, padding and byte layout";
+    if(cmd == "ss")
+        return "Inspect live variable storage in a paused debugger";
     if(cmd.rfind("set ", 0) == 0)
         return "Set option value";
     if(cmd == "format" || cmd == "fmt")

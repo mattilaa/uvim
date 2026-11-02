@@ -66,6 +66,15 @@ std::optional<ModeState> NormalMode::handle(
 
     if(ed->symbolPopupActive && ed->symbolPopupModal)
     {
+        if(!ed->sizePopupEntries.empty() &&
+           (c == keyCode(control::ControlKey::CTRL_J) ||
+            c == keyCode(control::ControlKey::CTRL_K)))
+        {
+            ed->browseSizePopup(
+                c == keyCode(control::ControlKey::CTRL_J) ? 1 : -1);
+            ctx.repeatCount = 0;
+            return std::nullopt;
+        }
         const auto popupLineCount = [&]()
         {
             return 1 + (int)std::count(

@@ -39,6 +39,7 @@ struct MemberInfo
     std::vector<MemberInfo> children;
     int indent = 0;
     bool truncated = false;
+    bool layoutComplete = false;
 };
 
 struct TypeBody
@@ -280,7 +281,7 @@ std::vector<std::optional<long long>> runAssertionProbes(
 
     std::string command = std::string(cSource ? "clang" : "clang++") +
                           (cSource ? " -std=c11" : " -std=c++20") +
-                          " -fsyntax-only -Wno-everything -I" +
+                          " -fsyntax-only -ferror-limit=0 -Wno-everything -I" +
                           shellQuote(sourceDir.string()) + " " +
                           shellQuote(tempPath.string()) + " 2>&1";
 
@@ -354,6 +355,27 @@ std::string cursorExpressionAt(
         while(left > 0 &&
               CppNavigationUtilities::isIdent(line[(size_t)left - 1]))
             --left;
+    }
+    // Preserve member access so sizeof sees the expression in its local scope.
+    while(left > 0)
+    {
+        int previous = left;
+        if(line[static_cast<size_t>(left - 1)] == '.')
+            previous = left - 1;
+        else if(
+            left >= 2 && line[static_cast<size_t>(left - 2)] == '-' &&
+            line[static_cast<size_t>(left - 1)] == '>')
+            previous = left - 2;
+        else
+            break;
+        int start = previous;
+        while(start > 0 && (CppNavigationUtilities::isIdent(
+                                line[static_cast<size_t>(start - 1)]) ||
+                            line[static_cast<size_t>(start - 1)] == ':'))
+            --start;
+        if(start == previous)
+            break;
+        left = start;
     }
 
     int right = x + 1;
@@ -796,6 +818,11 @@ std::string typeNameFromMemberStatement(
         SymbolPopupUtilities::extractTypeBeforeName(statement, memberName);
     if(type.empty())
         return {};
+    if(type.find('*') != std::string::npos ||
+       type.find('&') != std::string::npos ||
+       statement.find('[', statement.find(memberName) + memberName.size()) !=
+           std::string::npos)
+        return {};
     return typeNameFromExpression(type);
 }
 
@@ -851,7 +878,8 @@ std::vector<MemberInfo> resolveMembersForType(
     const std::string& typeName,
     int insertAfterLine,
     int indent,
-    int depth);
+    int depth,
+    bool* complete = nullptr);
 
 void appendChildMembers(
     MemberInfo& parent,
@@ -886,7 +914,8 @@ void appendChildMembers(
         typeName,
         insertAfterLine,
         parent.indent + 1,
-        depth + 1);
+        depth + 1,
+        &parent.layoutComplete);
 }
 
 std::vector<MemberInfo> resolveMembersForType(
@@ -896,8 +925,11 @@ std::vector<MemberInfo> resolveMembersForType(
     const std::string& typeName,
     int insertAfterLine,
     int indent,
-    int depth)
+    int depth,
+    bool* complete)
 {
+    if(complete)
+        *complete = false;
     std::vector<MemberInfo> members;
     const std::optional<TypeDefinition> definition =
         findTypeDefinition(documents, typeName);
@@ -956,6 +988,7 @@ std::vector<MemberInfo> resolveMembersForType(
         offsetsByMember[offsetMemberIndexes[i]] = memberOffsets[i];
     }
 
+    bool allOffsetsKnown = !parsedMembers.empty();
     for(size_t i = 0; i < parsedMembers.size(); ++i)
     {
         const ParsedMember& parsed = parsedMembers[i];
@@ -985,6 +1018,7 @@ std::vector<MemberInfo> resolveMembersForType(
         if(i < memberSizes.size())
             info.size = memberSizes[i];
         info.offset = offsetsByMember[i];
+        allOffsetsKnown = allOffsetsKnown && info.size && info.offset;
         appendChildMembers(
             info,
             documents,
@@ -997,6 +1031,8 @@ std::vector<MemberInfo> resolveMembersForType(
             members.push_back(std::move(info));
     }
 
+    if(complete)
+        *complete = allOffsetsKnown;
     return members;
 }
 
@@ -1005,8 +1041,12 @@ std::vector<MemberInfo> resolveMembers(
     const std::string& filePath,
     const std::string& typeExpression,
     const std::string& symbol,
-    int insertAfterLine)
+    int insertAfterLine,
+    bool& complete)
 {
+    // A pointer's storage is the pointer itself, not its pointee's fields.
+    if(typeExpression.find('*') != std::string::npos)
+        return {};
     const std::vector<SourceDocument> documents =
         collectSourceDocuments(lines, filePath);
     const std::optional<std::string> resolvedTypeName =
@@ -1021,47 +1061,84 @@ std::vector<MemberInfo> resolveMembers(
         *resolvedTypeName,
         insertAfterLine,
         0,
-        0);
+        0,
+        &complete);
 }
 
 std::string buildSizePopupText(
     const std::string& expression,
     long long total,
-    const std::vector<MemberInfo>& members)
+    const std::vector<MemberInfo>& members,
+    bool complete,
+    std::vector<Editor::SizePopupEntry>& entries)
 {
     std::ostringstream out;
     out << "sizeof(" << expression << ") = " << total << " bytes";
-    std::function<void(const std::vector<MemberInfo>&)> appendMembers =
-        [&](const std::vector<MemberInfo>& currentMembers)
+    entries.push_back({0, expression, 0, total, false});
+    int row = 0;
+    std::function<void(
+        const std::vector<MemberInfo>&,
+        long long,
+        std::optional<long long>,
+        bool,
+        const std::string&)>
+        appendMembers = [&](const std::vector<MemberInfo>& current,
+                            long long extent,
+                            std::optional<long long> base,
+                            bool known,
+                            const std::string& prefix)
     {
-        std::optional<long long> previousEnd;
-        for(const MemberInfo& member : currentMembers)
+        std::optional<long long> end;
+        auto padding = [&](long long offset, long long size, int indent)
         {
-            const std::string indent((size_t)member.indent * 2, ' ');
+            out << '\n'
+                << std::string(indent * 2, ' ') << "pad: " << size << " bytes";
+            entries.push_back(
+                {++row,
+                 prefix + "<padding>",
+                 base ? std::optional<long long>(*base + offset) : std::nullopt,
+                 size,
+                 true});
+        };
+        for(const MemberInfo& member : current)
+        {
+            const std::string indent(member.indent * 2, ' ');
             if(member.truncated)
             {
                 out << '\n' << indent << "...";
+                ++row;
                 continue;
             }
-            if(previousEnd && member.offset && *member.offset > *previousEnd)
-                out << '\n'
-                    << indent << "pad: " << (*member.offset - *previousEnd)
-                    << " bytes";
-
+            if(known && end && member.offset && *member.offset > *end)
+                padding(*end, *member.offset - *end, member.indent);
             out << '\n' << indent << member.name << ": ";
             if(member.size)
                 out << *member.size << " bytes";
             else
                 out << "?";
-
+            const auto offset =
+                base && member.offset
+                    ? std::optional<long long>(*base + *member.offset)
+                    : std::nullopt;
+            entries.push_back(
+                {++row, prefix + member.name, offset, member.size, false});
             if(!member.children.empty())
-                appendMembers(member.children);
-
+                appendMembers(
+                    member.children,
+                    member.size.value_or(0),
+                    offset,
+                    member.layoutComplete,
+                    prefix + member.name + ".");
             if(member.offset && member.size)
-                previousEnd = *member.offset + *member.size;
+                end = std::max(end.value_or(0), *member.offset + *member.size);
         }
+        if(known && end && *end < extent)
+            padding(
+                *end,
+                extent - *end,
+                current.empty() ? 0 : current.back().indent);
     };
-    appendMembers(members);
+    appendMembers(members, total, 0, complete, "");
     return out.str();
 }
 } // namespace
@@ -1115,19 +1192,80 @@ void Editor::openSizePopupForCursor()
     const std::string memberTypeExpression = result.memberTypeExpression.empty()
                                                  ? result.expression
                                                  : result.memberTypeExpression;
+    bool complete = false;
     const std::vector<MemberInfo> members = resolveMembers(
         *lines,
         currentBuffer->filename,
         memberTypeExpression,
         symbol,
-        result.insertAfterLine);
+        result.insertAfterLine,
+        complete);
 
-    symbolPopupText =
-        buildSizePopupText(result.expression, *result.size, members);
+    symbolPopupText = buildSizePopupText(
+        result.expression,
+        *result.size,
+        members,
+        complete,
+        sizePopupEntries);
+    sizePopupBaseText = symbolPopupText;
+    sizePopupSelection = 0;
     symbolPopupActive = true;
     symbolPopupModal = true;
     symbolPopupCursorX = *cursorX;
     symbolPopupCursorY = *cursorY;
     symbolPopupScroll = 0;
+    setStatusMessage(
+        "Size: Ctrl-j/k members and byte map | j/k scroll | q close");
+    needsFullRedraw = true;
+}
+
+void Editor::browseSizePopup(int delta)
+{
+    if(sizePopupEntries.empty())
+        return;
+    sizePopupSelection = std::clamp(
+        sizePopupSelection + delta,
+        0,
+        static_cast<int>(sizePopupEntries.size()) - 1);
+    const auto& entry = sizePopupEntries[sizePopupSelection];
+    std::ostringstream detail;
+    detail << sizePopupBaseText << "\n\nSelected: " << entry.name;
+    if(entry.size)
+        detail << " | " << *entry.size << " bytes";
+    if(entry.offset)
+        detail << " | offset +0x" << std::hex << *entry.offset << std::dec;
+    else
+        detail << " | offset unavailable (type or incomplete layout)";
+    detail << "\nByte map (offsets in hex; ## member, -- padding)";
+    if(entry.offset && entry.size)
+    {
+        constexpr long long limit = 128;
+        const long long count = std::min(*entry.size, limit);
+        for(long long byte = 0; byte < count; ++byte)
+        {
+            if(byte % 8 == 0)
+                detail << "\n+0x" << std::hex << (*entry.offset + byte)
+                       << std::dec << ":";
+            bool padding = entry.padding;
+            for(const auto& range : sizePopupEntries)
+                if(range.padding && range.offset && range.size &&
+                   *entry.offset + byte >= *range.offset &&
+                   *entry.offset + byte < *range.offset + *range.size)
+                    padding = true;
+            detail << (padding ? " --" : " ##");
+        }
+        if(*entry.size > limit)
+            detail << "\n... first 128 bytes shown";
+    }
+    detail << "\nRaw hex: available with :ss in a paused debugger";
+    symbolPopupText = detail.str();
+    const int detailRow = 2 + static_cast<int>(std::count(
+                                  sizePopupBaseText.begin(),
+                                  sizePopupBaseText.end(),
+                                  '\n'));
+    // Keep the selected member and the beginning of its details visible where
+    // possible.
+    const int page = std::max(1, screenRows - 2);
+    symbolPopupScroll = std::max(0, detailRow + 2 - page);
     needsFullRedraw = true;
 }

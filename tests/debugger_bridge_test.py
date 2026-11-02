@@ -150,6 +150,46 @@ class BridgeTests(unittest.TestCase):
             with self.subTest(command=command), self.assertRaises(ValueError):
                 bridge.inspection_request(command)
 
+    def test_ss_alias_and_storage_map_distinguish_real_bytes_from_padding(self):
+        self.assertEqual(bridge.inspection_request('ss item.child'), ('layout', 'item.child', 0))
+        raw = bytes([1, 255, 254, 253, 42, 0, 0, 0, 2, 252, 251, 250])
+        rows = bridge.storage_dump(0x1000, raw, 12, [(0, 1), (4, 8), (8, 9)])
+        self.assertTrue(any('01 ff fe fd 2a 00 00 00' in row for row in rows))
+        self.assertIn('+0x0000: ## -- -- -- ## ## ## ##', rows)
+        self.assertIn('+0x0008: ## -- -- --', rows)
+        self.assertIn('+0x0000: ?? ?? ?? ?? ?? ?? ?? ??', bridge.storage_dump(0, raw, 12))
+
+    def test_gdb_layout_hex_reads_exact_object_size_and_preserves_popup(self):
+        gdb = bridge.GDB.__new__(bridge.GDB)
+        gdb.lines, gdb.pending, gdb.master = queue.Queue(), {}, -1
+        native = ['type = struct Padded {', '/* 0 | 1 */ char tag;',
+                  '/* 4 | 4 */ int value;', '/* 3-byte padding */', '}']
+        with patch.object(gdb, 'send') as send, patch.object(bridge, 'emit') as emit:
+            gdb.pending['1'] = ('inspection-layout-type', 'item', True, native)
+            gdb.lines.put('1^done')
+            gdb.poll()
+            self.assertEqual(send.call_args.args[1], ('layout-memory-size', 'item', native))
+            gdb.pending['2'] = send.call_args.args[1]
+            gdb.lines.put('2^done,value="8"')
+            gdb.poll()
+            self.assertIn('&(item)', send.call_args.args[0])
+            gdb.pending['3'] = send.call_args.args[1]
+            gdb.lines.put('3^done,value="4096"')
+            gdb.poll()
+            self.assertEqual(send.call_args.args[0], '-data-read-memory-bytes 0x1000 8')
+            gdb.pending['4'] = send.call_args.args[1]
+            gdb.lines.put('4^done,memory=[{begin="0x1000",contents="01ffffff2a000000"}]')
+            gdb.poll()
+            message = emit.call_args.kwargs
+            self.assertTrue(message['layoutReplace'])
+            self.assertTrue(message['layoutAppend'])
+            self.assertTrue(any('int value; | HEX: 2a 00 00 00' in row for row in message['layoutLines']))
+            self.assertIn('+0x0000: ## -- -- -- ## ## ## ##', message['layoutLines'])
+            gdb.pending['5'] = ('layout-memory-data', 'item', 8, native, 4096)
+            gdb.lines.put('5^error,msg="Cannot access memory"')
+            gdb.poll()
+            self.assertIn('Raw HEX unavailable', emit.call_args.kwargs['layoutLines'][0])
+
     def test_memory_rows_preserve_bytes_and_render_ascii(self):
         rows = bridge.memory_rows(0x1000, bytes([0, 65, 255, 10]) + b'abcdefghijklmnop')
         self.assertEqual(len(rows), 3)
@@ -442,6 +482,12 @@ class LiveTests(unittest.TestCase):
                             engine.command('layout item')
                             self.assertIn('12 bytes', messages[-1]['layoutLines'][0])
                             self.assertTrue(any('alignment 4 bytes' in row for row in messages[-1]['layoutLines']))
+                            live = messages[-1]['layoutLines']
+                            self.assertTrue(any('value' in row and 'HEX: 2a 00 00 00' in row for row in live), live)
+                            self.assertIn('+0x0000: ## -- -- -- ## ## ## ##', live)
+                            self.assertTrue(any(row.startswith('0x') and '2a 00 00 00' in row for row in live))
+                            engine.command('ss count')
+                            self.assertTrue(any('2a 00 00 00' in row for row in messages[-1]['layoutLines']))
                             engine.command('layout nested')
                             nested = messages[-1]['layoutLines']
                             self.assertIn('16 bytes', nested[0])
