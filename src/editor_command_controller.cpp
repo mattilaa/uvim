@@ -693,6 +693,8 @@ std::vector<std::string> Editor::getCommandCompletionsImpl(
         "tabp",
         "tabprev",
         "set",
+        "ss",
+        "gs",
         "s/",
         "%s/",
         "%%s/",

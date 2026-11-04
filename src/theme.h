@@ -79,6 +79,8 @@ public:
     // Levels 1..3 blend the foreground progressively towards the background.
     std::string dimmedSyntax(TokenType type, int level) const;
     std::string dimmedGutter(int level) const;
+    // A subdued red foreground/background for unused bytes in storage tables.
+    std::string storagePadding() const;
 
 private:
     Color base_fg_;

@@ -29,6 +29,8 @@ struct CommandPopupView
     // background.
     std::span<const std::string> rowColors{};
     std::span<const std::vector<PopupColorSpan>> rowSpans{};
+    int fixedWidth = 0;
+    bool rawRows = false;
 };
 
 std::string_view commandDocumentation(std::string_view command);

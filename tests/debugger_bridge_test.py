@@ -126,6 +126,8 @@ class BridgeTests(unittest.TestCase):
         self.assertIn('12 bytes, alignment 4 bytes', rows[0])
         self.assertIn('  Padding at +1: 3 bytes', rows)
         self.assertIn('  Padding at +9: 3 bytes', rows)
+        self.assertLess(rows.index('  Padding at +1: 3 bytes'), next(i for i, row in enumerate(rows) if '+4: value' in row))
+        self.assertGreater(rows.index('  Padding at +9: 3 bytes'), next(i for i, row in enumerate(rows) if '+8: tail' in row))
         self.assertTrue(any('Top-level padding: 6 bytes' in row for row in rows))
         nested = bridge.type_layout(type_(16, [('tag', 0, 1), ('inner', 4, type_(8, [('tag', 0, 1), ('value', 4, 4)])), ('tail', 12, 1)]), 'item')
         self.assertTrue(any('Storage: item.inner (Example), 8 bytes' in row for row in nested))
@@ -149,6 +151,46 @@ class BridgeTests(unittest.TestCase):
                         'disasm --count 257 callback', 'mem --count nope ptr'):
             with self.subTest(command=command), self.assertRaises(ValueError):
                 bridge.inspection_request(command)
+
+    def test_ss_alias_and_storage_map_distinguish_real_bytes_from_padding(self):
+        self.assertEqual(bridge.inspection_request('ss item.child'), ('layout', 'item.child', 0))
+        raw = bytes([1, 255, 254, 253, 42, 0, 0, 0, 2, 252, 251, 250])
+        rows = bridge.storage_dump(0x1000, raw, 12, [(0, 1), (4, 8), (8, 9)])
+        self.assertTrue(any('01 ff fe fd 2a 00 00 00' in row for row in rows))
+        self.assertIn('+0x0000: ## -- -- -- ## ## ## ##', rows)
+        self.assertIn('+0x0008: ## -- -- --', rows)
+        self.assertIn('+0x0000: ?? ?? ?? ?? ?? ?? ?? ??', bridge.storage_dump(0, raw, 12))
+
+    def test_gdb_layout_hex_reads_exact_object_size_and_preserves_popup(self):
+        gdb = bridge.GDB.__new__(bridge.GDB)
+        gdb.lines, gdb.pending, gdb.master = queue.Queue(), {}, -1
+        native = ['type = struct Padded {', '/* 0 | 1 */ char tag;',
+                  '/* 4 | 4 */ int value;', '/* 3-byte padding */', '}']
+        with patch.object(gdb, 'send') as send, patch.object(bridge, 'emit') as emit:
+            gdb.pending['1'] = ('inspection-layout-type', 'item', True, native)
+            gdb.lines.put('1^done')
+            gdb.poll()
+            self.assertEqual(send.call_args.args[1], ('layout-memory-size', 'item', native))
+            gdb.pending['2'] = send.call_args.args[1]
+            gdb.lines.put('2^done,value="8"')
+            gdb.poll()
+            self.assertIn('&(item)', send.call_args.args[0])
+            gdb.pending['3'] = send.call_args.args[1]
+            gdb.lines.put('3^done,value="4096"')
+            gdb.poll()
+            self.assertEqual(send.call_args.args[0], '-data-read-memory-bytes 0x1000 8')
+            gdb.pending['4'] = send.call_args.args[1]
+            gdb.lines.put('4^done,memory=[{begin="0x1000",contents="01ffffff2a000000"}]')
+            gdb.poll()
+            message = emit.call_args.kwargs
+            self.assertTrue(message['layoutReplace'])
+            self.assertTrue(message['layoutAppend'])
+            self.assertTrue(any('int value; | HEX: 2a 00 00 00' in row for row in message['layoutLines']))
+            self.assertIn('+0x0000: ## -- -- -- ## ## ## ##', message['layoutLines'])
+            gdb.pending['5'] = ('layout-memory-data', 'item', 8, native, 4096)
+            gdb.lines.put('5^error,msg="Cannot access memory"')
+            gdb.poll()
+            self.assertIn('Raw HEX unavailable', emit.call_args.kwargs['layoutLines'][0])
 
     def test_memory_rows_preserve_bytes_and_render_ascii(self):
         rows = bridge.memory_rows(0x1000, bytes([0, 65, 255, 10]) + b'abcdefghijklmnop')
@@ -442,6 +484,12 @@ class LiveTests(unittest.TestCase):
                             engine.command('layout item')
                             self.assertIn('12 bytes', messages[-1]['layoutLines'][0])
                             self.assertTrue(any('alignment 4 bytes' in row for row in messages[-1]['layoutLines']))
+                            live = messages[-1]['layoutLines']
+                            self.assertTrue(any('value' in row and 'HEX: 2a 00 00 00' in row for row in live), live)
+                            self.assertIn('+0x0000: ## -- -- -- ## ## ## ##', live)
+                            self.assertTrue(any(row.startswith('0x') and '2a 00 00 00' in row for row in live))
+                            engine.command('ss count')
+                            self.assertTrue(any('2a 00 00 00' in row for row in messages[-1]['layoutLines']))
                             engine.command('layout nested')
                             nested = messages[-1]['layoutLines']
                             self.assertIn('16 bytes', nested[0])
@@ -450,6 +498,53 @@ class LiveTests(unittest.TestCase):
                             for command in ('mem 0', 'disasm missing_symbol'):
                                 with self.assertRaises(ValueError):
                                     engine.command(command)
+                    finally:
+                        if engine:
+                            engine.close()
+
+    @unittest.skipUnless(os.environ.get('UVIM_MLANG_COMPILER'), 'set UVIM_MLANG_COMPILER for live Mlang tests')
+    def test_mlang_struct_scalar_and_nested_live_storage(self):
+        with tempfile.TemporaryDirectory(prefix='uvim-mlang-inspection-') as directory:
+            source, binary = Path(directory) / 'inspect.mla', Path(directory) / 'inspect'
+            source.write_text('struct Padded { var tag: u8; var value: i32; var tail: u8; };\n'
+                              'struct Outer { var leading: u8; var child: Padded; };\n'
+                              'fn main() -> i32 {\n'
+                              '  var item: Padded = Padded { tag: 1, value: 42, tail: 2 };\n'
+                              '  var nested: Outer = Outer { leading: 3, child: item };\n'
+                              '  var scalar: i32 = 42;\n'
+                              '  scalar = scalar + 1;\n'
+                              '  return scalar + nested.child.value;\n}\n')
+            subprocess.run([os.environ['UVIM_MLANG_COMPILER'], '-g', '-O0', str(source), '-o', str(binary)],
+                           cwd=directory, check=True, capture_output=True, text=True)
+            for backend in ['lldb'] + (['mladbg'] if os.environ.get('UVIM_MLADBG_MODULE') else []):
+                with self.subTest(backend=backend):
+                    engine, messages = None, []
+                    try:
+                        with patch.object(bridge, 'emit', side_effect=lambda **value: messages.append(value)):
+                            engine = bridge.LLDB(backend, False, str(binary), [])
+                            engine.command(f'b {source}:7')
+                            engine.command('continue')
+                            deadline = time.monotonic() + 15
+                            while time.monotonic() < deadline:
+                                engine.poll()
+                                if any(m.get('state') == 'stopped' and m.get('line') == 7 for m in messages):
+                                    break
+                                time.sleep(.02)
+                            else:
+                                self.fail(f'Mlang breakpoint timed out: {messages}')
+                            engine.command('ss item')
+                            layout = messages[-1]['layoutLines']
+                            self.assertIn('12 bytes', layout[0])
+                            self.assertTrue(any('value' in row and 'HEX: 2a 00 00 00' in row for row in layout), layout)
+                            self.assertIn('+0x0000: ## -- -- -- ## ## ## ##', layout)
+                            engine.command('ss nested')
+                            nested = messages[-1]['layoutLines']
+                            self.assertTrue(any('nested.child' in row and '12 bytes' in row for row in nested), nested)
+                            self.assertTrue(any('value' in row and 'HEX: 2a 00 00 00' in row for row in nested), nested)
+                            engine.command('ss scalar')
+                            scalar = messages[-1]['layoutLines']
+                            self.assertIn('4 bytes', scalar[0])
+                            self.assertTrue(any('2a 00 00 00' in row for row in scalar), scalar)
                     finally:
                         if engine:
                             engine.close()

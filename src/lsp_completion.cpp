@@ -3,6 +3,7 @@
 #include "editor_utils.h"
 #include "emoji_list.h"
 #include "lsp_client.h"
+#include "symbol_popup_layout.h"
 #include "terminal.h"
 #include "text_utils.h"
 #include "widgets/completion_popup.h"
@@ -14,6 +15,7 @@
 #include <fstream>
 #include <iterator>
 #include <optional>
+#include <sstream>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -1866,103 +1868,12 @@ void Editor::drawSymbolPopup(std::string& output) const
     if(!symbolPopupActive || symbolPopupText.empty())
         return;
 
-    struct PopupRow
-    {
-        std::string text;
-        bool padding = false;
-        size_t colon = std::string::npos;
-    };
-
-    auto makeRow = [](std::string text)
-    {
-        PopupRow row;
-        row.text = std::move(text);
-        row.colon = row.text.find(':');
-        const size_t firstNonSpace = row.text.find_first_not_of(' ');
-        row.padding = firstNonSpace != std::string::npos &&
-                      row.text.rfind("pad:", firstNonSpace) == firstNonSpace;
-        return row;
-    };
-
-    std::vector<PopupRow> rows;
-    size_t start = 0;
-    while(start <= symbolPopupText.size())
-    {
-        size_t end = symbolPopupText.find('\n', start);
-        if(end == std::string::npos)
-        {
-            rows.push_back(makeRow(symbolPopupText.substr(start)));
-            break;
-        }
-        rows.push_back(makeRow(symbolPopupText.substr(start, end - start)));
-        start = end + 1;
-    }
-    if(rows.empty())
+    const auto layout = layoutSymbolPopup(*this);
+    if(layout.visibleRows <= 0)
         return;
-
-    int innerW = 0;
-    for(const PopupRow& row : rows)
-        innerW = std::max(innerW, text_utils::displayWidth(row.text));
-
-    int maxInner = std::max(10, screenCols - 4);
-    if(innerW > maxInner)
-    {
-        for(PopupRow& row : rows)
-        {
-            if(text_utils::displayWidth(row.text) <= maxInner)
-                continue;
-            int trim = std::max(0, maxInner - 3);
-            if(trim > 0 && trim < (int)row.text.size())
-            {
-                row.text = row.text.substr(0, (size_t)trim) + "...";
-                row.colon = std::string::npos;
-                row.padding = false;
-            }
-        }
-        innerW = 0;
-        for(const PopupRow& row : rows)
-            innerW = std::max(innerW, text_utils::displayWidth(row.text));
-    }
-
-    int totalW = innerW + 4;
-    if(totalW > screenCols)
-    {
-        totalW = screenCols;
-        innerW = std::max(1, totalW - 4);
-    }
-
-    int maxRows = std::max(1, screenRows - 2);
-    if(symbolPopupScroll > 0 && (int)rows.size() > maxRows)
-    {
-        const int firstRow =
-            std::min(symbolPopupScroll, (int)rows.size() - maxRows);
-        rows.erase(rows.begin(), rows.begin() + firstRow);
-    }
-    if((int)rows.size() > maxRows)
-        rows.resize((size_t)maxRows);
-
-    int totalH = (int)rows.size() + 2;
-    int cy = (*cursorY - *offsetY) + 1 + tabBarRows();
-    int cx = (*cursorX - *offsetX) + 1 + gutterWidth();
-    if(cy < 1)
-        cy = 1;
-    if(cy > screenRows)
-        cy = screenRows;
-    if(cx < 1)
-        cx = 1;
-    if(cx > screenCols)
-        cx = screenCols;
-
-    int top = cy + 1;
-    if(top + totalH - 1 > screenRows)
-        top = cy - totalH;
-    if(top < 1)
-        top = 1;
-
-    int left = cx;
-    if(left + totalW - 1 > screenCols)
-        left = std::max(1, screenCols - totalW + 1);
-
+    const int innerW = layout.innerWidth;
+    const int top = layout.top, left = layout.left;
+    const int firstRow = std::clamp(symbolPopupScroll, 0, layout.maxScroll());
     auto moveTo = [&](int r, int c) { output += Terminal::cursorPos(r, c); };
 
     moveTo(top, left);
@@ -1973,17 +1884,62 @@ void Editor::drawSymbolPopup(std::string& output) const
         innerW + 2);
     text_utils::appendU8(output, ascii::BOX_LIGHT_TOP_RIGHT);
 
-    for(size_t i = 0; i < rows.size(); ++i)
+    for(int i = 0; i < layout.visibleRows; ++i)
     {
-        moveTo(top + 1 + (int)i, left);
+        moveTo(top + 1 + i, left);
         text_utils::appendU8(output, ascii::BOX_LIGHT_VERTICAL);
         output += " ";
         output += theme.panel();
-        const PopupRow& row = rows[i];
-        if(row.colon != std::string::npos)
+        const SymbolPopupRow empty;
+        const auto& row = firstRow + i < static_cast<int>(layout.rows.size())
+                              ? layout.rows[firstRow + i]
+                              : empty;
+        if(row.padding)
         {
+            output += row.table ? theme.storagePadding() : theme.uiError();
+            output += row.text;
+            if(row.table)
+                output.append(
+                    std::max(
+                        0,
+                        innerW - text_utils::utf8DisplayWidth(row.text)),
+                    ' ');
+        }
+        else if(row.table)
+        {
+            output += theme.uiDim();
+            output += row.text.substr(0, row.memberStart);
+            output += theme.uiInfo();
             output +=
-                row.padding ? theme.uiWarning() : theme.syntax(TOKEN_MEMBER);
+                row.text.substr(std::min(row.memberStart, row.text.size()));
+        }
+        else if(row.heading)
+        {
+            output += theme.uiDim();
+            output += row.text;
+        }
+        else if(!sizePopupEntries.empty() && row.byteMap)
+        {
+            for(size_t pos = 0; pos < row.text.size();)
+            {
+                if(row.text.compare(pos, 2, "--") == 0)
+                {
+                    output += theme.storagePadding();
+                    output += "--";
+                    pos += 2;
+                }
+                else
+                {
+                    output += row.text[pos] == '-'
+                                  ? theme.storagePadding()
+                                  : theme.panel() + theme.uiInfo();
+                    output += row.text[pos++];
+                }
+            }
+        }
+        else if(row.colon != std::string::npos)
+        {
+            output += theme.uiInfo();
             output += row.text.substr(0, row.colon);
             output += theme.panel();
             output += row.text.substr(row.colon, 2);
@@ -1995,14 +1951,14 @@ void Editor::drawSymbolPopup(std::string& output) const
             output += row.text;
         }
         output += theme.reset();
-        int pad = innerW - text_utils::displayWidth(row.text);
-        if(pad > 0)
+        int pad = innerW - text_utils::utf8DisplayWidth(row.text);
+        if(pad > 0 && !(row.table && row.padding))
             output.append(pad, ' ');
         output += " ";
         text_utils::appendU8(output, ascii::BOX_LIGHT_VERTICAL);
     }
 
-    moveTo(top + 1 + (int)rows.size(), left);
+    moveTo(top + layout.height - 1, left);
     text_utils::appendU8(output, ascii::BOX_LIGHT_BOTTOM_LEFT);
     text_utils::appendUtf8Repeat(
         output,

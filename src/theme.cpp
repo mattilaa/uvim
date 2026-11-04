@@ -250,6 +250,20 @@ std::string Theme::dimmedGutter(int level) const
     return dimmedFg(ui_gutter_, level);
 }
 
+std::string Theme::storagePadding() const
+{
+    if(base_fg_seq_.empty())
+        return {};
+    const Color background = panel_.bg.set ? panel_.bg : base_bg_;
+    const Color red = ui_error_.set ? ui_error_ : Color{220, 80, 90, true};
+    const Color tint{
+        background.r + (red.r - background.r) * 16 / 100,
+        background.g + (red.g - background.g) * 16 / 100,
+        background.b + (red.b - background.b) * 16 / 100,
+        true};
+    return dimmedFg(red, 2) + bgSeq(tint);
+}
+
 void Theme::rebuildSequences()
 {
 #ifndef UVIM_ENABLE_TERMINAL_COLORS

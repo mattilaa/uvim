@@ -353,6 +353,7 @@ public:
         std::string remote;
         std::string branch;
     };
+
     std::optional<PendingGitPush> pendingGitPush;
 #endif
     bool commandRequestedModeSet = false;
@@ -524,6 +525,20 @@ public:
     int symbolPopupCursorY = -1;
     int symbolPopupScroll = 0;
     std::string symbolPopupText;
+
+    struct SizePopupEntry
+    {
+        int row = 0;
+        std::string name;
+        std::optional<long long> offset;
+        std::optional<long long> size;
+        bool padding = false;
+    };
+
+    std::vector<SizePopupEntry> sizePopupEntries;
+    std::string sizePopupBaseText;
+    int sizePopupSelection = -1;
+    void browseSizePopup(int delta);
 
     struct RenameEdit
     {

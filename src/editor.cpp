@@ -3198,6 +3198,9 @@ void Editor::closeSymbolPopup()
     symbolPopupCursorY = -1;
     symbolPopupScroll = 0;
     symbolPopupText.clear();
+    sizePopupEntries.clear();
+    sizePopupBaseText.clear();
+    sizePopupSelection = -1;
     needsFullRedraw = true;
 }
 

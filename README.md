@@ -40,6 +40,8 @@ menus—they leave the corresponding implementation out of the binary.
 - [Generated documentation](#generated-documentation)
 - [Assembly instruction docs](#assembly-instruction-docs)
 - [Assembly browser](#assembly-browser)
+- [Size and memory layout inspectors](#size-and-memory-layout-inspectors)
+- [Debugger view](#debugger-view)
 - [LSP flags](#lsp-flags)
 - [Dependencies](#dependencies-os-specific)
 - [Command palette](#command-palette)
@@ -1019,6 +1021,49 @@ pass `-DUVIM_ENABLE_ASM_VIEW=ON` to include it. Disabling it removes the browser
 Instruction help additionally requires `UVIM_ENABLE_ASM_DOCS`.
 The existing `:emitasm [flags]` command still creates a separate editable `.s` buffer. See `:help asm`.
 
+## Size and memory layout inspectors
+
+Use `gs` or `:gs` in Normal mode to inspect the C/C++ or Mlang symbol under
+the cursor. The popup shows its storage size and a table of member offsets,
+byte counts, and nested members. Internal and trailing padding appear as blank,
+dim red rows between the surrounding members; member details use the theme's
+info color. Ctrl+J/K selects members or padding ranges and shows a byte layout
+map (`##` storage, `--` padding). `j`/`k` scrolls; `q` closes.
+
+On a function call or definition, inspect the function name to see the return
+value's size and member layout. For example, `out.size()` shows the count's size
+and `out.append(...)` shows the returned string object's layout. C/C++ overloads
+use the actual arguments; reference returns show the referenced object's size,
+pointers show pointer storage, and `void` has no return-value storage. Source
+inspection compiles unsaved edits without running the program. C/C++ probes
+inherit relevant flags from `compile_commands.json`; Mlang uses `mlang` or the
+executable selected by `UVIM_MLANG_COMPILER`.
+
+For **actual runtime bytes**, use `:ss [expression]` inside the **DEBUG view**
+while execution is stopped. It shows member sizes, padding, raw memory in hex,
+and a byte layout map. For example:
+
+1. Build your program with debug information, preferably `-g -O0`.
+2. Run `:dbgrun ./build/app`, or attach using `:dbgattach PID`.
+3. Set `:b source.cpp:49` at a line after the variable is initialized, then
+   run `:continue` and wait for the breakpoint. Ctrl+C pauses a running target.
+4. Run `:ss out`. Alternatively, press `v`, select a variable with `j`/`k`,
+   and run bare `:ss`.
+5. Browse members and their hex data with Ctrl+J/K, scroll with `j`/`k`, and
+   close with `q` or Esc.
+
+The message `ss: pause the debugger and use :ss [expression]` means the command
+was entered in the normal editor prompt. Open the debugger view and stop the
+program first; use `:gs` for source inspection without a debugger.
+
+Both inspector popups keep a fixed viewport while browsing, fit within the
+terminal (up to 100 columns and 26 rows), and wrap long text. Source layout maps
+do not contain runtime bytes. Object sizes include inline storage and padding;
+separately allocated string or collection contents are not included.
+
+See the [size and memory layout guide](docs/wiki/Size-and-Memory-Layout.md) for
+a structure example, Mlang details, display limits, and troubleshooting.
+
 ## Assembly instruction docs
 
 Assembly instruction `gd` support is controlled by the CMake option
@@ -1938,7 +1983,8 @@ disassembles its function-pointer/address value, and `m` reads the variable's
 storage as hex bytes and ASCII. `s` shows the whole variable size including
 padding, member sizes, and nested member layouts (`i` is an alias).
 Size inspection opens a popup while preserving the selected variable. Scroll
-with `j`/`k`, Ctrl+J/K, or Page Up/Down; `g`/`G` jumps to the first/last row.
+with `j`/`k` or Page Up/Down; Ctrl+J/K browses member hex previews, and
+`g`/`G` jumps to the first/last row.
 Esc, Enter, or `q` closes it. Long layout lines wrap to fit the popup.
 Printing a local variable also includes its storage layout in Output;
 disassembly and raw bytes appear there too. Press `v` to return to Variables.
@@ -1954,6 +2000,7 @@ The same inspection is available for expressions and numeric addresses:
 :disasm --count 8 callback
 :p --asm callback
 :p --memory &count
+:ss item
 :layout item
 :p --layout item
 ```
