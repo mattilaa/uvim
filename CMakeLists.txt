@@ -286,6 +286,7 @@ set(UVIM_CORE_SOURCES
     src/symbol_popup_layout.cpp
     src/cpp_size_probe_options.cpp
     src/cpp_type_layout_probe.cpp
+    src/cursor_call.cpp
     src/debug_type_layout.cpp
     src/mlang_size_probe.cpp
     src/editor_operator_controller.cpp

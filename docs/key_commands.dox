@@ -180,9 +180,13 @@ includes common Normal/Insert/Visual/Command mode bindings.
   flags from a nearby `compile_commands.json` (including common build folders).
   Headers use a nearby translation unit when no exact command exists. If a
   probe fails, the status message includes the compiler diagnostic.
-  On a C++ member-function call such as `out.append(...)`, inspecting the
-  method name shows the receiver's object storage (`out`). Arrow calls inspect
-  the pointee. Callable data members retain their own storage size.
+  On a function call or definition, inspecting the function name shows its
+  return-value storage and member layout. C/C++ calls use their actual arguments
+  to resolve overloads and inferred return types without executing the program.
+  For example, `out.size()` shows the returned count's size, and `out.append(...)`
+  shows the returned string object's layout. References show the referenced
+  object's size; pointer returns show pointer storage. `void` returns have no
+  return-value storage. Mlang calls use the compiler's return-type metadata.
   Mlang supports unsaved buffers, imported and instantiated generic types,
   scalar and member expressions, and packed bit-field sizes/offsets. A temporary
   `.mla` snapshot is created beside the source to preserve module resolution;

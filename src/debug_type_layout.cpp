@@ -1,8 +1,10 @@
 #include "debug_type_layout.h"
 
 #include <cctype>
+#include <cstdlib>
 #include <filesystem>
 #include <functional>
+#include <limits>
 #include <regex>
 #include <sstream>
 #include <unordered_map>
@@ -10,6 +12,13 @@
 namespace
 {
 using Metadata = std::unordered_map<long long, std::string>;
+enum class Query
+{
+    Value,
+    FunctionPointerReturn,
+    ScopedFunctionPointerReturn,
+    CallReturn
+};
 
 std::optional<long long> number(const std::string& node, const std::string& key)
 {
@@ -34,9 +43,12 @@ std::string stringField(const std::string& node, const std::string& key)
         R"field(\bfilename: "([^"]*)")field");
     static const std::regex directoryPattern(
         R"field(\bdirectory: "([^"]*)")field");
-    const auto& pattern = key == "name"       ? namePattern
-                          : key == "filename" ? filenamePattern
-                                              : directoryPattern;
+    static const std::regex linkagePattern(
+        R"field(\blinkageName: "([^"]*)")field");
+    const auto& pattern = key == "linkageName" ? linkagePattern
+                          : key == "name"      ? namePattern
+                          : key == "filename"  ? filenamePattern
+                                               : directoryPattern;
     std::smatch match;
     if(!std::regex_search(node, match, pattern))
         return {};
@@ -62,10 +74,12 @@ std::string name(const std::string& node)
 
 } // namespace
 
-std::optional<DebugTypeLayout> parseDebugTypeMetadata(
+static std::optional<DebugTypeLayout> parseLayout(
     const std::string& ir,
     const std::string& expression,
-    int cursorLine)
+    int cursorLine,
+    Query query,
+    int cursorColumn)
 {
     Metadata nodes;
     std::istringstream input(ir);
@@ -86,7 +100,10 @@ std::optional<DebugTypeLayout> parseDebugTypeMetadata(
     {
         if(depth < 16 &&
            (node(id).find("DW_TAG_typedef") != std::string::npos ||
-            node(id).find("DW_TAG_const_type") != std::string::npos))
+            node(id).find("DW_TAG_const_type") != std::string::npos ||
+            node(id).find("DW_TAG_volatile_type") != std::string::npos ||
+            node(id).find("DW_TAG_reference_type") != std::string::npos ||
+            node(id).find("DW_TAG_rvalue_reference_type") != std::string::npos))
             if(auto base = number(node(id), "baseType"))
                 return unwrap(*base, depth + 1);
         return id;
@@ -168,18 +185,22 @@ std::optional<DebugTypeLayout> parseDebugTypeMetadata(
     long long selectedLine = -1;
     for(const auto& [id, text] : nodes)
     {
+        if(query == Query::CallReturn)
+            continue;
         const bool local = text.find("!DILocalVariable(") != std::string::npos;
         const bool global =
             text.find("!DIGlobalVariable(") != std::string::npos;
         if((!local && !global) || name(text) != root || !inPrimary(text))
             continue;
         const auto declarationLine = number(text, "line").value_or(0);
-        if(declarationLine > cursorLine || declarationLine < selectedLine)
+        if(query != Query::FunctionPointerReturn &&
+           (declarationLine > cursorLine || declarationLine < selectedLine))
             continue;
-        if(local &&
+        if(local && query != Query::FunctionPointerReturn &&
            functionScope(number(text, "scope").value_or(-1)) != currentFunction)
             continue;
-        if(local && !visibleScope(number(text, "scope").value_or(-1)))
+        if(local && query != Query::FunctionPointerReturn &&
+           !visibleScope(number(text, "scope").value_or(-1)))
             continue;
         if(auto type = number(text, "type"))
         {
@@ -187,7 +208,7 @@ std::optional<DebugTypeLayout> parseDebugTypeMetadata(
             selectedLine = declarationLine;
         }
     }
-    if(!selected)
+    if(!selected && query == Query::Value)
         for(const auto& [id, text] : nodes)
             if((text.find("!DICompositeType(") != std::string::npos ||
                 text.find("!DIBasicType(") != std::string::npos ||
@@ -197,6 +218,95 @@ std::optional<DebugTypeLayout> parseDebugTypeMetadata(
                 selected = id;
                 break;
             }
+    bool functionType = false;
+    if(!selected && query == Query::CallReturn)
+    {
+        std::unordered_map<std::string, long long> functions;
+        std::string wanted = expression;
+        if(auto pos = wanted.find_last_of(".:"); pos != std::string::npos)
+            wanted = wanted.substr(pos + 1);
+        if(auto pos = wanted.find('<'); pos != std::string::npos)
+            wanted.resize(pos);
+        for(const auto& [id, text] : nodes)
+            if(text.find("!DISubprogram(") != std::string::npos)
+            {
+                auto linkage = stringField(text, "linkageName");
+                functions[linkage.empty() ? name(text) : linkage] = id;
+            }
+        static const std::regex callPattern(
+            R"call(\b(?:call|invoke)\b[^@\n]*@(?:"([^"]+)"|([^ (]+))\()call");
+        static const std::regex locationPattern(R"(!dbg !([0-9]+))");
+        std::vector<std::string> instructions;
+        std::istringstream code(ir);
+        while(std::getline(code, line))
+            instructions.push_back(line);
+        long long best = std::numeric_limits<long long>::max();
+        bool ambiguous = false;
+        auto returnKey = [&](long long type)
+        {
+            const auto& list = node(number(node(type), "types").value_or(-1));
+            return list.substr(0, list.find_first_of(",}"));
+        };
+        std::smatch call, location;
+        for(size_t i = 0; i < instructions.size(); ++i)
+        {
+            if(instructions[i].find("call ") == std::string::npos &&
+               instructions[i].find("invoke ") == std::string::npos)
+                continue;
+            std::string instruction = instructions[i];
+            if(instruction.find("invoke ") != std::string::npos &&
+               instruction.find("!dbg") == std::string::npos &&
+               i + 1 < instructions.size())
+                instruction += instructions[i + 1];
+            if(!std::regex_search(instruction, call, callPattern) ||
+               !std::regex_search(instruction, location, locationPattern))
+                continue;
+            const auto linkage =
+                call[1].matched ? call[1].str() : call[2].str();
+            if(linkage.starts_with("llvm.") ||
+               linkage.find(wanted) == std::string::npos)
+                continue;
+            const auto& at = node(std::stoll(location[1].str()));
+            if(number(at, "line") != cursorLine ||
+               !inPrimary(
+                   node(functionScope(number(at, "scope").value_or(-1)))))
+                continue;
+            const long long score =
+                cursorColumn > 0
+                    ? std::llabs(
+                          number(at, "column").value_or(0) - cursorColumn)
+                    : 0;
+            if(auto it = functions.find(linkage);
+               it != functions.end() && score <= best)
+                if(auto type = number(node(it->second), "type"))
+                {
+                    if(score == best && selected &&
+                       returnKey(*selected) != returnKey(*type))
+                        ambiguous = true;
+                    if(score < best)
+                    {
+                        selected = type;
+                        functionType = true;
+                        best = score;
+                        ambiguous = false;
+                    }
+                }
+        }
+        if(ambiguous)
+            return {};
+        // A function definition under the cursor has no call instruction.
+        if(!selected)
+            for(const auto& [id, text] : nodes)
+                if(text.find("!DISubprogram(") != std::string::npos &&
+                   name(text) == wanted && inPrimary(text) &&
+                   number(text, "line") == cursorLine)
+                    if(auto type = number(text, "type"))
+                    {
+                        selected = type;
+                        functionType = true;
+                        break;
+                    }
+    }
     if(!selected)
         return {};
     auto fields = [&](long long type)
@@ -213,7 +323,7 @@ std::optional<DebugTypeLayout> parseDebugTypeMetadata(
             result.push_back(std::stoll((*it)[1].str()));
         return result;
     };
-    if(dot != std::string::npos)
+    if(dot != std::string::npos && query != Query::CallReturn)
     {
         size_t start = dot + 1;
         while(start < expression.size())
@@ -232,6 +342,77 @@ std::optional<DebugTypeLayout> parseDebugTypeMetadata(
             start = end + 1;
         }
     }
+    if(query != Query::Value)
+    {
+        long long type = unwrap(*selected, 0);
+        if(!functionType)
+        {
+            if(node(type).find("DW_TAG_pointer_type") == std::string::npos &&
+               node(type).find("DW_TAG_ptr_to_member_type") ==
+                   std::string::npos)
+                return {};
+            auto base = number(node(type), "baseType");
+            if(!base)
+                return {};
+            type = unwrap(*base, 0);
+        }
+        if(node(type).find("!DISubroutineType(") == std::string::npos)
+            return {};
+        auto types = number(node(type), "types");
+        if(!types)
+            return {};
+        const auto& list = node(*types);
+        if(list.starts_with("!{null"))
+            return DebugTypeLayout{0, {}, true, "void"};
+        static const std::regex returnType(R"(^!\{!([0-9]+))");
+        std::smatch result;
+        if(!std::regex_search(list, result, returnType))
+            return {};
+        selected = std::stoll(result[1].str());
+    }
+    std::function<std::string(long long, int)> typeName =
+        [&](long long id, int depth) -> std::string
+    {
+        if(depth > 24)
+            return "?";
+        const auto& text = node(id);
+        const auto base = number(text, "baseType");
+        if(base)
+        {
+            if(text.find("DW_TAG_pointer_type") != std::string::npos)
+                return typeName(*base, depth + 1) + "*";
+            if(text.find("DW_TAG_rvalue_reference_type") != std::string::npos)
+                return typeName(*base, depth + 1) + "&&";
+            if(text.find("DW_TAG_reference_type") != std::string::npos)
+                return typeName(*base, depth + 1) + "&";
+            if(text.find("DW_TAG_const_type") != std::string::npos)
+                return typeName(*base, depth + 1) + " const";
+            if(text.find("DW_TAG_volatile_type") != std::string::npos)
+                return typeName(*base, depth + 1) + " volatile";
+            if(text.find("DW_TAG_typedef") != std::string::npos &&
+               node(unwrap(*base, 0)).find("!DIBasicType(") !=
+                   std::string::npos)
+                return typeName(*base, depth + 1);
+        }
+        if(!base && text.find("DW_TAG_pointer_type") != std::string::npos)
+            return "void*";
+        std::string result = name(text);
+        auto scope = number(text, "scope");
+        for(int level = 0; scope && level < 16; ++level)
+        {
+            const auto& parent = node(*scope);
+            if(parent.find("!DINamespace(") != std::string::npos &&
+               parent.find("exportSymbols: true") == std::string::npos &&
+               !name(parent).empty())
+                result = name(parent) + "::" + result;
+            scope = number(parent, "scope");
+        }
+        return result.empty()
+                   ? text.find("!DISubroutineType(") != std::string::npos
+                         ? "function"
+                         : "<anonymous>"
+                   : result;
+    };
     int budget = 256;
     std::function<std::optional<DebugTypeLayout>(long long, int)> layout =
         [&](long long type, int depth) -> std::optional<DebugTypeLayout>
@@ -240,7 +421,7 @@ std::optional<DebugTypeLayout> parseDebugTypeMetadata(
         auto size = number(node(type), "size");
         if(!size)
             return {};
-        DebugTypeLayout result{*size, {}, true};
+        DebugTypeLayout result{*size, {}, true, {}};
         for(long long field : fields(type))
         {
             const auto& text = node(field);
@@ -278,5 +459,40 @@ std::optional<DebugTypeLayout> parseDebugTypeMetadata(
         }
         return result;
     };
-    return layout(*selected, 0);
+    auto result = layout(*selected, 0);
+    if(result)
+        result->typeName = typeName(*selected, 0);
+    return result;
+}
+
+std::optional<DebugTypeLayout> parseDebugTypeMetadata(
+    const std::string& ir,
+    const std::string& expression,
+    int cursorLine)
+{
+    return parseLayout(ir, expression, cursorLine, Query::Value, 0);
+}
+
+std::optional<DebugTypeLayout> parseDebugFunctionPointerReturn(
+    const std::string& ir,
+    const std::string& variable)
+{
+    return parseLayout(ir, variable, 0, Query::FunctionPointerReturn, 0);
+}
+
+std::optional<DebugTypeLayout> parseDebugCallReturn(
+    const std::string& ir,
+    const std::string& callee,
+    int cursorLine,
+    int cursorColumn)
+{
+    if(auto result =
+           parseLayout(ir, callee, cursorLine, Query::CallReturn, cursorColumn))
+        return result;
+    return parseLayout(
+        ir,
+        callee,
+        cursorLine,
+        Query::ScopedFunctionPointerReturn,
+        cursorColumn);
 }

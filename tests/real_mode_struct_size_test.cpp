@@ -1,3 +1,4 @@
+#include "cursor_call.h"
 #include "json_utils.h"
 #include "mlang_size_probe.h"
 #include "real_mode_test_utils.h"
@@ -948,7 +949,9 @@ TEST(RealModeTransitionsTest, GsStdStringResolvesInsideUvimSource)
     EXPECT_GT(editor.sizePopupEntries.size(), 1u);
 }
 
-TEST(RealModeTransitionsTest, GsStringMethodsInspectReceiverInUnbracedIfElse)
+TEST(
+    RealModeTransitionsTest,
+    GsStringMethodsInspectReturnValuesInUnbracedIfElse)
 {
     if(std::system("clang++ --version >/dev/null 2>&1") != 0)
         GTEST_SKIP() << "clang++ is not available";
@@ -977,21 +980,29 @@ TEST(RealModeTransitionsTest, GsStringMethodsInspectReceiverInUnbracedIfElse)
         *editor.cursorX = static_cast<int>(original[8].find(method));
         editor.executeCommand("gs");
         ASSERT_TRUE(editor.symbolPopupActive) << editor.statusMessage;
+        const bool append = method == "append";
         EXPECT_TRUE(editor.symbolPopupText.starts_with(
-            "sizeof(out) = " + std::to_string(sizeof(std::string)) + " bytes"));
-        EXPECT_GT(editor.sizePopupEntries.size(), 1u);
+            append ? "Return value of out.append(4 - out.size() % 4, ' '): " +
+                         std::to_string(sizeof(std::string)) + " bytes"
+                   : "Return value of out.size(): " +
+                         std::to_string(sizeof(std::string::size_type)) +
+                         " bytes"));
+        if(append)
+            EXPECT_GT(editor.sizePopupEntries.size(), 1u);
+        else
+            EXPECT_EQ(editor.sizePopupEntries.size(), 1u);
         EXPECT_EQ(editor.currentBuffer->lines, original);
     }
 }
 
-TEST(RealModeTransitionsTest, GsPointerMethodInspectsPointeeMembers)
+TEST(RealModeTransitionsTest, GsPointerMethodInspectsReturnedReferenceMembers)
 {
     if(std::system("clang++ --version >/dev/null 2>&1") != 0)
         GTEST_SKIP() << "clang++ is not available";
     Editor editor = Editor::createForTests();
     editor.createNewBuffer();
     editor.currentBuffer->lines =
-        {"struct Foo { int a; char b; void change() {} };",
+        {"struct Foo { int a; char b; Foo& change() { return *this; } };",
          "int main() {",
          "    Foo value{};",
          "    Foo* pointer = &value;",
@@ -1002,20 +1013,22 @@ TEST(RealModeTransitionsTest, GsPointerMethodInspectsPointeeMembers)
     *editor.cursorX = 14;
     editor.executeCommand("gs");
     ASSERT_TRUE(editor.symbolPopupActive) << editor.statusMessage;
-    EXPECT_EQ(
-        editor.symbolPopupText,
-        "sizeof((*pointer)) = 8 bytes\na: 4 bytes\nb: 1 bytes\npad: 3 bytes");
+    EXPECT_TRUE(editor.symbolPopupText.starts_with(
+        "Return value of pointer->change(): 8 bytes"));
+    EXPECT_NE(editor.symbolPopupText.find("Foo&"), std::string::npos);
+    EXPECT_NE(editor.symbolPopupText.find("a: 4 bytes"), std::string::npos);
+    EXPECT_NE(editor.symbolPopupText.find("pad: 3 bytes"), std::string::npos);
 }
 
-TEST(RealModeTransitionsTest, GsCallableDataMemberKeepsItsOwnSize)
+TEST(RealModeTransitionsTest, GsCallableDataMemberInspectsCallReturnValue)
 {
     if(std::system("clang++ --version >/dev/null 2>&1") != 0)
         GTEST_SKIP() << "clang++ is not available";
     Editor editor = Editor::createForTests();
     editor.createNewBuffer();
     editor.currentBuffer->lines =
-        {"void target() {}",
-         "struct Callbacks { int tag; void (*callback)(); };",
+        {"int target() { return 42; }",
+         "struct Callbacks { int tag; int (*callback)(); };",
          "int main() {",
          "    Callbacks value{0, target};",
          "    value.callback();",
@@ -1025,10 +1038,9 @@ TEST(RealModeTransitionsTest, GsCallableDataMemberKeepsItsOwnSize)
     *editor.cursorX = 11;
     editor.executeCommand("gs");
     ASSERT_TRUE(editor.symbolPopupActive) << editor.statusMessage;
-    EXPECT_EQ(
-        editor.symbolPopupText,
-        "sizeof(value.callback) = " + std::to_string(sizeof(void (*)())) +
-            " bytes");
+    EXPECT_TRUE(editor.symbolPopupText.starts_with(
+        "Return value of value.callback(): " + std::to_string(sizeof(int)) +
+        " bytes"));
 }
 
 TEST(RealModeTransitionsTest, SizeLayoutTableShowsBlankRedPaddingBetweenMembers)
@@ -1295,4 +1307,340 @@ TEST(RealModeTransitionsTest, DebuggerInspectorPopupUsesFixedWrappedViewport)
         EXPECT_NE(output.find(Terminal::cursorPos(1, 1)), std::string::npos);
         EXPECT_NE(output.find(Terminal::cursorPos(12, 1)), std::string::npos);
     }
+}
+
+TEST(
+    RealModeTransitionsTest,
+    GsFunctionReturnResolvesOverloadsReferencesPointersAndAuto)
+{
+    if(std::system("clang++ --version >/dev/null 2>&1") != 0)
+        GTEST_SKIP() << "clang++ is not available";
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines =
+        {"struct Packet { char tag; int value; char tail; };",
+         "Packet make(int value) { return {1, value, 2}; }",
+         "double make(double value) { return value; }",
+         "Packet& reference() { static Packet p{}; return p; }",
+         "Packet* pointer() { return &reference(); }",
+         "auto deduced() { return make(3); }",
+         "template<class T> T echo(T value) { return value; }",
+         "auto global = make(5);",
+         "int main() {",
+         "    auto packet = make(3);",
+         "    auto number = make(2.5);",
+         "    auto& ref = reference();",
+         "    auto ptr = pointer();",
+         "    auto inferred = deduced();",
+         "    auto scalar = echo<float>(1.0f);",
+         "    auto constructed = Packet(1, 2, 3);",
+         "}"};
+    set_buffer_filename(editor, "/tmp/uvim_size_function_return.cpp");
+
+    struct Case
+    {
+        int row;
+        const char* name;
+        int bytes;
+        bool members;
+    };
+
+    for(const auto& test : std::vector<Case>{
+            {9, "make", 12, true},
+            {10, "make", 8, false},
+            {11, "reference", 12, true},
+            {12, "pointer", static_cast<int>(sizeof(void*)), false},
+            {13, "deduced", 12, true},
+            {14, "echo", 4, false},
+            {15, "Packet", 12, true},
+            {7, "make", 12, true},
+            {1, "make", 12, true}})
+    {
+        *editor.cursorY = test.row;
+        *editor.cursorX = static_cast<int>(
+            editor.currentBuffer->lines[test.row].find(test.name));
+        editor.executeCommand("gs");
+        ASSERT_TRUE(editor.symbolPopupActive)
+            << test.name << ": " << editor.statusMessage;
+        EXPECT_TRUE(editor.symbolPopupText.starts_with("Return value of "));
+        EXPECT_NE(
+            editor.symbolPopupText.find(
+                ": " + std::to_string(test.bytes) + " bytes"),
+            std::string::npos)
+            << editor.symbolPopupText;
+        if(test.members)
+        {
+            EXPECT_NE(
+                editor.symbolPopupText.find("tag: 1 bytes"),
+                std::string::npos);
+            EXPECT_NE(
+                editor.symbolPopupText.find("pad: 3 bytes"),
+                std::string::npos);
+        }
+        else
+            EXPECT_EQ(editor.sizePopupEntries.size(), 1u);
+    }
+}
+
+TEST(
+    RealModeTransitionsTest,
+    GsFunctionReturnHandlesExternalFunctionsAndMultilineArgumentsWithoutExecution)
+{
+    if(std::system("clang++ --version >/dev/null 2>&1") != 0)
+        GTEST_SKIP() << "clang++ is not available";
+    const auto root = make_temp_dir("uvim_return_value_");
+    const auto sentinel = root / "must-not-run";
+    std::string path;
+    json_utils::append_escaped(path, sentinel.string());
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines =
+        {"#include <cstdio>",
+         "struct Packet { char tag; int value; char tail; };",
+         "extern Packet external(int);",
+         "int nested(int a, int b) { return a + b; }",
+         "Packet produce(int value, const char*) { auto f = std::fopen(" +
+             path + ", \"w\"); if(f) std::fclose(f); return {1, value, 2}; }",
+         "int main() {",
+         "    auto result = produce(",
+         "        nested(1, 2), // ignored )",
+         R"src(        R"stop(text ) " ( ()stop")src",
+         "    );",
+         "    auto other = external(42);",
+         "}"};
+    set_buffer_filename(editor, (root / "program.cpp").string());
+    const auto original = editor.currentBuffer->lines;
+    for(const auto [row, name] : std::vector<std::pair<int, std::string>>{
+            {6, "produce"},
+            {10, "external"},
+            {2, "external"}})
+    {
+        *editor.cursorY = row;
+        *editor.cursorX = static_cast<int>(original[row].find(name));
+        editor.executeCommand("gs");
+        ASSERT_TRUE(editor.symbolPopupActive) << editor.statusMessage;
+        EXPECT_NE(editor.symbolPopupText.find(": 12 bytes"), std::string::npos);
+        EXPECT_NE(
+            editor.symbolPopupText.find("value: 4 bytes"),
+            std::string::npos);
+        EXPECT_FALSE(std::filesystem::exists(sentinel));
+        EXPECT_EQ(editor.currentBuffer->lines, original);
+    }
+    std::filesystem::remove_all(root);
+}
+
+TEST(
+    RealModeTransitionsTest,
+    GsFunctionReturnReportsVoidInsteadOfInventingObjectSize)
+{
+    if(std::system("clang++ --version >/dev/null 2>&1") != 0)
+        GTEST_SKIP() << "clang++ is not available";
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer
+        ->lines = {"void nothing() {}", "int main() { nothing(); }"};
+    set_buffer_filename(editor, "/tmp/uvim_size_void_return.cpp");
+    *editor.cursorY = 1;
+    *editor.cursorX = 13;
+    editor.executeCommand("gs");
+    EXPECT_FALSE(editor.symbolPopupActive);
+    EXPECT_NE(editor.statusMessage.find("returns void"), std::string::npos);
+}
+
+TEST(RealModeTransitionsTest, GsCFunctionReturnShowsStructPadding)
+{
+    if(std::system("clang --version >/dev/null 2>&1") != 0)
+        GTEST_SKIP() << "clang is not available";
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines =
+        {"struct Packet { char tag; int value; char tail; };",
+         "struct Packet make(int value) { return (struct Packet){1, value, 2}; "
+         "}",
+         "int main(void) {",
+         "    struct Packet p = make(42);",
+         "    return p.value;",
+         "}"};
+    set_buffer_filename(editor, "/tmp/uvim_size_c_function_return.c");
+    *editor.cursorY = 3;
+    *editor.cursorX = 22;
+    editor.executeCommand("gs");
+    ASSERT_TRUE(editor.symbolPopupActive) << editor.statusMessage;
+    EXPECT_TRUE(editor.symbolPopupText.starts_with(
+        "Return value of make(42): 12 bytes"));
+    EXPECT_NE(editor.symbolPopupText.find("pad: 3 bytes"), std::string::npos);
+}
+
+TEST(
+    RealModeTransitionsTest,
+    GsMlangFunctionReturnsIncludeStructAndScalarLayouts)
+{
+    if(!std::getenv("UVIM_MLANG_SIZE_LIVE_TESTS"))
+        GTEST_SKIP() << "Set UVIM_MLANG_SIZE_LIVE_TESTS and optionally "
+                        "UVIM_MLANG_COMPILER";
+    const auto root = make_temp_dir("uvim_mlang_returns_");
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines =
+        {"struct Packet { var tag: u8; var value: i32; };",
+         "fn make(value: i32) -> Packet { return Packet { tag: 1, value: value "
+         "}; }",
+         "fn make(value: f64) -> f64 { return value; }",
+         "fn noop() -> void { return; }",
+         "fn main() -> i32 {",
+         "    var packet: Packet = make(3);",
+         "    var number: f64 = make(2.0);",
+         "    noop();",
+         "    return packet.value;",
+         "}"};
+    set_buffer_filename(editor, (root / "program.mla").string());
+    for(int row : {5, 6, 1})
+    {
+        *editor.cursorY = row;
+        *editor.cursorX =
+            static_cast<int>(editor.currentBuffer->lines[row].find("make"));
+        editor.executeCommand("gs");
+        ASSERT_TRUE(editor.symbolPopupActive) << editor.statusMessage;
+        EXPECT_NE(editor.symbolPopupText.find(": 8 bytes"), std::string::npos);
+        if(row != 6)
+        {
+            EXPECT_NE(
+                editor.symbolPopupText.find("value: 4 bytes"),
+                std::string::npos);
+            EXPECT_NE(
+                editor.symbolPopupText.find("pad: 3 bytes"),
+                std::string::npos);
+        }
+        else
+            EXPECT_EQ(editor.sizePopupEntries.size(), 1u);
+    }
+    *editor.cursorY = 7;
+    *editor.cursorX = 5;
+    editor.executeCommand("gs");
+    EXPECT_FALSE(editor.symbolPopupActive);
+    EXPECT_NE(editor.statusMessage.find("returns void"), std::string::npos);
+    EXPECT_TRUE(std::filesystem::is_empty(root));
+    std::filesystem::remove_all(root);
+}
+
+TEST(
+    CursorCallTest,
+    MatchesNestedParenthesesCommentsRawStringsAndDigitSeparators)
+{
+    const std::vector<std::string> lines =
+        {"auto result = make(",
+         "  nested(1'000, u8'a'), /* ) */",
+         R"src(  R"tag(text ) " ( )tag")src",
+         ");"};
+    const auto call = cursorCallAt(lines, 0, 15, "make");
+    ASSERT_TRUE(call);
+    EXPECT_EQ(call->startColumn, 14);
+    EXPECT_EQ(call->endLine, 3);
+    EXPECT_EQ(call->endColumn, 1);
+    EXPECT_NE(call->expression.find("nested(1'000"), std::string::npos);
+    EXPECT_FALSE(cursorCallAt({"make(unfinished"}, 0, 1, "make"));
+    EXPECT_FALSE(cursorCallAt({"int value;"}, 0, 5, "value"));
+}
+
+TEST(DebugReturnMetadataTest, PreservesReferenceObjectSizesPointerSizesAndVoid)
+{
+    const auto ir = mlangLayoutMetadata + R"(
+!30 = !DISubroutineType(types: !31)
+!31 = !{!6}
+!32 = !DIDerivedType(tag: DW_TAG_pointer_type, baseType: !30, size: 64)
+!33 = !DILocalVariable(name: "probe", scope: !2, file: !1, line: 100, type: !32)
+!34 = !DIDerivedType(tag: DW_TAG_reference_type, baseType: !6, size: 64)
+!35 = !DISubroutineType(types: !36)
+!36 = !{!34}
+!37 = !DIDerivedType(tag: DW_TAG_pointer_type, baseType: !35, size: 64)
+!38 = !DILocalVariable(name: "referenceProbe", scope: !2, file: !1, line: 101, type: !37)
+!39 = !DISubroutineType(types: !40)
+!40 = !{null}
+!41 = !DIDerivedType(tag: DW_TAG_pointer_type, baseType: !39, size: 64)
+!42 = !DILocalVariable(name: "voidProbe", scope: !2, file: !1, line: 102, type: !41)
+!43 = !DIDerivedType(tag: DW_TAG_pointer_type, baseType: !4, size: 64)
+!44 = !DISubroutineType(types: !45)
+!45 = !{!43}
+!46 = !DIDerivedType(tag: DW_TAG_pointer_type, baseType: !44, size: 64)
+!47 = !DILocalVariable(name: "pointerProbe", scope: !2, file: !1, line: 103, type: !46)
+!48 = !DIDerivedType(tag: DW_TAG_volatile_type, baseType: !6)
+!49 = !DIDerivedType(tag: DW_TAG_reference_type, baseType: !48, size: 64)
+!50 = !DISubroutineType(types: !51)
+!51 = !{!49}
+!52 = !DIDerivedType(tag: DW_TAG_ptr_to_member_type, baseType: !50, size: 128)
+!53 = !DILocalVariable(name: "volatileProbe", scope: !2, file: !1, line: 104, type: !52)
+)";
+    const auto value = parseDebugFunctionPointerReturn(ir, "probe");
+    ASSERT_TRUE(value);
+    EXPECT_EQ(value->sizeBits, 96);
+    EXPECT_EQ(value->members.size(), 3u);
+    const auto reference =
+        parseDebugFunctionPointerReturn(ir, "referenceProbe");
+    ASSERT_TRUE(reference);
+    EXPECT_EQ(reference->sizeBits, 96);
+    EXPECT_EQ(reference->typeName, "Padded&");
+    const auto pointer = parseDebugFunctionPointerReturn(ir, "pointerProbe");
+    ASSERT_TRUE(pointer);
+    EXPECT_EQ(pointer->sizeBits, 64);
+    EXPECT_EQ(pointer->typeName, "i32*");
+    EXPECT_TRUE(pointer->members.empty());
+    const auto nothing = parseDebugFunctionPointerReturn(ir, "voidProbe");
+    ASSERT_TRUE(nothing);
+    EXPECT_EQ(nothing->typeName, "void");
+    const auto qualified = parseDebugFunctionPointerReturn(ir, "volatileProbe");
+    ASSERT_TRUE(qualified);
+    EXPECT_EQ(qualified->sizeBits, 96);
+    EXPECT_EQ(qualified->typeName, "Padded volatile&");
+}
+
+TEST(DebugReturnMetadataTest, UsesCallColumnsAndRejectsAmbiguousReturnTypes)
+{
+    const auto ir = mlangLayoutMetadata + R"(
+  %first = call %Padded @make_int(i32 1), !dbg !40
+  %second = call double @make_float(double 1.0), !dbg !41
+!30 = distinct !DISubprogram(name: "make", linkageName: "make_int", file: !1, line: 40, type: !32)
+!31 = distinct !DISubprogram(name: "make", linkageName: "make_float", file: !1, line: 41, type: !33)
+!32 = !DISubroutineType(types: !34)
+!33 = !DISubroutineType(types: !35)
+!34 = !{!6, !4}
+!35 = !{!5, !5}
+!40 = !DILocation(line: 8, column: 10, scope: !2)
+!41 = !DILocation(line: 8, column: 30, scope: !2)
+)";
+    auto first = parseDebugCallReturn(ir, "make", 8, 10);
+    ASSERT_TRUE(first);
+    EXPECT_EQ(first->sizeBits, 96);
+    auto second = parseDebugCallReturn(ir, "make", 8, 30);
+    ASSERT_TRUE(second);
+    EXPECT_EQ(second->sizeBits, 64);
+    EXPECT_FALSE(parseDebugCallReturn(ir, "make", 8));
+    auto definition = parseDebugCallReturn(ir, "make", 40);
+    ASSERT_TRUE(definition);
+    EXPECT_EQ(definition->sizeBits, 96);
+}
+
+TEST(
+    RealModeTransitionsTest,
+    GsCallableMemberWithoutCallStillShowsPointerStorage)
+{
+    if(std::system("clang++ --version >/dev/null 2>&1") != 0)
+        GTEST_SKIP() << "clang++ is not available";
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines =
+        {"int target() { return 42; }",
+         "struct Callbacks { int tag; int (*callback)(); };",
+         "int main() {",
+         "    Callbacks value{0, target};",
+         "    auto copy = value.callback;",
+         "}"};
+    set_buffer_filename(editor, "/tmp/uvim_size_callback_pointer.cpp");
+    *editor.cursorY = 4;
+    *editor.cursorX = 23;
+    editor.executeCommand("gs");
+    ASSERT_TRUE(editor.symbolPopupActive) << editor.statusMessage;
+    EXPECT_EQ(
+        editor.symbolPopupText,
+        "sizeof(value.callback) = " + std::to_string(sizeof(int (*)())) +
+            " bytes");
 }

@@ -44,7 +44,9 @@ std::optional<DebugTypeLayout> probeMlangSize(
     const std::string& path,
     const std::string& expression,
     int cursorLine,
-    std::string& error)
+    std::string& error,
+    bool functionReturn,
+    int cursorColumn)
 {
     namespace fs = std::filesystem;
     const auto stamp = std::to_string(
@@ -117,6 +119,15 @@ std::optional<DebugTypeLayout> probeMlangSize(
     auto ir = compile();
     if(!ir)
         return {};
+    if(functionReturn)
+    {
+        if(auto result =
+               parseDebugCallReturn(*ir, expression, cursorLine, cursorColumn))
+            return result;
+        error = "mlang could not resolve the function return type for " +
+                expression;
+        return {};
+    }
     if(auto result = parseDebugTypeMetadata(*ir, expression, cursorLine))
         return result;
     // Unused types are not always retained in DWARF. A never-executed function

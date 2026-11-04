@@ -7,4 +7,6 @@ std::optional<DebugTypeLayout> probeMlangSize(
     const std::string& path,
     const std::string& expression,
     int cursorLine,
-    std::string& error);
+    std::string& error,
+    bool functionReturn = false,
+    int cursorColumn = 0);

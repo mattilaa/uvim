@@ -3,6 +3,7 @@
 #include "cpp_navigation_utilities.h"
 #include "cpp_size_probe_options.h"
 #include "cpp_type_layout_probe.h"
+#include "cursor_call.h"
 #include "mlang_size_probe.h"
 #include "process_pipe.h"
 #include "symbol_popup_layout.h"
@@ -1176,11 +1177,18 @@ std::string buildSizePopupText(
     const std::vector<MemberInfo>& members,
     bool complete,
     std::vector<Editor::SizePopupEntry>& entries,
-    bool mlang)
+    bool mlang,
+    bool functionReturn,
+    const std::string& returnType)
 {
     std::ostringstream out;
-    out << (mlang ? "storage(" : "sizeof(") << expression << ") = " << total
-        << " bytes";
+    if(functionReturn)
+        out << "Return value of " << expression << ": " << total << " bytes";
+    else
+        out << (mlang ? "storage(" : "sizeof(") << expression << ") = " << total
+            << " bytes";
+    if(!returnType.empty())
+        out << " | " << returnType;
     entries.push_back({0, expression, 0, total, false});
     int row = 0;
     std::function<void(
@@ -1281,7 +1289,9 @@ void Editor::openSizePopupForCursor()
 
     const std::string cursorExpression =
         cursorExpressionAt(*lines, *cursorY, *cursorX);
-    std::string expression;
+    const auto call =
+        cursorCallAt(*lines, *cursorY, *cursorX, cursorExpression);
+    std::string expression, returnType;
     long long total = 0;
     bool complete = false;
     std::vector<MemberInfo> members;
@@ -1315,7 +1325,60 @@ void Editor::openSizePopupForCursor()
         }
         return result;
     };
-    if(isFileType<FileType::Mla>())
+    if(call)
+    {
+        std::string error;
+        auto layout = isFileType<FileType::Mla>() ? probeMlangSize(
+                                                        *lines,
+                                                        currentBuffer->filename,
+                                                        call->callee,
+                                                        *cursorY + 1,
+                                                        error,
+                                                        true,
+                                                        *cursorX + 1)
+                                                  : probeCppReturnLayout(
+                                                        *lines,
+                                                        currentBuffer->filename,
+                                                        *call,
+                                                        *cursorX,
+                                                        error);
+        if(!layout)
+        {
+            setStatusMessage(
+                "gs: " +
+                (error.empty()
+                     ? "could not resolve the return type for " + call->callee
+                     : error));
+            needsFullRedraw = true;
+            return;
+        }
+        if(layout->typeName == "void")
+        {
+            setStatusMessage(
+                "gs: " + call->callee +
+                " returns void (no return-value storage)");
+            needsFullRedraw = true;
+            return;
+        }
+        expression = call->expression;
+        for(char& ch : expression)
+            if(ch == '\n' || ch == '\r' || ch == '\t')
+                ch = ' ';
+        if(!isFileType<FileType::Mla>())
+            returnType = layout->typeName;
+        total = (layout->sizeBits + 7) / 8;
+        members = convert(layout->members, 0);
+        complete =
+            layout->complete && std::all_of(
+                                    layout->members.begin(),
+                                    layout->members.end(),
+                                    [](const auto& member)
+                                    {
+                                        return member.sizeBits % 8 == 0 &&
+                                               member.offsetBits % 8 == 0;
+                                    });
+    }
+    else if(isFileType<FileType::Mla>())
     {
         expression = cursorExpression.empty() ? symbol : cursorExpression;
         std::string error;
@@ -1428,7 +1491,9 @@ void Editor::openSizePopupForCursor()
         members,
         complete,
         sizePopupEntries,
-        isFileType<FileType::Mla>());
+        isFileType<FileType::Mla>(),
+        call.has_value(),
+        returnType);
     sizePopupBaseText = symbolPopupText;
     sizePopupSelection = 0;
     symbolPopupActive = true;
