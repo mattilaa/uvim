@@ -59,13 +59,24 @@ Inspection requires a stopped process and supports LLDB, GDB, and mladbg:
 :mem pointer
 :mem --count 16 &count
 :p --memory &count
+:ss item
 :layout item
 :p --layout item
 ```
 
 Use `&variable` to read its storage and a pointer value to read the memory it points to. Memory reads default to 64 bytes, with a maximum of 4096. The `m` shortcut in Variables reads the selected variable's own storage.
 
-The Variables `s` shortcut opens a size and padding popup. It includes total storage size, member sizes and offsets, nested layouts, and padding where available. Printing a variable also writes its layout to Output. LLDB/mladbg report alignment when supplied by debug information; GDB uses `ptype /o` for layout and padding.
+Inside the DEBUG view, `:ss item` opens the size and padding popup for an
+expression; bare `:ss` uses the selected variable, as do the Variables `s` / `i`
+shortcuts. It includes total storage size, member sizes and offsets, nested
+layouts, and padding where available. It also shows raw target-memory hex and
+a byte layout map. Ctrl+J/K browses
+members and their hex previews; `j`/`k` scrolls. Known padding appears as blank,
+dim red rows. The popup wraps long text and keeps its terminal-bounded size
+while browsing. See [size and memory layout](Size-and-Memory-Layout.md) for
+source inspection with `:gs`, examples, and memory display limits. Printing a
+variable also writes its layout to Output. LLDB/mladbg report alignment when
+supplied by debug information; GDB uses `ptype /o` for layout and padding.
 
 Nested members include their own sizes and padding, up to four levels and 128 fields. Arrays include element count and stride. Inherited or hidden ABI storage is marked unknown rather than counted as padding.
 

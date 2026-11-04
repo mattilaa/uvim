@@ -93,7 +93,24 @@ Select a variable with `j`/`k` in Variables:
 | `m` | Show the variable's storage as bytes and ASCII in Output |
 | `s` / `i` | Open the size and padding popup |
 
-The size popup reports the whole storage size, member offsets and sizes, and nested layout when debug information supplies it. Scroll with `j`/`k`, Ctrl+J/K, or Page Up/Down; `g`/`G` selects the first/last row. Esc, Enter, or `q` closes it. See [memory and layout inspection](Debugger-Disassembly.md#memory-and-layout) for expression commands and size limitations.
+Inside the DEBUG view, `:ss expression` opens the same popup for an expression;
+bare `:ss` uses the selected variable. The target must be stopped. For example,
+launch with `:dbgrun ./build/app`, set `:b source.cpp:49` after the variable's
+initialization, run `:continue`, and enter `:ss out` when the breakpoint is hit.
+Alternatively, attach with `:dbgattach PID`; Ctrl+C interrupts a running target.
+
+The popup shows total storage, member offsets and sizes, nested layouts,
+padding, raw memory hex, and a byte layout map when available. Ctrl+J/K browses
+members and their hex previews; `j`/`k` or Page Up/Down scrolls; `g`/`G` selects
+the first/last row. Esc, Enter, or `q` closes it. Its viewport stays fixed while
+browsing and wraps text to fit the terminal.
+
+If the normal editor says `ss: pause the debugger and use :ss [expression]`,
+open the debugger view and stop the program before using `:ss`. For source
+inspection without a debugger, put the cursor on a symbol and use `gs` or `:gs`.
+See [size and memory layout](Size-and-Memory-Layout.md) for member tables,
+padding colors, Mlang support, and limits, or [memory and layout
+inspection](Debugger-Disassembly.md#memory-and-layout) for other expression commands.
 
 ## Test programs
 

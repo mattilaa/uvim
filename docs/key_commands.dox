@@ -203,6 +203,13 @@ includes common Normal/Insert/Visual/Command mode bindings.
   `q` or `Esc` closes. Raw memory is capped at 4096 bytes, member previews at
   32 bytes, and the map at 256 bytes. Unreadable or optimized-out values are
   reported as unavailable; padding bytes have unspecified values.
+  Run this command inside the DEBUG view, not the normal editor prompt.
+  Start with `:dbgrun ./build/app` or `:dbgattach PID`, set a breakpoint with
+  `:b source.cpp:49` after initialization, and use `:continue` to reach it.
+  Ctrl-C pauses a running target. Enter `:ss out`, or press `v`, select a
+  variable with `j/k`, and enter bare `:ss`. The normal-editor error
+  `ss: pause the debugger and use :ss [expression]` means the debugger view
+  must be opened first; use `:gs` for source-only inspection.
   Mlang programs compiled with `-g -O0` use the same inspector through LLDB
   or the `mladbg` backend.
   Padding gaps are displayed inline between members in a subdued red tint.
