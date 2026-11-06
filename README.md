@@ -640,6 +640,23 @@ cmake --build build --parallel 8
 
 ### Direct CMake configuration
 
+Select the toolchain in **Target → Compiler** in `uvim-config`, or use
+`--compiler GCC`, `--compiler Clang`, or `--compiler MSVC`. `Auto` leaves the
+choice to CMake. For example, with GCC installed:
+
+```sh
+./build/uvim-config --preset embedded --compiler GCC --build-dir build/gcc
+cmake -C build/gcc/uvim_config_cache.cmake -S . -B build/gcc -G Ninja
+cmake --build build/gcc --target uvim --parallel 4
+```
+
+Use a fresh build directory when changing compilers. Versioned executables
+and cross-compilers can be specified with `--c-compiler` and `--cxx-compiler`
+(also editable under Target). For example, pass `--c-compiler gcc-15
+--cxx-compiler g++-15`. On macOS the GCC selector looks for versioned GNU
+executables because Apple's unversioned `gcc` and `g++` invoke Clang. MSVC
+requires a Visual Studio developer shell when using Ninja.
+
 For the smallest current core editor, use the `embedded` CMake preset
 (CMake 3.20+ and Ninja):
 

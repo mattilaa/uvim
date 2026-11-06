@@ -1221,6 +1221,12 @@ if(UVIM_BUILD_TESTS)
             "-DTEST_DIRECTORY=${CMAKE_CURRENT_BINARY_DIR}/debugger profiles"
             -P ${CMAKE_SOURCE_DIR}/tests/debugger_build_profiles_test.cmake)
 
+    add_test(NAME compiler_build_profiles
+        COMMAND ${CMAKE_COMMAND}
+            "-DUVIM_CONFIG=$<TARGET_FILE:uvim-config>"
+            "-DTEST_DIRECTORY=${CMAKE_CURRENT_BINARY_DIR}/compiler profiles"
+            -P ${CMAKE_SOURCE_DIR}/tests/compiler_build_profiles_test.cmake)
+
     add_test(NAME assembly_build_profiles
         COMMAND ${CMAKE_COMMAND}
             "-DUVIM_CONFIG=$<TARGET_FILE:uvim-config>"

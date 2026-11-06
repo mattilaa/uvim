@@ -256,6 +256,9 @@ struct Config
     int featureSet = 4;
     int buildType = 0;
     int platform = 0;
+    int compiler = 0;
+    std::string cCompiler;
+    std::string cxxCompiler;
     int optimization = 2;
     bool ninjaGenerator = true;
     std::string installDir;
@@ -307,6 +310,8 @@ bool operator==(const Config& lhs, const Config& rhs)
            lhs.platform == rhs.platform &&
            lhs.optimization == rhs.optimization &&
            lhs.ninjaGenerator == rhs.ninjaGenerator &&
+           lhs.compiler == rhs.compiler && lhs.cCompiler == rhs.cCompiler &&
+           lhs.cxxCompiler == rhs.cxxCompiler &&
            lhs.installDir == rhs.installDir && lhs.jobs == rhs.jobs &&
            lhs.logFile == rhs.logFile && lhs.minimal == rhs.minimal &&
            lhs.browserTools == rhs.browserTools &&
@@ -397,6 +402,7 @@ const std::vector<std::string> kFeatureSets =
     {"vi-real", "vi-min", "minimal", "basic", "full", "embedded"};
 const std::vector<std::string> kBuildTypes =
     {"Release", "Debug", "RelWithDebInfo", "MinSizeRel"};
+const std::vector<std::string> kCompilers = {"Auto", "GCC", "Clang", "MSVC"};
 const std::vector<std::string> kPlatforms = {"AUTO", "POSIX", "WIN32"};
 const std::vector<std::string> kOptimizations =
     {"O0", "O1", "O2", "O3", "Os", "Oz"};
@@ -884,6 +890,17 @@ std::vector<Section> make_sections()
            &Config::buildType,
            kBuildTypes,
            "CMake build type. Release is the normal default."},
+          {ItemKind::Choice,
+           "Compiler",
+           "",
+           nullptr,
+           &Config::compiler,
+           kCompilers,
+           "Select Auto, GCC, Clang, or MSVC. Use a fresh build directory when changing compilers. MSVC needs a developer shell."},
+          {ItemKind::Text, "C compiler executable", "", nullptr, nullptr, {},
+           "Optional compiler path or name, for example gcc-15.", &Config::cCompiler},
+          {ItemKind::Text, "C++ compiler executable", "", nullptr, nullptr, {},
+           "Optional compiler path or name, for example g++-15.", &Config::cxxCompiler},
           {ItemKind::Choice,
            "Terminal backend",
            "UVIM_TERMINAL_BACKEND",
@@ -1881,6 +1898,16 @@ bool apply_config_value(
         }
         cfg.buildType = *index;
     }
+    else if(key == "compiler")
+    {
+        auto index = choice_index(value, kCompilers);
+        if(!index) { error = "invalid compiler: " + value; return false; }
+        cfg.compiler = *index;
+    }
+    else if(key == "c_compiler")
+        cfg.cCompiler = value;
+    else if(key == "cxx_compiler")
+        cfg.cxxCompiler = value;
     else if(key == "platform")
     {
         auto index = choice_index(value, kPlatforms);
@@ -2112,6 +2139,9 @@ bool write_config_file(
          << "\n";
     file << "optimization="
          << kOptimizations[static_cast<size_t>(cfg.optimization)] << "\n";
+    file << "compiler=" << kCompilers[cfg.compiler] << "\n";
+    file << "c_compiler=" << cfg.cCompiler << "\n";
+    file << "cxx_compiler=" << cfg.cxxCompiler << "\n";
     file << "ninja_generator=" << bool_value(cfg.ninjaGenerator) << "\n";
     file << "jobs=" << cfg.jobs << "\n";
     file << "install_dir=" << cfg.installDir << "\n";
@@ -2160,12 +2190,83 @@ bool write_config_file(
     return true;
 }
 
+bool selected_compilers(const Config& cfg, std::string& cc, std::string& cxx,
+                        std::string& error)
+{
+    cc = cfg.cCompiler;
+    cxx = cfg.cxxCompiler;
+    std::string defaultC, defaultCxx;
+    if(cfg.compiler == 1)
+    {
+        defaultC = "gcc";
+        defaultCxx = "g++";
+#ifdef __APPLE__
+        // Apple's unversioned gcc/g++ executables are Clang aliases.
+        defaultC.clear();
+        defaultCxx.clear();
+        for(int version = 30; version >= 10; --version)
+        {
+            const auto suffix = "-" + std::to_string(version);
+            if(uvim_config_deps::programExists("gcc" + suffix) &&
+               uvim_config_deps::programExists("g++" + suffix))
+            {
+                defaultC = "gcc" + suffix;
+                defaultCxx = "g++" + suffix;
+                break;
+            }
+        }
+        if((cc.empty() || cxx.empty()) && defaultC.empty())
+        {
+            error = "GCC was not found. On macOS gcc/g++ are Clang aliases. "
+                    "Install GCC or set both compiler executable paths.";
+            return false;
+        }
+#endif
+    }
+    else if(cfg.compiler == 2)
+    {
+        defaultC = "clang";
+        defaultCxx = "clang++";
+    }
+    else if(cfg.compiler == 3)
+    {
+        defaultC = defaultCxx = "cl";
+    }
+    if(cc.empty()) cc = defaultC;
+    if(cxx.empty()) cxx = defaultCxx;
+    return true;
+}
+
 bool write_cache(
     const Config& cfg,
     const std::vector<Section>& sections,
     const CliOptions& options,
     std::string& message)
 {
+    std::string cc, cxx;
+    if(!selected_compilers(cfg, cc, cxx, message))
+        return false;
+    // CMake compiler choices belong to a build directory for its lifetime.
+    std::ifstream existing(options.buildDir / "CMakeCache.txt");
+    std::string cacheLine;
+    while(std::getline(existing, cacheLine))
+    {
+        const auto eq = cacheLine.find('=');
+        if(eq == std::string::npos) continue;
+        const auto name = cacheLine.substr(0, cacheLine.find(':'));
+        const auto& requested = name == "CMAKE_C_COMPILER" ? cc :
+                                name == "CMAKE_CXX_COMPILER" ? cxx : std::string{};
+        if(requested.empty()) continue;
+        const fs::path previous = cacheLine.substr(eq + 1);
+        const fs::path wanted = requested;
+        if((wanted.has_parent_path() && wanted != previous) ||
+           wanted.filename() != previous.filename())
+        {
+            message = "Compiler differs from the configured build. Use a fresh "
+                      "build directory (--build-dir).";
+            return false;
+        }
+    }
     fs::path out = output_path(options);
     std::error_code ec;
     fs::create_directories(out.parent_path(), ec);
@@ -2184,6 +2285,12 @@ bool write_cache(
 
     file << "# Generated by uvim-config. Pass with: "
          << configure_command(cfg, options, out) << "\n";
+    if(!cc.empty())
+        file << "set(CMAKE_C_COMPILER \"" << cmake_string_literal(cc)
+             << "\" CACHE STRING \"\" FORCE)\n";
+    if(!cxx.empty())
+        file << "set(CMAKE_CXX_COMPILER \"" << cmake_string_literal(cxx)
+             << "\" CACHE STRING \"\" FORCE)\n";
     file << "# Runtime uvim log file: " << cfg.logFile << "\n";
     const fs::path installDir =
         expand_user_path(cfg.installDir, fs::absolute(options.sourceDir));
@@ -2207,7 +2314,7 @@ bool write_cache(
     {
         for(const auto& item : section.items)
         {
-            if(item.kind == ItemKind::Choice)
+            if(item.kind == ItemKind::Choice && !item.cmakeName.empty())
             {
                 file << "set(" << item.cmakeName << " \""
                      << cmake_string_literal(item.choices[static_cast<size_t>(
@@ -2261,6 +2368,9 @@ void print_help(std::ostream& out)
         << "  -S, --source-dir DIR        Source directory for the printed "
            "cmake "
            "command.\n"
+        << "      --compiler NAME        Auto, GCC, Clang, or MSVC. Use a fresh build directory.\n"
+        << "      --c-compiler PATH      Override C compiler executable.\n"
+        << "      --cxx-compiler PATH    Override C++ compiler executable.\n"
         << "  -B, --build-dir DIR         Build directory and default cache "
            "output.\n"
         << "      --import FILE           Load uvim-config.conf before later "
@@ -2482,6 +2592,14 @@ bool parse_cli(
             }
             cfg.featureSet = *index;
             apply_feature_set(cfg);
+        }
+        else if(arg == "--compiler" || arg == "--c-compiler" || arg == "--cxx-compiler")
+        {
+            auto value = next_arg(i, argc, argv, arg, error);
+            if(!value) return false;
+            const std::string key = arg == "--compiler" ? "compiler" :
+                arg == "--c-compiler" ? "c_compiler" : "cxx_compiler";
+            if(!apply_config_value(cfg, options, key, std::string(*value), error)) return false;
         }
         else if(arg == "-c" || arg == "--config")
         {
