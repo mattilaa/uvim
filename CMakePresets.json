@@ -1,6 +1,10 @@
 {
   "version": 2,
-  "cmakeMinimumRequired": { "major": 3, "minor": 20, "patch": 0 },
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 20,
+    "patch": 0
+  },
   "configurePresets": [
     {
       "name": "embedded",
@@ -12,6 +16,7 @@
         "CMAKE_BUILD_TYPE": "Release",
         "BUILD_SHARED_LIBS": "OFF",
         "UVIM_MINIMAL": "ON",
+        "UVIM_MLANG_SEMANTIC_TOKENS_DEFAULT": "OFF",
         "UVIM_EMBEDDED_UI": "ON",
         "UVIM_ENABLE_BROWSER_TOOLS": "OFF",
         "UVIM_BUILD_TESTS": "OFF",
@@ -26,6 +31,15 @@
         "UVIM_DEBUG_LOGGING": "OFF",
         "UVIM_DEBUG_LSP": "OFF"
       }
+    },
+    {
+      "name": "embedded-tests",
+      "displayName": "Embedded editor with applicable unit tests",
+      "inherits": "embedded",
+      "binaryDir": "${sourceDir}/build/embedded-tests",
+      "cacheVariables": {
+        "UVIM_BUILD_TESTS": "ON"
+      }
     }
   ],
   "buildPresets": [
@@ -33,7 +47,24 @@
       "name": "embedded",
       "configurePreset": "embedded",
       "configuration": "Release",
-      "targets": ["uvim"]
+      "targets": [
+        "uvim"
+      ]
+    },
+    {
+      "name": "embedded-tests",
+      "configurePreset": "embedded-tests",
+      "configuration": "Release"
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "embedded-tests",
+      "configurePreset": "embedded-tests",
+      "configuration": "Release",
+      "output": {
+        "outputOnFailure": true
+      }
     }
   ]
 }

@@ -285,6 +285,7 @@ struct Config
     bool structSizePopup = true;
     bool colorTools = true;
     bool terminalColors = true;
+    bool embeddedColors = false;
     bool modernKeybindings = true;
     bool multiPaneSplits = true;
     bool perPaneLsp = true;
@@ -323,6 +324,7 @@ bool operator==(const Config& lhs, const Config& rhs)
            lhs.structSizePopup == rhs.structSizePopup &&
            lhs.colorTools == rhs.colorTools &&
            lhs.terminalColors == rhs.terminalColors &&
+           lhs.embeddedColors == rhs.embeddedColors &&
            lhs.modernKeybindings == rhs.modernKeybindings &&
            lhs.multiPaneSplits == rhs.multiPaneSplits &&
            lhs.perPaneLsp == rhs.perPaneLsp && lhs.tests == rhs.tests &&
@@ -653,7 +655,9 @@ void apply_feature_set(Config& cfg)
     cfg.sanitizers = false;
     cfg.debugLogging = false;
     cfg.debugLsp = false;
+    cfg.mlangSemanticTokens = cfg.featureSet != 5;
     cfg.minimal = false;
+    cfg.embeddedColors = false;
     cfg.browserTools = true;
     cfg.auxiliaryViews = true;
     cfg.debugger = cfg.featureSet >= 2;
@@ -1025,6 +1029,13 @@ std::vector<Section> make_sections()
            {},
            "Build switch for :ansitools, :colorpicker, :colorselect, and "
            "leader-cp/cs shortcuts."},
+          {ItemKind::Toggle,
+           "Embedded bar colors",
+           "UVIM_EMBEDDED_COLORS",
+           &Config::embeddedColors,
+           nullptr,
+           {},
+           "White text on dark blue status and tab bars without syntax colors."},
           {ItemKind::Toggle,
            "Terminal colors",
            "UVIM_ENABLE_TERMINAL_COLORS",
@@ -1961,6 +1972,8 @@ bool apply_config_value(
         cfg.structSizePopup = parse_bool(value).value_or(cfg.structSizePopup);
     else if(key == "color_tools")
         cfg.colorTools = parse_bool(value).value_or(cfg.colorTools);
+    else if(key == "embedded_colors")
+        cfg.embeddedColors = parse_bool(value).value_or(cfg.embeddedColors);
     else if(key == "terminal_colors")
         cfg.terminalColors = parse_bool(value).value_or(cfg.terminalColors);
     else if(key == "modern_keybindings")
@@ -2128,6 +2141,7 @@ bool write_config_file(
     file << "system_clipboard=" << bool_value(cfg.systemClipboard) << "\n";
     file << "struct_size_popup=" << bool_value(cfg.structSizePopup) << "\n";
     file << "color_tools=" << bool_value(cfg.colorTools) << "\n";
+    file << "embedded_colors=" << bool_value(cfg.embeddedColors) << "\n";
     file << "terminal_colors=" << bool_value(cfg.terminalColors) << "\n";
     file << "modern_keybindings=" << bool_value(cfg.modernKeybindings) << "\n";
     file << "multi_pane_splits=" << bool_value(cfg.multiPaneSplits) << "\n";
@@ -2273,7 +2287,7 @@ void print_help(std::ostream& out)
            "auxiliary-views, "
            "debugger, asm-view, asm-docs,\n"
         << "  git, search, formatters, clipboard,\n"
-        << "  struct-size, color-tools, terminal-colors, tests, "
+        << "  struct-size, color-tools, terminal-colors, embedded-colors, tests, "
            "compile-commands, "
            "modern-keybindings, multi-pane-splits, per-pane-lsp,\n"
         << "  auto-build-number,\n"
@@ -2357,6 +2371,8 @@ bool set_feature(
         equals_ci(name, "colorpicker") || equals_ci(name, "color-picker") ||
         equals_ci(name, "colorselect") || equals_ci(name, "color-selector"))
         cfg.colorTools = enabled;
+    else if(equals_ci(name, "embedded-colors"))
+        cfg.embeddedColors = enabled;
     else if(
         equals_ci(name, "terminal-colors") ||
         equals_ci(name, "terminal-color") || equals_ci(name, "ui-colors") ||

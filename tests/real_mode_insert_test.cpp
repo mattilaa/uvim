@@ -123,6 +123,7 @@ TEST(RealModeTransitionsTest, InsertModeAutoBracesInStringsDisabled)
     EXPECT_EQ(*editor.cursorX, 2);
 }
 
+#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
 TEST(RealModeTransitionsTest, EmojiAcceptInNormalModeStaysNormal)
 {
     Editor editor = Editor::createForTests();
@@ -151,6 +152,8 @@ TEST(RealModeTransitionsTest, EmojiAcceptInNormalModeStaysNormal)
     EXPECT_EQ(*editor.cursorX, 1);
     EXPECT_STREQ(sm.currentStateName(), "NORMAL");
 }
+
+#endif
 
 TEST(RealModeTransitionsTest, EscFromInsertAfterEmojiMovesToUtf8Boundary)
 {

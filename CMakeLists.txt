@@ -61,6 +61,7 @@ endif()
 
 # Build options
 option(UVIM_MINIMAL "Build a vi-style minimal uvim: no optional popups, LSP, git, fzf/rg search, help, or external integrations; browser tools remain controlled separately" OFF)
+option(UVIM_EMBEDDED_COLORS "White text on dark blue status and tab bars" OFF)
 option(UVIM_EMBEDDED_UI "Use a selection marker gutter instead of line numbers" OFF)
 option(UVIM_ENABLE_BROWSER_TOOLS "Build file and buffer browser views" ON)
 option(UVIM_ENABLE_AUXILIARY_VIEWS "Build auxiliary views and popup tools such as help, loc, lspinfo, glyph select, references, and command output" ON)
@@ -868,6 +869,9 @@ endif()
 if(UVIM_MINIMAL)
     target_compile_definitions(uvim PRIVATE UVIM_MINIMAL=1)
 endif()
+if(UVIM_EMBEDDED_COLORS)
+    target_compile_definitions(uvim PRIVATE UVIM_EMBEDDED_COLORS=1)
+endif()
 if(UVIM_EMBEDDED_UI)
     target_compile_definitions(uvim PRIVATE UVIM_EMBEDDED_UI=1)
 endif()
@@ -1059,6 +1063,20 @@ if(UVIM_BUILD_TESTS)
         tests/js_ts_resolution_test.cpp
         tests/loc_count_test.cpp
     )
+    if(UVIM_MINIMAL)
+        set(UVIM_REAL_MODE_TEST_FILES
+            tests/editor_alternate_file_test.cpp
+            tests/real_mode_comment_test.cpp
+            tests/real_mode_insert_test.cpp
+            tests/real_mode_substitute_test.cpp
+            tests/real_mode_structural_navigation_test.cpp
+            tests/real_mode_undo_test.cpp
+            tests/real_mode_visual_text_object_test.cpp
+            tests/editor_filetype_test.cpp
+            tests/js_ts_resolution_test.cpp
+            tests/loc_count_test.cpp
+        )
+    endif()
     if(UVIM_ENABLE_CLANGD_LSP)
         list(APPEND UVIM_REAL_MODE_TEST_FILES
             tests/lsp_clangd_integration_test.cpp
@@ -1067,6 +1085,9 @@ if(UVIM_BUILD_TESTS)
         add_executable(fake_lsp_server tests/fake_lsp_server.cpp)
         target_include_directories(fake_lsp_server PRIVATE ${CMAKE_SOURCE_DIR}/src)
         target_link_libraries(fake_lsp_server PRIVATE yyjson Threads::Threads)
+    endif()
+    if(UVIM_EMBEDDED_UI)
+        list(APPEND UVIM_REAL_MODE_TEST_FILES tests/embedded_ui_test.cpp)
     endif()
     if(UVIM_ENABLE_ASM_VIEW)
         list(APPEND UVIM_REAL_MODE_TEST_FILES tests/assembly_view_test.cpp)
@@ -1090,6 +1111,8 @@ if(UVIM_BUILD_TESTS)
         ${UVIM_REAL_MODE_TEST_FILES}
         ${UVIM_TEST_SOURCES}
     )
+    # CTest also exercises the configurator's build profiles.
+    add_dependencies(real_mode_transitions_tests uvim-config)
     uvim_enable_sanitizers(real_mode_transitions_tests)
     target_link_libraries(real_mode_transitions_tests PRIVATE
         GTest::gtest_main
@@ -1135,6 +1158,9 @@ if(UVIM_BUILD_TESTS)
     endif()
     if(UVIM_MINIMAL)
         target_compile_definitions(real_mode_transitions_tests PRIVATE UVIM_MINIMAL=1)
+    endif()
+    if(UVIM_EMBEDDED_COLORS)
+        target_compile_definitions(real_mode_transitions_tests PRIVATE UVIM_EMBEDDED_COLORS=1)
     endif()
     if(UVIM_EMBEDDED_UI)
         target_compile_definitions(real_mode_transitions_tests PRIVATE UVIM_EMBEDDED_UI=1)
@@ -1209,7 +1235,7 @@ if(UVIM_BUILD_TESTS)
         PASS_REGULAR_EXPRESSION "^uvim ${_uvim_version_regex} \\(build [0-9]+\\)")
 
     find_package(Python3 COMPONENTS Interpreter QUIET)
-    if(Python3_Interpreter_FOUND)
+    if(Python3_Interpreter_FOUND AND NOT UVIM_MINIMAL)
         add_test(NAME debugger_examples
             COMMAND ${CMAKE_COMMAND}
                 "-DUVIM_PYTHON_EXECUTABLE=${Python3_EXECUTABLE}"

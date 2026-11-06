@@ -690,6 +690,21 @@ enable the desired feature switches (the existing cache retains disabled ones).
 The same profile is available in the `uvim-config` selector and through
 `uvim-config --preset embedded --build-dir build/embedded`.
 
+Enable **Embedded bar colors** in the configurator, or pass
+`--preset embedded --enable embedded-colors`, for white text on dark blue
+status and tab bars. Syntax coloring remains disabled. Direct CMake builds
+can use `-DUVIM_EMBEDDED_COLORS=ON`.
+
+Embedded builds can run the core unit tests. In `uvim-config`, enable **Tests**
+after selecting the embedded preset (`--preset embedded --enable tests`).
+Feature-specific suites for disabled integrations are omitted. Alternatively:
+
+```sh
+cmake --preset embedded-tests -DUVIM_EMBEDDED_COLORS=ON
+cmake --build --preset embedded-tests --parallel 4
+ctest --preset embedded-tests
+```
+
 Advanced builds may bypass `uvim-config` and set the `UVIM_*` CMake options
 directly. For example:
 
