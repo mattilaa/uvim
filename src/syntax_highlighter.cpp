@@ -2203,6 +2203,8 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
     bool inCppFunctionContext,
     bool inCppParamListContext) const
 {
+#if defined(UVIM_ENABLE_TERMINAL_COLORS)
+
     if(!editor)
         return {};
 
@@ -5218,6 +5220,13 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
         }
     }
     return tokens;
+#else
+    (void)line; (void)inBlockComment; (void)inTomlMultiline;
+    (void)tomlQuote; (void)inMarkupFence; (void)markupFenceChar;
+    (void)inCppMethodContext; (void)inCppFunctionContext;
+    (void)inCppParamListContext;
+    return {};
+#endif
 }
 
 void SyntaxHighlighter::renderLineWithSyntax(
@@ -5230,8 +5239,6 @@ void SyntaxHighlighter::renderLineWithSyntax(
     if(!editor || !editor->lines || !editor->cursorX || !editor->cursorY)
         return;
 
-    auto* lines = editor->lines;
-    auto* buffer = editor->currentBuffer;
     const auto& theme = editor->theme;
     auto isInSelection = [&](int row, int col)
     { return editor->isInSelection(row, col); };
@@ -5239,7 +5246,9 @@ void SyntaxHighlighter::renderLineWithSyntax(
     { return editor->isInVisualBlock(row, col); };
     auto isInSearchMatch = [&](int row, int col)
     { return editor->isInSearchMatch(row, col); };
-
+#ifdef UVIM_ENABLE_TERMINAL_COLORS
+    auto* lines = editor->lines;
+    auto* buffer = editor->currentBuffer;
     // fileRow is already the absolute line index in the buffer
     int absoluteLineNum = fileRow;
     const bool isCppLike = isFileType<FileType::Cpp>() ||
@@ -5798,7 +5807,9 @@ void SyntaxHighlighter::renderLineWithSyntax(
             }
         }
     }
-
+#else
+    std::vector<TokenType> charColors(len, TOKEN_NORMAL);
+#endif
     TokenType currentColor = TOKEN_NORMAL;
     for(int x = 0; x < len;)
     {

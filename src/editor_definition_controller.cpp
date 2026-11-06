@@ -430,6 +430,8 @@ void Editor::openAsmDocumentationPopupForCursor()
 
 void EditorDefinitionController::goToDefinition()
 {
+#if !defined(UVIM_MINIMAL)
+
     if(!editor.currentBuffer || !editor.lines || !editor.cursorY ||
        !editor.cursorX)
     {
@@ -498,6 +500,9 @@ void EditorDefinitionController::goToDefinition()
         "gd: '" + symbol +
         "' not found (curY=" + std::to_string(*editor.cursorY) +
         " curX=" + std::to_string(*editor.cursorX) + ")");
+#else
+    editor.setStatusMessage("definition tools disabled in this build");
+#endif
 }
 
 void Editor::goToDefinition()

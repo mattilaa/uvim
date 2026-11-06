@@ -1,3 +1,4 @@
+#include <iostream>
 #include "editor.h"
 #include "ascii.h"
 #include "config_parser.h"
@@ -2254,7 +2255,11 @@ bool Editor::canSplit() const
 
 int Editor::lineNumberWidth() const
 {
+#ifdef UVIM_EMBEDDED_UI
+    return 0;
+#else
     return gitController->lineNumberWidth();
+#endif
 }
 
 int Editor::gitBlameWidth() const
@@ -2264,7 +2269,11 @@ int Editor::gitBlameWidth() const
 
 int Editor::gutterWidth() const
 {
+#ifdef UVIM_EMBEDDED_UI
+    return 1;
+#else
     return gitController->gutterWidth();
+#endif
 }
 
 void Editor::toggleGitBlame(bool includeDateTime)
@@ -2863,6 +2872,8 @@ bool Editor::searchDefinitionInBuffer(
 
 void Editor::openSymbolPopupForCursor()
 {
+#if !defined(UVIM_MINIMAL)
+
     closeSymbolPopup();
     if(!currentBuffer || !lines)
         return;
@@ -3188,6 +3199,9 @@ void Editor::openSymbolPopupForCursor()
     symbolPopupCursorX = *cursorX;
     symbolPopupCursorY = *cursorY;
     needsFullRedraw = true;
+#else
+    setStatusMessage("symbol tools disabled in this build");
+#endif
 }
 
 void Editor::closeSymbolPopup()

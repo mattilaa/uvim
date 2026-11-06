@@ -1,4 +1,6 @@
 #include "editor.h"
+#ifdef UVIM_ENABLE_STRUCT_SIZE_POPUP
+#include "editor.h"
 
 #include "cpp_navigation_utilities.h"
 #include "cpp_size_probe_options.h"
@@ -1557,3 +1559,12 @@ void Editor::browseSizePopup(int delta)
                   layout.maxScroll());
     needsFullRedraw = true;
 }
+
+#else
+void Editor::browseSizePopup(int) {}
+
+void Editor::openSizePopupForCursor()
+{
+    setStatusMessage("size probes disabled in this build");
+}
+#endif

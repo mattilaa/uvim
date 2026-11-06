@@ -1,13 +1,18 @@
 #include "asm_documentation.h"
 #include "editor.h"
+#ifdef UVIM_ENABLE_CLANGD_SERVER_LSP
 #include "json_utils.h"
+#include <atomic>
+#include <thread>
+#include <unordered_map>
+#include <unordered_set>
+#endif
 #include "log.h"
 #include "os_compat.h"
 #include "text_utils.h"
 #include "theme.h"
 #include <algorithm>
 #include <array>
-#include <atomic>
 #include <cctype>
 #include <chrono>
 #include <clocale>
@@ -18,9 +23,6 @@
 #include <string>
 #include <string_view>
 #include <system_error>
-#include <thread>
-#include <unordered_map>
-#include <unordered_set>
 #include <vector>
 
 #include <filesystem>
@@ -101,8 +103,10 @@ static fs::path determine_browse_root(const std::vector<std::string>& args)
     return base;
 }
 
-namespace ju = json_utils;
 [[noreturn]] static void die(std::string_view msg, std::string_view arg = {});
+
+#ifdef UVIM_ENABLE_CLANGD_SERVER_LSP
+namespace ju = json_utils;
 
 static bool is_ascii_alpha(char ch)
 {
@@ -602,6 +606,8 @@ private:
     std::vector<fs::path> lastSources_;
     std::unordered_map<std::string, fs::file_time_type> lastWriteTimes_;
 };
+
+#endif
 
 [[noreturn]] static void die(std::string_view msg, std::string_view arg)
 {
@@ -1647,6 +1653,7 @@ struct EditorSettings
 
     void applyLspSettings(Editor& editor) const
     {
+#ifdef UVIM_ENABLE_CLANGD_LSP
         const bool autoDetect = editor.autoDetectLsps;
         auto binary_exists = [&](const std::string& path) -> bool
         {
@@ -2181,6 +2188,9 @@ struct EditorSettings
                  args = split_args(csharpLspArgs)]
                 { editor.enableCSharpLsp(true, path, args); });
         }
+#else
+        (void)editor;
+#endif
     }
 
     void apply(Editor& editor, bool skipAutoDetectStartup = false) const
@@ -2290,10 +2300,12 @@ int main(int argc, char* argv[])
 
     // Logging is compiled in only for UVIM_DEBUG_LOGGING or UVIM_DEBUG_LSP
     // builds.
+#if defined(UVIM_DEBUG_LOGGING) || defined(UVIM_DEBUG_LSP)
     if(!opts.logFile.empty())
     {
         mla::log::setLogFilePath(opts.logFile);
     }
+#endif
 #ifdef UVIM_DEBUG_LOGGING
     if(opts.logColors)
     {
@@ -2323,6 +2335,7 @@ int main(int argc, char* argv[])
     fs::path workspaceRoot = find_workspace_root(opts.args);
     editor.setProjectRoot(workspaceRoot.string());
     EditorSettings settings = EditorSettings::fromOptions(opts);
+#ifdef UVIM_ENABLE_CLANGD_SERVER_LSP
     std::string sourceCcdir = settings.ccdir;
     fs::path clangdCcOutputRoot =
         settings.ccWindowsToWsl ? startupDir : workspaceRoot;
@@ -2369,6 +2382,7 @@ int main(int argc, char* argv[])
         settings.ccCollectAll,
         settings.ccWindowsToWsl);
     ccSyncer.start();
+#endif
     settings.apply(editor);
 
     if(!opts.args.empty())

@@ -392,7 +392,7 @@ struct VisibleRow
 };
 
 const std::vector<std::string> kFeatureSets =
-    {"vi-real", "vi-min", "minimal", "basic", "full"};
+    {"vi-real", "vi-min", "minimal", "basic", "full", "embedded"};
 const std::vector<std::string> kBuildTypes =
     {"Release", "Debug", "RelWithDebInfo", "MinSizeRel"};
 const std::vector<std::string> kPlatforms = {"AUTO", "POSIX", "WIN32"};
@@ -659,10 +659,13 @@ void apply_feature_set(Config& cfg)
     cfg.debugger = cfg.featureSet >= 2;
     cfg.asmView = false;
 
-    if(cfg.featureSet == 0)
+    if(cfg.featureSet == 0 || cfg.featureSet == 5)
     {
         cfg.minimal = true;
-        cfg.browserTools = true;
+        cfg.browserTools = cfg.featureSet != 5;
+        cfg.debugger = false;
+        if(cfg.featureSet == 5)
+            cfg.staticLink = false;
         cfg.auxiliaryViews = false;
         cfg.optimization = 5;
         cfg.clangdLsp = false;
@@ -837,7 +840,8 @@ std::vector<Section> make_sections()
 {
     return {
         {"Presets",
-         "High-level build profiles. vi-real is the strictest vi-style build: "
+         "High-level build profiles. embedded is the smallest core build, "
+         "with browsers disabled. vi-real is a vi-style build: "
          "the editor core, welcome screen, tabs, and built-in file/buffer "
          "browser are kept. vi-min keeps the same browser tools while adding "
          "a few small conveniences, but keeps external tools and optional "
@@ -849,7 +853,9 @@ std::vector<Section> make_sections()
            nullptr,
            nullptr,
            {},
-           "vi-real is a hard minimal build that keeps file/buffer browser "
+           "embedded uses the hard minimal build without browsers, with Oz, "
+           "LTO, dead-code removal, and stripping. vi-real is a hard minimal "
+           "build that keeps file/buffer browser "
            "support but compiles out optional popups, help views, LSP, git, "
            "fzf/rg-style search views, formatters, clipboard, color tools, "
            "terminal colors, and struct-size probes. It also disables "
@@ -1259,6 +1265,13 @@ std::string preset_help(const Config& cfg)
 {
     const std::string_view preset =
         kFeatureSets[static_cast<size_t>(cfg.featureSet)];
+    if(cfg.featureSet == 5)
+    {
+        return "embedded keeps core modal editing, file I/O, undo, tabs, and "
+               "built-in search. Browsers and optional integrations are "
+               "compiled out. Uses Release, Oz, LTO, dead-code removal, and "
+               "stripping; tests, logging, and static linking are disabled.";
+    }
     if(cfg.featureSet == 0)
     {
         return std::string(preset) +
@@ -2169,6 +2182,8 @@ bool write_cache(
          << cmake_string_literal(installDir.string())
          << "\" CACHE STRING \"\" FORCE)\n";
     file << "set(UVIM_MINIMAL " << (cfg.minimal ? "ON" : "OFF")
+         << " CACHE BOOL \"\" FORCE)\n";
+    file << "set(UVIM_EMBEDDED_UI " << (cfg.featureSet == 5 ? "ON" : "OFF")
          << " CACHE BOOL \"\" FORCE)\n";
     file << "set(UVIM_ENABLE_BROWSER_TOOLS "
          << (cfg.browserTools ? "ON" : "OFF") << " CACHE BOOL \"\" FORCE)\n";

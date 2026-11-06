@@ -20,7 +20,7 @@ function(check_profile name expected)
     endif()
 endfunction()
 
-foreach(preset IN ITEMS vi-real vi-min)
+foreach(preset IN ITEMS vi-real vi-min embedded)
     check_profile("${preset}" OFF --preset "${preset}")
 endforeach()
 foreach(preset IN ITEMS minimal basic full)

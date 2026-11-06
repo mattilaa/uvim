@@ -34,7 +34,7 @@ std::optional<ModeState> FuzzyFindMode::handle(
     return exitMode(ctx);
 }
 
-void FuzzyFindMode::draw(Editor& editor) const
+void FuzzyFindMode::draw(Editor& editor, bool) const
 {
     editor.setStatusMessage("search tools disabled in this build");
 }

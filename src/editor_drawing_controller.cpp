@@ -574,6 +574,13 @@ void EditorDrawingController::refreshScreen()
 void EditorDrawingController::updateCursorPosition(bool flushNow)
 {
     int cursorRow, cursorCol;
+#ifdef UVIM_ENABLE_BROWSER_TOOLS
+    const bool fileBrowserState =
+        editor.modeStateMachine &&
+        editor.modeStateMachine->getState<FileBrowserMode>() != nullptr;
+#else
+    const bool fileBrowserState = false;
+#endif
 
     if(editor.currentMode == COMMAND || editor.currentMode == SEARCH_FORWARD ||
        editor.currentMode == SEARCH_BACKWARD)
@@ -589,9 +596,6 @@ void EditorDrawingController::updateCursorPosition(bool flushNow)
     else
     {
         Editor::PaneLayout layout = editor.getPaneLayout(editor.activePane);
-        const bool fileBrowserState =
-            editor.modeStateMachine &&
-            editor.modeStateMachine->getState<FileBrowserMode>() != nullptr;
         if(editor.currentMode == FILE_BROWSER || fileBrowserState)
         {
             cursorRow = layout.y + 1;
@@ -630,9 +634,6 @@ void EditorDrawingController::updateCursorPosition(bool flushNow)
     }
 
     Terminal::write(Terminal::cursorPos(cursorRow, cursorCol));
-    const bool fileBrowserState =
-        editor.modeStateMachine &&
-        editor.modeStateMachine->getState<FileBrowserMode>() != nullptr;
     bool hideCursor =
         (editor.currentMode == VISUAL || editor.currentMode == VISUAL_LINE ||
          editor.currentMode == VISUAL_BLOCK ||

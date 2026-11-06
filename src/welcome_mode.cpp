@@ -194,16 +194,26 @@ void WelcomeMode::draw(Editor& editor) const
         {":q!<Enter>", "Quit without saving"},
         {":wa<Enter>", "Save all buffers"},
         {":qw<Enter>", "Save all buffers and quit"},
+#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
         {":help", "Open help page (supports fuzzy find)"},
+#endif
     };
 
     std::vector<Item> keys = {
+#ifdef UVIM_ENABLE_BROWSER_TOOLS
         {"<Leader>x", "Open file browser"},
+#endif
         {"i", "Enter insert mode / start editing an empty file"},
         {":", "Command mode"},
+#ifdef UVIM_ENABLE_SEARCH_TOOLS
         {"Ctrl-P", "Fuzzy find files"},
+#endif
+#ifdef UVIM_ENABLE_BROWSER_TOOLS
         {"Ctrl-W", "Buffer browser"},
+#endif
+#ifdef UVIM_ENABLE_SEARCH_TOOLS
         {"Ctrl-A", "Search in files (grep)"},
+#endif
     };
 
     auto append_items = [&](const std::vector<Item>& items)
