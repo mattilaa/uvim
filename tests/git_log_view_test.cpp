@@ -204,7 +204,7 @@ TEST(GitLogCommandTest, InteractiveRebaseStartsAtMainCommitWithFixup)
         run_cmd_line({"git", "-C", root, "rev-parse", "HEAD"});
     write_file(repo / "notes.txt", "root\nbase\nfixup\n");
     ASSERT_EQ(run_cmd("git -C \"" + root +
-                      "\" commit -qam 'fixup! base'"), 0);
+                      "\" commit -qam \"fixup! base\""), 0);
 
     Editor editor = Editor::createForTests();
     editor.setProjectRoot(root);
