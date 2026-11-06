@@ -298,6 +298,13 @@ void Theme::rebuildSequences()
     match_highlight_seq_.clear();
     for(auto& seq : syntax_seq_)
         seq.clear();
+#ifdef UVIM_EMBEDDED_COLORS
+    reset_seq_ = "\x1b[0m";
+    base_fg_seq_ = reset_seq_;
+    base_seq_ = reset_seq_;
+    status_bar_seq_ = "\x1b[0;38;2;255;255;255;48;2;0;0;64m";
+    tab_bar_seq_ = status_bar_seq_;
+#endif
     return;
 #endif
 

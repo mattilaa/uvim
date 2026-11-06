@@ -223,6 +223,7 @@ TEST(
     EXPECT_EQ(*editor.cursorX, 10);
 }
 
+#ifndef UVIM_MINIMAL
 TEST(
     RealModeTransitionsTest,
     ChangeInnerQuoteCancelsCompletionBeforeUppercaseTAndBackspace)
@@ -252,6 +253,8 @@ TEST(
     EXPECT_EQ(editor.currentBuffer->lines[0], "println!(\"\");");
     EXPECT_EQ(*editor.cursorX, 10);
 }
+
+#endif
 
 TEST(RealModeTransitionsTest, OperatorPendingCapitalTWaitsWithoutBlocking)
 {

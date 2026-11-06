@@ -1,0 +1,70 @@
+{
+  "version": 2,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 20,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "embedded",
+      "displayName": "Smallest core editor",
+      "description": "Core vi-style editor with optional features and browsers disabled, optimized for binary size.",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/embedded",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "BUILD_SHARED_LIBS": "OFF",
+        "UVIM_MINIMAL": "ON",
+        "UVIM_MLANG_SEMANTIC_TOKENS_DEFAULT": "OFF",
+        "UVIM_EMBEDDED_UI": "ON",
+        "UVIM_ENABLE_BROWSER_TOOLS": "OFF",
+        "UVIM_BUILD_TESTS": "OFF",
+        "UVIM_EXPORT_COMPILE_COMMANDS": "OFF",
+        "UVIM_AUTO_INCREMENT_BUILD": "OFF",
+        "UVIM_OPTIMIZATION_LEVEL": "Oz",
+        "UVIM_ENABLE_LTO": "ON",
+        "UVIM_ENABLE_GC_SECTIONS": "ON",
+        "UVIM_STRIP_BINARY": "ON",
+        "UVIM_STATIC_LINK": "OFF",
+        "UVIM_ENABLE_SANITIZERS": "OFF",
+        "UVIM_DEBUG_LOGGING": "OFF",
+        "UVIM_DEBUG_LSP": "OFF"
+      }
+    },
+    {
+      "name": "embedded-tests",
+      "displayName": "Embedded editor with applicable unit tests",
+      "inherits": "embedded",
+      "binaryDir": "${sourceDir}/build/embedded-tests",
+      "cacheVariables": {
+        "UVIM_BUILD_TESTS": "ON"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "embedded",
+      "configurePreset": "embedded",
+      "configuration": "Release",
+      "targets": [
+        "uvim"
+      ]
+    },
+    {
+      "name": "embedded-tests",
+      "configurePreset": "embedded-tests",
+      "configuration": "Release"
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "embedded-tests",
+      "configurePreset": "embedded-tests",
+      "configuration": "Release",
+      "output": {
+        "outputOnFailure": true
+      }
+    }
+  ]
+}

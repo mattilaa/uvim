@@ -12,6 +12,23 @@
 
 namespace
 {
+#ifdef UVIM_EMBEDDED_UI
+char selectionMarker(Editor& editor, int row)
+{
+    if(!editor.currentBuffer || !editor.lines || row < 0 ||
+       row >= static_cast<int>(editor.lines->size()))
+        return ' ';
+    int startY, startX, endY, endX;
+    if(editor.currentMode == VISUAL_BLOCK)
+        editor.getVisualBlockBounds(startY, startX, endY, endX);
+    else if(editor.currentMode == VISUAL || editor.currentMode == VISUAL_LINE)
+        editor.getSelectionBounds(startY, startX, endY, endX);
+    else
+        return ' ';
+    return row >= startY && row <= endY ? '>' : ' ';
+}
+#endif
+
 void writeGitBlameField(const Theme& theme, std::string_view blame, int width)
 {
     Terminal::write(theme.uiDim());
@@ -111,6 +128,7 @@ int displayColumnFromByteRange(
         line.substr((std::size_t)start, (std::size_t)(end - start)));
 }
 
+#ifdef UVIM_ENABLE_BROWSER_TOOLS
 std::string fitToWidth(std::string text, int width)
 {
     if(width <= 0)
@@ -228,6 +246,7 @@ std::string renderFileBrowserPaneRow(
     row += theme.reset();
     return row;
 }
+#endif
 } // namespace
 
 std::string Editor::buildTabBarLine(int width)
@@ -378,6 +397,10 @@ void Editor::drawRows()
 
         auto renderGutter = [&](int row)
         {
+#ifdef UVIM_EMBEDDED_UI
+            Terminal::write(selectionMarker(*this, row));
+            return;
+#endif
             if(showGitBlame)
             {
                 std::string blame = blameDisplayForLine(row);
@@ -554,6 +577,10 @@ void Editor::drawScrollUpdate(int scrollDelta)
 
     auto appendGutter = [&](int row)
     {
+#ifdef UVIM_EMBEDDED_UI
+        output += selectionMarker(*this, row);
+        return;
+#endif
         if(showGitBlame)
         {
             std::string blame = blameDisplayForLine(row);
@@ -991,6 +1018,10 @@ void Editor::drawGutterQuick()
 
     auto appendGutter = [&](int row)
     {
+#ifdef UVIM_EMBEDDED_UI
+        output += selectionMarker(*this, row);
+        return;
+#endif
         if(showGitBlame)
         {
             std::string blame = blameDisplayForLine(row);
@@ -1105,6 +1136,10 @@ void Editor::drawFullScreenSingle()
 
     auto appendGutter = [&](int row)
     {
+#ifdef UVIM_EMBEDDED_UI
+        output += selectionMarker(*this, row);
+        return;
+#endif
         if(showGitBlame)
         {
             std::string blame = blameDisplayForLine(row);
@@ -1334,6 +1369,7 @@ void Editor::drawSplitFullScreen()
         layouts[pane] = getPaneLayout(pane);
         int rows = std::max(1, layouts[pane].rows - tabRows);
         int cols = std::max(1, layouts[pane].cols - gutterWidth());
+#ifdef UVIM_ENABLE_BROWSER_TOOLS
         bool browserPane = false;
         if(modeStateMachine)
         {
@@ -1346,6 +1382,7 @@ void Editor::drawSplitFullScreen()
             }
         }
         if(!browserPane)
+#endif
             adjustViewportForPane(splitPanes[pane], rows, cols);
     }
 
@@ -1475,6 +1512,7 @@ void Editor::drawSplitFullScreen()
         getClangdDiagnosticsByLine();
 #endif
 
+#ifdef UVIM_ENABLE_BROWSER_TOOLS
     if(modeStateMachine)
     {
         if(auto* browser =
@@ -1485,6 +1523,7 @@ void Editor::drawSplitFullScreen()
                 browser->savePaneState(activePane);
         }
     }
+#endif
 
     auto renderPaneRow =
         [&](int pane, int localRow, int paneWidth) -> std::string
@@ -1499,6 +1538,7 @@ void Editor::drawSplitFullScreen()
             return row;
         }
 
+#ifdef UVIM_ENABLE_BROWSER_TOOLS
         if(modeStateMachine)
         {
             if(auto* browser =
@@ -1544,6 +1584,7 @@ void Editor::drawSplitFullScreen()
             }
         }
 
+#endif
         if(tabRows > 0 && localRow == 0)
         {
             const std::string& tabLine = tabLines[pane];
@@ -1574,6 +1615,10 @@ void Editor::drawSplitFullScreen()
 
         auto appendGutter = [&](int rowIndex)
         {
+#ifdef UVIM_EMBEDDED_UI
+            row += selectionMarker(*this, rowIndex);
+            return;
+#endif
             if(showGitBlame)
             {
                 std::string blame = blameDisplayForLine(rowIndex);
@@ -1828,6 +1873,7 @@ void Editor::drawSplitFullScreen()
     std::string displayName =
         (filename && !filename->empty()) ? *filename : "[No Name]";
     std::string rightStatus;
+#ifdef UVIM_ENABLE_BROWSER_TOOLS
     if(modeStateMachine)
     {
         if(auto* browser =
@@ -1856,6 +1902,7 @@ void Editor::drawSplitFullScreen()
                               : browser->currentDirectory;
         }
     }
+#endif
     if(rightStatus.empty())
     {
         int lineCount = std::max(1, lines ? (int)lines->size() : 0);

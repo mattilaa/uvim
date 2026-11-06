@@ -238,6 +238,7 @@ void Editor::serviceTasks()
     }
 }
 
+#ifdef UVIM_ENABLE_RG_CACHE
 void Editor::cancelRgCacheIndexing()
 {
     ++rgCacheGeneration;
@@ -247,6 +248,8 @@ void Editor::cancelRgCacheIndexing()
         rgCacheIndexTask = 0;
     }
 }
+
+#endif
 
 widgets::PickerLayout Editor::pickerLayout(bool previewWanted) const
 {

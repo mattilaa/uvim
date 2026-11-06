@@ -1,4 +1,5 @@
 #pragma once
+#if !defined(UVIM_MINIMAL) || defined(UVIM_DEBUG_LOGGING) || defined(UVIM_DEBUG_LSP)
 #include <chrono>
 #include <cstdlib>
 #include <ctime>
@@ -184,6 +185,19 @@ private:
 using StdLogger = FileLogger;
 
 } // namespace mla::log
+#else
+#include <string_view>
+namespace mla::log
+{
+class FileLogger
+{
+public:
+    FileLogger(std::string_view = "") {}
+    FileLogger(const FileLogger&, std::string_view) {}
+};
+using StdLogger = FileLogger;
+} // namespace mla::log
+#endif
 
 #if defined(UVIM_DEBUG_LOGGING) || defined(UVIM_DEBUG_LSP)
 

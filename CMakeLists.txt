@@ -61,6 +61,8 @@ endif()
 
 # Build options
 option(UVIM_MINIMAL "Build a vi-style minimal uvim: no optional popups, LSP, git, fzf/rg search, help, or external integrations; browser tools remain controlled separately" OFF)
+option(UVIM_EMBEDDED_COLORS "White text on dark blue status and tab bars" OFF)
+option(UVIM_EMBEDDED_UI "Use a selection marker gutter instead of line numbers" OFF)
 option(UVIM_ENABLE_BROWSER_TOOLS "Build file and buffer browser views" ON)
 option(UVIM_ENABLE_AUXILIARY_VIEWS "Build auxiliary views and popup tools such as help, loc, lspinfo, glyph select, references, and command output" ON)
 option(UVIM_ENABLE_CLANGD_LSP "Build uvim with clangd LSP support" OFF)
@@ -245,7 +247,6 @@ set(UVIM_CORE_SOURCES
     src/editor_execution_show_size_command.cpp
     src/editor_execution_set_command.cpp
     src/editor_execution_split_command.cpp
-    src/editor_execution_split_explorer_command.cpp
     src/editor_execution_tab_new_command.cpp
     src/editor_execution_tab_next_command.cpp
     src/editor_execution_tab_previous_command.cpp
@@ -318,7 +319,6 @@ set(UVIM_CORE_SOURCES
     src/syntax_highlighter.cpp
     src/undo_redo.cpp
     src/drawing.cpp
-    src/lsp_completion.cpp
     src/cpp_navigation_utilities.cpp
     src/mlang_utilities.cpp
     src/robot_utilities.cpp
@@ -329,20 +329,24 @@ set(UVIM_CORE_SOURCES
     src/widgets/status_bar.cpp
     src/widgets/progress_bar.cpp
     src/widgets/picker_frame.cpp
+    src/widgets/popup_base.cpp
     src/task_queue.cpp
     src/editor_tasks.cpp
 )
 
 if(NOT UVIM_MINIMAL)
     list(APPEND UVIM_CORE_SOURCES
+        src/lsp_completion.cpp
         src/widgets/command_popup.cpp
         src/widgets/command_history_popup.cpp
-        src/widgets/popup_base.cpp
     )
+else()
+    list(APPEND UVIM_CORE_SOURCES src/lsp_completion_stub.cpp)
 endif()
 
 if(UVIM_ENABLE_BROWSER_TOOLS)
     list(APPEND UVIM_CORE_SOURCES
+        src/editor_execution_split_explorer_command.cpp
         src/editor_view_buffer_browser.cpp
         src/editor_execution_functions_command.cpp
         src/editor_view_file_browser.cpp
@@ -701,15 +705,32 @@ target_compile_definitions(uvim PRIVATE
 )
 
 if(MSVC)
+    set(_uvim_release_optimization /O2)
+    if(UVIM_OPTIMIZATION_LEVEL MATCHES "^O[sz]$")
+        set(_uvim_release_optimization /O1)
+    endif()
     target_compile_options(uvim PRIVATE
-        $<$<CONFIG:Release>:/O2>
+        $<$<CONFIG:Release>:${_uvim_release_optimization}>
     )
+    if(UVIM_ENABLE_GC_SECTIONS)
+        target_compile_options(uvim PRIVATE $<$<CONFIG:Release>:/Gy> $<$<CONFIG:Release>:/Gw>)
+        target_link_options(uvim PRIVATE $<$<CONFIG:Release>:/OPT:REF> $<$<CONFIG:Release>:/OPT:ICF>)
+    endif()
 else()
     if(NOT UVIM_OPTIMIZATION_LEVEL MATCHES "^(O0|O1|O2|O3|Os|Oz)$")
         message(FATAL_ERROR "Invalid UVIM_OPTIMIZATION_LEVEL='${UVIM_OPTIMIZATION_LEVEL}'. Use O0, O1, O2, O3, Os, or Oz.")
     endif()
+    set(_uvim_release_optimization -${UVIM_OPTIMIZATION_LEVEL})
+    if(UVIM_OPTIMIZATION_LEVEL STREQUAL "Oz")
+        include(CheckCXXCompilerFlag)
+        check_cxx_compiler_flag(-Oz UVIM_COMPILER_SUPPORTS_OZ)
+        if(NOT UVIM_COMPILER_SUPPORTS_OZ)
+            set(_uvim_release_optimization -Os)
+            message(STATUS "Compiler does not support -Oz; using -Os")
+        endif()
+    endif()
     target_compile_options(uvim PRIVATE
-        $<$<CONFIG:Release>:-${UVIM_OPTIMIZATION_LEVEL}>
+        $<$<CONFIG:Release>:${_uvim_release_optimization}>
     )
     if(UVIM_ENABLE_GC_SECTIONS)
         target_compile_options(uvim PRIVATE
@@ -733,6 +754,8 @@ if(UVIM_ENABLE_LTO)
     include(CheckIPOSupported)
     check_ipo_supported(RESULT ipo_supported OUTPUT ipo_error)
     if(ipo_supported)
+        # uvim already exists, so the directory default alone does not enable IPO.
+        set_property(TARGET uvim PROPERTY INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
         set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
     else()
         message(WARNING "UVIM_ENABLE_LTO=ON requested, but IPO is not supported: ${ipo_error}")
@@ -743,7 +766,7 @@ if(UVIM_STRIP_BINARY)
     if(CMAKE_STRIP AND NOT MSVC)
         if(APPLE)
             add_custom_command(TARGET uvim POST_BUILD
-                COMMAND ${CMAKE_STRIP} -x $<TARGET_FILE:uvim>
+                COMMAND ${CMAKE_STRIP} -u -r $<TARGET_FILE:uvim>
                 COMMENT "Stripping uvim binary"
             )
         else()
@@ -758,16 +781,23 @@ if(UVIM_STRIP_BINARY)
 endif()
 
 # yyjson (JSON parsing)
-add_library(yyjson STATIC third_party/yyjson/yyjson.c)
+add_library(yyjson STATIC EXCLUDE_FROM_ALL third_party/yyjson/yyjson.c)
 target_include_directories(yyjson PUBLIC ${CMAKE_SOURCE_DIR}/third_party/yyjson)
 
 function(uvim_target_link_yyjson target_name)
     target_link_libraries(${target_name} PRIVATE yyjson)
 endfunction()
 
-uvim_target_link_yyjson(uvim)
+if(NOT UVIM_MINIMAL)
+    uvim_target_link_yyjson(uvim)
+else()
+    # Some shared utility declarations still include JSON headers, but no JSON
+    # implementation is reachable in the minimal executable.
+    target_include_directories(uvim PRIVATE ${CMAKE_SOURCE_DIR}/third_party/yyjson)
+endif()
 
 #fmt (formatting library)
+if(NOT UVIM_MINIMAL OR UVIM_DEBUG_LOGGING OR UVIM_DEBUG_LSP OR UVIM_BUILD_TESTS)
 include(FetchContent)
 FetchContent_Declare(
   fmt
@@ -786,7 +816,24 @@ endif()
 
 FetchContent_MakeAvailable(fmt)
 
-target_link_libraries(uvim PRIVATE fmt::fmt)
+if(NOT UVIM_MINIMAL OR UVIM_DEBUG_LOGGING OR UVIM_DEBUG_LSP)
+    target_link_libraries(uvim PRIVATE fmt::fmt)
+endif()
+endif()
+
+# Keep bundled libraries size-oriented too when building a small executable.
+if(UVIM_OPTIMIZATION_LEVEL MATCHES "^O[sz]$")
+    if(TARGET fmt)
+        target_compile_options(fmt PRIVATE
+            $<$<CONFIG:Release>:${_uvim_release_optimization}>)
+    endif()
+    # -Os is also accepted by older C compilers that do not implement -Oz.
+    if(MSVC)
+        target_compile_options(yyjson PRIVATE $<$<CONFIG:Release>:/O1>)
+    else()
+        target_compile_options(yyjson PRIVATE $<$<CONFIG:Release>:-Os>)
+    endif()
+endif()
 
 # Background workers (progress-tracked operations, rg cache indexing) need
 # threads regardless of which optional features are enabled.
@@ -821,6 +868,12 @@ endif()
 
 if(UVIM_MINIMAL)
     target_compile_definitions(uvim PRIVATE UVIM_MINIMAL=1)
+endif()
+if(UVIM_EMBEDDED_COLORS)
+    target_compile_definitions(uvim PRIVATE UVIM_EMBEDDED_COLORS=1)
+endif()
+if(UVIM_EMBEDDED_UI)
+    target_compile_definitions(uvim PRIVATE UVIM_EMBEDDED_UI=1)
 endif()
 if(UVIM_ENABLE_BROWSER_TOOLS)
     target_compile_definitions(uvim PRIVATE UVIM_ENABLE_BROWSER_TOOLS=1)
@@ -1010,6 +1063,20 @@ if(UVIM_BUILD_TESTS)
         tests/js_ts_resolution_test.cpp
         tests/loc_count_test.cpp
     )
+    if(UVIM_MINIMAL)
+        set(UVIM_REAL_MODE_TEST_FILES
+            tests/editor_alternate_file_test.cpp
+            tests/real_mode_comment_test.cpp
+            tests/real_mode_insert_test.cpp
+            tests/real_mode_substitute_test.cpp
+            tests/real_mode_structural_navigation_test.cpp
+            tests/real_mode_undo_test.cpp
+            tests/real_mode_visual_text_object_test.cpp
+            tests/editor_filetype_test.cpp
+            tests/js_ts_resolution_test.cpp
+            tests/loc_count_test.cpp
+        )
+    endif()
     if(UVIM_ENABLE_CLANGD_LSP)
         list(APPEND UVIM_REAL_MODE_TEST_FILES
             tests/lsp_clangd_integration_test.cpp
@@ -1018,6 +1085,9 @@ if(UVIM_BUILD_TESTS)
         add_executable(fake_lsp_server tests/fake_lsp_server.cpp)
         target_include_directories(fake_lsp_server PRIVATE ${CMAKE_SOURCE_DIR}/src)
         target_link_libraries(fake_lsp_server PRIVATE yyjson Threads::Threads)
+    endif()
+    if(UVIM_EMBEDDED_UI)
+        list(APPEND UVIM_REAL_MODE_TEST_FILES tests/embedded_ui_test.cpp)
     endif()
     if(UVIM_ENABLE_ASM_VIEW)
         list(APPEND UVIM_REAL_MODE_TEST_FILES tests/assembly_view_test.cpp)
@@ -1041,6 +1111,8 @@ if(UVIM_BUILD_TESTS)
         ${UVIM_REAL_MODE_TEST_FILES}
         ${UVIM_TEST_SOURCES}
     )
+    # CTest also exercises the configurator's build profiles.
+    add_dependencies(real_mode_transitions_tests uvim-config)
     uvim_enable_sanitizers(real_mode_transitions_tests)
     target_link_libraries(real_mode_transitions_tests PRIVATE
         GTest::gtest_main
@@ -1086,6 +1158,12 @@ if(UVIM_BUILD_TESTS)
     endif()
     if(UVIM_MINIMAL)
         target_compile_definitions(real_mode_transitions_tests PRIVATE UVIM_MINIMAL=1)
+    endif()
+    if(UVIM_EMBEDDED_COLORS)
+        target_compile_definitions(real_mode_transitions_tests PRIVATE UVIM_EMBEDDED_COLORS=1)
+    endif()
+    if(UVIM_EMBEDDED_UI)
+        target_compile_definitions(real_mode_transitions_tests PRIVATE UVIM_EMBEDDED_UI=1)
     endif()
     if(UVIM_ENABLE_BROWSER_TOOLS)
         target_compile_definitions(real_mode_transitions_tests PRIVATE UVIM_ENABLE_BROWSER_TOOLS=1)
@@ -1143,6 +1221,12 @@ if(UVIM_BUILD_TESTS)
             "-DTEST_DIRECTORY=${CMAKE_CURRENT_BINARY_DIR}/debugger profiles"
             -P ${CMAKE_SOURCE_DIR}/tests/debugger_build_profiles_test.cmake)
 
+    add_test(NAME compiler_build_profiles
+        COMMAND ${CMAKE_COMMAND}
+            "-DUVIM_CONFIG=$<TARGET_FILE:uvim-config>"
+            "-DTEST_DIRECTORY=${CMAKE_CURRENT_BINARY_DIR}/compiler profiles"
+            -P ${CMAKE_SOURCE_DIR}/tests/compiler_build_profiles_test.cmake)
+
     add_test(NAME assembly_build_profiles
         COMMAND ${CMAKE_COMMAND}
             "-DUVIM_CONFIG=$<TARGET_FILE:uvim-config>"
@@ -1157,7 +1241,7 @@ if(UVIM_BUILD_TESTS)
         PASS_REGULAR_EXPRESSION "^uvim ${_uvim_version_regex} \\(build [0-9]+\\)")
 
     find_package(Python3 COMPONENTS Interpreter QUIET)
-    if(Python3_Interpreter_FOUND)
+    if(Python3_Interpreter_FOUND AND NOT UVIM_MINIMAL)
         add_test(NAME debugger_examples
             COMMAND ${CMAKE_COMMAND}
                 "-DUVIM_PYTHON_EXECUTABLE=${Python3_EXECUTABLE}"

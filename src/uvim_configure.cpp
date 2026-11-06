@@ -256,6 +256,9 @@ struct Config
     int featureSet = 4;
     int buildType = 0;
     int platform = 0;
+    int compiler = 0;
+    std::string cCompiler;
+    std::string cxxCompiler;
     int optimization = 2;
     bool ninjaGenerator = true;
     std::string installDir;
@@ -285,6 +288,7 @@ struct Config
     bool structSizePopup = true;
     bool colorTools = true;
     bool terminalColors = true;
+    bool embeddedColors = false;
     bool modernKeybindings = true;
     bool multiPaneSplits = true;
     bool perPaneLsp = true;
@@ -306,6 +310,8 @@ bool operator==(const Config& lhs, const Config& rhs)
            lhs.platform == rhs.platform &&
            lhs.optimization == rhs.optimization &&
            lhs.ninjaGenerator == rhs.ninjaGenerator &&
+           lhs.compiler == rhs.compiler && lhs.cCompiler == rhs.cCompiler &&
+           lhs.cxxCompiler == rhs.cxxCompiler &&
            lhs.installDir == rhs.installDir && lhs.jobs == rhs.jobs &&
            lhs.logFile == rhs.logFile && lhs.minimal == rhs.minimal &&
            lhs.browserTools == rhs.browserTools &&
@@ -323,6 +329,7 @@ bool operator==(const Config& lhs, const Config& rhs)
            lhs.structSizePopup == rhs.structSizePopup &&
            lhs.colorTools == rhs.colorTools &&
            lhs.terminalColors == rhs.terminalColors &&
+           lhs.embeddedColors == rhs.embeddedColors &&
            lhs.modernKeybindings == rhs.modernKeybindings &&
            lhs.multiPaneSplits == rhs.multiPaneSplits &&
            lhs.perPaneLsp == rhs.perPaneLsp && lhs.tests == rhs.tests &&
@@ -392,9 +399,10 @@ struct VisibleRow
 };
 
 const std::vector<std::string> kFeatureSets =
-    {"vi-real", "vi-min", "minimal", "basic", "full"};
+    {"vi-real", "vi-min", "minimal", "basic", "full", "embedded"};
 const std::vector<std::string> kBuildTypes =
     {"Release", "Debug", "RelWithDebInfo", "MinSizeRel"};
+const std::vector<std::string> kCompilers = {"Auto", "GCC", "Clang", "MSVC"};
 const std::vector<std::string> kPlatforms = {"AUTO", "POSIX", "WIN32"};
 const std::vector<std::string> kOptimizations =
     {"O0", "O1", "O2", "O3", "Os", "Oz"};
@@ -653,16 +661,21 @@ void apply_feature_set(Config& cfg)
     cfg.sanitizers = false;
     cfg.debugLogging = false;
     cfg.debugLsp = false;
+    cfg.mlangSemanticTokens = cfg.featureSet != 5;
     cfg.minimal = false;
+    cfg.embeddedColors = false;
     cfg.browserTools = true;
     cfg.auxiliaryViews = true;
     cfg.debugger = cfg.featureSet >= 2;
     cfg.asmView = false;
 
-    if(cfg.featureSet == 0)
+    if(cfg.featureSet == 0 || cfg.featureSet == 5)
     {
         cfg.minimal = true;
-        cfg.browserTools = true;
+        cfg.browserTools = cfg.featureSet != 5;
+        cfg.debugger = false;
+        if(cfg.featureSet == 5)
+            cfg.staticLink = false;
         cfg.auxiliaryViews = false;
         cfg.optimization = 5;
         cfg.clangdLsp = false;
@@ -837,7 +850,8 @@ std::vector<Section> make_sections()
 {
     return {
         {"Presets",
-         "High-level build profiles. vi-real is the strictest vi-style build: "
+         "High-level build profiles. embedded is the smallest core build, "
+         "with browsers disabled. vi-real is a vi-style build: "
          "the editor core, welcome screen, tabs, and built-in file/buffer "
          "browser are kept. vi-min keeps the same browser tools while adding "
          "a few small conveniences, but keeps external tools and optional "
@@ -849,7 +863,9 @@ std::vector<Section> make_sections()
            nullptr,
            nullptr,
            {},
-           "vi-real is a hard minimal build that keeps file/buffer browser "
+           "embedded uses the hard minimal build without browsers, with Oz, "
+           "LTO, dead-code removal, and stripping. vi-real is a hard minimal "
+           "build that keeps file/buffer browser "
            "support but compiles out optional popups, help views, LSP, git, "
            "fzf/rg-style search views, formatters, clipboard, color tools, "
            "terminal colors, and struct-size probes. It also disables "
@@ -874,6 +890,17 @@ std::vector<Section> make_sections()
            &Config::buildType,
            kBuildTypes,
            "CMake build type. Release is the normal default."},
+          {ItemKind::Choice,
+           "Compiler",
+           "",
+           nullptr,
+           &Config::compiler,
+           kCompilers,
+           "Select Auto, GCC, Clang, or MSVC. Use a fresh build directory when changing compilers. MSVC needs a developer shell."},
+          {ItemKind::Text, "C compiler executable", "", nullptr, nullptr, {},
+           "Optional compiler path or name, for example gcc-15.", &Config::cCompiler},
+          {ItemKind::Text, "C++ compiler executable", "", nullptr, nullptr, {},
+           "Optional compiler path or name, for example g++-15.", &Config::cxxCompiler},
           {ItemKind::Choice,
            "Terminal backend",
            "UVIM_TERMINAL_BACKEND",
@@ -1019,6 +1046,13 @@ std::vector<Section> make_sections()
            {},
            "Build switch for :ansitools, :colorpicker, :colorselect, and "
            "leader-cp/cs shortcuts."},
+          {ItemKind::Toggle,
+           "Embedded bar colors",
+           "UVIM_EMBEDDED_COLORS",
+           &Config::embeddedColors,
+           nullptr,
+           {},
+           "White text on dark blue status and tab bars without syntax colors."},
           {ItemKind::Toggle,
            "Terminal colors",
            "UVIM_ENABLE_TERMINAL_COLORS",
@@ -1259,6 +1293,13 @@ std::string preset_help(const Config& cfg)
 {
     const std::string_view preset =
         kFeatureSets[static_cast<size_t>(cfg.featureSet)];
+    if(cfg.featureSet == 5)
+    {
+        return "embedded keeps core modal editing, file I/O, undo, tabs, and "
+               "built-in search. Browsers and optional integrations are "
+               "compiled out. Uses Release, Oz, LTO, dead-code removal, and "
+               "stripping; tests, logging, and static linking are disabled.";
+    }
     if(cfg.featureSet == 0)
     {
         return std::string(preset) +
@@ -1857,6 +1898,16 @@ bool apply_config_value(
         }
         cfg.buildType = *index;
     }
+    else if(key == "compiler")
+    {
+        auto index = choice_index(value, kCompilers);
+        if(!index) { error = "invalid compiler: " + value; return false; }
+        cfg.compiler = *index;
+    }
+    else if(key == "c_compiler")
+        cfg.cCompiler = value;
+    else if(key == "cxx_compiler")
+        cfg.cxxCompiler = value;
     else if(key == "platform")
     {
         auto index = choice_index(value, kPlatforms);
@@ -1948,6 +1999,8 @@ bool apply_config_value(
         cfg.structSizePopup = parse_bool(value).value_or(cfg.structSizePopup);
     else if(key == "color_tools")
         cfg.colorTools = parse_bool(value).value_or(cfg.colorTools);
+    else if(key == "embedded_colors")
+        cfg.embeddedColors = parse_bool(value).value_or(cfg.embeddedColors);
     else if(key == "terminal_colors")
         cfg.terminalColors = parse_bool(value).value_or(cfg.terminalColors);
     else if(key == "modern_keybindings")
@@ -2086,6 +2139,9 @@ bool write_config_file(
          << "\n";
     file << "optimization="
          << kOptimizations[static_cast<size_t>(cfg.optimization)] << "\n";
+    file << "compiler=" << kCompilers[cfg.compiler] << "\n";
+    file << "c_compiler=" << cfg.cCompiler << "\n";
+    file << "cxx_compiler=" << cfg.cxxCompiler << "\n";
     file << "ninja_generator=" << bool_value(cfg.ninjaGenerator) << "\n";
     file << "jobs=" << cfg.jobs << "\n";
     file << "install_dir=" << cfg.installDir << "\n";
@@ -2115,6 +2171,7 @@ bool write_config_file(
     file << "system_clipboard=" << bool_value(cfg.systemClipboard) << "\n";
     file << "struct_size_popup=" << bool_value(cfg.structSizePopup) << "\n";
     file << "color_tools=" << bool_value(cfg.colorTools) << "\n";
+    file << "embedded_colors=" << bool_value(cfg.embeddedColors) << "\n";
     file << "terminal_colors=" << bool_value(cfg.terminalColors) << "\n";
     file << "modern_keybindings=" << bool_value(cfg.modernKeybindings) << "\n";
     file << "multi_pane_splits=" << bool_value(cfg.multiPaneSplits) << "\n";
@@ -2133,12 +2190,83 @@ bool write_config_file(
     return true;
 }
 
+bool selected_compilers(const Config& cfg, std::string& cc, std::string& cxx,
+                        std::string& error)
+{
+    cc = cfg.cCompiler;
+    cxx = cfg.cxxCompiler;
+    std::string defaultC, defaultCxx;
+    if(cfg.compiler == 1)
+    {
+        defaultC = "gcc";
+        defaultCxx = "g++";
+#ifdef __APPLE__
+        // Apple's unversioned gcc/g++ executables are Clang aliases.
+        defaultC.clear();
+        defaultCxx.clear();
+        for(int version = 30; version >= 10; --version)
+        {
+            const auto suffix = "-" + std::to_string(version);
+            if(uvim_config_deps::programExists("gcc" + suffix) &&
+               uvim_config_deps::programExists("g++" + suffix))
+            {
+                defaultC = "gcc" + suffix;
+                defaultCxx = "g++" + suffix;
+                break;
+            }
+        }
+        if((cc.empty() || cxx.empty()) && defaultC.empty())
+        {
+            error = "GCC was not found. On macOS gcc/g++ are Clang aliases. "
+                    "Install GCC or set both compiler executable paths.";
+            return false;
+        }
+#endif
+    }
+    else if(cfg.compiler == 2)
+    {
+        defaultC = "clang";
+        defaultCxx = "clang++";
+    }
+    else if(cfg.compiler == 3)
+    {
+        defaultC = defaultCxx = "cl";
+    }
+    if(cc.empty()) cc = defaultC;
+    if(cxx.empty()) cxx = defaultCxx;
+    return true;
+}
+
 bool write_cache(
     const Config& cfg,
     const std::vector<Section>& sections,
     const CliOptions& options,
     std::string& message)
 {
+    std::string cc, cxx;
+    if(!selected_compilers(cfg, cc, cxx, message))
+        return false;
+    // CMake compiler choices belong to a build directory for its lifetime.
+    std::ifstream existing(options.buildDir / "CMakeCache.txt");
+    std::string cacheLine;
+    while(std::getline(existing, cacheLine))
+    {
+        const auto eq = cacheLine.find('=');
+        if(eq == std::string::npos) continue;
+        const auto name = cacheLine.substr(0, cacheLine.find(':'));
+        const auto& requested = name == "CMAKE_C_COMPILER" ? cc :
+                                name == "CMAKE_CXX_COMPILER" ? cxx : std::string{};
+        if(requested.empty()) continue;
+        const fs::path previous = cacheLine.substr(eq + 1);
+        const fs::path wanted = requested;
+        if((wanted.has_parent_path() && wanted != previous) ||
+           wanted.filename() != previous.filename())
+        {
+            message = "Compiler differs from the configured build. Use a fresh "
+                      "build directory (--build-dir).";
+            return false;
+        }
+    }
     fs::path out = output_path(options);
     std::error_code ec;
     fs::create_directories(out.parent_path(), ec);
@@ -2157,6 +2285,12 @@ bool write_cache(
 
     file << "# Generated by uvim-config. Pass with: "
          << configure_command(cfg, options, out) << "\n";
+    if(!cc.empty())
+        file << "set(CMAKE_C_COMPILER \"" << cmake_string_literal(cc)
+             << "\" CACHE STRING \"\" FORCE)\n";
+    if(!cxx.empty())
+        file << "set(CMAKE_CXX_COMPILER \"" << cmake_string_literal(cxx)
+             << "\" CACHE STRING \"\" FORCE)\n";
     file << "# Runtime uvim log file: " << cfg.logFile << "\n";
     const fs::path installDir =
         expand_user_path(cfg.installDir, fs::absolute(options.sourceDir));
@@ -2170,6 +2304,8 @@ bool write_cache(
          << "\" CACHE STRING \"\" FORCE)\n";
     file << "set(UVIM_MINIMAL " << (cfg.minimal ? "ON" : "OFF")
          << " CACHE BOOL \"\" FORCE)\n";
+    file << "set(UVIM_EMBEDDED_UI " << (cfg.featureSet == 5 ? "ON" : "OFF")
+         << " CACHE BOOL \"\" FORCE)\n";
     file << "set(UVIM_ENABLE_BROWSER_TOOLS "
          << (cfg.browserTools ? "ON" : "OFF") << " CACHE BOOL \"\" FORCE)\n";
     file << "set(UVIM_ENABLE_AUXILIARY_VIEWS "
@@ -2178,7 +2314,7 @@ bool write_cache(
     {
         for(const auto& item : section.items)
         {
-            if(item.kind == ItemKind::Choice)
+            if(item.kind == ItemKind::Choice && !item.cmakeName.empty())
             {
                 file << "set(" << item.cmakeName << " \""
                      << cmake_string_literal(item.choices[static_cast<size_t>(
@@ -2232,6 +2368,9 @@ void print_help(std::ostream& out)
         << "  -S, --source-dir DIR        Source directory for the printed "
            "cmake "
            "command.\n"
+        << "      --compiler NAME        Auto, GCC, Clang, or MSVC. Use a fresh build directory.\n"
+        << "      --c-compiler PATH      Override C compiler executable.\n"
+        << "      --cxx-compiler PATH    Override C++ compiler executable.\n"
         << "  -B, --build-dir DIR         Build directory and default cache "
            "output.\n"
         << "      --import FILE           Load uvim-config.conf before later "
@@ -2258,7 +2397,7 @@ void print_help(std::ostream& out)
            "auxiliary-views, "
            "debugger, asm-view, asm-docs,\n"
         << "  git, search, formatters, clipboard,\n"
-        << "  struct-size, color-tools, terminal-colors, tests, "
+        << "  struct-size, color-tools, terminal-colors, embedded-colors, tests, "
            "compile-commands, "
            "modern-keybindings, multi-pane-splits, per-pane-lsp,\n"
         << "  auto-build-number,\n"
@@ -2342,6 +2481,8 @@ bool set_feature(
         equals_ci(name, "colorpicker") || equals_ci(name, "color-picker") ||
         equals_ci(name, "colorselect") || equals_ci(name, "color-selector"))
         cfg.colorTools = enabled;
+    else if(equals_ci(name, "embedded-colors"))
+        cfg.embeddedColors = enabled;
     else if(
         equals_ci(name, "terminal-colors") ||
         equals_ci(name, "terminal-color") || equals_ci(name, "ui-colors") ||
@@ -2451,6 +2592,14 @@ bool parse_cli(
             }
             cfg.featureSet = *index;
             apply_feature_set(cfg);
+        }
+        else if(arg == "--compiler" || arg == "--c-compiler" || arg == "--cxx-compiler")
+        {
+            auto value = next_arg(i, argc, argv, arg, error);
+            if(!value) return false;
+            const std::string key = arg == "--compiler" ? "compiler" :
+                arg == "--c-compiler" ? "c_compiler" : "cxx_compiler";
+            if(!apply_config_value(cfg, options, key, std::string(*value), error)) return false;
         }
         else if(arg == "-c" || arg == "--config")
         {

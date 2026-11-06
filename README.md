@@ -408,13 +408,14 @@ and as a non-interactive command-line tool.
 
 | Preset | Intended use | Included | Compiled out or disabled |
 | --- | --- | --- | --- |
+| `embedded` | Smallest core editor for embedded systems | Core modal editing, file I/O, undo, tabs, built-in search | Browsers and all optional integrations, colors, LSP, tests, logging, static linking |
 | `vi-real` | Small vi-style binary for VT-compatible terminals, recovery environments, remote machines, and minimal installations | Core modal editing, welcome screen, tabs, built-in file and buffer browsers | Colors, modern bindings, nested panes, auxiliary views, Git, search/indexing, formatters, clipboard, assembly browser/docs, LSP, tests, and compile database output |
 | `vi-min` | Small colored terminal editor with a few modern conveniences | `vi-real` editing/browser base plus terminal colors, color tools, modern bindings, and nested panes | Git, fuzzy/grep/regex tools, formatters, clipboard, auxiliary views, assembly browser/docs, LSP, tests, and compile database output |
 | `minimal` | Compact modern editor without language servers | Browsers, auxiliary views, Git, cached search, formatters, clipboard, colors, and nested panes | LSP, assembly browser/docs, struct-size popup, tests, and compile database output |
 | `basic` | Normal development build when LSP support is not needed | Editor features, browsers, Git, search, formatters, clipboard, assembly docs, auxiliary views, tests, and compile database output | Assembly browser and all language-server clients |
 | `full` | Complete uVim development environment | All editor features, tests, compile database output, and every available LSP client | Sanitizers, debug logging, stripping, and static linking remain opt-in build modes |
 
-`vi-real`, `vi-min`, and `minimal` select `-Oz`, LTO, dead-code section
+`embedded`, `vi-real`, `vi-min`, and `minimal` select `-Oz`, LTO, dead-code section
 collection, and binary stripping. `basic` and `full` default to Release with
 `-O2`, LTO, and dead-code section collection. Presets are starting points;
 later `--enable` and `--disable` arguments override individual choices.
@@ -638,6 +639,88 @@ cmake --build build --parallel 8
 ```
 
 ### Direct CMake configuration
+
+Select the toolchain in **Target → Compiler** in `uvim-config`, or use
+`--compiler GCC`, `--compiler Clang`, or `--compiler MSVC`. `Auto` leaves the
+choice to CMake. For example, with GCC installed:
+
+```sh
+./build/uvim-config --preset embedded --compiler GCC --build-dir build/gcc
+cmake -C build/gcc/uvim_config_cache.cmake -S . -B build/gcc -G Ninja
+cmake --build build/gcc --target uvim --parallel 4
+```
+
+Use a fresh build directory when changing compilers. Versioned executables
+and cross-compilers can be specified with `--c-compiler` and `--cxx-compiler`
+(also editable under Target). For example, pass `--c-compiler gcc-15
+--cxx-compiler g++-15`. On macOS the GCC selector looks for versioned GNU
+executables because Apple's unversioned `gcc` and `g++` invoke Clang. MSVC
+requires a Visual Studio developer shell when using Ninja.
+
+For the smallest current core editor, use the `embedded` CMake preset
+(CMake 3.20+ and Ninja):
+
+```sh
+cmake --preset embedded
+cmake --build --preset embedded --parallel 4
+./build/embedded/uvim path/to/file
+```
+
+This uses the hard minimal feature gate and also removes file/buffer browsers.
+It enables Release size optimization (`-Oz`, falling back to `-Os` on older
+compilers; `/O1` on MSVC), LTO, dead-code removal, and stripping where supported.
+Tests, logging, sanitizers, and build-number increments are disabled. Core modal
+editing, file I/O, undo, tabs, and built-in search remain.
+The minimal gate also removes symbol/definition tools; disabled size probes,
+emoji tools, and syntax tokenization are excluded from the linked executable.
+The welcome screen lists only features compiled into the selected build.
+The embedded profile reserves one column on the left for a `>` marker on
+visually selected rows. Line numbers are omitted; row position remains in the
+status line. This behavior is controlled by `UVIM_EMBEDDED_UI`.
+Builds without clangd also skip compile-database discovery and merging, and
+builds without LSP skip language-server discovery at startup. Minimal builds
+use silent stubs instead of compiling the completion and popup implementation.
+The embedded preset neither fetches fmt nor links fmt or yyjson. Its disabled
+logger is an empty compatibility class; formatting and logging I/O headers
+are excluded. The platform C/C++ runtime and threading support remain required.
+An Apple Clang 21 macOS arm64 build measured 647,912 bytes (about 633 KiB);
+target architecture and runtime linkage affect the result.
+
+This is a baseline
+for embedded Linux or other supported operating systems with a terminal, not
+a bare-metal firmware build. It still needs the platform C/C++ runtime.
+Static runtime linking is off to keep the executable small; enable
+`-DUVIM_STATIC_LINK=ON` only when the target requires it and measure the result.
+
+For cross-compilation, configure a separate directory with the target toolchain:
+
+```sh
+cmake --preset embedded -B build/embedded-target \
+  -DCMAKE_TOOLCHAIN_FILE=/path/to/toolchain.cmake
+cmake --build build/embedded-target --target uvim --parallel 4
+```
+
+Measure size on the target architecture before choosing additional features.
+Browsers can be restored with `-DUVIM_ENABLE_BROWSER_TOOLS=ON`. To restore
+features forced off by the minimal gate, set `-DUVIM_MINIMAL=OFF` and explicitly
+enable the desired feature switches (the existing cache retains disabled ones).
+The same profile is available in the `uvim-config` selector and through
+`uvim-config --preset embedded --build-dir build/embedded`.
+
+Enable **Embedded bar colors** in the configurator, or pass
+`--preset embedded --enable embedded-colors`, for white text on dark blue
+status and tab bars. Syntax coloring remains disabled. Direct CMake builds
+can use `-DUVIM_EMBEDDED_COLORS=ON`.
+
+Embedded builds can run the core unit tests. In `uvim-config`, enable **Tests**
+after selecting the embedded preset (`--preset embedded --enable tests`).
+Feature-specific suites for disabled integrations are omitted. Alternatively:
+
+```sh
+cmake --preset embedded-tests -DUVIM_EMBEDDED_COLORS=ON
+cmake --build --preset embedded-tests --parallel 4
+ctest --preset embedded-tests
+```
 
 Advanced builds may bypass `uvim-config` and set the `UVIM_*` CMake options
 directly. For example:

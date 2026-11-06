@@ -1338,6 +1338,8 @@ void Editor::drawCompletionPopup(std::string& output) const
 
 void Editor::openEmojiPopup()
 {
+#if defined(UVIM_ENABLE_AUXILIARY_VIEWS)
+
     if(emojiEntries.empty())
     {
         emojiEntries.reserve(std::size(kEmojiList));
@@ -1361,6 +1363,9 @@ void Editor::openEmojiPopup()
     emojiPopupActive = true;
     emojiQuery.clear();
     rebuildEmojiFilter();
+#else
+    setStatusMessage("emoji tools disabled in this build");
+#endif
 }
 
 void Editor::cancelEmojiPopup()
