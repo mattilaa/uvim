@@ -12,6 +12,47 @@ editor with selected integrations, or the complete development build. Large
 features are compile-time options, so reduced builds do not merely hide unused
 menus—they leave the corresponding implementation out of the binary.
 
+## Why uVim?
+
+An editor should stay fast and responsive, with the features you need for
+your work. uVim puts that choice in your hands.
+
+uVim is built for high-performance editing with control over what you include.
+Use `uvim-config` to choose the features you need and compile out the rest.
+The same editor can scale from a development environment with language servers
+and project tools down to a small core editor for embedded devices. Fast,
+responsive editing is the priority at every size.
+
+The editor's built-in features live in a single executable rather than a
+collection of editor plugins. Language servers run as separate processes;
+integrations such as Git, ripgrep, formatters, and compilers also use external
+tools when enabled. The uVim binary itself can be very small, depending on the
+features, optimization settings, and target platform selected at build time.
+The embedded profile strips it down to the core editor.
+
+Language-server work runs asynchronously, so LSP startup, diagnostics, and
+other background processing can proceed while you keep editing, without
+blocking the editor waiting for a server response.
+
+Project search follows the same approach: fuzzy file finding and
+ripgrep-backed search use asynchronous work and caching to avoid repeatedly
+scanning the project. Cached file indexes, search data, and previews help keep
+navigation and repeated searches responsive as projects grow.
+
+Other integrations use the same approach where appropriate:
+
+- Git subprocess output waits run through worker tasks with progress updates.
+  Git tasks share a queue to preserve command order. Commands that need a
+  result can still wait, buffering keyboard input until they finish.
+- Assembly compilation runs as a background task, with results applied when
+  ready.
+- C++ header-symbol indexing and system-include discovery run in background
+  tasks and cache their results for subsequent lookups.
+- Project-wide line counting runs in the background and reports progress
+  through the status bar and `:tasks`.
+- Debugger communication uses nonblocking I/O, with responses processed
+  during idle updates.
+
 ## Highlights
 
 - vi-style normal, insert, replace, visual, text-object, mark, and jump flows
@@ -31,6 +72,7 @@ menus—they leave the corresponding implementation out of the binary.
 
 ## Contents
 
+- [Why uVim?](#why-uvim)
 - [Release notes](#release-notes)
 - [How to make a release](RELEASE_PROCESS.md#release-checklist)
 - [Supported platforms and builds](#supported-platforms-and-builds)
