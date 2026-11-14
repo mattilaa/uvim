@@ -167,6 +167,12 @@ void EditorFileController::saveFile()
     for(size_t lineIdx = 0; lineIdx < lines->size(); lineIdx++)
     {
         std::string& line = (*lines)[lineIdx];
+        // Most lines need no save-time cleanup. Avoid copying and rebuilding
+        // them unless they contain tabs or end in a space.
+        if(line.empty() ||
+           (line.back() != ' ' && line.find('\t') == std::string::npos))
+            continue;
+
         std::string original = line;
 
         std::string expanded;

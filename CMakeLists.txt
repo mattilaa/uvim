@@ -1077,6 +1077,7 @@ if(UVIM_BUILD_TESTS)
             tests/loc_count_test.cpp
         )
     endif()
+    list(APPEND UVIM_REAL_MODE_TEST_FILES tests/editor_file_save_test.cpp)
     if(UVIM_ENABLE_CLANGD_LSP)
         list(APPEND UVIM_REAL_MODE_TEST_FILES
             tests/lsp_clangd_integration_test.cpp
