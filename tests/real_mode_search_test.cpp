@@ -458,7 +458,8 @@ void typeText(ModeStateMachine& sm, const std::string& text)
 
 TEST(RealModeTransitionsTest, FuzzyFindLineSuffixJumpsToLine)
 {
-    auto root = make_temp_dir("uvim_fuzzy_line_");
+    // Fuzzy matching includes parent directories, so even other.txt can match.
+    auto root = make_temp_dir("uvim_fuzzy_line_target_file_");
     write_file(root / "target_file.txt", numberedLines(10, "line x", 0));
     write_file(root / "other.txt", "other\n");
     ScopedCurrentPath cwd(root);
@@ -469,10 +470,21 @@ TEST(RealModeTransitionsTest, FuzzyFindLineSuffixJumpsToLine)
 
     auto sm = makeMachine(editor, NormalMode{});
     sm.dispatch(keyCode(control::ControlKey::CTRL_P));
-    typeText(sm, "target_file:7");
+    typeText(sm, "target_file");
     auto* fuzzy = sm.getState<FuzzyFindMode>();
     ASSERT_NE(fuzzy, nullptr);
-    ASSERT_EQ(fuzzy->matches.size(), 1u) << "the :7 suffix must not filter";
+    ASSERT_FALSE(fuzzy->matches.empty());
+    std::vector<std::string> matchedPaths;
+    for(const auto& match : fuzzy->matches)
+        matchedPaths.push_back(match.file.path);
+
+    typeText(sm, ":7");
+    fuzzy = sm.getState<FuzzyFindMode>();
+    ASSERT_NE(fuzzy, nullptr);
+    ASSERT_EQ(fuzzy->matches.size(), matchedPaths.size())
+        << "the :7 suffix must not filter";
+    for(size_t i = 0; i < matchedPaths.size(); ++i)
+        EXPECT_EQ(fuzzy->matches[i].file.path, matchedPaths[i]);
 
     sm.dispatch(keyCode(control::ControlKey::ENTER));
     EXPECT_STREQ(sm.currentStateName(), "NORMAL");
