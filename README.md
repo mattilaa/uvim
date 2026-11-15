@@ -1,4 +1,7 @@
 [![CI](https://github.com/mattilaa/uvim/actions/workflows/ci.yml/badge.svg)](https://github.com/mattilaa/uvim/actions/workflows/ci.yml)
+#### TL;DR
+uVim is a high performance terminal editor made for software developers. Supports macOS / Linux / Windows.
+
 # uVim
 
 uVim is a configurable, terminal-native modal code editor. It keeps familiar
