@@ -39,6 +39,17 @@ ripgrep-backed search use asynchronous work and caching to avoid repeatedly
 scanning the project. Cached file indexes, search data, and previews help keep
 navigation and repeated searches responsive as projects grow.
 
+Fuzzy finding is available almost everywhere: file and buffer lists, help,
+function signatures, the command palette, command history, Git logs, and
+debugger pickers. Type a few characters to narrow the choices with the same
+matching behavior across views. It can even find matches when characters are
+typed out of order: `fiel` finds `file`, while correctly ordered matches rank
+first. Regular-expression filtering with `re:pattern` is also available in
+file and buffer finders, function signatures, the command palette, command
+and history popups, help search, Git logs, and debugger process and frame
+pickers. See the
+[fuzzy filtering guide](docs/wiki/Fuzzy-Filtering.md) for details.
+
 Other integrations use the same approach where appropriate:
 
 - Git subprocess output waits run through worker tasks with progress updates.
